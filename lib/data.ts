@@ -1,0 +1,228 @@
+import {
+  Blocks,
+  CookingPot,
+  Droplets,
+  LucideIcon,
+  PaintRoller,
+  Plug,
+  ShowerHead,
+} from "lucide-react";
+
+export interface NavCategory {
+  label: string;
+  href: string;
+  children?: { label: string; href: string }[];
+}
+
+export interface Category {
+  name: string;
+  slug: string;
+  href: string;
+  /** Shows the yellow "Bulk Prices" badge in the tile's top-left corner. */
+  bulk?: boolean;
+}
+
+export interface Product {
+  id: string;
+  title: string;
+  brandLine: string;
+  price: number;
+  compareAt: number;
+  unit: string;
+  bulkNote?: string;
+  icon: LucideIcon;
+  /** Product photo under /public/products; icon placeholder shows if missing. */
+  image?: string;
+}
+
+export interface Testimonial {
+  id: string;
+  name: string;
+  role: string;
+  quote: string;
+}
+
+export const ANNOUNCEMENTS = [
+  "Open 8am to 8pm (All Days)",
+  "Free delivery for first 3 orders above ₹500 🚀",
+  "Serving Srinagar with ❤️",
+  "Superfast delivery in minutes 🚀",
+];
+
+export const NAV_PRIMARY: NavCategory[] = [
+  {
+    label: "Materials",
+    href: "/#categories",
+    children: [
+      { label: "Civil & Interiors", href: "/#categories" },
+      { label: "Furniture & Architectural Hardware", href: "/#categories" },
+      { label: "Electrical", href: "/#categories" },
+      { label: "Plumbing, Sanitary & Bath", href: "/#categories" },
+      { label: "Tools", href: "/#categories" },
+      { label: "All Categories", href: "/#categories" },
+    ],
+  },
+  {
+    label: "Services",
+    href: "/services",
+    children: [
+      { label: "Complete Home Construction", href: "/services#service-categories" },
+      { label: "Home Renovation", href: "/services#service-categories" },
+      { label: "Interior Design", href: "/services#service-categories" },
+      { label: "Painting Services", href: "/services#service-categories" },
+      { label: "Plumbing & Electrical", href: "/services#service-categories" },
+      { label: "All Services", href: "/services" },
+    ],
+  },
+  { label: "About", href: "/#" },
+  { label: "Contact", href: "#contact" },
+];
+
+export const CATEGORIES: Category[] = [
+  { name: "Cement", slug: "cement", href: "#", bulk: true },
+  { name: "Tiling", slug: "tiling", href: "#", bulk: true },
+  { name: "Painting", slug: "painting", href: "#" },
+  { name: "Waterproofing", slug: "waterproofing", href: "#" },
+  { name: "Plywood, MDF & HDHMR", slug: "plywood-mdf-hdhmr", href: "#" },
+  { name: "Fevicol", slug: "fevicol", href: "#" },
+  { name: "Wires, MCB & Distribution Boards", slug: "wires-mcb-distribution-boards", href: "#", bulk: true },
+  { name: "Kitchen Sinks & Faucets", slug: "kitchen-sinks-faucets", href: "#" },
+  { name: "Sanitary & Bath Fittings", slug: "sanitary-bath-fittings", href: "#" },
+  { name: "Switches & Sockets", slug: "switches-sockets", href: "#" },
+  { name: "Hinges, Channels & Handles", slug: "hinges-channels-handles", href: "#" },
+  { name: "Kitchen Systems & Accessories", slug: "kitchen-systems-accessories", href: "#" },
+  { name: "Wardrobe & Bed Fittings", slug: "wardrobe-bed-fittings", href: "#" },
+  { name: "Door Locks & Hardware", slug: "door-locks-hardware", href: "#" },
+  { name: "Conduits & GI Boxes", slug: "conduits-gi-boxes", href: "#" },
+  { name: "Lighting", slug: "lighting", href: "#" },
+  { name: "CPVC Pipes & Overhead Tanks", slug: "cpvc-pipes-overhead-tanks", href: "#" },
+  { name: "Ceiling Fans & Exhaust", slug: "ceiling-fans-exhaust", href: "#" },
+  { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup", href: "#" },
+  { name: "General Hardware & Tools", slug: "general-hardware-tools", href: "#" },
+];
+
+export const DEALS: Product[] = [
+  {
+    id: "ppc-cement-50kg",
+    image: "/products/ppc-cement-50kg.webp",
+    title: "PPC Cement, 50 kg Bag",
+    brandLine: "Trusted trade brand",
+    price: 320,
+    compareAt: 335,
+    unit: "per bag",
+    bulkNote: "Bulk price from ₹310/bag (100+ bags)",
+    icon: Blocks,
+  },
+  {
+    id: "waterproof-primer-20l",
+    image: "/products/waterproof-primer-20l.webp",
+    title: "Interior Waterproofing Primer, 20 L",
+    brandLine: "Advanced damp protection",
+    price: 4899,
+    compareAt: 6799,
+    unit: "per can",
+    icon: ShowerHead,
+  },
+  {
+    id: "distemper-white-20kg",
+    image: "/products/distemper-white-20kg.webp",
+    title: "Acrylic Distemper Paint, White, 20 kg",
+    brandLine: "Smooth matt finish",
+    price: 1549,
+    compareAt: 2499,
+    unit: "per bucket",
+    icon: PaintRoller,
+  },
+  {
+    id: "gp-sealant-white",
+    image: "/products/gp-sealant-white.webp",
+    title: "General Purpose Sealant, White",
+    brandLine: "Multi-surface silicone",
+    price: 199,
+    compareAt: 645,
+    unit: "per tube",
+    icon: Droplets,
+  },
+  {
+    id: "inverter-battery-combo",
+    image: "/products/inverter-battery-combo.webp",
+    title: "1050 VA Inverter & 180 Ah Battery Combo",
+    brandLine: "Home power backup",
+    price: 24499,
+    compareAt: 25599,
+    unit: "per combo",
+    icon: Plug,
+  },
+  {
+    id: "ss-kitchen-sink",
+    image: "/products/ss-kitchen-sink.webp",
+    title: "Stainless Steel Kitchen Sink, Single Bowl",
+    brandLine: "Satin finish, 24 x 18 in",
+    price: 2899,
+    compareAt: 4299,
+    unit: "per piece",
+    icon: CookingPot,
+  },
+];
+
+export const TESTIMONIALS: Testimonial[] = [
+  {
+    id: "t1",
+    name: "Ravi Kumar",
+    role: "Site Engineer, Hyderpora",
+    quote: "Cement reached my site in 45 minutes. Saved a full day of labour cost.",
+  },
+  {
+    id: "t2",
+    name: "Anita Sharma",
+    role: "Homeowner, Rajbagh",
+    quote: "Mid-renovation, we ran out of tile adhesive on a Sunday. Vertical Express delivered before lunch.",
+  },
+  {
+    id: "t3",
+    name: "Mohammed Irfan",
+    role: "Contractor, Lal Chowk",
+    quote: "Prices match the local mandi and I don't have to send a worker to fetch materials.",
+  },
+  {
+    id: "t4",
+    name: "Deepa Nair",
+    role: "Interior Designer, Nishat",
+    quote: "The hardware selection is excellent. Hinges and channels arrive in an hour, every time.",
+  },
+  {
+    id: "t5",
+    name: "Suresh Gowda",
+    role: "Builder, Bemina",
+    quote: "Pay on delivery and genuine brands. My default supplier for every project now.",
+  },
+];
+
+export const FOOTER_LINKS = {
+  company: [
+    { label: "About Us", href: "#" },
+    { label: "Contact", href: "#" },
+    { label: "Price Lists", href: "#" },
+    { label: "Knowledge Hub", href: "#" },
+    { label: "FAQ's", href: "#" },
+  ],
+  policy: [
+    { label: "Refund Policy", href: "#" },
+    { label: "Privacy Policy", href: "#" },
+    { label: "Terms of Service", href: "#" },
+    { label: "Shipping Policy", href: "#" },
+    { label: "Contact Information", href: "#" },
+  ],
+};
+
+export const CONTACT = {
+  email: "hello@verticalexpress.co",
+  address:
+    "Vertical Express Commerce, Residency Road, Lal Chowk, Srinagar, Jammu & Kashmir 190001",
+};
+
+export const TRUST_ITEMS: { icon: "star" | "shield" | "banknote"; title: string; caption: string }[] = [
+  { icon: "star", title: "4.9 Google Rating", caption: "Loved by thousands of builders & homeowners" },
+  { icon: "shield", title: "Quality Assurance", caption: "100% genuine brands, sourced directly" },
+  { icon: "banknote", title: "Pay on Delivery", caption: "Check your order first, then pay" },
+];
