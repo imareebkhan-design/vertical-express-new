@@ -2,12 +2,13 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DEALS } from "@/lib/data";
+import type { CatalogItem } from "@/lib/services/catalog";
 import { ProductCard } from "@/components/product-card";
 import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
+import { paiseToRupees } from "@/lib/money";
 import { cn } from "@/lib/utils";
 
-export function Deals() {
+export function Deals({ items }: { items: CatalogItem[] }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(true);
@@ -72,9 +73,22 @@ export function Deals() {
           onScroll={updateArrows}
           className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
         >
-          {DEALS.map((product) => (
-            <StaggerItem key={product.id} className="flex shrink-0">
-              <ProductCard product={product} href={`/product/${product.id}`} />
+          {items.map((item) => (
+            <StaggerItem key={item.id} className="flex shrink-0">
+              <ProductCard
+                href={`/product/${item.slug}`}
+                productId={item.id}
+                product={{
+                  id: item.variantId,
+                  title: item.title,
+                  brandLine: item.brandName,
+                  price: paiseToRupees(item.pricePaise),
+                  compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
+                  unit: item.unitLabel,
+                  image: item.imageUrl ?? undefined,
+                  bulkNote: item.hasBulkTiers ? "Bulk prices available" : undefined,
+                }}
+              />
             </StaggerItem>
           ))}
         </div>

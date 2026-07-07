@@ -1,45 +1,151 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
-import type { Product } from "@/lib/data";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { getCart, addToCart, updateCartItem, removeCartItem } from "@/actions/cart";
+import { getMyWishlistIds } from "@/actions/wishlist";
+import type { CartSummary } from "@/lib/services/cart";
 
-interface CartLine {
-  product: Product;
-  qty: number;
-}
+const EMPTY_SUMMARY: CartSummary = {
+  cartId: null,
+  lines: [],
+  count: 0,
+  subtotalPaise: 0,
+  freeDeliveryThresholdPaise: 50000,
+  freeDeliveryRemainingPaise: 50000,
+  qualifiesFreeDelivery: false,
+};
 
 interface CartContextValue {
-  lines: CartLine[];
+  summary: CartSummary;
   count: number;
-  total: number;
-  add: (product: Product, qty: number) => void;
-  lastAdded: Product | null;
+  pending: boolean;
+  lastAddedTitle: string | null;
+  addItem: (variantId: string, qty: number, title?: string) => Promise<boolean>;
+  updateItem: (itemId: string, qty: number) => Promise<void>;
+  removeItem: (itemId: string) => Promise<void>;
+  refresh: () => Promise<void>;
+  /** Wishlist product ids for the signed-in user (empty for guests). */
+  wishlistIds: Set<string>;
+  setWishlisted: (productId: string, added: boolean) => void;
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+/** Server-backed cart. Initial state hydrates from the DB; mutations call
+ *  server actions and reconcile with the authoritative returned summary. */
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [lines, setLines] = useState<CartLine[]>([]);
-  const [lastAdded, setLastAdded] = useState<Product | null>(null);
+  const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
+  const [optimisticCount, setOptimisticCount] = useState<number | null>(null);
+  const [lastAddedTitle, setLastAddedTitle] = useState<string | null>(null);
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
+  const [pending, startTransition] = useTransition();
+  const lastAddedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
-  const add = useCallback((product: Product, qty: number) => {
-    setLines((prev) => {
-      const existing = prev.find((l) => l.product.id === product.id);
-      if (existing) {
-        return prev.map((l) =>
-          l.product.id === product.id ? { ...l, qty: l.qty + qty } : l
-        );
-      }
-      return [...prev, { product, qty }];
-    });
-    setLastAdded(product);
+  const refresh = useCallback(async () => {
+    const s = await getCart();
+    setSummary(s);
+    setOptimisticCount(null);
   }, []);
 
-  const value = useMemo<CartContextValue>(() => {
-    const count = lines.reduce((sum, l) => sum + l.qty, 0);
-    const total = lines.reduce((sum, l) => sum + l.qty * l.product.price, 0);
-    return { lines, count, total, add, lastAdded };
-  }, [lines, add, lastAdded]);
+  useEffect(() => {
+    void refresh();
+    void getMyWishlistIds().then((ids) => setWishlistIds(new Set(ids)));
+  }, [refresh]);
+
+  const setWishlisted = useCallback((productId: string, added: boolean) => {
+    setWishlistIds((prev) => {
+      const next = new Set(prev);
+      if (added) next.add(productId);
+      else next.delete(productId);
+      return next;
+    });
+  }, []);
+
+  const addItem = useCallback(
+    async (variantId: string, qty: number, title?: string) => {
+      setOptimisticCount((c) => (c ?? summary.count) + qty);
+      if (title) {
+        setLastAddedTitle(title);
+        if (lastAddedTimer.current) clearTimeout(lastAddedTimer.current);
+        lastAddedTimer.current = setTimeout(() => setLastAddedTitle(null), 2500);
+      }
+      const result = await addToCart({ variantId, qty });
+      if (result.ok) {
+        setSummary(result.data);
+        setOptimisticCount(null);
+        return true;
+      }
+      // rollback
+      setOptimisticCount(null);
+      await refresh();
+      return false;
+    },
+    [summary.count, refresh]
+  );
+
+  const updateItem = useCallback(async (itemId: string, qty: number) => {
+    const clamped = Math.max(0, Math.min(999, qty));
+    // Optimistic line update (functional → rapid clicks accumulate correctly).
+    setSummary((prev) => {
+      const lines = prev.lines
+        .map((l) =>
+          l.itemId === itemId ? { ...l, qty: clamped, lineTotalPaise: l.unitPricePaise * clamped } : l
+        )
+        .filter((l) => l.qty > 0);
+      return { ...prev, lines, count: lines.reduce((s, l) => s + l.qty, 0) };
+    });
+    // Debounce the server sync so only the final quantity is written, then
+    // reconcile with authoritative tier-adjusted pricing from the server.
+    const existing = syncTimers.current.get(itemId);
+    if (existing) clearTimeout(existing);
+    syncTimers.current.set(
+      itemId,
+      setTimeout(() => {
+        syncTimers.current.delete(itemId);
+        startTransition(async () => {
+          const result = await updateCartItem({ itemId, qty: clamped });
+          if (result.ok) setSummary(result.data);
+        });
+      }, 400)
+    );
+  }, []);
+
+  const removeItem = useCallback(async (itemId: string) => {
+    setSummary((prev) => {
+      const lines = prev.lines.filter((l) => l.itemId !== itemId);
+      return { ...prev, lines, count: lines.reduce((s, l) => s + l.qty, 0) };
+    });
+    startTransition(async () => {
+      const result = await removeCartItem({ itemId });
+      if (result.ok) setSummary(result.data);
+    });
+  }, []);
+
+  const value = useMemo<CartContextValue>(
+    () => ({
+      summary,
+      count: optimisticCount ?? summary.count,
+      pending,
+      lastAddedTitle,
+      addItem,
+      updateItem,
+      removeItem,
+      refresh,
+      wishlistIds,
+      setWishlisted,
+    }),
+    [summary, optimisticCount, pending, lastAddedTitle, addItem, updateItem, removeItem, refresh, wishlistIds, setWishlisted]
+  );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

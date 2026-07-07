@@ -1,13 +1,14 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
-import { formatINR } from "@/lib/utils";
+import { formatPaise } from "@/lib/money";
 
 /** Floating "View cart" pill that appears once items are added. */
 export function FloatingCart() {
-  const { count, total } = useCart();
+  const { count, summary } = useCart();
 
   return (
     <AnimatePresence>
@@ -19,7 +20,10 @@ export function FloatingCart() {
           transition={{ type: "spring", stiffness: 320, damping: 26 }}
           className="fixed inset-x-4 bottom-4 z-40 sm:inset-x-auto sm:right-6 sm:w-80"
         >
-          <button className="flex w-full cursor-pointer items-center justify-between rounded-2xl bg-ink px-5 py-4 text-white shadow-card-hover transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0">
+          <Link
+            href="/cart"
+            className="flex w-full cursor-pointer items-center justify-between rounded-2xl bg-ink px-5 py-4 text-white shadow-card-hover transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+          >
             <span className="flex items-center gap-3">
               <span className="relative">
                 <ShoppingCart className="size-5" aria-hidden />
@@ -34,8 +38,10 @@ export function FloatingCart() {
               </span>
               <span className="text-sm font-extrabold">View cart</span>
             </span>
-            <span className="text-sm font-extrabold text-brand">{formatINR(total)}</span>
-          </button>
+            <span className="text-sm font-extrabold text-brand">
+              {formatPaise(summary.subtotalPaise)}
+            </span>
+          </Link>
         </motion.div>
       )}
     </AnimatePresence>

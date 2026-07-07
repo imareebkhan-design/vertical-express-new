@@ -44,7 +44,15 @@
 - [x] Filters added to category PLP too (shared components)
 - [x] catalog listProducts already supported search/brand/price facets
 - [x] E2E verified: suggest API (3 products + 1 category), /search?q=cement (4 products), brand filter, empty state; prod build green
-## Milestone 5 — Cart + Wishlist → in progress
-## Milestone 6 — Addresses → not started
+## Milestone 5 — Cart + Wishlist ✅
+- [x] lib/services/cart.ts: server cart w/ live tier pricing, next-tier nudges, free-delivery meter, stock check
+- [x] actions/cart.ts: addToCart/updateCartItem/removeCartItem + guest anon_id httpOnly cookie
+- [x] hooks/use-cart.tsx rewritten server-backed (optimistic count, debounced qty sync to fix rapid-click race)
+- [x] /cart page: line items, tier badges, free-delivery progress bar, sticky order summary, empty state
+- [x] Homepage Deals now server-driven (getDeals) with real variant IDs; ProductCard/PDP/FloatingCart/navbar wired to server cart
+- [x] Wishlist: lib/services/wishlist.ts + actions (toggle, getMyWishlistIds), heart on cards (hydrated client-side via context so catalog pages stay static), /account/wishlist page (auth-guarded)
+- [x] E2E verified: guest add persists to DB, badge updates, cart tier pricing (qty 10 → ₹315/bag total ₹3,150), remove → empty, wishlist guard redirects; prod build green (catalog pages static)
+- Note: guest wishlist-heart click rolls back (needs login); improve to login-redirect later
+## Milestone 6 — Addresses → in progress
 ## Milestone 7 — Checkout (dummy gateway) + Confirmation → not started
 ## Milestone 8 — My Orders + Dashboard → not started

@@ -96,7 +96,8 @@ export function Navbar() {
         <div className="ml-auto flex items-center gap-1 md:ml-0">
           <PincodeChip />
           <AccountButton />
-          <button
+          <Link
+            href="/cart"
             className="relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
             aria-label={`Cart, ${count} items`}
           >
@@ -115,7 +116,7 @@ export function Navbar() {
                 </motion.span>
               )}
             </AnimatePresence>
-          </button>
+          </Link>
         </div>
       </div>
 

@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
-import { paiseToRupees } from "@/lib/money";
 import { BulkTierTable } from "@/components/shop/bulk-tier-table";
 import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/lib/services/catalog";
@@ -16,7 +15,7 @@ import type { ProductDetail } from "@/lib/services/catalog";
  * until Milestone 5 swaps in the server cart action.
  */
 export function PdpActions({ product }: { product: ProductDetail }) {
-  const { add } = useCart();
+  const { addItem } = useCart();
   const [variantId, setVariantId] = useState(
     product.variants.find((v) => v.isDefault)?.id ?? product.variants[0]?.id
   );
@@ -46,21 +45,12 @@ export function PdpActions({ product }: { product: ProductDetail }) {
     .sort((a, b) => a.minQty - b.minQty)
     .find((t) => qty < t.minQty);
 
-  const handleAdd = () => {
-    add(
-      {
-        id: variant.id,
-        title: `${product.title}${variant.name && product.variants.length > 1 ? ` — ${variant.name}` : ""}`,
-        brandLine: product.brandName,
-        price: paiseToRupees(unitPaise),
-        compareAt: paiseToRupees(variant.compareAtPaise ?? unitPaise),
-        unit: product.unitLabel,
-        image: product.images[0]?.url,
-      },
-      qty
-    );
-    setAdded(true);
-    setTimeout(() => setAdded(false), 1600);
+  const handleAdd = async () => {
+    const ok = await addItem(variant.id, qty, product.title);
+    if (ok) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1600);
+    }
   };
 
   return (

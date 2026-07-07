@@ -29,7 +29,7 @@
 - `[NEW]` app/(shop)/search/page.tsx; components/shop/{FilterSidebar, SortSelect, PriceRange, FilterSheet(mobile)}
 - URL-state filters (searchParams), facet counts, zero-result state.
 
-## Milestone 5 — Cart + Wishlist (modules 6, 7)
+## Milestone 5 — Cart + Wishlist (modules 6, 7) ✅ DONE
 - `[NEW]` actions/cart.ts + actions/wishlist.ts; app/(shop)/cart/page.tsx
 - `[MODIFY]` existing FloatingCart + ProductCard ADD → server cart (optimistic)
 - Tier auto-apply + next-tier nudge; free-delivery meter; guest anon_id cookie; wishlist hearts on cards + /account/wishlist.

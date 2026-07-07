@@ -288,6 +288,24 @@ export async function getRelatedProducts(
   return rows.map(toItem).filter((x): x is CatalogItem => x !== null);
 }
 
+export async function getDeals(take = 8): Promise<CatalogItem[]> {
+  const rows = await db.product.findMany({
+    where: { status: "published", isDeal: true },
+    orderBy: { updatedAt: "desc" },
+    take,
+    include: {
+      brand: true,
+      category: { select: { slug: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: { bulkTiers: { select: { id: true }, take: 1 } },
+      },
+    },
+  });
+  return rows.map(toItem).filter((x): x is CatalogItem => x !== null);
+}
+
 export async function listProductSlugs(): Promise<string[]> {
   const rows = await db.product.findMany({
     where: { status: "published" },
