@@ -34,7 +34,7 @@
 - `[MODIFY]` existing FloatingCart + ProductCard ADD → server cart (optimistic)
 - Tier auto-apply + next-tier nudge; free-delivery meter; guest anon_id cookie; wishlist hearts on cards + /account/wishlist.
 
-## Milestone 6 — Address Management (module 9)
+## Milestone 6 — Address Management (module 9) ✅ DONE
 - `[NEW]` actions/address.ts; app/(account)/account/addresses; components/shop/AddressCard/AddressForm
 - Serviceability check via serviceable_pincodes; navbar pincode chip reads real data.
 

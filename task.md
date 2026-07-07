@@ -53,6 +53,11 @@
 - [x] Wishlist: lib/services/wishlist.ts + actions (toggle, getMyWishlistIds), heart on cards (hydrated client-side via context so catalog pages stay static), /account/wishlist page (auth-guarded)
 - [x] E2E verified: guest add persists to DB, badge updates, cart tier pricing (qty 10 → ₹315/bag total ₹3,150), remove → empty, wishlist guard redirects; prod build green (catalog pages static)
 - Note: guest wishlist-heart click rolls back (needs login); improve to login-redirect later
-## Milestone 6 — Addresses → in progress
-## Milestone 7 — Checkout (dummy gateway) + Confirmation → not started
+## Milestone 6 — Addresses ✅
+- [x] lib/services/addresses.ts: list/create/update/delete/setDefault with default-promotion logic
+- [x] actions/address.ts: saveAddress (create+update), removeAddress, makeDefaultAddress + advisory serviceability check
+- [x] AddressForm (label chips, validated fields, Srinagar defaults) + AddressManager (cards, edit/delete/set-default)
+- [x] /account/addresses page (auth-guarded)
+- [x] E2E verified: default-promotion logic (auto-default first, promote on delete-default) via DB; guest guard redirects; build green
+## Milestone 7 — Checkout (dummy gateway) + Confirmation → in progress
 ## Milestone 8 — My Orders + Dashboard → not started
