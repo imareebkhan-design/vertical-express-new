@@ -1,0 +1,5 @@
+project_id = "gsfslnxvwmrgulzqypdp"
+
+[auth.email.template.magic_link]
+subject = "Your Vertical Express login code"
+content_path = "./supabase/templates/magic_link.html"

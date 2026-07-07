@@ -12,8 +12,16 @@
 - [x] Migration `init` applied; seeded 20 categories / 10 brands / 45 products / 25 pincodes
 - [x] Verified via live query (bulk tiers + inventory + images intact)
 
-## Milestone 1 — Authentication → not started
-## Milestone 2 — PLP + Category pages → not started
+## Milestone 1 — Authentication ✅
+- [x] OtpProvider abstraction (lib/services/auth-provider.ts) — email now, phone = AUTH_OTP_CHANNEL config flip
+- [x] actions/auth.ts: sendOtp, verifyOtp (mirrors user + merges guest cart), signOut
+- [x] /login two-step OTP page (brand-styled) + /auth/confirm magic-link route
+- [x] middleware.ts session refresh + guards /account, /checkout
+- [x] Navbar AccountButton: login link ↔ account dropdown (Account, Orders, Sign out)
+- [x] lib/services/users.ts mirror + cart-merge implemented
+- [x] E2E verified: admin-minted OTP → verifyOtp session → users+profile mirrored; middleware redirect + UI confirmed in browser; prod build green
+- Note: free-tier Supabase can't customize email templates — email carries magic link; code-in-email appears automatically once custom SMTP is configured (config-only)
+## Milestone 2 — PLP + Category pages → in progress
 ## Milestone 3 — PDP → not started
 ## Milestone 4 — Search + Filters → not started
 ## Milestone 5 — Cart + Wishlist → not started

@@ -9,11 +9,11 @@ import {
   Menu,
   Search,
   ShoppingCart,
-  User,
   X,
   Zap,
 } from "lucide-react";
 import { NAV_PRIMARY } from "@/lib/data";
+import { AccountButton } from "@/components/auth/account-button";
 import { useCart } from "@/hooks/use-cart";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { cn } from "@/lib/utils";
@@ -110,13 +110,7 @@ export function Navbar() {
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
           <PincodeChip />
-          <button
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
-            aria-label="Log in"
-          >
-            <User className="size-5" aria-hidden />
-            <span className="hidden sm:inline">Login</span>
-          </button>
+          <AccountButton />
           <button
             className="relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
             aria-label={`Cart, ${count} items`}

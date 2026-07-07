@@ -2,13 +2,13 @@
 
 > Antigravity Mode C artifact. Execution starts only after approval. Scope = the 13 priority modules; UI/branding unchanged; docs/PRD.md, docs/ARCHITECTURE.md, docs/DATABASE.md, docs/API.md are the contracts.
 
-## Milestone 0 — Foundation (prerequisite for everything)
+## Milestone 0 — Foundation ✅ DONE
 - `[NEW]` Supabase project + env vars; `[NEW]` prisma/schema.prisma (tables from DATABASE.md §Identity, §Catalog, §Commerce core) + seed script (20 categories, brands, ~60 products with variants/tiers/images from existing assets)
 - `[NEW]` lib/db.ts, lib/supabase/{server,client}.ts, lib/money.ts, lib/validators/
 - `[MODIFY]` middleware.ts (session refresh)
 - Exit: `prisma migrate dev` + seeded preview deploy.
 
-## Milestone 1 — Authentication (module 8)
+## Milestone 1 — Authentication (module 8) ✅ DONE
 - `[NEW]` actions/auth.ts (sendOtp, verifyOtp, signOut, updateProfile)
 - `[NEW]` app/(auth)/login — OTP modal-style page matching current popup aesthetics
 - `[MODIFY]` navbar Login button → auth state (avatar menu: Account, Orders, Sign out)
