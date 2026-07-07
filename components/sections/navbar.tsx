@@ -7,13 +7,13 @@ import {
   ChevronDown,
   MapPin,
   Menu,
-  Search,
   ShoppingCart,
   X,
   Zap,
 } from "lucide-react";
 import { NAV_PRIMARY } from "@/lib/data";
 import { AccountButton } from "@/components/auth/account-button";
+import { SearchBox } from "@/components/shop/search-box";
 import { useCart } from "@/hooks/use-cart";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { cn } from "@/lib/utils";
@@ -91,22 +91,7 @@ export function Navbar() {
 
         <Logo />
 
-        <form
-          role="search"
-          className="relative hidden flex-1 md:block"
-          onSubmit={(e) => e.preventDefault()}
-        >
-          <Search
-            className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-neutral-400"
-            aria-hidden
-          />
-          <input
-            type="search"
-            placeholder="Search cement, wires, hinges, paint…"
-            className="h-11 w-full rounded-full border border-neutral-200 bg-surface pl-11 pr-4 text-sm transition-all duration-200 placeholder:text-neutral-400 focus:border-brand focus:bg-white focus:shadow-card focus:outline-none"
-            aria-label="Search products"
-          />
-        </form>
+        <SearchBox className="hidden flex-1 md:block" />
 
         <div className="ml-auto flex items-center gap-1 md:ml-0">
           <PincodeChip />

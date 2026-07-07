@@ -36,8 +36,15 @@
 - [x] /product/[slug]: gallery, tier-aware price, variant selector, qty stepper, bulk-tier table (live "Your price"), next-tier nudge, pincode check, trust row, description, specs, related products, Product+Breadcrumb JSON-LD, sticky mobile action bar, generateStaticParams (45 PDPs) + ISR, loading skeleton
 - [x] Deals cards + PLP cards link to PDP
 - [x] E2E verified: qty 11 → tier 10+ @ ₹315, cart total ₹3,465, nudge recalculated; serviceability API correct; prod build (45 static PDPs) green
-## Milestone 4 — Search + Filters → in progress
-## Milestone 5 — Cart + Wishlist → not started
+## Milestone 4 — Search + Filters ✅
+- [x] lib/services/search.ts (Postgres ILIKE; Typesense-swappable) + GET /api/search/suggest (cached)
+- [x] SearchBox typeahead (debounced 250ms, products/categories groups, Enter → /search) wired into navbar
+- [x] /search results page: filters + sort + pagination + empty state, robots noindex
+- [x] FilterSidebar (brand checkboxes w/ counts + price range, URL-state) + FilterSheet (mobile bottom-sheet)
+- [x] Filters added to category PLP too (shared components)
+- [x] catalog listProducts already supported search/brand/price facets
+- [x] E2E verified: suggest API (3 products + 1 category), /search?q=cement (4 products), brand filter, empty state; prod build green
+## Milestone 5 — Cart + Wishlist → in progress
 ## Milestone 6 — Addresses → not started
 ## Milestone 7 — Checkout (dummy gateway) + Confirmation → not started
 ## Milestone 8 — My Orders + Dashboard → not started

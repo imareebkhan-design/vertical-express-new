@@ -24,7 +24,7 @@
 - `[NEW]` app/(shop)/product/[slug]/page.tsx — gallery, price/compare-at, qty stepper, bulk-tier table, specs, delivery pincode check, related products, Product JSON-LD, sticky mobile action bar
 - `[MODIFY]` deals ProductCard links → PDP.
 
-## Milestone 4 — Search + Filters (modules 4, 5)
+## Milestone 4 — Search + Filters (modules 4, 5) ✅ DONE
 - `[NEW]` /api/search/suggest + typeahead panel in navbar search
 - `[NEW]` app/(shop)/search/page.tsx; components/shop/{FilterSidebar, SortSelect, PriceRange, FilterSheet(mobile)}
 - URL-state filters (searchParams), facet counts, zero-result state.
