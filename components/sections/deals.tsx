@@ -74,7 +74,7 @@ export function Deals() {
         >
           {DEALS.map((product) => (
             <StaggerItem key={product.id} className="flex shrink-0">
-              <ProductCard product={product} />
+              <ProductCard product={product} href={`/product/${product.id}`} />
             </StaggerItem>
           ))}
         </div>

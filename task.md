@@ -30,8 +30,13 @@
 - [x] Homepage category tiles + Materials nav dropdown → real /category routes
 - [x] E2E verified: 4 cement products render, price_asc sort (210→310→320→385), categories grid, prod build green
 - Note: unknown slug renders correct 404 page but HTTP 200 (Next.js streamed-route soft-404); acceptable, revisit if hard-404 needed for SEO
-## Milestone 3 — PDP → in progress
-## Milestone 4 — Search + Filters → not started
+## Milestone 3 — PDP ✅
+- [x] catalog service: getProductBySlug (full payload), getRelatedProducts, listProductSlugs
+- [x] lib/services/serviceability.ts + GET /api/serviceability/[pincode] (cached 1h)
+- [x] /product/[slug]: gallery, tier-aware price, variant selector, qty stepper, bulk-tier table (live "Your price"), next-tier nudge, pincode check, trust row, description, specs, related products, Product+Breadcrumb JSON-LD, sticky mobile action bar, generateStaticParams (45 PDPs) + ISR, loading skeleton
+- [x] Deals cards + PLP cards link to PDP
+- [x] E2E verified: qty 11 → tier 10+ @ ₹315, cart total ₹3,465, nudge recalculated; serviceability API correct; prod build (45 static PDPs) green
+## Milestone 4 — Search + Filters → in progress
 ## Milestone 5 — Cart + Wishlist → not started
 ## Milestone 6 — Addresses → not started
 ## Milestone 7 — Checkout (dummy gateway) + Confirmation → not started

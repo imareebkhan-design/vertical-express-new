@@ -190,6 +190,112 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   };
 }
 
+export interface ProductDetail {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  brandName: string;
+  brandSlug: string;
+  categoryName: string;
+  categorySlug: string;
+  unitLabel: string;
+  specs: { label: string; value: string }[];
+  ratingAvg: number;
+  ratingCount: number;
+  images: { url: string; alt: string }[];
+  variants: {
+    id: string;
+    name: string;
+    sku: string;
+    pricePaise: number;
+    compareAtPaise: number | null;
+    isDefault: boolean;
+    bulkTiers: { minQty: number; pricePaise: number }[];
+  }[];
+}
+
+export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
+  const p = await db.product.findFirst({
+    where: { slug, status: "published" },
+    include: {
+      brand: true,
+      category: true,
+      images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
+      variants: {
+        where: { isActive: true },
+        orderBy: { isDefault: "desc" },
+        include: { bulkTiers: { orderBy: { minQty: "asc" } } },
+      },
+    },
+  });
+  if (!p) return null;
+
+  const specs = Array.isArray(p.specs)
+    ? (p.specs as { label: string; value: string }[])
+    : [];
+
+  return {
+    id: p.id,
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    brandName: p.brand.name,
+    brandSlug: p.brand.slug,
+    categoryName: p.category.name,
+    categorySlug: p.category.slug,
+    unitLabel: p.unitLabel,
+    specs,
+    ratingAvg: Number(p.ratingAvg),
+    ratingCount: p.ratingCount,
+    images: p.images.map((i) => ({ url: i.url, alt: i.alt })),
+    variants: p.variants.map((v) => ({
+      id: v.id,
+      name: v.name,
+      sku: v.sku,
+      pricePaise: v.pricePaise,
+      compareAtPaise: v.compareAtPaise,
+      isDefault: v.isDefault,
+      bulkTiers: v.bulkTiers.map((t) => ({ minQty: t.minQty, pricePaise: t.pricePaise })),
+    })),
+  };
+}
+
+/** Products in the same category, excluding the current one. */
+export async function getRelatedProducts(
+  categorySlug: string,
+  excludeSlug: string,
+  take = 6
+): Promise<CatalogItem[]> {
+  const rows = await db.product.findMany({
+    where: {
+      status: "published",
+      category: { slug: categorySlug },
+      slug: { not: excludeSlug },
+    },
+    orderBy: [{ isDeal: "desc" }, { ratingCount: "desc" }],
+    take,
+    include: {
+      brand: true,
+      category: { select: { slug: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: { bulkTiers: { select: { id: true }, take: 1 } },
+      },
+    },
+  });
+  return rows.map(toItem).filter((x): x is CatalogItem => x !== null);
+}
+
+export async function listProductSlugs(): Promise<string[]> {
+  const rows = await db.product.findMany({
+    where: { status: "published" },
+    select: { slug: true },
+  });
+  return rows.map((r) => r.slug);
+}
+
 export async function getCategoryBySlug(slug: string) {
   return db.category.findFirst({ where: { slug, isActive: true } });
 }

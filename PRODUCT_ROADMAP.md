@@ -20,7 +20,7 @@
 - `[MODIFY]` homepage category tiles + nav dropdowns → real hrefs
 - ISR + generateMetadata + BreadcrumbList JSON-LD.
 
-## Milestone 3 — PDP (module 3)
+## Milestone 3 — PDP (module 3) ✅ DONE
 - `[NEW]` app/(shop)/product/[slug]/page.tsx — gallery, price/compare-at, qty stepper, bulk-tier table, specs, delivery pincode check, related products, Product JSON-LD, sticky mobile action bar
 - `[MODIFY]` deals ProductCard links → PDP.
 
