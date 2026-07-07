@@ -39,8 +39,8 @@
 - Serviceability check via serviceable_pincodes; navbar pincode chip reads real data.
 
 ## Milestone 7 — Checkout + Confirmation (modules 10, 11)
-- `[NEW]` actions/checkout.ts; app/(shop)/checkout (3-step single page); Razorpay client + /api/webhooks/razorpay; COD path; stock reserve/decrement; confirmation page + email (Resend)
-- Exit: end-to-end test order in Razorpay test mode on preview.
+- `[NEW]` actions/checkout.ts; app/(shop)/checkout (3-step single page); **dummy payment gateway** (`lib/services/payments.ts` behind a `PaymentProvider` interface — simulated success/failure screen; Razorpay drops in later via the same interface) + COD path; stock reserve/decrement; confirmation page
+- Exit: end-to-end test order with dummy gateway on preview.
 
 ## Milestone 8 — My Orders + User Dashboard (modules 12, 13)
 - `[NEW]` app/(account)/account/{page,orders,orders/[orderNo],profile}
