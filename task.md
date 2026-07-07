@@ -21,8 +21,16 @@
 - [x] lib/services/users.ts mirror + cart-merge implemented
 - [x] E2E verified: admin-minted OTP → verifyOtp session → users+profile mirrored; middleware redirect + UI confirmed in browser; prod build green
 - Note: free-tier Supabase can't customize email templates — email carries magic link; code-in-email appears automatically once custom SMTP is configured (config-only)
-## Milestone 2 — PLP + Category pages → in progress
-## Milestone 3 — PDP → not started
+## Milestone 2 — PLP + Category pages ✅
+- [x] lib/services/catalog.ts: listProducts (filters/facets/sort/pagination), getCategoryBySlug, listCategories, listCategorySlugs
+- [x] /category/[slug] PLP: breadcrumb + BreadcrumbList JSON-LD, sort, pagination, empty state, generateStaticParams + ISR (revalidate 300), generateMetadata
+- [x] /categories index (all 20 tiles → /category/<slug>)
+- [x] Reusable shop components: CatalogGrid, SortSelect (URL state), Pagination, EmptyState, loading.tsx skeletons
+- [x] ProductCard made reusable (optional href → PDP link, hides 0%-off badge/strikethrough when no discount)
+- [x] Homepage category tiles + Materials nav dropdown → real /category routes
+- [x] E2E verified: 4 cement products render, price_asc sort (210→310→320→385), categories grid, prod build green
+- Note: unknown slug renders correct 404 page but HTTP 200 (Next.js streamed-route soft-404); acceptable, revisit if hard-404 needed for SEO
+## Milestone 3 — PDP → in progress
 ## Milestone 4 — Search + Filters → not started
 ## Milestone 5 — Cart + Wishlist → not started
 ## Milestone 6 — Addresses → not started

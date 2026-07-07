@@ -30,7 +30,7 @@ export interface Product {
   compareAt: number;
   unit: string;
   bulkNote?: string;
-  icon: LucideIcon;
+  icon?: LucideIcon;
   /** Product photo under /public/products; icon placeholder shows if missing. */
   image?: string;
 }
@@ -52,14 +52,14 @@ export const ANNOUNCEMENTS = [
 export const NAV_PRIMARY: NavCategory[] = [
   {
     label: "Materials",
-    href: "/#categories",
+    href: "/categories",
     children: [
-      { label: "Civil & Interiors", href: "/#categories" },
-      { label: "Furniture & Architectural Hardware", href: "/#categories" },
-      { label: "Electrical", href: "/#categories" },
-      { label: "Plumbing, Sanitary & Bath", href: "/#categories" },
-      { label: "Tools", href: "/#categories" },
-      { label: "All Categories", href: "/#categories" },
+      { label: "Cement", href: "/category/cement" },
+      { label: "Tiling", href: "/category/tiling" },
+      { label: "Painting", href: "/category/painting" },
+      { label: "Wires, MCB & Distribution Boards", href: "/category/wires-mcb-distribution-boards" },
+      { label: "Sanitary & Bath Fittings", href: "/category/sanitary-bath-fittings" },
+      { label: "All Categories", href: "/categories" },
     ],
   },
   {
@@ -79,26 +79,26 @@ export const NAV_PRIMARY: NavCategory[] = [
 ];
 
 export const CATEGORIES: Category[] = [
-  { name: "Cement", slug: "cement", href: "#", bulk: true },
-  { name: "Tiling", slug: "tiling", href: "#", bulk: true },
-  { name: "Painting", slug: "painting", href: "#" },
-  { name: "Waterproofing", slug: "waterproofing", href: "#" },
-  { name: "Plywood, MDF & HDHMR", slug: "plywood-mdf-hdhmr", href: "#" },
-  { name: "Fevicol", slug: "fevicol", href: "#" },
-  { name: "Wires, MCB & Distribution Boards", slug: "wires-mcb-distribution-boards", href: "#", bulk: true },
-  { name: "Kitchen Sinks & Faucets", slug: "kitchen-sinks-faucets", href: "#" },
-  { name: "Sanitary & Bath Fittings", slug: "sanitary-bath-fittings", href: "#" },
-  { name: "Switches & Sockets", slug: "switches-sockets", href: "#" },
-  { name: "Hinges, Channels & Handles", slug: "hinges-channels-handles", href: "#" },
-  { name: "Kitchen Systems & Accessories", slug: "kitchen-systems-accessories", href: "#" },
-  { name: "Wardrobe & Bed Fittings", slug: "wardrobe-bed-fittings", href: "#" },
-  { name: "Door Locks & Hardware", slug: "door-locks-hardware", href: "#" },
-  { name: "Conduits & GI Boxes", slug: "conduits-gi-boxes", href: "#" },
-  { name: "Lighting", slug: "lighting", href: "#" },
-  { name: "CPVC Pipes & Overhead Tanks", slug: "cpvc-pipes-overhead-tanks", href: "#" },
-  { name: "Ceiling Fans & Exhaust", slug: "ceiling-fans-exhaust", href: "#" },
-  { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup", href: "#" },
-  { name: "General Hardware & Tools", slug: "general-hardware-tools", href: "#" },
+  { name: "Cement", slug: "cement", href: "/category/cement", bulk: true },
+  { name: "Tiling", slug: "tiling", href: "/category/tiling", bulk: true },
+  { name: "Painting", slug: "painting", href: "/category/painting" },
+  { name: "Waterproofing", slug: "waterproofing", href: "/category/waterproofing" },
+  { name: "Plywood, MDF & HDHMR", slug: "plywood-mdf-hdhmr", href: "/category/plywood-mdf-hdhmr" },
+  { name: "Fevicol", slug: "fevicol", href: "/category/fevicol" },
+  { name: "Wires, MCB & Distribution Boards", slug: "wires-mcb-distribution-boards", href: "/category/wires-mcb-distribution-boards", bulk: true },
+  { name: "Kitchen Sinks & Faucets", slug: "kitchen-sinks-faucets", href: "/category/kitchen-sinks-faucets" },
+  { name: "Sanitary & Bath Fittings", slug: "sanitary-bath-fittings", href: "/category/sanitary-bath-fittings" },
+  { name: "Switches & Sockets", slug: "switches-sockets", href: "/category/switches-sockets" },
+  { name: "Hinges, Channels & Handles", slug: "hinges-channels-handles", href: "/category/hinges-channels-handles" },
+  { name: "Kitchen Systems & Accessories", slug: "kitchen-systems-accessories", href: "/category/kitchen-systems-accessories" },
+  { name: "Wardrobe & Bed Fittings", slug: "wardrobe-bed-fittings", href: "/category/wardrobe-bed-fittings" },
+  { name: "Door Locks & Hardware", slug: "door-locks-hardware", href: "/category/door-locks-hardware" },
+  { name: "Conduits & GI Boxes", slug: "conduits-gi-boxes", href: "/category/conduits-gi-boxes" },
+  { name: "Lighting", slug: "lighting", href: "/category/lighting" },
+  { name: "CPVC Pipes & Overhead Tanks", slug: "cpvc-pipes-overhead-tanks", href: "/category/cpvc-pipes-overhead-tanks" },
+  { name: "Ceiling Fans & Exhaust", slug: "ceiling-fans-exhaust", href: "/category/ceiling-fans-exhaust" },
+  { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup", href: "/category/home-appliances-power-backup" },
+  { name: "General Hardware & Tools", slug: "general-hardware-tools", href: "/category/general-hardware-tools" },
 ];
 
 export const DEALS: Product[] = [

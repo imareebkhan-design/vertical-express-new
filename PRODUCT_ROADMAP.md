@@ -14,7 +14,7 @@
 - `[MODIFY]` navbar Login button → auth state (avatar menu: Account, Orders, Sign out)
 - Exit: phone OTP round-trip on preview; guest cart merge stub.
 
-## Milestone 2 — Products: PLP + Category pages (modules 1, 2)
+## Milestone 2 — Products: PLP + Category pages (modules 1, 2) ✅ DONE
 - `[NEW]` app/(shop)/category/[slug]/page.tsx + app/(shop)/categories/page.tsx
 - `[NEW]` components/shop/{ProductGrid, ProductCardCompact, Skeletons, EmptyState}
 - `[MODIFY]` homepage category tiles + nav dropdowns → real hrefs
