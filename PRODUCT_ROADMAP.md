@@ -38,7 +38,7 @@
 - `[NEW]` actions/address.ts; app/(account)/account/addresses; components/shop/AddressCard/AddressForm
 - Serviceability check via serviceable_pincodes; navbar pincode chip reads real data.
 
-## Milestone 7 — Checkout + Confirmation (modules 10, 11)
+## Milestone 7 — Checkout + Confirmation (modules 10, 11) ✅ DONE
 - `[NEW]` actions/checkout.ts; app/(shop)/checkout (3-step single page); **dummy payment gateway** (`lib/services/payments.ts` behind a `PaymentProvider` interface — simulated success/failure screen; Razorpay drops in later via the same interface) + COD path; stock reserve/decrement; confirmation page
 - Exit: end-to-end test order with dummy gateway on preview.
 

@@ -59,5 +59,11 @@
 - [x] AddressForm (label chips, validated fields, Srinagar defaults) + AddressManager (cards, edit/delete/set-default)
 - [x] /account/addresses page (auth-guarded)
 - [x] E2E verified: default-promotion logic (auto-default first, promote on delete-default) via DB; guest guard redirects; build green
-## Milestone 7 — Checkout (dummy gateway) + Confirmation → in progress
-## Milestone 8 — My Orders + Dashboard → not started
+## Milestone 7 — Checkout (dummy gateway) + Confirmation ✅
+- [x] lib/services/payments.ts: PaymentProvider interface (Dummy/COD now, Razorpay drops in behind same API via PAYMENT_GATEWAY env)
+- [x] lib/services/checkout.ts: computeTotals (delivery fee from pincode serviceability + free-delivery), placeOrder txn (stock validate → order+items+payment+status event → decrement stock → clear cart)
+- [x] lib/services/orders.ts: getOrderByNo, listOrders, cancelOrder (restock), reorder
+- [x] actions/checkout.ts: getCheckoutTotals, placeOrder (online→active gateway / cod)
+- [x] /checkout 3-step (contact/address/payment) + live totals + serviceability guard; /checkout/confirmation/[orderNo]
+- [x] E2E verified (DB): order VE-2026-000001, tier snapshot ₹315, free delivery, total ₹3150, payment captured, status event, stock -10, cart cleared; prod build green (4 routes)
+## Milestone 8 — My Orders + Dashboard → in progress
