@@ -73,3 +73,11 @@
 - [x] /account/orders/[orderNo]: status timeline, items, totals, address, cancel + reorder actions
 - [x] Reusable OrderStatusBadge, OrderActions, AccountNav components
 - [x] E2E verified (DB): cancel → status cancelled + stock restored + event logged; reorder → cart x5; listOrders; prod build green (5 account routes)
+## Milestone 9 — Services Backend ✅
+- [x] Schema: ServiceCategory, Service, Booking, Professional models + enums (migration services_bookings)
+- [x] Seeded 16 service categories + 16 default services from lib/services.ts
+- [x] lib/services/bookings.ts (listServiceCategories, createBooking, listMyBookings) + actions/booking.ts (auth-optional, phone-captured)
+- [x] BookingModal wired into ServiceCard ("Book now" → real request form) with success state + booking number
+- [x] /account/bookings page + Bookings in AccountNav
+- [x] E2E verified: 16 categories/services seeded, booking VE-BK-000001 created via browser form → DB persist → service/category join; prod build green
+## Milestone 10 — Admin Dashboard → in progress

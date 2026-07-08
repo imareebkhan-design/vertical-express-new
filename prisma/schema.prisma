@@ -453,3 +453,101 @@ model OrderStatusEvent {
   @@index([orderId, createdAt])
   @@map("order_status_events")
 }
+
+// ---------- Services & Bookings (Milestone 9) ----------
+
+model ServiceCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  slug      String   @unique
+  name      String
+  blurb     String
+  iconKey   String   @map("icon_key")
+  sortOrder Int      @default(0) @map("sort_order")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  services Service[]
+
+  @@index([sortOrder])
+  @@map("service_categories")
+}
+
+model Service {
+  id            String   @id @default(uuid()) @db.Uuid
+  slug          String   @unique
+  categorySlug  String   @map("category_slug")
+  name          String
+  description   String?
+  priceFromPaise Int?    @map("price_from_paise")
+  unit          String?
+  /// [{ q: string, a: string }]
+  faqs          Json?
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  category ServiceCategory @relation(fields: [categorySlug], references: [slug], onDelete: Cascade)
+  bookings Booking[]
+
+  @@index([categorySlug])
+  @@map("services")
+}
+
+enum PropertyType {
+  apartment
+  house
+  plot
+  commercial
+}
+
+enum BookingStatus {
+  received
+  scheduled
+  visited
+  quoted
+  in_progress
+  completed
+  cancelled
+}
+
+model Booking {
+  id             String        @id @default(uuid()) @db.Uuid
+  bookingNo      String        @unique @map("booking_no")
+  userId         String?       @map("user_id") @db.Uuid
+  serviceId      String        @map("service_id") @db.Uuid
+  name           String
+  phone          String
+  /// Snapshot of address or free-text location
+  address        Json?
+  propertyType   PropertyType  @default(house) @map("property_type")
+  scope          String
+  preferredDate  DateTime?     @map("preferred_date")
+  status         BookingStatus @default(received)
+  professionalId String?       @map("professional_id") @db.Uuid
+  adminNotes     String?       @map("admin_notes")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  service      Service       @relation(fields: [serviceId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([status])
+  @@map("bookings")
+}
+
+model Professional {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  phone      String
+  trade      String
+  city       String   @default("Srinagar")
+  rating     Decimal  @default(0) @db.Decimal(2, 1)
+  isVerified Boolean  @default(false) @map("is_verified")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  bookings Booking[]
+
+  @@map("professionals")
+}
