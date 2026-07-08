@@ -66,4 +66,10 @@
 - [x] actions/checkout.ts: getCheckoutTotals, placeOrder (online→active gateway / cod)
 - [x] /checkout 3-step (contact/address/payment) + live totals + serviceability guard; /checkout/confirmation/[orderNo]
 - [x] E2E verified (DB): order VE-2026-000001, tier snapshot ₹315, free delivery, total ₹3150, payment captured, status event, stock -10, cart cleared; prod build green (4 routes)
-## Milestone 8 — My Orders + Dashboard → in progress
+## Milestone 8 — My Orders + Dashboard ✅
+- [x] actions/orders.ts: cancelOrder (restock + status event), reorder (copy to cart)
+- [x] /account overview: stat cards (orders/addresses/wishlist counts), recent orders, default address
+- [x] /account/orders: order list w/ status badges, item thumbnails, date/total, pagination
+- [x] /account/orders/[orderNo]: status timeline, items, totals, address, cancel + reorder actions
+- [x] Reusable OrderStatusBadge, OrderActions, AccountNav components
+- [x] E2E verified (DB): cancel → status cancelled + stock restored + event logged; reorder → cart x5; listOrders; prod build green (5 account routes)
