@@ -80,4 +80,9 @@
 - [x] BookingModal wired into ServiceCard ("Book now" → real request form) with success state + booking number
 - [x] /account/bookings page + Bookings in AccountNav
 - [x] E2E verified: 16 categories/services seeded, booking VE-BK-000001 created via browser form → DB persist → service/category join; prod build green
-## Milestone 10 — Admin Dashboard → in progress
+## Milestone 10 — Admin Dashboard ✅
+- [x] lib/services/admin/authz.ts (ADMIN_EMAILS allowlist; DB admin_users later), dashboard.ts (KPIs), manage.ts (order/booking state machines, product list)
+- [x] actions/admin.ts: adminAdvanceOrder (validated transitions + restock on cancel), adminAdvanceBooking (permission-checked)
+- [x] Guarded /admin layout (redirect non-admins) + StatusControl client component
+- [x] /admin dashboard (KPI cards: orders/GMV/AOV/products/low-stock/bookings/customers), /admin/orders (table + status advance), /admin/products (stock/price/status), /admin/bookings (queue + status advance)
+- [x] E2E verified: KPIs (45 products), transition rules (confirmed→packed ok, confirmed→delivered blocked, delivered→none), allowlist allow/deny, guard redirects guest; prod build green (4 routes)
