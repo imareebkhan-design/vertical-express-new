@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Mail, MapPin, Zap } from "lucide-react";
+import { ArrowRight, Check, Mail, MapPin } from "lucide-react";
 import { CONTACT, FOOTER_LINKS } from "@/lib/data";
 import { Reveal } from "@/components/reveal";
+import { VerticalExpressIcon } from "@/components/ui/logo";
 
 function LinkColumn({
   title,
@@ -111,8 +112,8 @@ export function Footer() {
       <div className="border-t border-white/10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs font-semibold text-white/50 sm:flex-row sm:px-6">
           <p className="flex items-center gap-1.5">
-            <span className="grid size-5 place-items-center rounded bg-brand">
-              <Zap className="size-3 fill-ink text-ink" aria-hidden />
+            <span className="grid size-6 place-items-center rounded bg-brand/10 p-0.5">
+              <VerticalExpressIcon className="size-5" />
             </span>
             © {new Date().getFullYear()}, Vertical Express — recreated for educational purposes
           </p>

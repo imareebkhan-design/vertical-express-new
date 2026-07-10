@@ -1,7 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Apple, Play, Smartphone, Zap } from "lucide-react";
+import { Apple, Play, Smartphone } from "lucide-react";
+import { VerticalExpressIcon } from "@/components/ui/logo";
 import { Reveal } from "@/components/reveal";
 import { Magnetic } from "@/components/magnetic";
 
@@ -40,7 +41,7 @@ export function AppBanner() {
           <div className="grid items-center gap-8 md:grid-cols-2">
             <div>
               <p className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
-                <Zap className="size-3.5" aria-hidden /> Vertical Express App
+                <VerticalExpressIcon className="size-3.5" /> Vertical Express App
               </p>
               <h2 className="text-2xl font-extrabold leading-tight tracking-tight sm:text-4xl">
                 Order materials on the go

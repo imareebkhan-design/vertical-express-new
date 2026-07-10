@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Zap } from "lucide-react";
+import { VerticalExpressIcon } from "@/components/ui/logo";
 
 /** Brand loading screen shown once on first paint, then reveals the page. */
 export function PageLoader() {
@@ -29,14 +29,14 @@ export function PageLoader() {
             className="flex items-center gap-2"
           >
             <motion.span
-              animate={{ rotate: [0, -12, 12, 0] }}
-              transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
-              className="grid size-12 place-items-center rounded-xl bg-ink"
+              animate={{ rotate: [0, -8, 8, 0] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+              className="grid size-16 place-items-center rounded-2xl bg-brand-deep p-2.5 shadow-card"
             >
-              <Zap className="size-7 fill-brand text-brand" />
+              <VerticalExpressIcon className="size-10" light />
             </motion.span>
-            <span className="text-3xl font-extrabold tracking-tight text-ink">
-              Vertical<span className="text-white">Express</span>
+            <span className="text-3xl font-black italic tracking-tight text-brand-deep">
+              VERTICAL<span className="text-white ml-1">EXPRESS</span>
             </span>
           </motion.div>
         </motion.div>

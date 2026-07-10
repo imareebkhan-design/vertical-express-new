@@ -26,6 +26,9 @@ export const metadata: Metadata = {
       "Cement, ply, hardware & painting supplies delivered across Srinagar in 60 minutes.",
     type: "website",
   },
+  icons: {
+    icon: "/logo-icon.png",
+  },
 };
 
 export default function RootLayout({

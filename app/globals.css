@@ -1,12 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand palette extracted from home-run.co */
-  --color-brand: #efc41a;
-  --color-brand-dark: #d9b112;
-  --color-brand-deep: #816809;
+  /* Brand palette updated for new Vertical Express brand system */
+  --color-brand: #fcbd00;
+  --color-brand-dark: #e5ac00;
+  --color-brand-deep: #0f2138;
   --color-ink: #0a0a0a;
-  --color-navy: #0e1b4d;
+  --color-navy: #0f2138;
+  --color-slate-dark: #1e293b;
   --color-surface: #eff0f5;
   --color-tile: #eef9fb;
   --color-success: #1a7f37;

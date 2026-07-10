@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Zap } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/auth/login-form";
 
@@ -18,13 +18,8 @@ export default async function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-surface/60 px-4">
       <div className="w-full max-w-md rounded-2xl border border-neutral-100 bg-white p-8 shadow-card sm:p-10">
-        <Link href="/" className="mb-8 flex items-center gap-1.5" aria-label="Vertical Express home">
-          <span className="grid size-9 place-items-center rounded-lg bg-brand">
-            <Zap className="size-5 fill-ink text-ink" aria-hidden />
-          </span>
-          <span className="text-xl font-extrabold tracking-tight">
-            Vertical<span className="text-brand-deep">Express</span>
-          </span>
+        <Link href="/" aria-label="Vertical Express home" className="mb-8 block hover:opacity-90 transition-opacity">
+          <Logo variant="horizontal" className="h-12 mx-auto" />
         </Link>
 
         <Suspense>

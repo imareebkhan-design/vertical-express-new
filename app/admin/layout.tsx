@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CalendarClock, Package, ShoppingBag, Zap } from "lucide-react";
+import { BarChart3, CalendarClock, Package, ShoppingBag } from "lucide-react";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { Logo } from "@/components/ui/logo";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
@@ -18,14 +19,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-surface/40">
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/admin" className="flex items-center gap-1.5">
-            <span className="grid size-8 place-items-center rounded-lg bg-ink">
-              <Zap className="size-4 fill-brand text-brand" aria-hidden />
-            </span>
-            <span className="text-lg font-extrabold tracking-tight">
-              Vertical<span className="text-brand-deep">Express</span>
-              <span className="ml-1 rounded bg-brand px-1.5 py-0.5 text-[10px] font-extrabold uppercase text-ink">Admin</span>
-            </span>
+          <Link href="/admin" className="hover:opacity-90 transition-opacity">
+            <Logo variant="admin" className="h-10" showTagline={false} />
           </Link>
           <nav aria-label="Admin" className="ml-auto flex gap-1 overflow-x-auto">
             {NAV.map(({ href, label, icon: Icon }) => (

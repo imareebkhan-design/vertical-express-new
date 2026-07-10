@@ -9,7 +9,6 @@ import {
   Menu,
   ShoppingCart,
   X,
-  Zap,
 } from "lucide-react";
 import { NAV_PRIMARY } from "@/lib/data";
 import { AccountButton } from "@/components/auth/account-button";
@@ -18,15 +17,12 @@ import { useCart } from "@/hooks/use-cart";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { cn } from "@/lib/utils";
 
+import { Logo as BrandLogo } from "@/components/ui/logo";
+
 function Logo() {
   return (
-    <Link href="/" className="flex items-center gap-1.5" aria-label="Vertical Express home">
-      <span className="grid size-9 place-items-center rounded-lg bg-brand">
-        <Zap className="size-5 fill-ink text-ink" aria-hidden />
-      </span>
-      <span className="text-xl font-extrabold tracking-tight sm:text-2xl">
-        Vertical<span className="text-brand-deep">Express</span>
-      </span>
+    <Link href="/" aria-label="Vertical Express home" className="hover:opacity-90 transition-opacity">
+      <BrandLogo variant="horizontal" className="h-10 sm:h-12" />
     </Link>
   );
 }
