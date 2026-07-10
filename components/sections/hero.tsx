@@ -14,6 +14,7 @@ interface Slide {
   subtitle: string;
   cta: string;
   theme: "yellow" | "dark" | "light";
+  bgImage?: string;
 }
 
 /* Placeholder slides standing in for the original banner artwork. */
@@ -25,6 +26,7 @@ const SLIDES: Slide[] = [
     subtitle: "Cement, ply, hardware, paint & more — delivered to your site, superfast.",
     cta: "Shop now",
     theme: "yellow",
+    bgImage: "/banner-delivery.jpg",
   },
   {
     id: "wires",
@@ -33,6 +35,7 @@ const SLIDES: Slide[] = [
     subtitle: "Top electrical brands in stock. Order by the coil or by the box.",
     cta: "Explore electrical",
     theme: "dark",
+    bgImage: "/banner-wires.png",
   },
   {
     id: "kitchen",
@@ -88,18 +91,36 @@ export function Hero() {
             animate={{ x: 0 }}
             exit={{ x: direction >= 0 ? "-100%" : "100%" }}
             transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            onClick={() => {
+              if (slide.bgImage && window.innerWidth >= 768) {
+                document.getElementById("deals")?.scrollIntoView({ behavior: "smooth" });
+              }
+            }}
             className={cn(
-              "relative flex min-h-[320px] flex-col justify-center px-6 py-12 sm:min-h-[380px] sm:px-12 lg:min-h-[440px] lg:px-16",
+              "relative flex min-h-[320px] flex-col justify-center px-6 py-12 sm:min-h-[380px] sm:px-12 lg:min-h-[440px] lg:px-16 overflow-hidden",
+              slide.bgImage && "md:cursor-pointer",
               themeClasses[slide.theme]
             )}
           >
+            {slide.bgImage && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={slide.bgImage}
+                alt={slide.title}
+                className="hidden md:block absolute inset-0 h-full w-full object-cover"
+                draggable={false}
+              />
+            )}
+
             {/* Decorative placeholder art (replaces original banner imagery) */}
-            <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 items-center justify-center md:flex" aria-hidden>
-              <div className="relative">
-                <div className="absolute -inset-10 rounded-full bg-white/20 blur-2xl" />
-                <Truck className="relative size-40 opacity-25 lg:size-56" strokeWidth={1} />
+            {!slide.bgImage && (
+              <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 items-center justify-center md:flex" aria-hidden>
+                <div className="relative">
+                  <div className="absolute -inset-10 rounded-full bg-white/20 blur-2xl" />
+                  <Truck className="relative size-40 opacity-25 lg:size-56" strokeWidth={1} />
+                </div>
               </div>
-            </div>
+            )}
 
             <motion.div
               initial="hidden"
@@ -108,7 +129,7 @@ export function Hero() {
                 hidden: {},
                 visible: { transition: { staggerChildren: 0.09, delayChildren: 0.15 } },
               }}
-              className="relative max-w-xl"
+              className={cn("relative max-w-xl", slide.bgImage && "md:hidden")}
             >
               <motion.p
                 variants={{
