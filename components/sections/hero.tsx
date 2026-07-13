@@ -15,6 +15,8 @@ interface Slide {
   cta: string;
   theme: "yellow" | "dark" | "light";
   bgImage?: string;
+  /** Foreground product photo shown on slides without a full-bleed bgImage. */
+  productImage?: string;
 }
 
 /* Placeholder slides standing in for the original banner artwork. */
@@ -44,6 +46,7 @@ const SLIDES: Slide[] = [
     subtitle: "Premium stainless steel sinks with 60-minute doorstep delivery.",
     cta: "Browse kitchen",
     theme: "light",
+    productImage: "/products/ss-kitchen-sink.webp",
   },
 ];
 
@@ -112,12 +115,22 @@ export function Hero() {
               />
             )}
 
-            {/* Decorative placeholder art (replaces original banner imagery) */}
+            {/* Foreground product photo (slides without a full-bleed banner) */}
             {!slide.bgImage && (
               <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 items-center justify-center md:flex" aria-hidden>
                 <div className="relative">
-                  <div className="absolute -inset-10 rounded-full bg-white/20 blur-2xl" />
-                  <Truck className="relative size-40 opacity-25 lg:size-56" strokeWidth={1} />
+                  <div className="absolute -inset-10 rounded-full bg-white/30 blur-2xl" />
+                  {slide.productImage ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={slide.productImage}
+                      alt=""
+                      className="relative max-h-72 w-auto object-contain drop-shadow-xl lg:max-h-96"
+                      draggable={false}
+                    />
+                  ) : (
+                    <Truck className="relative size-40 opacity-25 lg:size-56" strokeWidth={1} />
+                  )}
                 </div>
               </div>
             )}

@@ -4,7 +4,6 @@ import { Hero } from "@/components/sections/hero";
 import { Deals } from "@/components/sections/deals";
 import { getDeals } from "@/lib/services/catalog";
 import { Categories } from "@/components/sections/categories";
-import { FundingBanner } from "@/components/sections/funding-banner";
 import { AppBanner } from "@/components/sections/app-banner";
 import { Testimonials } from "@/components/sections/testimonials";
 import { TrustBadges } from "@/components/sections/trust-badges";
@@ -27,7 +26,6 @@ export default async function Home() {
         <Hero />
         <Deals items={deals} />
         <Categories />
-        <FundingBanner />
         <AppBanner />
         <Testimonials />
         <TrustBadges />
