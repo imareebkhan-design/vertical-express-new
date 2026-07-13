@@ -11,6 +11,7 @@ const karla = Karla({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001"),
   title: "Cement, Ply, Hardware & Painting Srinagar | 60 Min Delivery | Vertical Express",
   description:
     "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar in 60 minutes. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
@@ -37,6 +38,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${karla.variable} antialiased`}>
+        {/* Skip to main content — accessibility / keyboard nav */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[9999] focus:rounded-md focus:bg-brand focus:px-4 focus:py-2 focus:text-sm focus:font-extrabold focus:text-ink focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
         <SmoothScrollProvider>
           <CartProvider>{children}</CartProvider>
         </SmoothScrollProvider>

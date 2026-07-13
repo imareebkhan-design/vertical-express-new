@@ -32,7 +32,7 @@ export default async function AccountOverview() {
     <>
       <AnnouncementBar />
       <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">
           Hi, {data.user.email?.split("@")[0]}
         </h1>

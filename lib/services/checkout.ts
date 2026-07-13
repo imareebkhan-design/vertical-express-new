@@ -30,9 +30,17 @@ export async function computeTotals(cart: CartSummary, pincode: string): Promise
   };
 }
 
-function orderNumber(seq: number): string {
+function orderNumber(): string {
   const year = new Date().getFullYear();
-  return `VE-${year}-${String(seq).padStart(6, "0")}`;
+  // Use Date.now() + random hex suffix for collision-safe order numbers.
+  // A DB-level UNIQUE constraint on `orderNo` will still catch the astronomically
+  // unlikely collision — retry is handled by the outer catch in actions/checkout.ts.
+  const ts = Date.now().toString(36).toUpperCase();
+  const rand = Math.floor(Math.random() * 0xffff)
+    .toString(16)
+    .toUpperCase()
+    .padStart(4, "0");
+  return `VE-${year}-${ts}${rand}`;
 }
 
 export interface PlaceOrderResult {
@@ -83,7 +91,6 @@ export async function placeOrder(params: {
       if (available < line.qty) throw new Error(`OUT_OF_STOCK:${line.title}`);
     }
 
-    const seq = (await tx.order.count()) + 1;
     const isCod = paymentMethod === "cod";
     const payResult = await provider.createPayment({
       orderId: "pending",
@@ -92,7 +99,7 @@ export async function placeOrder(params: {
 
     const created = await tx.order.create({
       data: {
-        orderNo: orderNumber(seq),
+        orderNo: orderNumber(),
         userId,
         address: {
           label: address.label,

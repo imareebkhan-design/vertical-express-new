@@ -28,7 +28,7 @@ export default function ServicesPage() {
     <>
       <AnnouncementBar />
       <Navbar />
-      <main>
+      <main id="main-content">
         <ServicesHero />
         <WhyChoose />
         <ServiceCategoriesSection />

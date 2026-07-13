@@ -82,7 +82,7 @@ export default async function ProductPage({ params }: PageProps) {
     <>
       <AnnouncementBar />
       <Navbar />
-      <main className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}

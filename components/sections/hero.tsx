@@ -68,6 +68,8 @@ export function Hero() {
 
   const resetTimer = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
+    // Respect prefers-reduced-motion — stop autoplay for users who opted out of animations.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     timer.current = setInterval(() => {
       // Skip autoplay while hidden: rAF is throttled, so animations would pile up frozen.
       if (!document.hidden) go(1);

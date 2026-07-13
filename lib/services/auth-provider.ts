@@ -41,7 +41,9 @@ class SupabaseOtpProvider implements OtpProvider {
             email: identifier,
             options: {
               shouldCreateUser: true,
-              emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/confirm`,
+              // Do NOT pass emailRedirectTo — that switches Supabase to
+              // "magic link" mode. Without it, Supabase sends a 6-digit OTP
+              // code only, which is what the login form expects.
             },
           }
         : { phone: identifier, options: { shouldCreateUser: true } }

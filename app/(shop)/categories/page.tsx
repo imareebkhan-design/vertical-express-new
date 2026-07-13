@@ -22,7 +22,7 @@ export default async function CategoriesPage() {
     <>
       <AnnouncementBar />
       <Navbar />
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">All Categories</h1>
         <p className="mt-1 text-sm font-semibold text-neutral-500">
           Everything your site needs, one hour away

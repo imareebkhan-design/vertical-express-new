@@ -16,7 +16,7 @@ export default async function LoginPage() {
   if (await getAuthUserId()) redirect("/");
 
   return (
-    <main className="grid min-h-screen place-items-center bg-surface/60 px-4">
+    <main id="main-content" className="grid min-h-screen place-items-center bg-surface/60 px-4">
       <div className="w-full max-w-md rounded-2xl border border-neutral-100 bg-white p-8 shadow-card sm:p-10">
         <Link href="/" aria-label="Vertical Express home" className="mb-8 block hover:opacity-90 transition-opacity">
           <Logo variant="horizontal" className="h-12 mx-auto" />

@@ -3,7 +3,6 @@ import {
   BadgeCheck,
   Blocks,
   Building2,
-  DoorOpen,
   FileText,
   Frame,
   Grid3x3,

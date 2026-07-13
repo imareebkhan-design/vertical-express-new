@@ -115,8 +115,9 @@ export function LoginForm() {
             <div className="mb-4 flex items-start gap-3 rounded-card bg-tile p-4">
               <MailCheck className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden />
               <p className="text-sm font-semibold text-neutral-600">
-                We&apos;ve emailed <span className="font-extrabold text-ink">{identifier}</span>.
-                Click the login link inside, or enter the 6-digit code if your email includes one.
+                We&apos;ve sent a 6-digit code to{" "}
+                <span className="font-extrabold text-ink">{identifier}</span>.
+                Enter it below to log in.
               </p>
             </div>
 

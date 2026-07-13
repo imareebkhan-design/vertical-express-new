@@ -31,7 +31,7 @@ export default async function OrdersPage({
     <>
       <AnnouncementBar />
       <Navbar />
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">My Orders</h1>
         <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
           <AccountNav active="/account/orders" />

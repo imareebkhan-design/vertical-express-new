@@ -22,7 +22,7 @@ export default async function Home() {
       <PageLoader />
       <AnnouncementBar />
       <Navbar />
-      <main>
+      <main id="main-content">
         <Hero />
         <Deals items={deals} />
         <Categories />
