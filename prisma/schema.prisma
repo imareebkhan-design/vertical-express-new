@@ -284,6 +284,8 @@ model Coupon {
 model Order {
   id               String             @id @default(uuid()) @db.Uuid
   orderNo          String             @unique @map("order_no")
+  /// Client-supplied key to make order placement idempotent (dedupes retries).
+  idempotencyKey   String?            @unique @map("idempotency_key")
   userId           String             @map("user_id") @db.Uuid
   /// Snapshot of the delivery address at order time
   address          Json

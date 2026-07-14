@@ -20,6 +20,7 @@ export async function placeOrder(input: {
   addressId: string;
   paymentMethod: "online" | "cod";
   notes?: string;
+  idempotencyKey?: string;
 }): Promise<ActionResult<{ orderNo: string }>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
@@ -33,6 +34,7 @@ export async function placeOrder(input: {
       addressId: input.addressId,
       paymentMethod: method,
       notes: input.notes,
+      idempotencyKey: input.idempotencyKey,
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");

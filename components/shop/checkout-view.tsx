@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
@@ -23,6 +23,9 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
+  // Stable idempotency key for this checkout attempt — the same key is reused on
+  // retry so a duplicate submit returns the same order instead of a new one.
+  const idempotencyKey = useRef<string>(crypto.randomUUID());
 
   const selected = addresses.find((a) => a.id === addressId);
 
@@ -60,7 +63,11 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
       return;
     }
     startPlacing(async () => {
-      const res = await placeOrder({ addressId, paymentMethod: method });
+      const res = await placeOrder({
+        addressId,
+        paymentMethod: method,
+        idempotencyKey: idempotencyKey.current,
+      });
       if (!res.ok) {
         setError(res.error.message);
         return;

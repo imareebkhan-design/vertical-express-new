@@ -1,4 +1,5 @@
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
@@ -58,8 +59,24 @@ export async function placeOrder(params: {
   addressId: string;
   paymentMethod: PaymentMethodId;
   notes?: string;
+  idempotencyKey?: string;
 }): Promise<PlaceOrderResult> {
-  const { userId, addressId, paymentMethod, notes } = params;
+  const { userId, addressId, paymentMethod, notes, idempotencyKey } = params;
+
+  // Idempotency (P0-6): if this attempt was already processed, return that order
+  // instead of creating a duplicate (handles retry / refresh / double-submit).
+  if (idempotencyKey) {
+    const existing = await db.order.findFirst({
+      where: { idempotencyKey, userId },
+      select: { orderNo: true, status: true },
+    });
+    if (existing) {
+      return {
+        orderNo: existing.orderNo,
+        requiresPaymentConfirmation: existing.status === "pending_payment",
+      };
+    }
+  }
 
   const address = await db.address.findFirst({
     where: { id: addressId, userId, deletedAt: null },
@@ -80,7 +97,9 @@ export async function placeOrder(params: {
 
   const provider = getPaymentProvider(paymentMethod);
 
-  const order = await db.$transaction(async (tx) => {
+  let order;
+  try {
+    order = await db.$transaction(async (tx) => {
     const isCod = paymentMethod === "cod";
     const payResult = await provider.createPayment({
       orderId: "pending",
@@ -90,6 +109,7 @@ export async function placeOrder(params: {
     const created = await tx.order.create({
       data: {
         orderNo: orderNumber(),
+        idempotencyKey: idempotencyKey ?? null,
         userId,
         address: {
           label: address.label,
@@ -165,7 +185,28 @@ export async function placeOrder(params: {
     if (dbCart) await tx.cartItem.deleteMany({ where: { cartId: dbCart.id } });
 
     return created;
-  });
+    });
+  } catch (e) {
+    // Concurrent submit with the same idempotency key: the other request won the
+    // unique constraint. Return that order instead of surfacing an error (P0-6).
+    if (
+      idempotencyKey &&
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      const existing = await db.order.findFirst({
+        where: { idempotencyKey, userId },
+        select: { orderNo: true, status: true },
+      });
+      if (existing) {
+        return {
+          orderNo: existing.orderNo,
+          requiresPaymentConfirmation: existing.status === "pending_payment",
+        };
+      }
+    }
+    throw e;
+  }
 
   return {
     orderNo: order.orderNo,
