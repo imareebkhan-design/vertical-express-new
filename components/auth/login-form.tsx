@@ -115,14 +115,15 @@ export function LoginForm() {
             <div className="mb-4 flex items-start gap-3 rounded-card bg-tile p-4">
               <MailCheck className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden />
               <p className="text-sm font-semibold text-neutral-600">
-                We&apos;ve sent a 6-digit code to{" "}
-                <span className="font-extrabold text-ink">{identifier}</span>.
-                Enter it below to log in.
+                We&apos;ve emailed <span className="font-extrabold text-ink">{identifier}</span>.
+                Open it and tap <span className="font-extrabold text-ink">Log in</span> — you&apos;ll
+                come straight back here signed in. If your email included a 6-digit code, you can
+                enter it below instead.
               </p>
             </div>
 
             <label htmlFor="token" className="block text-xs font-extrabold uppercase tracking-widest text-neutral-500">
-              6-digit code
+              6-digit code (optional)
             </label>
             <Input
               id="token"

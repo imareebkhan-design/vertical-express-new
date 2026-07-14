@@ -41,9 +41,14 @@ class SupabaseOtpProvider implements OtpProvider {
             email: identifier,
             options: {
               shouldCreateUser: true,
-              // Do NOT pass emailRedirectTo — that switches Supabase to
-              // "magic link" mode. Without it, Supabase sends a 6-digit OTP
-              // code only, which is what the login form expects.
+              // Point the emailed link at our own confirm route so it exchanges
+              // the token for a session on OUR domain (otherwise it defaults to
+              // Supabase's Site URL and lands on localhost/nowhere → "invalid
+              // link"). NOTE: whether the email shows a LINK or a 6-digit CODE
+              // is controlled by the email TEMPLATE, not this option — the
+              // free-tier default template sends a link. To send a code, add
+              // custom SMTP and put {{ .Token }} in the Magic Link template.
+              emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/confirm`,
             },
           }
         : { phone: identifier, options: { shouldCreateUser: true } }
