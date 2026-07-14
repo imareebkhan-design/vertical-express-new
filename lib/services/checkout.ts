@@ -81,16 +81,6 @@ export async function placeOrder(params: {
   const provider = getPaymentProvider(paymentMethod);
 
   const order = await db.$transaction(async (tx) => {
-    // Stock validation inside the transaction.
-    for (const line of cart.lines) {
-      const inv = await tx.inventory.aggregate({
-        where: { variantId: line.variantId },
-        _sum: { qtyOnHand: true, qtyReserved: true },
-      });
-      const available = (inv._sum.qtyOnHand ?? 0) - (inv._sum.qtyReserved ?? 0);
-      if (available < line.qty) throw new Error(`OUT_OF_STOCK:${line.title}`);
-    }
-
     const isCod = paymentMethod === "cod";
     const payResult = await provider.createPayment({
       orderId: "pending",
@@ -153,15 +143,21 @@ export async function placeOrder(params: {
       },
     });
 
-    // Decrement stock (single-warehouse simplification).
+    // Atomic, race-free stock decrement (P0-5). The `qtyOnHand: { gte }` guard
+    // compiles to `UPDATE ... WHERE qty_on_hand >= qty`, which the DB evaluates
+    // under a row lock — a concurrent order can't drive stock negative. 0 rows
+    // affected ⇒ insufficient stock ⇒ throw to roll back the whole transaction
+    // (order, items, payment all rolled back).
     for (const line of cart.lines) {
-      const inv = await tx.inventory.findFirst({ where: { variantId: line.variantId } });
-      if (inv) {
-        await tx.inventory.update({
-          where: { id: inv.id },
-          data: { qtyOnHand: { decrement: line.qty } },
-        });
-      }
+      const res = await tx.inventory.updateMany({
+        where: {
+          variantId: line.variantId,
+          ...(warehouse?.warehouseId ? { warehouseId: warehouse.warehouseId } : {}),
+          qtyOnHand: { gte: line.qty },
+        },
+        data: { qtyOnHand: { decrement: line.qty } },
+      });
+      if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
     }
 
     // Clear the cart.
