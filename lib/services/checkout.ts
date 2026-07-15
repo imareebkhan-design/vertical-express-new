@@ -47,6 +47,9 @@ function orderNumber(): string {
 export interface PlaceOrderResult {
   orderNo: string;
   requiresPaymentConfirmation: boolean;
+  /** Present only for the online gateway path (Razorpay Checkout inputs). */
+  gatewayOrderId?: string | null;
+  amountPaise?: number;
 }
 
 /**
@@ -97,6 +100,7 @@ export async function placeOrder(params: {
 
   const provider = getPaymentProvider(paymentMethod);
 
+  let gatewayOrderId: string | null = null;
   let order;
   try {
     order = await db.$transaction(async (tx) => {
@@ -105,6 +109,7 @@ export async function placeOrder(params: {
       orderId: "pending",
       amountPaise: totals.totalPaise,
     });
+    gatewayOrderId = payResult.gatewayOrderId;
 
     const created = await tx.order.create({
       data: {
@@ -211,5 +216,39 @@ export async function placeOrder(params: {
   return {
     orderNo: order.orderNo,
     requiresPaymentConfirmation: order.status === "pending_payment",
+    gatewayOrderId,
+    amountPaise: totals.totalPaise,
   };
+}
+
+/**
+ * Mark a `pending_payment` order as paid after signature verification (Razorpay
+ * client callback or webhook). Idempotent: a second call on an already-confirmed
+ * order is a no-op. Stock was already reserved at placement, so nothing to
+ * decrement here.
+ */
+export async function markOrderPaid(params: {
+  orderNo: string;
+  userId?: string;
+  gatewayPaymentId: string;
+}): Promise<{ ok: boolean }> {
+  const { orderNo, userId, gatewayPaymentId } = params;
+  const order = await db.order.findFirst({
+    where: { orderNo, ...(userId ? { userId } : {}) },
+    select: { id: true, status: true },
+  });
+  if (!order) return { ok: false };
+  if (order.status !== "pending_payment") return { ok: true }; // already handled
+
+  await db.$transaction(async (tx) => {
+    await tx.order.update({ where: { id: order.id }, data: { status: "confirmed" } });
+    await tx.payment.updateMany({
+      where: { orderId: order.id },
+      data: { status: "captured", gatewayPaymentId, signatureVerified: true },
+    });
+    await tx.orderStatusEvent.create({
+      data: { orderId: order.id, fromStatus: "pending_payment", toStatus: "confirmed", note: "Payment verified" },
+    });
+  });
+  return { ok: true };
 }

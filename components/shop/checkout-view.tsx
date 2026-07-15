@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
-import { getCheckoutTotals, placeOrder } from "@/actions/checkout";
+import { getCheckoutTotals, placeOrder, confirmRazorpayPayment } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
@@ -72,9 +72,56 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         setError(res.error.message);
         return;
       }
+      // Online gateway active → open Razorpay Checkout; otherwise straight to
+      // confirmation (dummy/COD). Inert unless real Razorpay keys are configured.
+      if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
+        await openRazorpay(res.data.orderNo, res.data.razorpay);
+        return;
+      }
       await refresh();
       router.push(`/checkout/confirmation/${res.data.orderNo}`);
     });
+  };
+
+  const openRazorpay = async (
+    orderNo: string,
+    rzp: { orderId: string; amountPaise: number; keyId: string }
+  ) => {
+    await loadRazorpayScript();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const Razorpay = (window as any).Razorpay;
+    if (!Razorpay) {
+      setError("Couldn't load the payment window. Please retry.");
+      return;
+    }
+    const rz = new Razorpay({
+      key: rzp.keyId,
+      amount: rzp.amountPaise,
+      currency: "INR",
+      name: "Vertical Express",
+      order_id: rzp.orderId,
+      prefill: { email: email ?? undefined },
+      theme: { color: "#efc41a" },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      handler: async (r: any) => {
+        const confirm = await confirmRazorpayPayment({
+          orderNo,
+          razorpayOrderId: rzp.orderId,
+          razorpayPaymentId: r.razorpay_payment_id,
+          signature: r.razorpay_signature,
+        });
+        if (!confirm.ok) {
+          setError(confirm.error.message);
+          return;
+        }
+        await refresh();
+        router.push(`/checkout/confirmation/${orderNo}`);
+      },
+      modal: {
+        ondismiss: () => setError("Payment was cancelled. Your order is awaiting payment."),
+      },
+    });
+    rz.open();
   };
 
   const codDisabled = totals ? !totals.codAllowed : false;
@@ -263,4 +310,24 @@ function PayOption({
       {active && <Check className="size-5 text-ink" />}
     </button>
   );
+}
+
+/** Lazy-load Razorpay Checkout once. Resolves immediately if already present. */
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return resolve();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if ((window as any).Razorpay) return resolve();
+    const existing = document.getElementById("razorpay-checkout-js");
+    if (existing) {
+      existing.addEventListener("load", () => resolve());
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = "razorpay-checkout-js";
+    s.src = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("razorpay script failed"));
+    document.body.appendChild(s);
+  });
 }

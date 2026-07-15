@@ -3,8 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { getCartSummary } from "@/lib/services/cart";
-import { computeTotals, placeOrder as placeOrderService, type CheckoutTotals } from "@/lib/services/checkout";
-import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
+import {
+  computeTotals,
+  placeOrder as placeOrderService,
+  markOrderPaid,
+  type CheckoutTotals,
+} from "@/lib/services/checkout";
+import { activeGateway, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability). */
@@ -16,12 +21,17 @@ export async function getCheckoutTotals(pincode: string): Promise<ActionResult<C
   return succeed(await computeTotals(cart, pincode));
 }
 
+interface PlaceOrderData {
+  orderNo: string;
+  razorpay: { orderId: string; amountPaise: number; keyId: string } | null;
+}
+
 export async function placeOrder(input: {
   addressId: string;
   paymentMethod: "online" | "cod";
   notes?: string;
   idempotencyKey?: string;
-}): Promise<ActionResult<{ orderNo: string }>> {
+}): Promise<ActionResult<PlaceOrderData>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
 
@@ -38,7 +48,19 @@ export async function placeOrder(input: {
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");
-    return succeed({ orderNo: result.orderNo });
+    return succeed({
+      orderNo: result.orderNo,
+      // Razorpay checkout inputs (present only when the online gateway is active
+      // and the order awaits payment). Dummy/COD → null, client skips the modal.
+      razorpay:
+        result.requiresPaymentConfirmation && result.gatewayOrderId
+          ? {
+              orderId: result.gatewayOrderId,
+              amountPaise: result.amountPaise ?? 0,
+              keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+            }
+          : null,
+    });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Could not place order";
     if (msg.startsWith("OUT_OF_STOCK:")) {
@@ -50,4 +72,30 @@ export async function placeOrder(input: {
     if (msg === "ADDRESS_NOT_FOUND") return fail("NOT_FOUND", "Select a valid delivery address");
     return fail("PAYMENT_FAILED", "Something went wrong placing your order");
   }
+}
+
+/** Verify the Razorpay Checkout callback and confirm the order (P0-2). */
+export async function confirmRazorpayPayment(input: {
+  orderNo: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  signature: string;
+}): Promise<ActionResult<{ orderNo: string }>> {
+  const userId = await getAuthUserId();
+  if (!userId) return fail("UNAUTHENTICATED", "Please log in");
+
+  const valid = verifyRazorpaySignature({
+    razorpayOrderId: input.razorpayOrderId,
+    razorpayPaymentId: input.razorpayPaymentId,
+    signature: input.signature,
+  });
+  if (!valid) return fail("PAYMENT_FAILED", "Payment could not be verified");
+
+  const res = await markOrderPaid({
+    orderNo: input.orderNo,
+    userId,
+    gatewayPaymentId: input.razorpayPaymentId,
+  });
+  if (!res.ok) return fail("NOT_FOUND", "Order not found");
+  return succeed({ orderNo: input.orderNo });
 }
