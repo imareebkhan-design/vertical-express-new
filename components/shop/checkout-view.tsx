@@ -19,7 +19,9 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   const router = useRouter();
   const { summary, refresh } = useCart();
   const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");
-  const [method, setMethod] = useState<PayMethod>("online");
+  // Prototype: Pay-on-delivery is the default/primary method until a live
+  // payment gateway is wired. Online pay stays available via the test gateway.
+  const [method, setMethod] = useState<PayMethod>("cod");
   const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
@@ -198,19 +200,19 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         <Section step={3} title="Payment">
           <div className="space-y-3">
             <PayOption
+              active={method === "cod"}
+              onSelect={() => !codDisabled && setMethod("cod")}
+              icon={Banknote}
+              title="Pay on delivery"
+              caption={codDisabled ? "Unavailable for this pincode" : "Recommended · pay cash/UPI on delivery"}
+              disabled={codDisabled}
+            />
+            <PayOption
               active={method === "online"}
               onSelect={() => setMethod("online")}
               icon={CreditCard}
               title="Pay online"
               caption="Cards, UPI, netbanking (test gateway)"
-            />
-            <PayOption
-              active={method === "cod"}
-              onSelect={() => !codDisabled && setMethod("cod")}
-              icon={Banknote}
-              title="Pay on delivery"
-              caption={codDisabled ? "Unavailable for this pincode" : "Check your order, then pay"}
-              disabled={codDisabled}
             />
           </div>
         </Section>
@@ -237,6 +239,12 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               <dt className="text-neutral-500">Subtotal</dt>
               <dd>{formatPaise(summary.subtotalPaise)}</dd>
             </div>
+            {totals && totals.taxPaise > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-500">GST ({Math.round(totals.gst.ratePct)}%)</dt>
+                <dd>{formatPaise(totals.taxPaise)}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-neutral-500">Delivery</dt>
               <dd className={totals?.deliveryFeePaise === 0 ? "text-success" : ""}>

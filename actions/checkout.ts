@@ -10,7 +10,29 @@ import {
   type CheckoutTotals,
 } from "@/lib/services/checkout";
 import { activeGateway, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
+import { getOrderByNo } from "@/lib/services/orders";
+import { sendOrderConfirmationEmail } from "@/lib/services/email";
+import { createSupabaseServer } from "@/lib/supabase/server";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
+
+/** Fire the order-confirmation email for a freshly-confirmed order (P1-1). */
+async function emailOrderConfirmation(userId: string, orderNo: string, toEmail: string | null) {
+  if (!toEmail) return;
+  const order = await getOrderByNo(userId, orderNo);
+  if (!order || order.status === "pending_payment") return;
+  const addr = order.address as { name?: string } | null;
+  await sendOrderConfirmationEmail(toEmail, {
+    orderNo: order.orderNo,
+    paymentMethod: order.paymentMethod,
+    items: order.items.map((i) => ({ title: i.title, qty: i.qty, lineTotalPaise: i.lineTotalPaise })),
+    subtotalPaise: order.subtotalPaise,
+    taxPaise: order.taxPaise,
+    deliveryFeePaise: order.deliveryFeePaise,
+    totalPaise: order.totalPaise,
+    etaMinutes: order.etaMinutes,
+    customerName: addr?.name ?? null,
+  });
+}
 
 /** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability). */
 export async function getCheckoutTotals(pincode: string): Promise<ActionResult<CheckoutTotals>> {
@@ -32,8 +54,11 @@ export async function placeOrder(input: {
   notes?: string;
   idempotencyKey?: string;
 }): Promise<ActionResult<PlaceOrderData>> {
-  const userId = await getAuthUserId();
+  const supabase = await createSupabaseServer();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
+  const userEmail = authData.user?.email ?? null;
 
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
@@ -48,6 +73,12 @@ export async function placeOrder(input: {
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");
+
+    // P1-1: order-confirmation email for immediately-confirmed orders (COD/dummy).
+    // Pending-payment (Razorpay) orders are emailed after payment is verified.
+    if (!result.requiresPaymentConfirmation) {
+      await emailOrderConfirmation(userId, result.orderNo, userEmail);
+    }
     return succeed({
       orderNo: result.orderNo,
       // Razorpay checkout inputs (present only when the online gateway is active
@@ -81,7 +112,9 @@ export async function confirmRazorpayPayment(input: {
   razorpayPaymentId: string;
   signature: string;
 }): Promise<ActionResult<{ orderNo: string }>> {
-  const userId = await getAuthUserId();
+  const supabase = await createSupabaseServer();
+  const { data: authData } = await supabase.auth.getUser();
+  const userId = authData.user?.id ?? null;
   if (!userId) return fail("UNAUTHENTICATED", "Please log in");
 
   const valid = verifyRazorpaySignature({
@@ -97,5 +130,6 @@ export async function confirmRazorpayPayment(input: {
     gatewayPaymentId: input.razorpayPaymentId,
   });
   if (!res.ok) return fail("NOT_FOUND", "Order not found");
+  await emailOrderConfirmation(userId, input.orderNo, authData.user?.email ?? null);
   return succeed({ orderNo: input.orderNo });
 }

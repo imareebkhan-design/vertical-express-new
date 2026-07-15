@@ -86,6 +86,12 @@ export default async function ConfirmationPage({
               <dt className="text-neutral-500">Subtotal</dt>
               <dd>{formatPaise(order.subtotalPaise)}</dd>
             </div>
+            {order.taxPaise > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-neutral-500">GST (18%)</dt>
+                <dd>{formatPaise(order.taxPaise)}</dd>
+              </div>
+            )}
             <div className="flex justify-between">
               <dt className="text-neutral-500">Delivery</dt>
               <dd className={order.deliveryFeePaise === 0 ? "text-success" : ""}>

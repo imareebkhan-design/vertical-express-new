@@ -4,11 +4,14 @@ import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
+import { computeGst, type GstBreakup } from "@/lib/services/tax";
 
 export interface CheckoutTotals {
   subtotalPaise: number;
   deliveryFeePaise: number;
   discountPaise: number;
+  taxPaise: number;
+  gst: GstBreakup;
   totalPaise: number;
   etaMinutes: number | null;
   serviceable: boolean;
@@ -16,15 +19,24 @@ export interface CheckoutTotals {
 }
 
 /** Compute totals for a cart against a delivery pincode. */
-export async function computeTotals(cart: CartSummary, pincode: string): Promise<CheckoutTotals> {
+export async function computeTotals(
+  cart: CartSummary,
+  pincode: string,
+  deliveryState?: string | null
+): Promise<CheckoutTotals> {
   const svc = await checkServiceability(pincode);
   const qualifiesFree = cart.qualifiesFreeDelivery;
   const deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
+  const discountPaise = 0;
+  const taxableBase = cart.subtotalPaise - discountPaise;
+  const gst = computeGst(taxableBase, deliveryState);
   return {
     subtotalPaise: cart.subtotalPaise,
     deliveryFeePaise,
-    discountPaise: 0,
-    totalPaise: cart.subtotalPaise + deliveryFeePaise,
+    discountPaise,
+    taxPaise: gst.taxPaise,
+    gst,
+    totalPaise: taxableBase + gst.taxPaise + deliveryFeePaise,
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
     codAllowed: svc.codAllowed,
@@ -89,7 +101,7 @@ export async function placeOrder(params: {
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) throw new Error("CART_EMPTY");
 
-  const totals = await computeTotals(cart, address.pincode);
+  const totals = await computeTotals(cart, address.pincode, address.state);
   if (!totals.serviceable) throw new Error("PINCODE_UNSERVICEABLE");
   if (paymentMethod === "cod" && !totals.codAllowed) throw new Error("COD_UNAVAILABLE");
 
@@ -131,6 +143,7 @@ export async function placeOrder(params: {
         paymentMethod,
         subtotalPaise: totals.subtotalPaise,
         discountPaise: totals.discountPaise,
+        taxPaise: totals.taxPaise,
         deliveryFeePaise: totals.deliveryFeePaise,
         totalPaise: totals.totalPaise,
         etaMinutes: totals.etaMinutes,
