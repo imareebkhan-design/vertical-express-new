@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { getOtpProvider } from "@/lib/services/auth-provider";
 import { ensureUserMirror } from "@/lib/services/users";
 import { mergeGuestCart } from "@/lib/services/cart-merge";
+import { rateLimit } from "@/lib/services/rate-limit";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { phoneSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -21,6 +22,13 @@ export async function sendOtp(rawIdentifier: string): Promise<ActionResult<{ cha
   const parsed = identifierSchema.safeParse(rawIdentifier.trim().toLowerCase());
   if (!parsed.success) {
     return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Invalid input", "identifier");
+  }
+
+  // P1-4: throttle OTP sends per identifier — each send triggers a paid email/SMS.
+  const limit = await rateLimit(`otp:${parsed.data}`, 5, 15 * 60 * 1000); // 5 per 15 min
+  if (!limit.allowed) {
+    const mins = Math.ceil(limit.retryAfterMs / 60000);
+    return fail("RATE_LIMITED", `Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);
   }
 
   const provider = getOtpProvider();

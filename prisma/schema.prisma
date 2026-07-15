@@ -517,3 +517,13 @@ enum BookingStatus {
   completed
   cancelled
 }
+
+/// Fixed-window rate limiter buckets (P1-4). Keyed by e.g. "otp:<email>".
+model RateLimit {
+  id          String   @id @default(uuid()) @db.Uuid
+  bucket      String   @unique
+  hits        Int      @default(0)
+  windowStart DateTime @default(now()) @map("window_start")
+
+  @@map("rate_limits")
+}

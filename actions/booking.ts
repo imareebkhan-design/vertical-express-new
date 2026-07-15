@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { createBooking } from "@/lib/services/bookings";
+import { rateLimit } from "@/lib/services/rate-limit";
 import { phoneSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 
 const bookingSchema = z.object({
@@ -22,6 +23,12 @@ export async function submitBooking(input: unknown): Promise<ActionResult<{ book
   if (!parsed.success) {
     const issue = parsed.error.issues[0];
     return fail("VALIDATION", issue?.message ?? "Invalid details", issue?.path[0]?.toString());
+  }
+
+  // P1-4: throttle public booking submissions per phone (spam protection).
+  const limit = await rateLimit(`booking:${parsed.data.phone}`, 5, 60 * 60 * 1000); // 5 per hour
+  if (!limit.allowed) {
+    return fail("RATE_LIMITED", "Too many requests. Please try again later.");
   }
 
   const userId = await getAuthUserId();

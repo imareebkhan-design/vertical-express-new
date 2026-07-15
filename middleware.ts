@@ -1,7 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PROTECTED_PREFIXES = ["/account", "/checkout"];
+// /admin is also gated server-side in its layout (admin allowlist); this adds
+// defense-in-depth so unauthenticated users are bounced before any admin code runs.
+const PROTECTED_PREFIXES = ["/account", "/checkout", "/admin"];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
