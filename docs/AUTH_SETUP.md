@@ -1,18 +1,21 @@
 # Auth setup — required Supabase + Vercel configuration (P0-3)
 
+Production domain: **`https://new-virticalexpress.vercel.app`**
+
 The code now sends the login email with a link that returns to **`${NEXT_PUBLIC_SITE_URL}/auth/confirm`**, which exchanges the token for a session. For this to work in production you must set three things outside the code:
 
 ## 1. Vercel env var (required)
 Set for the **Production** environment:
 ```
-NEXT_PUBLIC_SITE_URL = https://<your-production-domain>
+NEXT_PUBLIC_SITE_URL = https://new-virticalexpress.vercel.app
 ```
 Locally `.env` keeps `http://localhost:3000` — that's correct for dev only.
 
 ## 2. Supabase → Authentication → URL Configuration (required)
-- **Site URL:** `https://<your-production-domain>`
-- **Redirect URLs (allowlist):** add
-  - `https://<your-production-domain>/auth/confirm`
+Paste these exactly (Supabase Dashboard → your project → Authentication → URL Configuration):
+- **Site URL:** `https://new-virticalexpress.vercel.app`
+- **Redirect URLs (allowlist):** add both
+  - `https://new-virticalexpress.vercel.app/auth/confirm`
   - `http://localhost:3000/auth/confirm` (for local dev)
 
 If the domain isn't in this allowlist, Supabase rejects the link → "invalid link."
@@ -23,6 +26,14 @@ If the domain isn't in this allowlist, Supabase rejects the link → "invalid li
   1. Supabase → Project Settings → **Auth → SMTP Settings** → configure a custom SMTP provider (e.g. Resend, SES). Free-tier default email cannot use custom templates.
   2. Supabase → Authentication → **Email Templates → Magic Link** → include `{{ .Token }}` in the body.
   The login screen already accepts a code, so no code change is needed.
+
+## 3b. Transactional email (Resend) — optional, activates when key is set
+Order- and booking-confirmation emails are implemented and **no-op until a key is present**. To turn them on:
+1. Create a Resend API key (https://resend.com).
+2. Vercel → Project → Settings → Environment Variables (Production):
+   - `RESEND_API_KEY = re_...`
+   - `EMAIL_FROM = Vertical Express <orders@yourdomain>` (or leave unset to use Resend's `onboarding@resend.dev` sandbox sender for testing).
+3. Redeploy. No code change needed — `lib/services/email.ts` picks it up.
 
 ## 4. (Recommended for the real India-market UX) SMS OTP
 Configure an SMS provider (MSG91/Twilio) in Supabase → Auth → Providers → Phone, then set `AUTH_OTP_CHANNEL=phone`. The provider abstraction (`lib/services/auth-provider.ts`) already supports this with no code change.
