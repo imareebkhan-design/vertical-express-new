@@ -1,10 +1,9 @@
 "use server";
 
 import { z } from "zod";
-import { createSupabaseServer } from "@/lib/supabase/server";
-import { createBooking, getServiceBySlug } from "@/lib/services/bookings";
+import { getAuthUserId } from "@/lib/supabase/server";
+import { createBooking } from "@/lib/services/bookings";
 import { rateLimit } from "@/lib/services/rate-limit";
-import { sendBookingConfirmationEmail } from "@/lib/services/email";
 import { phoneSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 
 const bookingSchema = z.object({
@@ -32,28 +31,13 @@ export async function submitBooking(input: unknown): Promise<ActionResult<{ book
     return fail("RATE_LIMITED", "Too many requests. Please try again later.");
   }
 
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
+  const userId = await getAuthUserId();
   try {
     const booking = await createBooking({
       ...parsed.data,
       preferredDate: parsed.data.preferredDate || null,
       userId,
     });
-
-    // P1-1: confirmation email — only when we have an address to send to (logged-in user).
-    if (authData.user?.email) {
-      const service = await getServiceBySlug(parsed.data.serviceSlug);
-      await sendBookingConfirmationEmail(authData.user.email, {
-        bookingNo: booking.bookingNo,
-        serviceName: service?.name ?? "Service request",
-        name: parsed.data.name,
-        phone: parsed.data.phone,
-        preferredDate: booking.preferredDate,
-      });
-    }
-
     return succeed({ bookingNo: booking.bookingNo });
   } catch {
     return fail("NOT_FOUND", "That service isn't available right now");
