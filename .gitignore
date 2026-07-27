@@ -42,3 +42,12 @@ next-env.d.ts
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Capacitor native build artifacts (the ios/ and android/ project folders ARE committed)
+/ios/App/Pods/
+/ios/App/build/
+/android/.gradle/
+/android/app/build/
+/android/build/
+/android/local.properties
+*.xcuserstate
