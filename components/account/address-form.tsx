@@ -71,7 +71,7 @@ export function AddressForm({
             type="button"
             onClick={() => set("label", l)}
             className={`rounded-lg border-2 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide capitalize transition-colors ${
-              values.label === l ? "border-ink bg-ink text-white" : "border-neutral-200 hover:border-ink"
+              values.label === l ? "border-brand-deep bg-brand-deep text-white" : "border-neutral-200 hover:border-brand-deep"
             }`}
           >
             {l}
@@ -129,7 +129,7 @@ export function AddressForm({
           type="checkbox"
           checked={values.isDefault}
           onChange={(e) => set("isDefault", e.target.checked)}
-          className="size-4 cursor-pointer accent-brand"
+          className="size-4 cursor-pointer accent-brand-deep"
         />
         Set as default address
       </label>

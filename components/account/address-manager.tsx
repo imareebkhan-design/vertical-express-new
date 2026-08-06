@@ -23,7 +23,7 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
 
   if (mode === "add" || editing) {
     return (
-      <div className="rounded-card border border-neutral-100 bg-white p-5 shadow-card sm:p-6">
+      <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card sm:p-6">
         <h2 className="mb-4 text-lg font-extrabold">{editing ? "Edit address" : "Add a new address"}</h2>
         <AddressForm initial={editing} onDone={done} onCancel={() => setMode("list")} />
       </div>
@@ -42,7 +42,7 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
           {addresses.map((a) => (
             <div
               key={a.id}
-              className="relative rounded-card border border-neutral-100 bg-white p-4 shadow-card"
+              className="relative rounded-card border border-hairline-border bg-white p-4 shadow-card"
             >
               <div className="mb-2 flex items-center gap-2">
                 <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase capitalize text-neutral-600">
@@ -64,7 +64,7 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
               </p>
               <p className="mt-1 text-sm font-bold text-neutral-500">{a.phone}</p>
 
-              <div className="mt-3 flex flex-wrap gap-2 border-t border-neutral-100 pt-3">
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-hairline-border pt-3">
                 <button
                   onClick={() => setMode(a.id)}
                   className="inline-flex cursor-pointer items-center gap-1 text-xs font-bold text-neutral-600 hover:text-ink"

@@ -21,7 +21,7 @@ export function AccountNav({ active }: { active: string }) {
             href={href}
             aria-current={isActive ? "page" : undefined}
             className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
-              isActive ? "bg-ink text-white" : "text-neutral-600 hover:bg-surface hover:text-ink"
+              isActive ? "bg-brand-deep text-white" : "text-neutral-600 hover:bg-surface hover:text-ink"
             }`}
           >
             <Icon className="size-4" aria-hidden />

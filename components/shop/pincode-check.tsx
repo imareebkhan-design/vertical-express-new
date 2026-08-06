@@ -32,7 +32,7 @@ export function PincodeCheck({ defaultPincode = "" }: { defaultPincode?: string 
   };
 
   return (
-    <div className="rounded-card border border-neutral-200 p-4">
+    <div className="rounded-card border border-hairline-border p-4">
       <p className="mb-2 flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-widest text-neutral-500">
         <MapPin className="size-3.5 text-brand-deep" aria-hidden /> Check delivery
       </p>
@@ -44,13 +44,13 @@ export function PincodeCheck({ defaultPincode = "" }: { defaultPincode?: string 
           value={pincode}
           onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
           onKeyDown={(e) => e.key === "Enter" && check()}
-          className="h-10 flex-1 rounded-lg border border-neutral-200 px-3 text-sm font-bold focus:border-ink focus:outline-none"
+          className="h-10 flex-1 rounded-[8px] border border-neutral-200 px-3 text-sm font-bold focus:border-brand-deep focus:outline-none bg-surface-soft/40"
           aria-label="Delivery pincode"
         />
         <button
           onClick={check}
           disabled={loading}
-          className="h-10 cursor-pointer rounded-lg bg-ink px-4 text-xs font-extrabold uppercase tracking-widest text-white transition-colors hover:bg-neutral-800 disabled:opacity-60"
+          className="h-10 cursor-pointer rounded-[8px] bg-brand-deep px-4 text-xs font-extrabold uppercase tracking-wider text-white transition-all duration-200 hover:bg-neutral-800 active:scale-[0.97] disabled:opacity-60"
         >
           {loading ? <Loader2 className="size-4 animate-spin" /> : "Check"}
         </button>

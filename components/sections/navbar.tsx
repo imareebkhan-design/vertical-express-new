@@ -2,13 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
   MapPin,
-  Menu,
   ShoppingCart,
-  X,
+  Store,
+  LayoutGrid,
+  Search,
+  Package,
+  User,
 } from "lucide-react";
 import { NAV_PRIMARY } from "@/lib/data";
 import { AccountButton } from "@/components/auth/account-button";
@@ -65,183 +69,241 @@ function PincodeChip() {
 export function Navbar() {
   const scrolled = useScrolled(12);
   const { count } = useCart();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const pathname = usePathname();
+  const [editingPincode, setEditingPincode] = useState(false);
+  const [pincode, setPincode] = useState("190001");
+
+  // Determine active tab for mobile bottom nav
+  const getActiveTab = () => {
+    if (!pathname) return "";
+    if (pathname === "/") return "shop";
+    if (pathname.startsWith("/categories") || pathname.startsWith("/category")) return "categories";
+    if (pathname.startsWith("/search")) return "search";
+    if (pathname.startsWith("/account/orders")) return "orders";
+    if (pathname.startsWith("/account")) return "account";
+    return "";
+  };
+
+  const activeTab = getActiveTab();
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-40 bg-white transition-shadow duration-300",
-        scrolled && "shadow-header"
-      )}
-    >
-      {/* Top row: logo / search / actions */}
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
-        <button
-          className="grid size-10 shrink-0 cursor-pointer place-items-center rounded-lg hover:bg-surface lg:hidden"
-          onClick={() => setMobileOpen(true)}
-          aria-label="Open menu"
-        >
-          <Menu className="size-6" />
-        </button>
+    <>
+      {/* Mobile TopAppBar (< 1024px) */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex h-16 w-full items-center justify-between border-b border-hairline-border bg-white/80 px-4 shadow-sm backdrop-blur-md lg:hidden">
+        {/* Left: Location Pin / Pincode editor */}
+        <div className="flex items-center gap-1 min-w-[70px]">
+          {editingPincode ? (
+            <input
+              autoFocus
+              value={pincode}
+              maxLength={6}
+              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+              onBlur={() => setEditingPincode(false)}
+              onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
+              className="w-16 border-b border-deep-navy text-xs font-bold focus:outline-none bg-transparent"
+              aria-label="Mobile delivery pincode"
+            />
+          ) : (
+            <button
+              onClick={() => setEditingPincode(true)}
+              className="flex items-center gap-0.5 rounded-full bg-surface-soft px-2.5 py-1 text-xs font-bold text-deep-navy transition-colors hover:bg-neutral-200"
+            >
+              <MapPin className="size-3.5 text-deep-navy" />
+              <span>{pincode}</span>
+            </button>
+          )}
+        </div>
 
-        <Logo />
-
-        <SearchBox className="hidden flex-1 md:block" />
-
-        <div className="ml-auto flex items-center gap-1 md:ml-0">
-          <PincodeChip />
-          <AccountButton />
-          <Link
-            href="/cart"
-            className="relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
-            aria-label={`Cart, ${count} items`}
-          >
-            <ShoppingCart className="size-5" aria-hidden />
-            <span className="hidden sm:inline">Cart</span>
-            <AnimatePresence>
-              {count > 0 && (
-                <motion.span
-                  key={count}
-                  initial={{ scale: 0.4, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                  className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-brand text-[11px] font-extrabold text-ink"
-                >
-                  {count}
-                </motion.span>
-              )}
-            </AnimatePresence>
+        {/* Center: Brand Title */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <Link href="/" className="text-center font-sans text-[15px] font-extrabold tracking-tighter text-deep-navy uppercase">
+            VERTICAL EXPRESS
           </Link>
         </div>
-      </div>
 
-      {/* Category nav row (desktop) */}
-      <nav
-        className="hidden border-t border-neutral-100 lg:block"
-        aria-label="Primary navigation"
+        {/* Right: Cart and Notifications/Account shortcuts */}
+        <div className="flex items-center justify-end gap-1 min-w-[70px]">
+          <Link
+            href="/cart"
+            className="relative p-2 text-deep-navy transition-transform active:scale-95"
+            aria-label={`Cart, ${count} items`}
+          >
+            <ShoppingCart className="size-5" />
+            {count > 0 && (
+              <span className="absolute right-0.5 top-0.5 grid size-4.5 place-items-center rounded-full bg-champagne-gold text-[9px] font-extrabold text-ink-black shadow-sm">
+                {count}
+              </span>
+            )}
+          </Link>
+        </div>
+      </header>
+
+      {/* Desktop Navigation Header (>= 1024px) */}
+      <header
+        className={cn(
+          "sticky top-0 z-40 hidden bg-white transition-shadow duration-300 lg:block",
+          scrolled && "shadow-header"
+        )}
       >
-        <ul className="mx-auto flex max-w-7xl items-center justify-center gap-1 px-6">
-          {NAV_PRIMARY.map((cat) => (
-            <li
-              key={cat.label}
-              className="relative"
-              onMouseEnter={() => setOpenMenu(cat.label)}
-              onMouseLeave={() => setOpenMenu(null)}
+        {/* Top row: logo / search / actions */}
+        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
+          <Logo />
+          <SearchBox className="hidden flex-1 md:block" />
+          <div className="ml-auto flex items-center gap-1 md:ml-0">
+            <PincodeChip />
+            <AccountButton />
+            <Link
+              href="/cart"
+              className="relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
+              aria-label={`Cart, ${count} items`}
             >
-              <Link
-                href={cat.href}
-                className={cn(
-                  "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink",
-                  openMenu === cat.label && "text-ink"
-                )}
-              >
-                {cat.label}
-                {cat.children && (
-                  <ChevronDown
-                    className={cn(
-                      "size-3.5 transition-transform duration-200",
-                      openMenu === cat.label && "rotate-180"
-                    )}
-                    aria-hidden
-                  />
-                )}
-              </Link>
-              <span
-                className={cn(
-                  "absolute inset-x-3 bottom-1 h-0.5 origin-left scale-x-0 rounded-full bg-brand transition-transform duration-300 ease-[var(--ease-brand)]",
-                  openMenu === cat.label && "scale-x-100"
-                )}
-                aria-hidden
-              />
+              <ShoppingCart className="size-5" aria-hidden />
+              <span className="hidden sm:inline">Cart</span>
               <AnimatePresence>
-                {cat.children && openMenu === cat.label && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 8 }}
-                    transition={{ duration: 0.18, ease: "easeOut" }}
-                    className="absolute left-0 top-full z-50 min-w-56 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
+                {count > 0 && (
+                  <motion.span
+                    key={count}
+                    initial={{ scale: 0.4, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 18 }}
+                    className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-champagne-gold text-[11px] font-extrabold text-ink-black"
                   >
-                    {cat.children.map((child) => (
-                      <Link
-                        key={child.label}
-                        href={child.href}
-                        className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
-                      >
-                        {child.label}
-                      </Link>
-                    ))}
-                  </motion.div>
+                    {count}
+                  </motion.span>
                 )}
               </AnimatePresence>
-            </li>
-          ))}
-        </ul>
-      </nav>
+            </Link>
+          </div>
+        </div>
 
-      {/* Mobile drawer */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <>
-            <motion.button
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-ink/50 lg:hidden"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close menu"
-            />
-            <motion.aside
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-y-0 left-0 z-50 flex w-80 max-w-[85vw] flex-col bg-white shadow-card-hover lg:hidden"
-              aria-label="Mobile menu"
-            >
-              <div className="flex items-center justify-between border-b border-neutral-100 p-4">
-                <Logo />
-                <button
-                  className="grid size-9 cursor-pointer place-items-center rounded-lg hover:bg-surface"
-                  onClick={() => setMobileOpen(false)}
-                  aria-label="Close menu"
+        {/* Category nav row (desktop) */}
+        <nav
+          className="hidden border-t border-neutral-100 lg:block"
+          aria-label="Primary navigation"
+        >
+          <ul className="mx-auto flex max-w-7xl items-center justify-center gap-1 px-6">
+            {NAV_PRIMARY.map((cat) => (
+              <li
+                key={cat.label}
+                className="relative"
+                onMouseEnter={() => setOpenMenu(cat.label)}
+                onMouseLeave={() => setOpenMenu(null)}
+              >
+                <Link
+                  href={cat.href}
+                  className={cn(
+                    "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink-black",
+                    openMenu === cat.label && "text-ink-black"
+                  )}
                 >
-                  <X className="size-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                {NAV_PRIMARY.map((cat) => (
-                  <div key={cat.label} className="mb-4">
-                    <Link
-                      href={cat.href}
-                      onClick={() => setMobileOpen(false)}
-                      className="text-sm font-extrabold uppercase tracking-wide"
+                  {cat.label}
+                  {cat.children && (
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 transition-transform duration-200",
+                        openMenu === cat.label && "rotate-180"
+                      )}
+                      aria-hidden
+                    />
+                  )}
+                </Link>
+                <span
+                  className={cn(
+                    "absolute inset-x-3 bottom-1 h-0.5 origin-left scale-x-0 rounded-full bg-champagne-gold transition-transform duration-300 ease-[var(--ease-brand)]",
+                    openMenu === cat.label && "scale-x-100"
+                  )}
+                  aria-hidden
+                />
+                <AnimatePresence>
+                  {cat.children && openMenu === cat.label && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 8 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="absolute left-0 top-full z-50 min-w-56 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
                     >
-                      {cat.label}
-                    </Link>
-                    {cat.children && (
-                      <ul className="mt-2 space-y-1 border-l-2 border-brand/40 pl-3">
-                        {cat.children.map((child) => (
-                          <li key={child.label}>
-                            <Link
-                              href={child.href}
-                              onClick={() => setMobileOpen(false)}
-                              className="block py-1 text-sm font-semibold text-neutral-600 hover:text-ink"
-                            >
-                              {child.label}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
-    </header>
+                      {cat.children.map((child) => (
+                        <Link
+                          key={child.label}
+                          href={child.href}
+                          className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink-black"
+                        >
+                          {child.label}
+                        </Link>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </header>
+
+      {/* Mobile BottomNavBar (< 1024px) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-around border-t border-hairline-border bg-white/90 pb-safe shadow-[0_-4px_12px_rgba(15,33,56,0.08)] rounded-t-2xl backdrop-blur-md lg:hidden">
+        {/* Shop Tab */}
+        <Link
+          href="/"
+          className={cn(
+            "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
+            activeTab === "shop" && "text-deep-navy font-bold"
+          )}
+        >
+          <Store className={cn("size-5.5 transition-colors", activeTab === "shop" && "text-deep-navy")} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Shop</span>
+        </Link>
+
+        {/* Categories Tab */}
+        <Link
+          href="/categories"
+          className={cn(
+            "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
+            activeTab === "categories" && "text-deep-navy font-bold"
+          )}
+        >
+          <LayoutGrid className={cn("size-5.5 transition-colors", activeTab === "categories" && "text-deep-navy")} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Categories</span>
+        </Link>
+
+        {/* Search Tab */}
+        <Link
+          href="/search"
+          className={cn(
+            "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
+            activeTab === "search" && "text-deep-navy font-bold"
+          )}
+        >
+          <Search className={cn("size-5.5 transition-colors", activeTab === "search" && "text-deep-navy")} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Search</span>
+        </Link>
+
+        {/* Orders Tab */}
+        <Link
+          href="/account/orders"
+          className={cn(
+            "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
+            activeTab === "orders" && "text-deep-navy font-bold"
+          )}
+        >
+          <Package className={cn("size-5.5 transition-colors", activeTab === "orders" && "text-deep-navy")} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Orders</span>
+        </Link>
+
+        {/* Account Tab */}
+        <Link
+          href="/account"
+          className={cn(
+            "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
+            activeTab === "account" && "text-deep-navy font-bold"
+          )}
+        >
+          <User className={cn("size-5.5 transition-colors", activeTab === "account" && "text-deep-navy")} />
+          <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Account</span>
+        </Link>
+      </nav>
+    </>
   );
 }

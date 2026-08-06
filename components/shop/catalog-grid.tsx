@@ -11,7 +11,7 @@ export function CatalogGrid({
   wishlistedIds?: Set<string>;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 [&_article]:w-full [&_article]:sm:w-full">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 [&_article]:w-full [&_article]:sm:w-full">
       {items.map((item) => (
         <ProductCard
           key={item.id}

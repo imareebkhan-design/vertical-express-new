@@ -8,7 +8,6 @@ import type { Product } from "@/lib/data";
 import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 import { PlaceholderImage } from "@/components/placeholder-image";
 
 interface ProductCardProps {
@@ -58,7 +57,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
     <motion.article
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-card border border-neutral-100 bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-72"
+      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-card border border-hairline-border bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-72"
     >
       <div className="relative overflow-hidden">
         <MaybeLink href={href}>
@@ -82,7 +81,9 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           )}
         </MaybeLink>
         {hasDiscount && (
-          <Badge className="absolute left-3 top-3 shadow-card">{discount}% OFF</Badge>
+          <span className="absolute left-3 top-3 z-10 bg-champagne-gold text-ink-black font-sans font-extrabold text-[10px] px-2 py-0.5 rounded-[4px] shadow-sm uppercase tracking-wider">
+            {discount}% OFF
+          </span>
         )}
         {productId && (
           <button
@@ -123,10 +124,10 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
         )}
 
         <div className="mt-auto flex items-center gap-2 pt-4">
-          <div className="flex items-center rounded-lg border border-neutral-200">
+          <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-l-lg transition-colors hover:bg-surface active:bg-neutral-200"
+              className="grid size-9 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
               aria-label={`Decrease quantity of ${product.title}`}
             >
               <Minus className="size-3.5" />
@@ -136,16 +137,16 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             </span>
             <button
               onClick={() => setQty((q) => Math.min(999, q + 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-r-lg transition-colors hover:bg-surface active:bg-neutral-200"
+              className="grid size-9 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
               aria-label={`Increase quantity of ${product.title}`}
             >
               <Plus className="size-3.5" />
             </button>
           </div>
           <motion.button
-            whileTap={{ scale: 0.94 }}
+            whileTap={{ scale: 0.95 }}
             onClick={handleAdd}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-lg bg-brand text-xs font-extrabold uppercase tracking-widest text-ink shadow-card transition-colors hover:bg-brand-dark"
+            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-[8px] bg-brand text-xs font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
           >
             {added ? <><Check className="size-3.5" /> Added</> : "Add"}
           </motion.button>

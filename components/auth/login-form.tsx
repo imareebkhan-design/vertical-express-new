@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Loader2, MailCheck } from "lucide-react";
+import { ArrowLeft, Loader2, MailCheck, MessageSquare } from "lucide-react";
 import { sendOtp, verifyOtp } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,8 @@ import { Input } from "@/components/ui/input";
 type Step = "identifier" | "token";
 
 /**
- * Phone-first OTP login. The identifier field accepts email today
- * (AUTH_OTP_CHANNEL=email); flipping the channel to SMS changes copy only.
+ * Unified OTP login. Accepts either mobile number or email address,
+ * auto-detecting input type and styling the field (+91) dynamically.
  */
 export function LoginForm() {
   const router = useRouter();
@@ -22,6 +22,7 @@ export function LoginForm() {
 
   const [step, setStep] = useState<Step>("identifier");
   const [identifier, setIdentifier] = useState("");
+  const [channel, setChannel] = useState<"email" | "phone" | null>(null);
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(
     linkError ? "That login link was invalid or expired. Request a new one." : null
@@ -36,6 +37,7 @@ export function LoginForm() {
         setError(result.error.message);
         return;
       }
+      setChannel(result.data.channel);
       setStep("token");
     });
   };
@@ -52,6 +54,18 @@ export function LoginForm() {
       router.refresh();
     });
   };
+
+  const handleIdentifierChange = (val: string) => {
+    const trimmed = val.trim();
+    if (/^\d/.test(trimmed)) {
+      // Numbers only, capped at 10 digits for Indian mobile numbers
+      setIdentifier(trimmed.replace(/\D/g, "").slice(0, 10));
+    } else {
+      setIdentifier(val);
+    }
+  };
+
+  const isPhoneInput = /^\d/.test(identifier);
 
   return (
     <div className="w-full max-w-sm">
@@ -74,19 +88,26 @@ export function LoginForm() {
             </p>
 
             <label htmlFor="identifier" className="mt-6 block text-xs font-extrabold uppercase tracking-widest text-neutral-500">
-              Email address
+              Mobile number or Email
             </label>
-            <Input
-              id="identifier"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              autoFocus
-              placeholder="you@example.com"
-              value={identifier}
-              onChange={(e) => setIdentifier(e.target.value)}
-              className="mt-2"
-            />
+            
+            <div className="relative mt-2">
+              {isPhoneInput && (
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-neutral-500">
+                  +91
+                </span>
+              )}
+              <Input
+                id="identifier"
+                type="text"
+                autoComplete="username"
+                autoFocus
+                placeholder="98765 43210 or you@example.com"
+                value={identifier}
+                onChange={(e) => handleIdentifierChange(e.target.value)}
+                className={isPhoneInput ? "pl-12" : ""}
+              />
+            </div>
 
             <Button type="submit" size="lg" className="mt-4 w-full" disabled={pending || !identifier}>
               {pending ? <Loader2 className="animate-spin" /> : "Continue"}
@@ -109,21 +130,33 @@ export function LoginForm() {
               onClick={() => setStep("identifier")}
               className="mb-4 inline-flex cursor-pointer items-center gap-1 text-xs font-extrabold uppercase tracking-widest text-neutral-500 hover:text-ink"
             >
-              <ArrowLeft className="size-3.5" /> Change email
+              <ArrowLeft className="size-3.5" /> Change details
             </button>
 
             <div className="mb-4 flex items-start gap-3 rounded-card bg-tile p-4">
-              <MailCheck className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden />
-              <p className="text-sm font-semibold text-neutral-600">
-                We&apos;ve emailed <span className="font-extrabold text-ink">{identifier}</span>.
-                Open it and tap <span className="font-extrabold text-ink">Log in</span> — you&apos;ll
-                come straight back here signed in. If your email included a 6-digit code, you can
-                enter it below instead.
-              </p>
+              {channel === "phone" ? (
+                <>
+                  <MessageSquare className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden />
+                  <p className="text-sm font-semibold text-neutral-600">
+                    We&apos;ve sent a 6-digit SMS verification code to <span className="font-extrabold text-ink">+91 {identifier}</span>.
+                    Enter the verification code below.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <MailCheck className="mt-0.5 size-5 shrink-0 text-brand-deep" aria-hidden />
+                  <p className="text-sm font-semibold text-neutral-600">
+                    We&apos;ve emailed <span className="font-extrabold text-ink">{identifier}</span>.
+                    Open it and tap <span className="font-extrabold text-ink">Log in</span> — you&apos;ll
+                    come straight back here signed in. If your email included a 6-digit code, you can
+                    enter it below instead.
+                  </p>
+                </>
+              )}
             </div>
 
             <label htmlFor="token" className="block text-xs font-extrabold uppercase tracking-widest text-neutral-500">
-              6-digit code (optional)
+              6-digit code {channel === "email" && "(optional)"}
             </label>
             <Input
               id="token"

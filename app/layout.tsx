@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import { Karla } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
 import { CartProvider } from "@/hooks/use-cart";
 
-const karla = Karla({
-  variable: "--font-karla",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -37,7 +37,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${karla.variable} antialiased`}>
+      <body className={`${inter.variable} antialiased`}>
         {/* Skip to main content — accessibility / keyboard nav */}
         <a
           href="#main-content"

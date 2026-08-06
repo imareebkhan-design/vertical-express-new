@@ -74,8 +74,8 @@ export function PdpActions({ product }: { product: ProductDetail }) {
               key={v.id}
               onClick={() => setVariantId(v.id)}
               className={cn(
-                "rounded-lg border-2 px-3 py-2 text-sm font-bold transition-colors",
-                v.id === variantId ? "border-ink bg-ink text-white" : "border-neutral-200 hover:border-ink"
+                "rounded-[8px] border-2 px-3 py-2 text-sm font-bold transition-all duration-200",
+                v.id === variantId ? "border-brand-deep bg-brand-deep text-white" : "border-neutral-200 hover:border-brand-deep"
               )}
             >
               {v.name}
@@ -100,10 +100,10 @@ export function PdpActions({ product }: { product: ProductDetail }) {
 
       {/* Qty + add (desktop) */}
       <div className="hidden items-center gap-3 sm:flex">
-        <div className="flex items-center rounded-lg border border-neutral-200">
+        <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-l-lg transition-colors hover:bg-surface"
+            className="grid size-11 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -113,27 +113,27 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           </span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-r-lg transition-colors hover:bg-surface"
+            className="grid size-11 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand text-sm font-extrabold uppercase tracking-widest text-ink shadow-card transition-colors hover:bg-brand-dark"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
         >
           {added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
 
       {/* Sticky mobile action bar */}
-      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-neutral-100 bg-white p-3 shadow-[0_-4px_12px_rgb(10_10_10/0.06)] sm:hidden">
-        <div className="flex items-center rounded-lg border border-neutral-200">
+      <div className="fixed inset-x-0 bottom-20 z-30 flex items-center gap-3 border-t border-hairline-border bg-white/90 backdrop-blur-md p-3 shadow-[0_-4px_12px_rgba(15,33,56,0.08)] sm:hidden">
+        <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-10 cursor-pointer place-items-center"
+            className="grid size-10 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -141,16 +141,16 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           <span className="w-9 text-center text-sm font-extrabold">{qty}</span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-10 cursor-pointer place-items-center"
+            className="grid size-10 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand text-sm font-extrabold uppercase tracking-widest text-ink"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] active:scale-95 transition-all duration-200"
         >
           {added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
         </motion.button>

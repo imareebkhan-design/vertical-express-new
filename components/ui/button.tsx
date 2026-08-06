@@ -11,7 +11,7 @@ const buttonVariants = cva(
           "bg-brand text-ink shadow-card hover:bg-brand-dark hover:shadow-card-hover",
         dark: "bg-ink text-white hover:bg-neutral-800",
         outline:
-          "border-2 border-ink bg-transparent text-ink hover:bg-ink hover:text-white",
+          "border border-brand-deep bg-transparent text-brand-deep hover:bg-surface",
         ghost: "bg-transparent text-ink hover:bg-surface",
       },
       size: {

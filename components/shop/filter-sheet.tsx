@@ -41,7 +41,7 @@ export function FilterSheet({ facets, activeCount }: { facets: CatalogFacets; ac
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white p-5 shadow-card-hover lg:hidden"
+              className="fixed inset-x-0 bottom-0 z-50 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white p-5 pb-8 shadow-card-hover lg:hidden"
               role="dialog"
               aria-label="Filters"
             >

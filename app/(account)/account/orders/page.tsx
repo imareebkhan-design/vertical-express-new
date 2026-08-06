@@ -50,7 +50,7 @@ export default async function OrdersPage({
                   <li key={o.id}>
                     <Link
                       href={`/account/orders/${o.orderNo}`}
-                      className="flex items-center gap-4 rounded-card border border-neutral-100 bg-white p-4 shadow-card transition-shadow hover:shadow-card-hover"
+                      className="flex items-center gap-4 rounded-card border border-hairline-border bg-white p-4 shadow-card transition-shadow hover:shadow-card-hover"
                     >
                       <div className="flex -space-x-3">
                         {o.items.slice(0, 3).map((it) => (
@@ -87,7 +87,7 @@ export default async function OrdersPage({
                     href={`/account/orders?page=${p}`}
                     aria-current={p === page ? "page" : undefined}
                     className={`grid size-10 place-items-center rounded-full text-sm font-extrabold ${
-                      p === page ? "bg-ink text-white" : "border border-neutral-200 hover:border-ink"
+                      p === page ? "bg-brand-deep text-white" : "border border-neutral-200 hover:border-brand-deep"
                     }`}
                   >
                     {p}

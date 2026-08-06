@@ -11,6 +11,7 @@ import { FilterSidebar } from "@/components/shop/filter-sidebar";
 import { FilterSheet } from "@/components/shop/filter-sheet";
 import { listProducts, type CatalogSort } from "@/lib/services/catalog";
 import { rupeesToPaise } from "@/lib/money";
+import { SearchBox } from "@/components/shop/search-box";
 
 export const metadata: Metadata = {
   title: "Search | Vertical Express",
@@ -51,7 +52,9 @@ export default async function SearchPage({ searchParams }: PageProps) {
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
             {query ? <>Results for “{query}”</> : "Search"}
           </h1>
-          <p className="mt-1 text-sm font-semibold text-neutral-500">
+          {/* Mobile Search Input */}
+          <SearchBox className="mt-3 block lg:hidden" />
+          <p className="mt-1.5 text-sm font-semibold text-neutral-500">
             {result.total} {result.total === 1 ? "product" : "products"}
           </p>
         </div>

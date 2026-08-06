@@ -32,7 +32,7 @@ export function CartView() {
       {/* Line items */}
       <div>
         {/* Free-delivery meter */}
-        <div className="mb-5 rounded-card border border-neutral-100 bg-surface/60 p-4">
+        <div className="mb-5 rounded-card border border-hairline-border bg-surface-soft/30 p-4">
           {qualifiesFreeDelivery ? (
             <p className="text-sm font-extrabold text-success">🎉 You&apos;ve unlocked free delivery!</p>
           ) : (
@@ -60,7 +60,7 @@ export function CartView() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                className="flex gap-4 rounded-card border border-neutral-100 bg-white p-3 shadow-card sm:p-4"
+                className="flex gap-4 rounded-card border border-hairline-border bg-white p-3 shadow-card sm:p-4"
               >
                 <Link
                   href={`/product/${line.productSlug}`}
@@ -109,10 +109,10 @@ export function CartView() {
                   )}
 
                   <div className="mt-auto flex items-center justify-between pt-2">
-                    <div className="flex items-center rounded-lg border border-neutral-200">
+                    <div className="flex items-center rounded-[8px] border border-hairline-border bg-surface-soft/40">
                       <button
                         onClick={() => updateItem(line.itemId, line.qty - 1)}
-                        className="grid size-8 cursor-pointer place-items-center rounded-l-lg transition-colors hover:bg-surface"
+                        className="grid size-8 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
                         aria-label="Decrease quantity"
                       >
                         <Minus className="size-3.5" />
@@ -120,7 +120,7 @@ export function CartView() {
                       <span className="w-9 text-center text-sm font-extrabold">{line.qty}</span>
                       <button
                         onClick={() => updateItem(line.itemId, line.qty + 1)}
-                        className="grid size-8 cursor-pointer place-items-center rounded-r-lg transition-colors hover:bg-surface"
+                        className="grid size-8 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
                         aria-label="Increase quantity"
                       >
                         <Plus className="size-3.5" />
@@ -142,7 +142,7 @@ export function CartView() {
 
       {/* Summary */}
       <aside className="h-fit lg:sticky lg:top-24">
-        <div className="rounded-card border border-neutral-100 bg-white p-5 shadow-card">
+        <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
           <h2 className="text-lg font-extrabold">Order summary</h2>
           <dl className="mt-4 space-y-2 text-sm font-bold">
             <div className="flex justify-between">
@@ -156,7 +156,7 @@ export function CartView() {
               </dd>
             </div>
           </dl>
-          <div className="mt-4 flex justify-between border-t border-neutral-100 pt-4 text-base font-extrabold">
+          <div className="mt-4 flex justify-between border-t border-hairline-border pt-4 text-base font-extrabold">
             <span>Total</span>
             <span>{formatPaise(subtotalPaise)}</span>
           </div>

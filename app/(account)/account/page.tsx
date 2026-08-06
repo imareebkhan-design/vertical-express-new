@@ -48,7 +48,7 @@ export default async function AccountOverview() {
             </div>
 
             {/* Recent orders */}
-            <section className="rounded-card border border-neutral-100 bg-white p-5 shadow-card">
+            <section className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-sm font-extrabold uppercase tracking-widest text-neutral-500">Recent orders</h2>
                 <Link href="/account/orders" className="inline-flex items-center gap-1 text-xs font-bold text-brand-deep hover:underline">
@@ -58,7 +58,7 @@ export default async function AccountOverview() {
               {orders.length === 0 ? (
                 <p className="py-4 text-sm font-semibold text-neutral-500">No orders yet.</p>
               ) : (
-                <ul className="divide-y divide-neutral-100">
+                <ul className="divide-y divide-hairline-border">
                   {orders.map((o) => (
                     <li key={o.id}>
                       <Link href={`/account/orders/${o.orderNo}`} className="flex items-center justify-between gap-3 py-3 hover:opacity-80">
@@ -78,7 +78,7 @@ export default async function AccountOverview() {
 
             {/* Default address */}
             {defaultAddress && (
-              <section className="rounded-card border border-neutral-100 bg-white p-5 shadow-card">
+              <section className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
                 <h2 className="mb-2 text-sm font-extrabold uppercase tracking-widest text-neutral-500">Default address</h2>
                 <p className="text-sm font-semibold text-neutral-600">
                   <span className="font-extrabold capitalize text-ink">{defaultAddress.label} · {defaultAddress.name}</span>
@@ -97,7 +97,7 @@ export default async function AccountOverview() {
 
 function StatCard({ icon: Icon, label, value, href }: { icon: typeof Package; label: string; value: string; href: string }) {
   return (
-    <Link href={href} className="rounded-card border border-neutral-100 bg-white p-4 text-center shadow-card transition-shadow hover:shadow-card-hover">
+    <Link href={href} className="rounded-card border border-hairline-border bg-white p-4 text-center shadow-card transition-shadow hover:shadow-card-hover">
       <Icon className="mx-auto size-5 text-brand-deep" strokeWidth={1.8} aria-hidden />
       <p className="mt-1 text-2xl font-extrabold">{value}</p>
       <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">{label}</p>

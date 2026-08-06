@@ -1,26 +1,65 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand palette updated for new Vertical Express brand system */
-  --color-brand: #fcbd00;
-  --color-brand-dark: #e5ac00;
-  --color-brand-deep: #0f2138;
-  --color-ink: #0a0a0a;
-  --color-navy: #0f2138;
+  /* Brand palette updated from Stitch design system "Architectural Lifestyle" */
+  --color-background: #f8f9fe;
+  --color-on-background: #191c1f;
+  --color-surface: #f8f9fe;
+  --color-surface-dim: #d9dadf;
+  --color-surface-bright: #f8f9fe;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f3f8;
+  --color-surface-container: #edeef3;
+  --color-surface-container-high: #e7e8ed;
+  --color-surface-container-highest: #e1e2e7;
+  --color-on-surface: #191c1f;
+  --color-on-surface-variant: #44474d;
+  --color-outline: #74777e;
+  --color-outline-variant: #c4c6ce;
+  --color-primary: #00091a;
+  --color-primary-container: #0f2138;
+  
+  --color-secondary: #795900;
+  --color-secondary-container: #febf06;
+  --color-tertiary: #090909;
+  --color-tertiary-container: #202020;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+
+  /* Premium Design Brand Named Colors */
+  --color-champagne-gold: #FCBD00;
+  --color-muted-gold: #E5AC00;
+  --color-deep-navy: #0F2138;
+  --color-ink-black: #0A0A0A;
+  --color-ice-tile: #EEF9FB;
+  --color-surface-soft: #EFF0F5;
+  --color-hairline-border: #F5F5F5;
+  --color-success-express: #1A7F37;
+  --color-danger-crimson: #C8102E;
+
+  /* Maintain backward compatibility with the existing code naming style */
+  --color-brand: var(--color-champagne-gold);
+  --color-brand-dark: var(--color-muted-gold);
+  --color-brand-deep: var(--color-deep-navy);
+  --color-ink: var(--color-ink-black);
+  --color-navy: var(--color-deep-navy);
   --color-slate-dark: #1e293b;
-  --color-surface: #eff0f5;
-  --color-tile: #eef9fb;
-  --color-success: #1a7f37;
-  --color-danger: #c8102e;
+  --color-surface: var(--color-surface-soft);
+  --color-tile: var(--color-ice-tile);
+  --color-success: var(--color-success-express);
+  --color-danger: var(--color-danger-crimson);
 
-  --font-sans: var(--font-karla), ui-sans-serif, system-ui, sans-serif;
+  /* Typography */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  --radius-card: 0.75rem;
+  /* Border radius */
+  --radius-card: 1rem; /* Cards & Containers: 1rem (16px) per design guidelines */
   --radius-pill: 9999px;
 
-  --shadow-card: 0 1px 2px rgb(10 10 10 / 0.06), 0 4px 12px rgb(10 10 10 / 0.08);
-  --shadow-card-hover: 0 4px 8px rgb(10 10 10 / 0.08), 0 12px 28px rgb(10 10 10 / 0.14);
-  --shadow-header: 0 2px 12px rgb(10 10 10 / 0.08);
+  /* Shadows */
+  --shadow-card: 0 4px 12px rgba(15, 33, 56, 0.08); /* Ambient shadow with hint of navy per guidelines */
+  --shadow-card-hover: 0 8px 24px rgba(15, 33, 56, 0.12);
+  --shadow-header: 0 2px 12px rgba(15, 33, 56, 0.05);
 
   --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -64,16 +103,25 @@ html.lenis body {
 }
 
 body {
-  background: #ffffff;
-  color: var(--color-ink);
+  background: var(--color-background);
+  color: var(--color-on-surface);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  padding-top: 4rem; /* 64px for mobile TopAppBar */
+  padding-bottom: 5rem; /* 80px for mobile BottomNavBar */
+}
+
+@media (min-width: 1024px) {
+  body {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
 }
 
 ::selection {
-  background: var(--color-brand);
-  color: var(--color-ink);
+  background: var(--color-champagne-gold);
+  color: var(--color-ink-black);
 }
 
 /* Hide horizontal scrollbars on carousels while keeping them scrollable */
@@ -87,7 +135,7 @@ body {
 
 /* Accessible focus ring matching brand */
 :focus-visible {
-  outline: 2px solid var(--color-ink);
+  outline: 2px solid var(--color-deep-navy);
   outline-offset: 2px;
 }
 

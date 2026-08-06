@@ -45,7 +45,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
 
   if (summary.lines.length === 0) {
     return (
-      <div className="rounded-card border border-neutral-100 bg-white p-8 text-center shadow-card">
+      <div className="rounded-card border border-hairline-border bg-white p-8 text-center shadow-card">
         <p className="text-sm font-bold text-neutral-500">Your cart is empty.</p>
         <Link href="/categories" className="mt-4 inline-block">
           <Button>Browse products</Button>
@@ -152,8 +152,8 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
                 <label
                   key={a.id}
                   className={cn(
-                    "flex cursor-pointer gap-3 rounded-card border-2 p-3 transition-colors",
-                    addressId === a.id ? "border-ink" : "border-neutral-200 hover:border-neutral-300"
+                    "flex cursor-pointer gap-3 rounded-card border-2 p-3 transition-all duration-200",
+                    addressId === a.id ? "border-brand-deep bg-surface-soft/20" : "border-neutral-200 hover:border-brand-deep"
                   )}
                 >
                   <input
@@ -161,7 +161,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
                     name="address"
                     checked={addressId === a.id}
                     onChange={() => setAddressId(a.id)}
-                    className="mt-1 size-4 shrink-0 cursor-pointer accent-ink"
+                    className="mt-1 size-4 shrink-0 cursor-pointer accent-brand-deep"
                   />
                   <div className="text-sm">
                     <p className="font-extrabold capitalize">
@@ -222,7 +222,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
 
       {/* Order summary */}
       <aside className="h-fit lg:sticky lg:top-24">
-        <div className="rounded-card border border-neutral-100 bg-white p-5 shadow-card">
+        <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
           <h2 className="text-lg font-extrabold">Order summary</h2>
           <ul className="mt-4 space-y-2">
             {summary.lines.map((l) => (
@@ -234,7 +234,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               </li>
             ))}
           </ul>
-          <dl className="mt-4 space-y-2 border-t border-neutral-100 pt-4 text-sm font-bold">
+          <dl className="mt-4 space-y-2 border-t border-hairline-border pt-4 text-sm font-bold">
             <div className="flex justify-between">
               <dt className="text-neutral-500">Subtotal</dt>
               <dd>{formatPaise(summary.subtotalPaise)}</dd>
@@ -252,7 +252,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               </dd>
             </div>
           </dl>
-          <div className="mt-4 flex justify-between border-t border-neutral-100 pt-4 text-base font-extrabold">
+          <div className="mt-4 flex justify-between border-t border-hairline-border pt-4 text-base font-extrabold">
             <span>Total</span>
             <span>{formatPaise(totals?.totalPaise ?? summary.subtotalPaise)}</span>
           </div>
@@ -272,9 +272,9 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
 
 function Section({ step, title, children }: { step: number; title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-card border border-neutral-100 bg-white p-5 shadow-card">
+    <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
       <h2 className="mb-4 flex items-center gap-2 text-lg font-extrabold">
-        <span className="grid size-6 place-items-center rounded-full bg-ink text-xs font-extrabold text-brand">
+        <span className="grid size-6 place-items-center rounded-full bg-brand-deep text-xs font-extrabold text-brand">
           {step}
         </span>
         {title}
@@ -305,8 +305,8 @@ function PayOption({
       onClick={onSelect}
       disabled={disabled}
       className={cn(
-        "flex w-full items-center gap-3 rounded-card border-2 p-3 text-left transition-colors",
-        active ? "border-ink" : "border-neutral-200 hover:border-neutral-300",
+        "flex w-full items-center gap-3 rounded-card border-2 p-3 text-left transition-all duration-200",
+        active ? "border-brand-deep bg-surface-soft/20" : "border-neutral-200 hover:border-brand-deep",
         disabled && "cursor-not-allowed opacity-50"
       )}
     >
@@ -315,7 +315,7 @@ function PayOption({
         <span className="block text-sm font-extrabold">{title}</span>
         <span className="block text-xs font-semibold text-neutral-500">{caption}</span>
       </span>
-      {active && <Check className="size-5 text-ink" />}
+      {active && <Check className="size-5 text-brand-deep" />}
     </button>
   );
 }

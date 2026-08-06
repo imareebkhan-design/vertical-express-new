@@ -12,6 +12,7 @@ import { Footer } from "@/components/sections/footer";
 import { FloatingCart } from "@/components/floating-cart";
 import { WelcomePopup } from "@/components/welcome-popup";
 import { PageLoader } from "@/components/page-loader";
+import { SearchBox } from "@/components/shop/search-box";
 
 export const revalidate = 300;
 
@@ -23,6 +24,10 @@ export default async function Home() {
       <AnnouncementBar />
       <Navbar />
       <main id="main-content">
+        {/* Mobile Search Input */}
+        <div className="px-4 py-3 md:hidden">
+          <SearchBox />
+        </div>
         <Hero />
         <Deals items={deals} />
         <Categories />

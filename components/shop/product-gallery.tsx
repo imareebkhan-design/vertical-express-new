@@ -48,7 +48,7 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
               aria-current={i === active}
               className={cn(
                 "size-16 shrink-0 overflow-hidden rounded-lg border-2 bg-tile transition-colors",
-                i === active ? "border-ink" : "border-transparent hover:border-neutral-300"
+                i === active ? "border-brand-deep" : "border-transparent hover:border-neutral-300"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

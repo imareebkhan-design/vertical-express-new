@@ -47,7 +47,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
             disabled={!canLeft}
             aria-label="Scroll deals left"
             className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-neutral-200 transition-all hover:border-ink hover:bg-ink hover:text-white active:scale-95",
+              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
               !canLeft && "pointer-events-none opacity-30"
             )}
           >
@@ -58,7 +58,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
             disabled={!canRight}
             aria-label="Scroll deals right"
             className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-neutral-200 transition-all hover:border-ink hover:bg-ink hover:text-white active:scale-95",
+              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
               !canRight && "pointer-events-none opacity-30"
             )}
           >

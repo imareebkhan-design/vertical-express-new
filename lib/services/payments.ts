@@ -1,5 +1,5 @@
 import "server-only";
-import crypto from "node:crypto";
+import crypto from "crypto";
 
 /**
  * Payment provider abstraction. The dummy provider simulates a gateway so the
@@ -26,10 +26,40 @@ export interface PaymentProvider {
   createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult>;
 }
 
-/** Simulated gateway — instant success. Placeholder until Razorpay. */
+/** Thrown when the payment gateway is misconfigured for the current environment. */
+export class PaymentConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PaymentConfigError";
+  }
+}
+
+function isProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/** True only when Razorpay is explicitly selected AND both server keys are present. */
+function razorpayConfigured(): boolean {
+  return (
+    process.env.PAYMENT_GATEWAY === "razorpay" &&
+    !!process.env.RAZORPAY_KEY_ID &&
+    !!process.env.RAZORPAY_KEY_SECRET
+  );
+}
+
+/** Simulated gateway — instant success. Development/test only (see ISS-002). */
 class DummyPaymentProvider implements PaymentProvider {
   readonly id = "dummy" as const;
   async createPayment({ orderId }: CreatePaymentParams): Promise<CreatePaymentResult> {
+    // ISS-002: the dummy gateway fabricates a settled payment. If it ever ran in
+    // production it would confirm an order and decrement stock with no money
+    // taken. Selection is already gated by activeGateway(); this is the last-line
+    // guard so no code path can produce a fake capture in production.
+    if (isProduction()) {
+      throw new PaymentConfigError(
+        "DUMMY_GATEWAY_IN_PRODUCTION: the dummy payment provider cannot be used in production."
+      );
+    }
     return {
       settled: true,
       gatewayOrderId: `dummy_${orderId.slice(0, 8)}`,
@@ -94,14 +124,38 @@ export function getPaymentProvider(method: PaymentMethodId): PaymentProvider {
   return PROVIDERS[method] ?? PROVIDERS.dummy;
 }
 
-/** The online gateway currently in use (env-switchable). Falls back to dummy
- *  unless Razorpay is both selected AND has keys configured. */
+/**
+ * The online gateway currently in use (env-switchable).
+ *
+ * ISS-002: production MUST NOT silently fall back to the dummy gateway. When
+ * Razorpay is not fully configured in production this throws, so checkout fails
+ * loudly rather than confirming an order with no money taken. The dummy gateway
+ * remains available in development and test.
+ */
 export function activeGateway(): PaymentMethodId {
-  const razorpayReady =
-    process.env.PAYMENT_GATEWAY === "razorpay" &&
-    !!process.env.RAZORPAY_KEY_ID &&
-    !!process.env.RAZORPAY_KEY_SECRET;
-  return razorpayReady ? "razorpay" : "dummy";
+  if (razorpayConfigured()) return "razorpay";
+  if (isProduction()) {
+    throw new PaymentConfigError(
+      "PAYMENT_GATEWAY_MISCONFIGURED: production requires PAYMENT_GATEWAY=razorpay with RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET set; refusing to fall back to the dummy gateway."
+    );
+  }
+  return "dummy";
+}
+
+/**
+ * Boot-time assertion (called from Next instrumentation). Fails fast in a
+ * misconfigured production environment and logs which gateway is active. Never
+ * logs secret values.
+ */
+export function assertPaymentConfig(): void {
+  const gateway = activeGateway(); // throws in a misconfigured production env
+  if (gateway === "dummy") {
+    console.warn(
+      "[payments] DUMMY gateway active — development/test only; no real payments are captured."
+    );
+  } else {
+    console.info(`[payments] payment gateway active: ${gateway}`);
+  }
 }
 
 /** Verify the signature Razorpay returns to the browser after Checkout.
