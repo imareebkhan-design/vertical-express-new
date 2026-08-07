@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import type { OrderStatus, BookingStatus } from "@prisma/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
+import { releaseOrderInventory } from "@/lib/services/orders";
 
 // Allowed forward transitions for the order fulfilment state machine.
 const ORDER_FLOW: Record<string, OrderStatus[]> = {
@@ -57,11 +58,7 @@ export async function advanceOrderStatus(
     });
     // Restock on admin cancellation.
     if (to === "cancelled") {
-      const items = await tx.orderItem.findMany({ where: { orderId } });
-      for (const item of items) {
-        const inv = await tx.inventory.findFirst({ where: { variantId: item.variantId } });
-        if (inv) await tx.inventory.update({ where: { id: inv.id }, data: { qtyOnHand: { increment: item.qty } } });
-      }
+      await releaseOrderInventory(tx, orderId, order.warehouseId);
     }
   });
 

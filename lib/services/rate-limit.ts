@@ -43,3 +43,21 @@ export async function rateLimit(
     return { allowed: true, retryAfterMs: 0 };
   }
 }
+
+/**
+ * Safely extracts client IP address from incoming request headers.
+ * Prioritizes `x-real-ip` (set by edge proxies like Vercel/Nginx) before
+ * parsing `x-forwarded-for` to prevent header spoofing.
+ */
+export function getClientIp(request: Request): string {
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) return firstIp;
+  }
+
+  return "anonymous";
+}

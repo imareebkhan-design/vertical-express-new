@@ -131,7 +131,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
         </div>
 
         <div className="mt-6">
-          <OrderActions orderNo={order.orderNo} cancellable={cancellable} />
+          <OrderActions orderNo={order.orderNo} cancellable={cancellable} status={order.status} />
         </div>
       </main>
       <Footer />

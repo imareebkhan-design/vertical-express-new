@@ -43,6 +43,29 @@ export async function listOrders(userId: string, page = 1, perPage = 10) {
   return { orders, total, page, perPage };
 }
 
+/** Helper to safely release/restock inventory for an order, scoped to its warehouse. */
+export async function releaseOrderInventory(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  warehouseId?: string | null
+) {
+  const items = await tx.orderItem.findMany({ where: { orderId } });
+  for (const item of items) {
+    const inv = await tx.inventory.findFirst({
+      where: {
+        variantId: item.variantId,
+        ...(warehouseId ? { warehouseId } : {}),
+      },
+    });
+    if (inv) {
+      await tx.inventory.update({
+        where: { id: inv.id },
+        data: { qtyOnHand: { increment: item.qty } },
+      });
+    }
+  }
+}
+
 /** Cancel while still pre-fulfilment; releases stock. */
 export async function cancelOrder(userId: string, orderNo: string, reason: string) {
   const order = await db.order.findFirst({
@@ -62,13 +85,8 @@ export async function cancelOrder(userId: string, orderNo: string, reason: strin
     await tx.orderStatusEvent.create({
       data: { orderId: order.id, fromStatus: order.status, toStatus: "cancelled", note: reason, actorUserId: userId },
     });
-    // Restock.
-    for (const item of order.items) {
-      const inv = await tx.inventory.findFirst({ where: { variantId: item.variantId } });
-      if (inv) {
-        await tx.inventory.update({ where: { id: inv.id }, data: { qtyOnHand: { increment: item.qty } } });
-      }
-    }
+    // Restock to the specific warehouse where stock was reserved.
+    await releaseOrderInventory(tx, order.id, order.warehouseId);
   });
 }
 
@@ -88,4 +106,52 @@ export async function reorder(userId: string, orderNo: string) {
       create: { cartId: cart.id, variantId: item.variantId, qty: item.qty },
     });
   }
+}
+
+/**
+ * Automatically cancels stale `pending_payment` orders older than maxAgeMinutes
+ * (default 15 mins) and releases their reserved inventory back to qtyOnHand.
+ */
+export async function cleanupExpiredPendingOrders(maxAgeMinutes = 15): Promise<number> {
+  const cutoff = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
+
+  const staleOrders = await db.order.findMany({
+    where: {
+      status: "pending_payment",
+      placedAt: { lte: cutoff },
+    },
+    include: { items: true },
+    take: 20,
+  });
+
+  let cancelledCount = 0;
+
+  for (const order of staleOrders) {
+    try {
+      await db.$transaction(async (tx) => {
+        const updated = await tx.order.updateMany({
+          where: { id: order.id, status: "pending_payment" },
+          data: { status: "cancelled", cancelledReason: "Payment window expired (15 min)" },
+        });
+
+        if (updated.count > 0) {
+          await tx.orderStatusEvent.create({
+            data: {
+              orderId: order.id,
+              fromStatus: "pending_payment",
+              toStatus: "cancelled",
+              note: "Stale pending_payment auto-cancelled after 15 minutes",
+            },
+          });
+
+          await releaseOrderInventory(tx, order.id, order.warehouseId);
+          cancelledCount++;
+        }
+      });
+    } catch {
+      // Continue cleanup loop if single order fails
+    }
+  }
+
+  return cancelledCount;
 }

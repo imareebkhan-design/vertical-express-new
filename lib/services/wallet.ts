@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({
@@ -32,38 +33,46 @@ export async function creditCashbackForOrder(params: {
 
   const wallet = await getOrCreateWallet(userId);
 
-  // Check if cashback was already credited for this order
-  const existingTx = await db.walletTransaction.findFirst({
-    where: {
-      walletId: wallet.id,
-      type: "cashback_credit",
-      referenceId: orderId,
-    },
-  });
+  try {
+    await db.$transaction(async (tx) => {
+      const existingTx = await tx.walletTransaction.findFirst({
+        where: {
+          walletId: wallet.id,
+          type: "cashback_credit",
+          referenceId: orderId,
+        },
+      });
 
-  if (existingTx) return;
+      if (existingTx) return;
 
-  // 30 days expiry
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // 30 days expiry
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-  await db.$transaction([
-    db.walletTransaction.create({
-      data: {
-        walletId: wallet.id,
-        amountPaise: cashbackPaise,
-        type: "cashback_credit",
-        referenceId: orderId,
-        description: `5% Cashback for order #${orderNo}`,
-        expiresAt,
-      },
-    }),
-    db.wallet.update({
-      where: { id: wallet.id },
-      data: {
-        balancePaise: { increment: cashbackPaise },
-      },
-    }),
-  ]);
+      await tx.walletTransaction.create({
+        data: {
+          walletId: wallet.id,
+          amountPaise: cashbackPaise,
+          type: "cashback_credit",
+          referenceId: orderId,
+          description: `5% Cashback for order #${orderNo}`,
+          expiresAt,
+        },
+      });
+
+      await tx.wallet.update({
+        where: { id: wallet.id },
+        data: {
+          balancePaise: { increment: cashbackPaise },
+        },
+      });
+    });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      // Duplicate cashback credit attempt caught by DB unique constraint @@unique([referenceId, type])
+      return;
+    }
+    throw e;
+  }
 }
 
 export async function getUserWallet(userId: string) {

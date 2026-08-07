@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
 import { db } from "@/lib/db";
 
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
 
     const payload = JSON.parse(rawBody);
     const event = payload.event as string;
+    const eventId = payload.event_id as string | undefined;
     const paymentEntity = payload.payload?.payment?.entity;
     const orderEntity = payload.payload?.order?.entity;
 
@@ -25,6 +27,16 @@ export async function POST(req: NextRequest) {
 
     if (!razorpayOrderId) {
       return NextResponse.json({ status: "ignored_no_order_id" });
+    }
+
+    // Fast-path deduplication check
+    if (eventId) {
+      const alreadyProcessed = await db.payment.findFirst({
+        where: { gatewayEventId: eventId },
+      });
+      if (alreadyProcessed) {
+        return NextResponse.json({ status: "already_processed" });
+      }
     }
 
     if (event === "payment.captured" || event === "order.paid") {
@@ -39,30 +51,40 @@ export async function POST(req: NextRequest) {
       });
 
       if (existingPayment) {
-        await db.payment.update({
-          where: { id: existingPayment.id },
-          data: {
-            status: "captured",
-            gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
-            signatureVerified: true,
-            raw: payload,
-          },
-        });
+        try {
+          await db.$transaction(async (tx) => {
+            await tx.payment.update({
+              where: { id: existingPayment.id },
+              data: {
+                status: "captured",
+                gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+                gatewayEventId: eventId || existingPayment.gatewayEventId,
+                signatureVerified: true,
+                raw: payload,
+              },
+            });
 
-        if (existingPayment.order.status === "pending_payment") {
-          await db.order.update({
-            where: { id: existingPayment.orderId },
-            data: { status: "confirmed" },
-          });
+            if (existingPayment.order.status === "pending_payment") {
+              await tx.order.update({
+                where: { id: existingPayment.orderId },
+                data: { status: "confirmed" },
+              });
 
-          await db.orderStatusEvent.create({
-            data: {
-              orderId: existingPayment.orderId,
-              fromStatus: "pending_payment",
-              toStatus: "confirmed",
-              note: `Razorpay webhook event: ${event}`,
-            },
+              await tx.orderStatusEvent.create({
+                data: {
+                  orderId: existingPayment.orderId,
+                  fromStatus: "pending_payment",
+                  toStatus: "confirmed",
+                  note: `Razorpay webhook event: ${event}`,
+                },
+              });
+            }
           });
+        } catch (e) {
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            return NextResponse.json({ status: "already_processed" });
+          }
+          throw e;
         }
       }
     } else if (event === "payment.failed") {
@@ -76,14 +98,22 @@ export async function POST(req: NextRequest) {
       });
 
       if (existingPayment) {
-        await db.payment.update({
-          where: { id: existingPayment.id },
-          data: {
-            status: "failed",
-            gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
-            raw: payload,
-          },
-        });
+        try {
+          await db.payment.update({
+            where: { id: existingPayment.id },
+            data: {
+              status: "failed",
+              gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+              gatewayEventId: eventId || existingPayment.gatewayEventId,
+              raw: payload,
+            },
+          });
+        } catch (e) {
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            return NextResponse.json({ status: "already_processed" });
+          }
+          throw e;
+        }
       }
     }
 
