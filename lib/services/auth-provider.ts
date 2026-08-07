@@ -35,23 +35,19 @@ class SupabaseOtpProvider implements OtpProvider {
 
   async send(identifier: string): Promise<OtpSendResult> {
     const supabase = await createSupabaseServer();
+    const formattedId = this.channel === "phone" && !identifier.startsWith("+") 
+      ? `+91${identifier.replace(/\D/g, "")}` 
+      : identifier;
     const { error } = await supabase.auth.signInWithOtp(
       this.channel === "email"
         ? {
-            email: identifier,
+            email: formattedId,
             options: {
               shouldCreateUser: true,
-              // Point the emailed link at our own confirm route so it exchanges
-              // the token for a session on OUR domain (otherwise it defaults to
-              // Supabase's Site URL and lands on localhost/nowhere → "invalid
-              // link"). NOTE: whether the email shows a LINK or a 6-digit CODE
-              // is controlled by the email TEMPLATE, not this option — the
-              // free-tier default template sends a link. To send a code, add
-              // custom SMTP and put {{ .Token }} in the Magic Link template.
               emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/auth/confirm`,
             },
           }
-        : { phone: identifier, options: { shouldCreateUser: true } }
+        : { phone: formattedId, options: { shouldCreateUser: true } }
     );
     if (error) return { ok: false, message: error.message };
     return { ok: true };
@@ -59,10 +55,13 @@ class SupabaseOtpProvider implements OtpProvider {
 
   async verify(identifier: string, token: string): Promise<OtpVerifyResult> {
     const supabase = await createSupabaseServer();
+    const formattedId = this.channel === "phone" && !identifier.startsWith("+") 
+      ? `+91${identifier.replace(/\D/g, "")}` 
+      : identifier;
     const { data, error } = await supabase.auth.verifyOtp(
       this.channel === "email"
-        ? { email: identifier, token, type: "email" }
-        : { phone: identifier, token, type: "sms" }
+        ? { email: formattedId, token: token.trim(), type: "email" }
+        : { phone: formattedId, token: token.trim(), type: "sms" }
     );
     if (error || !data.user) {
       return { ok: false, message: error?.message ?? "Invalid or expired code" };

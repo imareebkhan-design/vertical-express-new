@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
-import { getCheckoutTotals, placeOrder, confirmRazorpayPayment } from "@/actions/checkout";
+import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,9 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
   // Stable idempotency key for this checkout attempt — the same key is reused on
   // retry so a duplicate submit returns the same order instead of a new one.
   const idempotencyKey = useRef<string>(crypto.randomUUID());
@@ -127,6 +130,29 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   };
 
   const codDisabled = totals ? !totals.codAllowed : false;
+
+  const applyCouponHandler = async () => {
+    if (!couponCode.trim() || !selected) return;
+    setCouponMsg(null);
+    const res = await validateCoupon(couponCode.trim(), selected.pincode);
+    if (!res.ok) {
+      setCouponMsg({ text: res.error.message, success: false });
+      return;
+    }
+    setTotals(res.data);
+    setAppliedCoupon(couponCode.trim().toUpperCase());
+    setCouponMsg({ text: `Coupon ${couponCode.trim().toUpperCase()} applied!`, success: true });
+  };
+
+  const removeCouponHandler = async () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    setCouponMsg(null);
+    if (selected) {
+      const res = await getCheckoutTotals(selected.pincode);
+      if (res.ok) setTotals(res.data);
+    }
+  };
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
@@ -234,11 +260,55 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               </li>
             ))}
           </ul>
+
+          {/* Coupon Code Section */}
+          <div className="mt-4 border-t border-hairline-border pt-4">
+            <label className="block text-xs font-extrabold uppercase text-neutral-500 mb-1.5">
+              Promo Code
+            </label>
+            {appliedCoupon ? (
+              <div className="flex items-center justify-between rounded-lg border border-brand-deep/30 bg-surface-soft/40 px-3 py-2 text-xs font-extrabold">
+                <span className="text-brand-deep">Code: {appliedCoupon}</span>
+                <button
+                  type="button"
+                  onClick={removeCouponHandler}
+                  className="text-neutral-500 hover:text-danger cursor-pointer ml-2"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="e.g. FIRST3"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  className="w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:border-brand-deep focus:outline-none"
+                />
+                <Button size="sm" type="button" onClick={applyCouponHandler} disabled={!couponCode.trim()}>
+                  Apply
+                </Button>
+              </div>
+            )}
+            {couponMsg && (
+              <p className={cn("mt-1.5 text-xs font-bold", couponMsg.success ? "text-success" : "text-danger")}>
+                {couponMsg.text}
+              </p>
+            )}
+          </div>
+
           <dl className="mt-4 space-y-2 border-t border-hairline-border pt-4 text-sm font-bold">
             <div className="flex justify-between">
               <dt className="text-neutral-500">Subtotal</dt>
               <dd>{formatPaise(summary.subtotalPaise)}</dd>
             </div>
+            {totals && totals.discountPaise > 0 && (
+              <div className="flex justify-between text-success">
+                <dt>Discount</dt>
+                <dd>-{formatPaise(totals.discountPaise)}</dd>
+              </div>
+            )}
             {totals && totals.taxPaise > 0 && (
               <div className="flex justify-between">
                 <dt className="text-neutral-500">GST ({Math.round(totals.gst.ratePct)}%)</dt>

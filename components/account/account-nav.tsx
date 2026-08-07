@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { CalendarClock, Heart, MapPin, Package, UserRound } from "lucide-react";
+import { CalendarClock, Heart, MapPin, Package, UserRound, Wallet } from "lucide-react";
 
 const ITEMS = [
   { href: "/account", label: "Overview", icon: UserRound },
   { href: "/account/orders", label: "My Orders", icon: Package },
+  { href: "/account/wallet", label: "Wallet", icon: Wallet },
   { href: "/account/bookings", label: "Bookings", icon: CalendarClock },
   { href: "/account/addresses", label: "Addresses", icon: MapPin },
   { href: "/account/wishlist", label: "Wishlist", icon: Heart },

@@ -21,6 +21,7 @@ model User {
   orders    Order[]
   profile   Profile?
   wishlist  Wishlist?
+  wallet    Wallet?
 
   @@map("users")
 }
@@ -528,3 +529,38 @@ model RateLimit {
 
   @@map("rate_limits")
 }
+
+model Wallet {
+  id           String              @id @default(uuid()) @db.Uuid
+  userId       String              @unique @map("user_id") @db.Uuid
+  balancePaise Int                 @default(0) @map("balance_paise")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  updatedAt    DateTime            @updatedAt @map("updated_at")
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions WalletTransaction[]
+
+  @@map("wallets")
+}
+
+model WalletTransaction {
+  id           String                @id @default(uuid()) @db.Uuid
+  walletId     String                @map("wallet_id") @db.Uuid
+  amountPaise  Int                   @map("amount_paise")
+  type         WalletTransactionType
+  referenceId  String?               @map("reference_id")
+  description  String?
+  expiresAt    DateTime?             @map("expires_at")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  wallet       Wallet                @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt(sort: Desc)])
+  @@map("wallet_transactions")
+}
+
+enum WalletTransactionType {
+  cashback_credit
+  order_debit
+  refund_credit
+  expired
+}
+

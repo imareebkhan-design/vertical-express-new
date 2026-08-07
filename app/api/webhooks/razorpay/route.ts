@@ -1,62 +1,95 @@
-import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
-import { markOrderPaid } from "@/lib/services/checkout";
+import { db } from "@/lib/db";
 
-// Webhooks must read the raw body for signature verification.
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-/**
- * POST /api/webhooks/razorpay — asynchronous payment reconciliation (P0-2).
- * Verifies the signature, then confirms/fails the order. Idempotent: replays
- * and out-of-order deliveries are safe (markOrderPaid no-ops once confirmed;
- * gatewayEventId de-dupes at the DB level).
- */
-export async function POST(request: Request) {
-  const signature = request.headers.get("x-razorpay-signature") ?? "";
-  const rawBody = await request.text();
-
-  if (!verifyRazorpayWebhook(rawBody, signature)) {
-    return NextResponse.json({ error: "invalid signature" }, { status: 401 });
-  }
-
-  let event: {
-    id?: string;
-    event?: string;
-    payload?: { payment?: { entity?: { order_id?: string; id?: string } } };
-  };
+export async function POST(req: NextRequest) {
   try {
-    event = JSON.parse(rawBody);
-  } catch {
-    return NextResponse.json({ error: "bad payload" }, { status: 400 });
-  }
+    const signature = req.headers.get("x-razorpay-signature");
+    if (!signature) {
+      return NextResponse.json({ error: "Missing signature header" }, { status: 400 });
+    }
 
-  // Idempotency: record the gateway event id once; ignore replays.
-  if (event.id) {
-    const seen = await db.payment.findFirst({ where: { gatewayEventId: event.id } });
-    if (seen) return NextResponse.json({ ok: true, deduped: true });
-  }
+    const rawBody = await req.text();
+    const isValid = verifyRazorpayWebhook(rawBody, signature);
+    if (!isValid) {
+      return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+    }
 
-  const rzpOrderId = event.payload?.payment?.entity?.order_id;
-  const rzpPaymentId = event.payload?.payment?.entity?.id;
+    const payload = JSON.parse(rawBody);
+    const event = payload.event as string;
+    const paymentEntity = payload.payload?.payment?.entity;
+    const orderEntity = payload.payload?.order?.entity;
 
-  if (event.event === "payment.captured" && rzpOrderId && rzpPaymentId) {
-    // Find our order via the Razorpay order id stored on the payment row.
-    const payment = await db.payment.findFirst({
-      where: { gatewayOrderId: rzpOrderId },
-      include: { order: { select: { orderNo: true } } },
-    });
-    if (payment?.order) {
-      await markOrderPaid({ orderNo: payment.order.orderNo, gatewayPaymentId: rzpPaymentId });
-      if (event.id) {
-        await db.payment.updateMany({
-          where: { id: payment.id },
-          data: { gatewayEventId: event.id },
+    const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
+    const razorpayPaymentId = paymentEntity?.id;
+
+    if (!razorpayOrderId) {
+      return NextResponse.json({ status: "ignored_no_order_id" });
+    }
+
+    if (event === "payment.captured" || event === "order.paid") {
+      const existingPayment = await db.payment.findFirst({
+        where: {
+          OR: [
+            { gatewayOrderId: razorpayOrderId },
+            { gatewayPaymentId: razorpayPaymentId },
+          ],
+        },
+        include: { order: true },
+      });
+
+      if (existingPayment) {
+        await db.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            status: "captured",
+            gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+            signatureVerified: true,
+            raw: payload,
+          },
+        });
+
+        if (existingPayment.order.status === "pending_payment") {
+          await db.order.update({
+            where: { id: existingPayment.orderId },
+            data: { status: "confirmed" },
+          });
+
+          await db.orderStatusEvent.create({
+            data: {
+              orderId: existingPayment.orderId,
+              fromStatus: "pending_payment",
+              toStatus: "confirmed",
+              note: `Razorpay webhook event: ${event}`,
+            },
+          });
+        }
+      }
+    } else if (event === "payment.failed") {
+      const existingPayment = await db.payment.findFirst({
+        where: {
+          OR: [
+            { gatewayOrderId: razorpayOrderId },
+            { gatewayPaymentId: razorpayPaymentId },
+          ],
+        },
+      });
+
+      if (existingPayment) {
+        await db.payment.update({
+          where: { id: existingPayment.id },
+          data: {
+            status: "failed",
+            gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+            raw: payload,
+          },
         });
       }
     }
-  }
 
-  return NextResponse.json({ ok: true });
+    return NextResponse.json({ status: "ok" });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "Webhook processing error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

@@ -34,13 +34,26 @@ async function emailOrderConfirmation(userId: string, orderNo: string, toEmail: 
   });
 }
 
-/** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability). */
-export async function getCheckoutTotals(pincode: string): Promise<ActionResult<CheckoutTotals>> {
+/** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability, optional coupon). */
+export async function getCheckoutTotals(pincode: string, couponCode?: string): Promise<ActionResult<CheckoutTotals>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  return succeed(await computeTotals(cart, pincode));
+  return succeed(await computeTotals(cart, pincode, null, couponCode));
+}
+
+/** Validate a coupon code against current user cart. */
+export async function validateCoupon(code: string, pincode: string): Promise<ActionResult<CheckoutTotals>> {
+  const userId = await getAuthUserId();
+  if (!userId) return fail("UNAUTHENTICATED", "Please log in to use coupons");
+  const cart = await getCartSummary(userId, null);
+  if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
+  const totals = await computeTotals(cart, pincode, null, code);
+  if (totals.discountPaise === 0 && totals.deliveryFeePaise !== 0) {
+    return fail("VALIDATION", "Invalid or applicable conditions not met for this coupon");
+  }
+  return succeed(totals);
 }
 
 interface PlaceOrderData {

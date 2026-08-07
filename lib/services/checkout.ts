@@ -18,17 +18,44 @@ export interface CheckoutTotals {
   codAllowed: boolean;
 }
 
-/** Compute totals for a cart against a delivery pincode. */
+/** Compute totals for a cart against a delivery pincode and optional coupon code. */
 export async function computeTotals(
   cart: CartSummary,
   pincode: string,
-  deliveryState?: string | null
+  deliveryState?: string | null,
+  couponCode?: string | null
 ): Promise<CheckoutTotals> {
   const svc = await checkServiceability(pincode);
   const qualifiesFree = cart.qualifiesFreeDelivery;
-  const deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
-  const discountPaise = 0;
-  const taxableBase = cart.subtotalPaise - discountPaise;
+  let deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
+  let discountPaise = 0;
+
+  if (couponCode) {
+    const now = new Date();
+    const coupon = await db.coupon.findFirst({
+      where: {
+        code: { equals: couponCode.trim().toUpperCase() },
+        isActive: true,
+        OR: [{ startsAt: null }, { startsAt: { lte: now } }],
+        AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
+      },
+    });
+
+    if (coupon && cart.subtotalPaise >= coupon.minOrderPaise) {
+      if (coupon.type === "flat") {
+        discountPaise = coupon.value;
+      } else if (coupon.type === "percent") {
+        const rawDiscount = Math.round((cart.subtotalPaise * coupon.value) / 100);
+        discountPaise = coupon.maxDiscountPaise
+          ? Math.min(rawDiscount, coupon.maxDiscountPaise)
+          : rawDiscount;
+      } else if (coupon.type === "free_delivery") {
+        deliveryFeePaise = 0;
+      }
+    }
+  }
+
+  const taxableBase = Math.max(0, cart.subtotalPaise - discountPaise);
   const gst = computeGst(taxableBase, deliveryState);
   return {
     subtotalPaise: cart.subtotalPaise,
@@ -36,7 +63,7 @@ export async function computeTotals(
     discountPaise,
     taxPaise: gst.taxPaise,
     gst,
-    totalPaise: taxableBase + gst.taxPaise + deliveryFeePaise,
+    totalPaise: Math.max(0, taxableBase + gst.taxPaise + deliveryFeePaise),
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
     codAllowed: svc.codAllowed,

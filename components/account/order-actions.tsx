@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, RotateCcw, XCircle } from "lucide-react";
+import Link from "next/link";
+import { FileText, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { cancelOrder, reorder } from "@/actions/orders";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,11 @@ export function OrderActions({ orderNo, cancellable }: { orderNo: string; cancel
         <Button variant="outline" onClick={doReorder} disabled={pending}>
           {pending ? <Loader2 className="animate-spin" /> : <RotateCcw className="size-4" />} Reorder
         </Button>
+        <Link href={`/account/orders/${orderNo}/invoice`} target="_blank">
+          <Button variant="outline">
+            <FileText className="size-4" /> View Invoice
+          </Button>
+        </Link>
         {cancellable && !confirming && (
           <Button variant="ghost" onClick={() => setConfirming(true)} disabled={pending} className="text-danger">
             <XCircle className="size-4" /> Cancel order

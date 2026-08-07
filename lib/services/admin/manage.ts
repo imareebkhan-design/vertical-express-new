@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { OrderStatus, BookingStatus } from "@prisma/client";
+import { creditCashbackForOrder } from "@/lib/services/wallet";
+import { notifyOrderStatusChange } from "@/lib/services/notifications";
 
 // Allowed forward transitions for the order fulfilment state machine.
 const ORDER_FLOW: Record<string, OrderStatus[]> = {
@@ -61,6 +63,21 @@ export async function advanceOrderStatus(
         if (inv) await tx.inventory.update({ where: { id: inv.id }, data: { qtyOnHand: { increment: item.qty } } });
       }
     }
+  });
+
+  if (to === "delivered") {
+    await creditCashbackForOrder({
+      userId: order.userId,
+      orderId: order.id,
+      orderNo: order.orderNo,
+      orderTotalPaise: order.totalPaise,
+    });
+  }
+
+  await notifyOrderStatusChange({
+    userId: order.userId,
+    orderNo: order.orderNo,
+    status: to,
   });
 }
 

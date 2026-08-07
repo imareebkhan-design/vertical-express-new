@@ -25,7 +25,9 @@ export async function sendOtp(rawIdentifier: string): Promise<ActionResult<{ cha
 
   const value = parsed.data;
   const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-  const formattedIdentifier = channel === "phone" ? `+91${value}` : value;
+  const formattedIdentifier = channel === "phone" 
+    ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+    : value;
 
   // P1-4: throttle OTP sends per identifier — each send triggers a paid email/SMS.
   const limit = await rateLimit(`otp:${formattedIdentifier}`, 5, 15 * 60 * 1000); // 5 per 15 min
@@ -63,7 +65,9 @@ export async function verifyOtp(
 
   const value = parsed.data;
   const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-  const formattedIdentifier = channel === "phone" ? `+91${value}` : value;
+  const formattedIdentifier = channel === "phone" 
+    ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+    : value;
   
   if (!/^[A-Za-z0-9]{6,12}$/.test(token.trim())) {
     return fail("VALIDATION", "Enter the 6-digit code", "token");
@@ -72,8 +76,8 @@ export async function verifyOtp(
   const supabase = await createSupabaseServer();
   const { data, error } = await supabase.auth.verifyOtp(
     channel === "email"
-      ? { email: formattedIdentifier, token, type: "email" }
-      : { phone: formattedIdentifier, token, type: "sms" }
+      ? { email: formattedIdentifier, token: token.trim(), type: "email" }
+      : { phone: formattedIdentifier, token: token.trim(), type: "sms" }
   );
 
   if (error || !data.user) {

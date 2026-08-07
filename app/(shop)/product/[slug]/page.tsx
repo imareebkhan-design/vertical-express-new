@@ -10,6 +10,7 @@ import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
 import { PincodeCheck } from "@/components/shop/pincode-check";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
+import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/recently-viewed";
 import {
   getProductBySlug,
   getRelatedProducts,
@@ -173,6 +174,17 @@ export default async function ProductPage({ params }: PageProps) {
             <CatalogGrid items={related} />
           </section>
         )}
+
+        <RecentlyViewedSection currentSlug={product.slug} />
+        <RecentlyViewedTracker
+          item={{
+            slug: product.slug,
+            title: product.title,
+            imageUrl: product.images[0]?.url ?? null,
+            pricePaise: defaultVariant?.pricePaise ?? 0,
+            brandName: product.brandName,
+          }}
+        />
       </main>
       <Footer />
       <FloatingCart />
