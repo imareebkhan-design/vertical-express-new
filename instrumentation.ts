@@ -10,4 +10,7 @@ export async function register(): Promise<void> {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   const { assertPaymentConfig } = await import("@/lib/services/payments");
   assertPaymentConfig();
+
+  const { initSentry } = await import("@/lib/observability");
+  initSentry();
 }

@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         syncTimers.current.delete(itemId);
         startTransition(async () => {
           const result = await updateCartItem({ itemId, qty: clamped });
-          if (result.ok) setSummary(result.data);
+          if (result.ok) setSummary(result.data.summary);
         });
       }, 400)
     );

@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
 import { CartProvider } from "@/hooks/use-cart";
+import { NativeShellProvider } from "@/components/mobile/native-shell-provider";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -46,7 +47,9 @@ export default function RootLayout({
           Skip to main content
         </a>
         <SmoothScrollProvider>
-          <CartProvider>{children}</CartProvider>
+          <CartProvider>
+            <NativeShellProvider>{children}</NativeShellProvider>
+          </CartProvider>
         </SmoothScrollProvider>
       </body>
     </html>

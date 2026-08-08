@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
-import { Navbar } from "@/components/sections/navbar";
-import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
-import { CategoryCard } from "@/components/category-card";
 import { listCategories } from "@/lib/services/catalog";
+import { CategoriesSwitcher } from "@/components/mobile/categories/categories-switcher";
 
 export const revalidate = 300;
 
@@ -19,26 +15,6 @@ export default async function CategoriesPage() {
   const categories = await listCategories();
 
   return (
-    <>
-      <AnnouncementBar />
-      <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">All Categories</h1>
-        <p className="mt-1 text-sm font-semibold text-neutral-500">
-          Everything your site needs, one hour away
-        </p>
-
-        <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-5 md:grid-cols-4 lg:grid-cols-6">
-          {categories.map((c) => (
-            <CategoryCard
-              key={c.slug}
-              category={{ name: c.name, slug: c.slug, href: `/category/${c.slug}`, bulk: c.isBulk }}
-            />
-          ))}
-        </div>
-      </main>
-      <Footer />
-      <FloatingCart />
-    </>
+    <CategoriesSwitcher categories={categories} />
   );
 }

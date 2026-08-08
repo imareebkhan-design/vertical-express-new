@@ -231,7 +231,30 @@ async function main() {
     },
   });
 
-  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${PRODUCTS.length} products.`);
+  const SYNONYMS = [
+    { word: "cement", synonyms: "opc cement,ppc cement,white cement,ready mix plaster" },
+    { word: "opc", synonyms: "cement,opc cement" },
+    { word: "ppc", synonyms: "cement,ppc cement" },
+    { word: "steel", synonyms: "tmt,steel bar,steel rod,rebar" },
+    { word: "tmt", synonyms: "steel,steel bar,steel rod,iron rod,rebar" },
+    { word: "steel rod", synonyms: "tmt,steel bar,steel,rebar" },
+    { word: "iron rod", synonyms: "tmt,steel bar,steel,rebar" },
+    { word: "rebar", synonyms: "tmt,steel,steel bar,steel rod" },
+    { word: "brick", synonyms: "fly ash brick,clay brick" },
+    { word: "tiles", synonyms: "floor tile,vitrified tile,tile adhesive" },
+    { word: "paint", synonyms: "wall paint,acrylic distemper,wall putty" },
+    { word: "pipe", synonyms: "pvc pipe,cpvc pipe" },
+  ];
+
+  for (const s of SYNONYMS) {
+    await db.synonym.upsert({
+      where: { word: s.word },
+      update: { synonyms: s.synonyms },
+      create: { word: s.word, synonyms: s.synonyms },
+    });
+  }
+
+  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${PRODUCTS.length} products, ${SYNONYMS.length} synonyms.`);
 }
 
 main()

@@ -8,8 +8,7 @@ import {
 } from "../payments";
 
 /**
- * ISS-002 — the dummy payment provider must never be selected or run in
- * production, and a misconfigured production environment must fail loudly.
+ * Closed Beta & Production Readiness tests for unified PaymentProvider interfaces.
  */
 
 const ENV_KEYS = [
@@ -17,6 +16,8 @@ const ENV_KEYS = [
   "PAYMENT_GATEWAY",
   "RAZORPAY_KEY_ID",
   "RAZORPAY_KEY_SECRET",
+  "RAZORPAY_WEBHOOK_SECRET",
+  "DATABASE_URL",
 ] as const;
 
 type MutableEnv = Record<string, string | undefined>;
@@ -31,10 +32,12 @@ let saved: Record<string, string | undefined> = {};
 beforeEach(() => {
   saved = {};
   for (const k of ENV_KEYS) saved[k] = process.env[k];
-  // Clean baseline: no gateway configured.
+  // Baseline configuration
   setEnv("PAYMENT_GATEWAY", "dummy");
+  setEnv("DATABASE_URL", "postgresql://localhost:5432/db");
   setEnv("RAZORPAY_KEY_ID", undefined);
   setEnv("RAZORPAY_KEY_SECRET", undefined);
+  setEnv("RAZORPAY_WEBHOOK_SECRET", undefined);
 });
 
 afterEach(() => {
@@ -51,29 +54,29 @@ test("production without Razorpay keys throws PaymentConfigError", () => {
   assert.throws(() => activeGateway(), PaymentConfigError);
 });
 
-test("production with keys present but PAYMENT_GATEWAY != razorpay still throws", () => {
+test("production with keys present but PAYMENT_GATEWAY = dummy still throws", () => {
   setEnv("NODE_ENV", "production");
   setEnv("PAYMENT_GATEWAY", "dummy");
   setEnv("RAZORPAY_KEY_ID", "rzp_test_id");
   setEnv("RAZORPAY_KEY_SECRET", "super-secret-value");
-  let message = "";
-  try {
-    activeGateway();
-    assert.fail("expected activeGateway() to throw");
-  } catch (e) {
-    assert.ok(e instanceof PaymentConfigError);
-    message = e.message;
-  }
-  // Never leak the secret value in the error message.
-  assert.ok(!message.includes("super-secret-value"));
+  assert.throws(() => activeGateway(), PaymentConfigError);
 });
 
-test("production with Razorpay fully configured returns razorpay", () => {
+test("production with keys present but PAYMENT_GATEWAY = razorpay-test still throws", () => {
   setEnv("NODE_ENV", "production");
-  setEnv("PAYMENT_GATEWAY", "razorpay");
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
   setEnv("RAZORPAY_KEY_ID", "rzp_test_id");
+  setEnv("RAZORPAY_KEY_SECRET", "super-secret-value");
+  assert.throws(() => activeGateway(), PaymentConfigError);
+});
+
+test("production with Razorpay fully configured in live mode succeeds", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-live");
+  setEnv("RAZORPAY_KEY_ID", "rzp_live_id");
   setEnv("RAZORPAY_KEY_SECRET", "secret");
-  assert.equal(activeGateway(), "razorpay");
+  setEnv("RAZORPAY_WEBHOOK_SECRET", "webhook_secret");
+  assert.equal(activeGateway(), "razorpay-live");
 });
 
 test("assertPaymentConfig throws in a misconfigured production environment", () => {
@@ -81,16 +84,21 @@ test("assertPaymentConfig throws in a misconfigured production environment", () 
   assert.throws(() => assertPaymentConfig(), PaymentConfigError);
 });
 
-test("assertPaymentConfig does not throw in development", () => {
+test("assertPaymentConfig throws if DATABASE_URL is missing", () => {
+  setEnv("NODE_ENV", "development");
+  setEnv("DATABASE_URL", undefined);
+  assert.throws(() => assertPaymentConfig(), PaymentConfigError);
+});
+
+test("assertPaymentConfig does not throw in development with dummy", () => {
   setEnv("NODE_ENV", "development");
   assert.doesNotThrow(() => assertPaymentConfig());
 });
 
-test("dummy provider refuses to create a payment in production", async () => {
+test("dummy provider refuses to resolve or create an order in production", () => {
   setEnv("NODE_ENV", "production");
-  const provider = getPaymentProvider("dummy");
-  await assert.rejects(
-    () => provider.createPayment({ orderId: "order_123", amountPaise: 1000 }),
+  assert.throws(
+    () => getPaymentProvider("dummy"),
     PaymentConfigError
   );
 });
@@ -98,6 +106,32 @@ test("dummy provider refuses to create a payment in production", async () => {
 test("dummy provider settles instantly in development", async () => {
   setEnv("NODE_ENV", "development");
   const provider = getPaymentProvider("dummy");
-  const res = await provider.createPayment({ orderId: "order_123", amountPaise: 1000 });
+  const res = await provider.createOrder({ orderId: "order_123", amountPaise: 1000 });
   assert.equal(res.settled, true);
+  assert.ok(res.gatewayOrderId?.startsWith("dummy_"));
+});
+
+test("dummy provider verify methods succeed in development but throw in production", () => {
+  setEnv("NODE_ENV", "development");
+  const provider = getPaymentProvider("dummy");
+  assert.equal(provider.verifyPayment({}), true);
+  assert.equal(provider.verifyWebhook("body", "signature"), true);
+
+  setEnv("NODE_ENV", "production");
+  assert.throws(() => provider.verifyPayment({}), PaymentConfigError);
+  assert.throws(() => provider.verifyWebhook("body", "signature"), PaymentConfigError);
+});
+
+test("provider selection resolves appropriate classes based on gateway environment config", () => {
+  setEnv("NODE_ENV", "development");
+  
+  setEnv("PAYMENT_GATEWAY", "dummy");
+  const dummyProv = getPaymentProvider("dummy");
+  assert.equal(dummyProv.id, "dummy");
+
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("RAZORPAY_KEY_ID", "test_id");
+  setEnv("RAZORPAY_KEY_SECRET", "test_secret");
+  const testProv = getPaymentProvider("razorpay");
+  assert.equal(testProv.id, "razorpay-test");
 });

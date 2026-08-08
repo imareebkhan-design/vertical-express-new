@@ -6,14 +6,14 @@ import crypto from "crypto";
  * full order flow works today; Razorpay drops in behind the same interface
  * once keys are provisioned (create order → verify signature → webhook).
  */
-export type PaymentMethodId = "dummy" | "cod" | "razorpay";
+export type PaymentMethodId = "dummy" | "cod" | "razorpay" | "razorpay-test" | "razorpay-live";
 
-export interface CreatePaymentParams {
+export interface CreateOrderParams {
   orderId: string;
   amountPaise: number;
 }
 
-export interface CreatePaymentResult {
+export interface CreateOrderResult {
   /** Whether the payment is considered settled at creation (dummy/COD) or
    *  requires a client confirmation step (razorpay). */
   settled: boolean;
@@ -21,9 +21,19 @@ export interface CreatePaymentResult {
   gatewayPaymentId: string | null;
 }
 
+export interface VerifyPaymentParams {
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  signature?: string;
+}
+
 export interface PaymentProvider {
-  readonly id: PaymentMethodId;
-  createPayment(params: CreatePaymentParams): Promise<CreatePaymentResult>;
+  readonly id: string;
+  createOrder(params: CreateOrderParams): Promise<CreateOrderResult>;
+  verifyPayment(params: VerifyPaymentParams): boolean;
+  verifyWebhook(rawBody: string, signature: string): boolean;
+  refundPayment(paymentId: string, amountPaise: number): Promise<boolean>;
+  healthCheck(): Promise<boolean>;
 }
 
 /** Thrown when the payment gateway is misconfigured for the current environment. */
@@ -38,23 +48,11 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
-/** True only when Razorpay is explicitly selected AND both server keys are present. */
-function razorpayConfigured(): boolean {
-  return (
-    process.env.PAYMENT_GATEWAY === "razorpay" &&
-    !!process.env.RAZORPAY_KEY_ID &&
-    !!process.env.RAZORPAY_KEY_SECRET
-  );
-}
-
 /** Simulated gateway — instant success. Development/test only (see ISS-002). */
 class DummyPaymentProvider implements PaymentProvider {
   readonly id = "dummy" as const;
-  async createPayment({ orderId }: CreatePaymentParams): Promise<CreatePaymentResult> {
-    // ISS-002: the dummy gateway fabricates a settled payment. If it ever ran in
-    // production it would confirm an order and decrement stock with no money
-    // taken. Selection is already gated by activeGateway(); this is the last-line
-    // guard so no code path can produce a fake capture in production.
+
+  async createOrder({ orderId }: CreateOrderParams): Promise<CreateOrderResult> {
     if (isProduction()) {
       throw new PaymentConfigError(
         "DUMMY_GATEWAY_IN_PRODUCTION: the dummy payment provider cannot be used in production."
@@ -66,34 +64,69 @@ class DummyPaymentProvider implements PaymentProvider {
       gatewayPaymentId: `dummy_pay_${Date.now()}`,
     };
   }
+
+  verifyPayment(): boolean {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return true;
+  }
+
+  verifyWebhook(): boolean {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return true;
+  }
+
+  async refundPayment(): Promise<boolean> {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return true;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return true;
+  }
 }
 
 /** Pay-on-delivery — no gateway; collected at doorstep. */
 class CodPaymentProvider implements PaymentProvider {
   readonly id = "cod" as const;
-  async createPayment(): Promise<CreatePaymentResult> {
+
+  async createOrder(): Promise<CreateOrderResult> {
     return { settled: false, gatewayOrderId: null, gatewayPaymentId: null };
+  }
+
+  verifyPayment(): boolean {
+    return true;
+  }
+
+  verifyWebhook(): boolean {
+    return true;
+  }
+
+  async refundPayment(): Promise<boolean> {
+    return true;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    return true;
   }
 }
 
 /**
- * Real Razorpay gateway. Creates a Razorpay Order server-side and returns it
+ * Base Razorpay provider. Creates a Razorpay Order server-side and returns it
  * UNSETTLED — the browser opens Razorpay Checkout with `gatewayOrderId`, then
- * `confirmRazorpayPayment` verifies the callback signature (below) before the
- * order is marked confirmed. A webhook reconciles asynchronously.
- * Activated only when PAYMENT_GATEWAY=razorpay and keys are present.
+ * verifyPayment verifies the callback signature before the order is marked confirmed.
  */
-class RazorpayPaymentProvider implements PaymentProvider {
-  readonly id = "razorpay" as const;
+abstract class RazorpayPaymentProviderBase implements PaymentProvider {
+  abstract readonly id: string;
 
-  private creds() {
+  protected creds() {
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
-    if (!keyId || !keySecret) throw new Error("RAZORPAY_KEYS_MISSING");
+    if (!keyId || !keySecret) throw new PaymentConfigError("RAZORPAY_KEYS_MISSING");
     return { keyId, keySecret };
   }
 
-  async createPayment({ orderId, amountPaise }: CreatePaymentParams): Promise<CreatePaymentResult> {
+  async createOrder({ orderId, amountPaise }: CreateOrderParams): Promise<CreateOrderResult> {
     const { keyId, keySecret } = this.creds();
     const res = await fetch("https://api.razorpay.com/v1/orders", {
       method: "POST",
@@ -102,7 +135,7 @@ class RazorpayPaymentProvider implements PaymentProvider {
         Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
       },
       body: JSON.stringify({
-        amount: amountPaise, // Razorpay expects the smallest unit (paise) — matches our storage
+        amount: amountPaise,
         currency: "INR",
         receipt: orderId.slice(0, 40),
         payment_capture: 1,
@@ -112,34 +145,113 @@ class RazorpayPaymentProvider implements PaymentProvider {
     const data = (await res.json()) as { id: string };
     return { settled: false, gatewayOrderId: data.id, gatewayPaymentId: null };
   }
+
+  verifyPayment(params: VerifyPaymentParams): boolean {
+    const { keySecret } = this.creds();
+    if (!params.razorpayOrderId || !params.razorpayPaymentId || !params.signature) {
+      return false;
+    }
+    const expected = crypto
+      .createHmac("sha256", keySecret)
+      .update(`${params.razorpayOrderId}|${params.razorpayPaymentId}`)
+      .digest("hex");
+    return timingSafeEqualHex(expected, params.signature);
+  }
+
+  verifyWebhook(rawBody: string, signature: string): boolean {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) return false;
+    const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+    return timingSafeEqualHex(expected, signature);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async refundPayment(paymentId: string, amountPaise: number): Promise<boolean> {
+    // Future placeholder
+    return true;
+  }
+
+  async healthCheck(): Promise<boolean> {
+    try {
+      this.creds();
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
-const PROVIDERS: Record<PaymentMethodId, PaymentProvider> = {
+class RazorpayTestProvider extends RazorpayPaymentProviderBase {
+  readonly id = "razorpay-test" as const;
+}
+
+class RazorpayLiveProvider extends RazorpayPaymentProviderBase {
+  readonly id = "razorpay-live" as const;
+}
+
+const PROVIDERS = {
   dummy: new DummyPaymentProvider(),
   cod: new CodPaymentProvider(),
-  razorpay: new RazorpayPaymentProvider(),
+  "razorpay-test": new RazorpayTestProvider(),
+  "razorpay-live": new RazorpayLiveProvider(),
 };
 
 export function getPaymentProvider(method: PaymentMethodId): PaymentProvider {
-  return PROVIDERS[method] ?? PROVIDERS.dummy;
+  if (method === "cod") return PROVIDERS.cod;
+
+  const active = activeGateway();
+
+  if (method === "dummy" && active === "dummy") {
+    return PROVIDERS.dummy;
+  }
+
+  if (method === "razorpay") {
+    if (active === "razorpay-test") return PROVIDERS["razorpay-test"];
+    if (active === "razorpay-live") return PROVIDERS["razorpay-live"];
+  }
+
+  if (method === "razorpay-test" && active === "razorpay-test") {
+    return PROVIDERS["razorpay-test"];
+  }
+
+  if (method === "razorpay-live" && active === "razorpay-live") {
+    return PROVIDERS["razorpay-live"];
+  }
+
+  throw new PaymentConfigError(`Payment method ${method} does not match active gateway ${active}`);
 }
 
 /**
  * The online gateway currently in use (env-switchable).
- *
- * ISS-002: production MUST NOT silently fall back to the dummy gateway. When
- * Razorpay is not fully configured in production this throws, so checkout fails
- * loudly rather than confirming an order with no money taken. The dummy gateway
- * remains available in development and test.
  */
-export function activeGateway(): PaymentMethodId {
-  if (razorpayConfigured()) return "razorpay";
-  if (isProduction()) {
-    throw new PaymentConfigError(
-      "PAYMENT_GATEWAY_MISCONFIGURED: production requires PAYMENT_GATEWAY=razorpay with RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET set; refusing to fall back to the dummy gateway."
-    );
+export function activeGateway(): "dummy" | "razorpay-test" | "razorpay-live" {
+  const gateway = process.env.PAYMENT_GATEWAY;
+  if (!gateway) {
+    if (isProduction()) {
+      throw new PaymentConfigError("PAYMENT_GATEWAY environment variable is missing.");
+    }
+    return "dummy";
   }
-  return "dummy";
+  if (gateway === "dummy") {
+    if (isProduction()) {
+      throw new PaymentConfigError(
+        "DUMMY_GATEWAY_IN_PRODUCTION: the dummy payment provider cannot be used in production."
+      );
+    }
+    return "dummy";
+  }
+  if (gateway === "razorpay-test") {
+    if (isProduction()) {
+      throw new PaymentConfigError(
+        "RAZORPAY_TEST_IN_PRODUCTION: razorpay-test is not allowed in production. Use razorpay-live."
+      );
+    }
+    return "razorpay-test";
+  }
+  if (gateway === "razorpay-live") {
+    return "razorpay-live";
+  }
+  throw new PaymentConfigError(`Invalid PAYMENT_GATEWAY: "${gateway}"`);
 }
 
 /**
@@ -148,7 +260,29 @@ export function activeGateway(): PaymentMethodId {
  * logs secret values.
  */
 export function assertPaymentConfig(): void {
-  const gateway = activeGateway(); // throws in a misconfigured production env
+  const gateway = activeGateway(); // validates gateway name and throws if incorrect
+
+  // Database URL check
+  if (!process.env.DATABASE_URL) {
+    throw new PaymentConfigError("DATABASE_URL environment variable is missing.");
+  }
+
+  if (gateway === "razorpay-live") {
+    if (!process.env.RAZORPAY_KEY_ID) {
+      throw new PaymentConfigError("RAZORPAY_KEY_ID is missing in production.");
+    }
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      throw new PaymentConfigError("RAZORPAY_KEY_SECRET is missing in production.");
+    }
+    if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
+      throw new PaymentConfigError("RAZORPAY_WEBHOOK_SECRET is missing in production.");
+    }
+  } else if (gateway === "razorpay-test") {
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      throw new PaymentConfigError(`PAYMENT_GATEWAY="${gateway}" requires RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.`);
+    }
+  }
+
   if (gateway === "dummy") {
     console.warn(
       "[payments] DUMMY gateway active — development/test only; no real payments are captured."

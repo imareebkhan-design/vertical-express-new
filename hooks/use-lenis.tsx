@@ -17,7 +17,9 @@ export function SmoothScrollProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (prefersReduced) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isNative = typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform();
+    if (prefersReduced || isNative) return;
 
     gsap.registerPlugin(ScrollTrigger);
 

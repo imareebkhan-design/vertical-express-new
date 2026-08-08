@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CalendarClock, Package, ShoppingBag } from "lucide-react";
+import { BarChart3, CalendarClock, Package, ShoppingBag, PieChart } from "lucide-react";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { Logo } from "@/components/ui/logo";
 
 const NAV = [
   { href: "/admin", label: "Dashboard", icon: BarChart3 },
+  { href: "/admin/bi", label: "BI Suite", icon: PieChart },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarClock },

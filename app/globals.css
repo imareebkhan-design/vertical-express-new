@@ -139,6 +139,22 @@ body {
   outline-offset: 2px;
 }
 
+/* Native App Overrides */
+body.is-native {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  background-color: var(--color-background);
+  overflow-x: hidden;
+}
+
+/* Hide web-only elements on native platforms */
+body.is-native header:not(.native-header),
+body.is-native footer:not(.native-footer),
+body.is-native nav:not(.native-tabbar),
+body.is-native [role="region"][aria-label="Store announcements"] {
+  display: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

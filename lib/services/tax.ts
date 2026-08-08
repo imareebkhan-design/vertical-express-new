@@ -1,23 +1,43 @@
 import "server-only";
 
 /**
- * GST — DEMO MODE (P1-2).
- *
- * This is a demonstration tax engine, not a certified GST implementation. It
- * applies a single flat slab to the whole order and a placeholder HSN code so
- * invoices/checkout visibly show a compliant-looking tax breakup. Before going
- * live you must replace this with per-item HSN-mapped rates and a real GSTIN.
+ * GST — PRODUCTION SPECIFICATION (Phase 15.2).
  *
  * Model: seller is registered in Jammu & Kashmir (Srinagar). Intra-state supply
  * (buyer also in J&K) splits into CGST + SGST; inter-state supply uses IGST.
+ * Prices are GST-inclusive. Tax is extracted from the inclusive base.
  */
 
-/** Demo slab applied to every line. 18% is the common slab for hardware/fittings. */
-export const DEMO_GST_RATE = 0.18;
-/** Placeholder HSN — 7308 = structures & parts of iron/steel (construction). */
-export const DEMO_HSN_CODE = "7308";
-/** Seller's state of registration. */
+// Seller's state of registration.
 const SELLER_STATE = "Jammu & Kashmir";
+
+export interface CategoryTaxConfig {
+  hsn: string;
+  ratePct: number;
+}
+
+// Owner-confirmed category configurations (Owner Q2.2 & Q2.3)
+export const CATEGORY_TAX_CONFIGS: Record<string, CategoryTaxConfig> = {
+  cement: { hsn: "2523", ratePct: 28 }, // Cement (OPC/PPC) GST is 28%
+  tiling: { hsn: "3214", ratePct: 18 }, // Grout/Cleaners/Adhesives GST is 18%
+  painting: { hsn: "3208", ratePct: 18 }, // Paints/Varnishes GST is 18%
+  waterproofing: { hsn: "3214", ratePct: 18 },
+  fevicol: { hsn: "3506", ratePct: 18 }, // Glues/Adhesives GST is 18%
+  "wires-mcb-distribution-boards": { hsn: "8544", ratePct: 18 }, // Wires/Cables GST is 18%
+  "switches-sockets": { hsn: "8536", ratePct: 18 }, // Switches/Sockets GST is 18%
+  "conduits-gi-boxes": { hsn: "8538", ratePct: 18 }, // Electrical boxes/parts GST is 18%
+  lighting: { hsn: "9405", ratePct: 18 }, // LED Lights GST is 18%
+  "ceiling-fans-exhaust": { hsn: "8414", ratePct: 18 }, // Fans GST is 18%
+  "home-appliances-power-backup": { hsn: "8504", ratePct: 18 }, // Inverters GST is 18%
+  "cpvc-pipes-overhead-tanks": { hsn: "3917", ratePct: 18 }, // CPVC Pipes/Tanks GST is 18%
+  "sanitary-bath-fittings": { hsn: "6910", ratePct: 18 }, // Sanitaryware GST is 18%
+  "kitchen-sinks-faucets": { hsn: "7324", ratePct: 18 }, // Sinks/Faucets GST is 18%
+  "hinges-channels-handles": { hsn: "8302", ratePct: 18 }, // Hardware fittings GST is 18%
+  "kitchen-systems-accessories": { hsn: "7323", ratePct: 18 },
+  "wardrobe-bed-fittings": { hsn: "8302", ratePct: 18 },
+  "door-locks-hardware": { hsn: "8301", ratePct: 18 }, // Door locks GST is 18%
+  "general-hardware-tools": { hsn: "8205", ratePct: 18 }, // Hand tools GST is 18%
+};
 
 export interface GstBreakup {
   ratePct: number;      // total GST rate as a percentage, e.g. 18
@@ -36,11 +56,23 @@ function isJammuKashmir(state: string | null | undefined): boolean {
 }
 
 /**
- * Compute GST on a taxable base (subtotal after discount, in paise).
+ * Compute GST on an inclusive base (paise).
  * `deliveryState` decides the intra/inter-state split.
+ * `categorySlug` selects the owner-confirmed rate/HSN, falling back to 18%/7308.
  */
-export function computeGst(taxableBasePaise: number, deliveryState?: string | null): GstBreakup {
-  const taxPaise = Math.round(taxableBasePaise * DEMO_GST_RATE);
+export function computeGst(
+  inclusiveBasePaise: number,
+  deliveryState?: string | null,
+  categorySlug?: string | null
+): GstBreakup {
+  const config = categorySlug ? CATEGORY_TAX_CONFIGS[categorySlug] : null;
+  const ratePct = config?.ratePct ?? 18;
+  const hsn = config?.hsn ?? "7308";
+
+  // GST extraction: taxableBase = Math.round((inclusive * 100) / (100 + ratePct))
+  const taxableBasePaise = Math.round((inclusiveBasePaise * 100) / (100 + ratePct));
+  const taxPaise = inclusiveBasePaise - taxableBasePaise;
+
   const intraState = isJammuKashmir(deliveryState);
 
   if (intraState) {
@@ -48,8 +80,8 @@ export function computeGst(taxableBasePaise: number, deliveryState?: string | nu
     const sgstPaise = Math.floor(taxPaise / 2);
     const cgstPaise = taxPaise - sgstPaise;
     return {
-      ratePct: DEMO_GST_RATE * 100,
-      hsn: DEMO_HSN_CODE,
+      ratePct,
+      hsn,
       taxPaise,
       cgstPaise,
       sgstPaise,
@@ -59,8 +91,8 @@ export function computeGst(taxableBasePaise: number, deliveryState?: string | nu
   }
 
   return {
-    ratePct: DEMO_GST_RATE * 100,
-    hsn: DEMO_HSN_CODE,
+    ratePct,
+    hsn,
     taxPaise,
     cgstPaise: 0,
     sgstPaise: 0,

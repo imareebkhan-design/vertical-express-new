@@ -10,6 +10,11 @@ import { formatPaise } from "@/lib/money";
 export function FloatingCart() {
   const { count, summary } = useCart();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform()) {
+    return null;
+  }
+
   return (
     <AnimatePresence>
       {count > 0 && (

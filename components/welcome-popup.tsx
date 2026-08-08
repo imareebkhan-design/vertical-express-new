@@ -12,6 +12,10 @@ export function WelcomePopup() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (typeof window !== "undefined" && (window as any).Capacitor?.isNativePlatform()) {
+      return;
+    }
     if (sessionStorage.getItem(STORAGE_KEY)) return;
     const timer = setTimeout(() => setOpen(true), 2800);
     return () => clearTimeout(timer);

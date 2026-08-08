@@ -30,7 +30,7 @@ export const cartItemInputSchema = z.object({
 /** Uniform result envelope for server actions. */
 export type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: { code: ActionErrorCode; message: string; field?: string } };
+  | { ok: false; error: { code: ActionErrorCode; message: string; field?: string; metadata?: unknown } };
 
 export type ActionErrorCode =
   | "UNAUTHENTICATED"
@@ -38,14 +38,15 @@ export type ActionErrorCode =
   | "NOT_FOUND"
   | "VALIDATION"
   | "OUT_OF_STOCK"
+  | "ONLY_X_LEFT"
   | "PINCODE_UNSERVICEABLE"
   | "COUPON_INVALID"
   | "PAYMENT_FAILED"
   | "RATE_LIMITED"
   | "CONFLICT";
 
-export function fail<T>(code: ActionErrorCode, message: string, field?: string): ActionResult<T> {
-  return { ok: false, error: { code, message, field } };
+export function fail<T>(code: ActionErrorCode, message: string, field?: string, metadata?: unknown): ActionResult<T> {
+  return { ok: false, error: { code, message, field, metadata } };
 }
 
 export function succeed<T>(data: T): ActionResult<T> {

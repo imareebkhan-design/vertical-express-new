@@ -58,7 +58,13 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
       brand: true,
       category: { select: { slug: true } },
       images: { where: { isPrimary: true }, take: 1 },
-      variants: { where: { isDefault: true }, include: { bulkTiers: { select: { id: true }, take: 1 } } },
+      variants: {
+        where: { isDefault: true },
+        include: {
+          bulkTiers: { select: { id: true }, take: 1 },
+          inventory: { select: { qtyOnHand: true, qtyReserved: true } },
+        },
+      },
     },
   });
 
@@ -66,6 +72,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
     .map((p): CatalogItem | null => {
       const variant = p.variants[0];
       if (!variant) return null;
+      const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
       return {
         id: p.id,
         slug: p.slug,
@@ -80,6 +87,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
         hasBulkTiers: variant.bulkTiers.length > 0,
         ratingAvg: Number(p.ratingAvg),
         ratingCount: p.ratingCount,
+        inStock: available > 0,
       };
     })
     .filter((x): x is CatalogItem => x !== null);

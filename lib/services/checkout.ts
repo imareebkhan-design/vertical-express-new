@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
-import { computeGst, type GstBreakup } from "@/lib/services/tax";
+import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
+import { trackEvent, MetricsTracker, captureException } from "@/lib/observability";
 
 export interface CheckoutTotals {
   subtotalPaise: number;
@@ -55,15 +56,53 @@ export async function computeTotals(
     }
   }
 
-  const taxableBase = Math.max(0, cart.subtotalPaise - discountPaise);
-  const gst = computeGst(taxableBase, deliveryState);
+  // Calculate line-level inclusive totals and extract GST per line
+  let remainingDiscount = discountPaise;
+  let totalTaxableValuePaise = 0;
+  let totalTaxPaise = 0;
+  let totalCgstPaise = 0;
+  let totalSgstPaise = 0;
+  let totalIgstPaise = 0;
+
+  const linesCount = cart.lines.length;
+  cart.lines.forEach((line, idx) => {
+    const lineSubtotal = line.lineTotalPaise;
+    let lineDiscount = 0;
+    if (cart.subtotalPaise > 0) {
+      if (idx === linesCount - 1) {
+        lineDiscount = remainingDiscount;
+      } else {
+        lineDiscount = Math.round((lineSubtotal * discountPaise) / cart.subtotalPaise);
+        remainingDiscount -= lineDiscount;
+      }
+    }
+    const lineInclusiveTotal = Math.max(0, lineSubtotal - lineDiscount);
+    const lineGst = computeGst(lineInclusiveTotal, deliveryState, line.categorySlug);
+
+    totalTaxPaise += lineGst.taxPaise;
+    totalCgstPaise += lineGst.cgstPaise;
+    totalSgstPaise += lineGst.sgstPaise;
+    totalIgstPaise += lineGst.igstPaise;
+    totalTaxableValuePaise += (lineInclusiveTotal - lineGst.taxPaise);
+  });
+
+  const totalPaise = Math.max(0, totalTaxableValuePaise + totalTaxPaise + deliveryFeePaise);
+
   return {
-    subtotalPaise: cart.subtotalPaise,
+    subtotalPaise: totalTaxableValuePaise, // exclusive subtotal
     deliveryFeePaise,
-    discountPaise,
-    taxPaise: gst.taxPaise,
-    gst,
-    totalPaise: Math.max(0, taxableBase + gst.taxPaise + deliveryFeePaise),
+    discountPaise, // total discount
+    taxPaise: totalTaxPaise,
+    gst: {
+      ratePct: totalTaxableValuePaise > 0 ? Math.round((totalTaxPaise * 100) / totalTaxableValuePaise) : 18,
+      hsn: linesCount === 1 ? (cart.lines[0]?.categorySlug ? (CATEGORY_TAX_CONFIGS[cart.lines[0].categorySlug]?.hsn ?? "7308") : "7308") : "MULTIPLE",
+      taxPaise: totalTaxPaise,
+      cgstPaise: totalCgstPaise,
+      sgstPaise: totalSgstPaise,
+      igstPaise: totalIgstPaise,
+      intraState: totalIgstPaise === 0,
+    },
+    totalPaise,
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
     codAllowed: svc.codAllowed,
@@ -72,9 +111,6 @@ export async function computeTotals(
 
 function orderNumber(): string {
   const year = new Date().getFullYear();
-  // Use Date.now() + random hex suffix for collision-safe order numbers.
-  // A DB-level UNIQUE constraint on `orderNo` will still catch the astronomically
-  // unlikely collision — retry is handled by the outer catch in actions/checkout.ts.
   const ts = Date.now().toString(36).toUpperCase();
   const rand = Math.floor(Math.random() * 0xffff)
     .toString(16)
@@ -86,7 +122,6 @@ function orderNumber(): string {
 export interface PlaceOrderResult {
   orderNo: string;
   requiresPaymentConfirmation: boolean;
-  /** Present only for the online gateway path (Razorpay Checkout inputs). */
   gatewayOrderId?: string | null;
   amountPaise?: number;
 }
@@ -103,16 +138,18 @@ export async function placeOrder(params: {
   notes?: string;
   idempotencyKey?: string;
 }): Promise<PlaceOrderResult> {
+  const metric = new MetricsTracker("checkout-service");
   const { userId, addressId, paymentMethod, notes, idempotencyKey } = params;
 
-  // Idempotency (P0-6): if this attempt was already processed, return that order
-  // instead of creating a duplicate (handles retry / refresh / double-submit).
+  trackEvent("checkout_started", { paymentMethod });
+
   if (idempotencyKey) {
     const existing = await db.order.findFirst({
       where: { idempotencyKey, userId },
       select: { orderNo: true, status: true },
     });
     if (existing) {
+      metric.end("place_order_idempotent_duplicate");
       return {
         orderNo: existing.orderNo,
         requiresPaymentConfirmation: existing.status === "pending_payment",
@@ -123,14 +160,26 @@ export async function placeOrder(params: {
   const address = await db.address.findFirst({
     where: { id: addressId, userId, deletedAt: null },
   });
-  if (!address) throw new Error("ADDRESS_NOT_FOUND");
+  if (!address) {
+    metric.end("place_order_address_not_found");
+    throw new Error("ADDRESS_NOT_FOUND");
+  }
 
   const cart = await getCartSummary(userId, null);
-  if (cart.lines.length === 0) throw new Error("CART_EMPTY");
+  if (cart.lines.length === 0) {
+    metric.end("place_order_cart_empty");
+    throw new Error("CART_EMPTY");
+  }
 
   const totals = await computeTotals(cart, address.pincode, address.state);
-  if (!totals.serviceable) throw new Error("PINCODE_UNSERVICEABLE");
-  if (paymentMethod === "cod" && !totals.codAllowed) throw new Error("COD_UNAVAILABLE");
+  if (!totals.serviceable) {
+    metric.end("place_order_pincode_unserviceable");
+    throw new Error("PINCODE_UNSERVICEABLE");
+  }
+  if (paymentMethod === "cod" && !totals.codAllowed) {
+    metric.end("place_order_cod_unavailable");
+    throw new Error("COD_UNAVAILABLE");
+  }
 
   const warehouse = await db.serviceablePincode.findFirst({
     where: { pincode: address.pincode, isActive: true },
@@ -143,97 +192,129 @@ export async function placeOrder(params: {
   let order;
   try {
     order = await db.$transaction(async (tx) => {
-    const isCod = paymentMethod === "cod";
-    const payResult = await provider.createPayment({
-      orderId: "pending",
-      amountPaise: totals.totalPaise,
-    });
-    gatewayOrderId = payResult.gatewayOrderId;
-
-    const created = await tx.order.create({
-      data: {
-        orderNo: orderNumber(),
-        idempotencyKey: idempotencyKey ?? null,
-        userId,
-        address: {
-          label: address.label,
-          name: address.name,
-          phone: address.phone,
-          line1: address.line1,
-          line2: address.line2,
-          landmark: address.landmark,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
-        },
-        status: isCod || payResult.settled ? "confirmed" : "pending_payment",
-        paymentMethod,
-        subtotalPaise: totals.subtotalPaise,
-        discountPaise: totals.discountPaise,
-        taxPaise: totals.taxPaise,
-        deliveryFeePaise: totals.deliveryFeePaise,
-        totalPaise: totals.totalPaise,
-        etaMinutes: totals.etaMinutes,
-        warehouseId: warehouse?.warehouseId ?? null,
-        notes: notes || null,
-        items: {
-          create: cart.lines.map((l) => ({
-            variantId: l.variantId,
-            title: l.title,
-            variantName: l.variantName,
-            imageUrl: l.imageUrl,
-            unitPricePaise: l.unitPricePaise,
-            appliedTierMinQty: l.appliedTierMinQty,
-            qty: l.qty,
-            lineTotalPaise: l.lineTotalPaise,
-          })),
-        },
-        payments: {
-          create: {
-            gateway: paymentMethod,
-            gatewayOrderId: payResult.gatewayOrderId,
-            gatewayPaymentId: payResult.gatewayPaymentId,
-            amountPaise: totals.totalPaise,
-            status: isCod ? "created" : payResult.settled ? "captured" : "created",
-            signatureVerified: payResult.settled,
-          },
-        },
-        statusEvents: {
-          create: {
-            toStatus: isCod || payResult.settled ? "confirmed" : "pending_payment",
-            note: "Order placed",
-            actorUserId: userId,
-          },
-        },
-      },
-    });
-
-    // Atomic, race-free stock decrement (P0-5). The `qtyOnHand: { gte }` guard
-    // compiles to `UPDATE ... WHERE qty_on_hand >= qty`, which the DB evaluates
-    // under a row lock — a concurrent order can't drive stock negative. 0 rows
-    // affected ⇒ insufficient stock ⇒ throw to roll back the whole transaction
-    // (order, items, payment all rolled back).
-    for (const line of cart.lines) {
-      const res = await tx.inventory.updateMany({
-        where: {
-          variantId: line.variantId,
-          ...(warehouse?.warehouseId ? { warehouseId: warehouse.warehouseId } : {}),
-          qtyOnHand: { gte: line.qty },
-        },
-        data: { qtyOnHand: { decrement: line.qty } },
+      const isCod = paymentMethod === "cod";
+      const payResult = await provider.createOrder({
+        orderId: "pending",
+        amountPaise: totals.totalPaise,
       });
-      if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
-    }
+      gatewayOrderId = payResult.gatewayOrderId;
 
-    // Clear the cart.
-    const dbCart = await tx.cart.findUnique({ where: { userId } });
-    if (dbCart) await tx.cartItem.deleteMany({ where: { cartId: dbCart.id } });
+      // Prepare line items with full financial snapshots
+      let remainingDiscount = totals.discountPaise;
+      const orderItemsData = cart.lines.map((l, idx) => {
+        const lineSubtotal = l.lineTotalPaise;
+        let lineDiscount = 0;
+        if (cart.subtotalPaise > 0) {
+          if (idx === cart.lines.length - 1) {
+            lineDiscount = remainingDiscount;
+          } else {
+            lineDiscount = Math.round((lineSubtotal * totals.discountPaise) / cart.subtotalPaise);
+            remainingDiscount -= lineDiscount;
+          }
+        }
+        const lineInclusiveTotal = Math.max(0, lineSubtotal - lineDiscount);
+        const lineGst = computeGst(lineInclusiveTotal, address.state, l.categorySlug);
+        const taxableValuePaise = lineInclusiveTotal - lineGst.taxPaise;
 
-    return created;
+        return {
+          variantId: l.variantId,
+          title: l.title,
+          variantName: l.variantName,
+          imageUrl: l.imageUrl,
+          unitPricePaise: l.unitPricePaise,
+          appliedTierMinQty: l.appliedTierMinQty,
+          qty: l.qty,
+          lineTotalPaise: lineSubtotal,
+          subtotalPaise: lineSubtotal,
+          discountPaise: lineDiscount,
+          taxableValuePaise,
+          cgstPaise: lineGst.cgstPaise,
+          sgstPaise: lineGst.sgstPaise,
+          igstPaise: lineGst.igstPaise,
+          gstRate: new Prisma.Decimal(lineGst.ratePct),
+          hsnCode: lineGst.hsn,
+          totalPaise: lineInclusiveTotal,
+        };
+      });
+
+      const created = await tx.order.create({
+        data: {
+          orderNo: orderNumber(),
+          idempotencyKey: idempotencyKey ?? null,
+          userId,
+          address: {
+            label: address.label,
+            name: address.name,
+            phone: address.phone,
+            line1: address.line1,
+            line2: address.line2,
+            landmark: address.landmark,
+            city: address.city,
+            state: address.state,
+            pincode: address.pincode,
+          },
+          status: isCod || payResult.settled ? "confirmed" : "pending_payment",
+          paymentMethod: (paymentMethod === "razorpay-test" || paymentMethod === "razorpay-live") ? "razorpay" : paymentMethod,
+          subtotalPaise: totals.subtotalPaise,
+          discountPaise: totals.discountPaise,
+          taxPaise: totals.taxPaise,
+          deliveryFeePaise: totals.deliveryFeePaise,
+          totalPaise: totals.totalPaise,
+          etaMinutes: totals.etaMinutes,
+          warehouseId: warehouse?.warehouseId ?? null,
+          notes: notes || null,
+          items: {
+            create: orderItemsData,
+          },
+          payments: {
+            create: {
+              gateway: (paymentMethod === "razorpay-test" || paymentMethod === "razorpay-live") ? "razorpay" : paymentMethod,
+              gatewayOrderId: payResult.gatewayOrderId,
+              gatewayPaymentId: payResult.gatewayPaymentId,
+              amountPaise: totals.totalPaise,
+              status: isCod ? "created" : payResult.settled ? "captured" : "created",
+              signatureVerified: payResult.settled,
+            },
+          },
+          statusEvents: {
+            create: {
+              toStatus: isCod || payResult.settled ? "confirmed" : "pending_payment",
+              note: "Order placed",
+              actorUserId: userId,
+            },
+          },
+        },
+      });
+
+      if (!warehouse?.warehouseId) {
+        throw new Error("PINCODE_UNSERVICEABLE");
+      }
+
+      // Atomic, race-free stock decrement
+      for (const line of cart.lines) {
+        const res = await tx.inventory.updateMany({
+          where: {
+            variantId: line.variantId,
+            warehouseId: warehouse.warehouseId,
+            qtyOnHand: { gte: line.qty },
+          },
+          data: { qtyOnHand: { decrement: line.qty } },
+        });
+        if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
+      }
+
+      // Clear the cart
+      const dbCart = await tx.cart.findUnique({ where: { userId } });
+      if (dbCart) await tx.cartItem.deleteMany({ where: { cartId: dbCart.id } });
+
+      return created;
     });
+    
+    trackEvent("order_created", { orderNo: order.orderNo, totalPaise: totals.totalPaise });
+    metric.end("place_order_success", { orderNo: order.orderNo });
   } catch (e) {
-    // Concurrent submit with the same idempotency key: the other request won the
-    // unique constraint. Return that order instead of surfacing an error (P0-6).
+    captureException(e, { userId, paymentMethod });
+    metric.end("place_order_failed");
     if (
       idempotencyKey &&
       e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -262,33 +343,47 @@ export async function placeOrder(params: {
 }
 
 /**
- * Mark a `pending_payment` order as paid after signature verification (Razorpay
- * client callback or webhook). Idempotent: a second call on an already-confirmed
- * order is a no-op. Stock was already reserved at placement, so nothing to
- * decrement here.
+ * Mark a `pending_payment` order as paid after signature verification.
  */
 export async function markOrderPaid(params: {
   orderNo: string;
   userId?: string;
   gatewayPaymentId: string;
 }): Promise<{ ok: boolean }> {
+  const metric = new MetricsTracker("checkout-service");
   const { orderNo, userId, gatewayPaymentId } = params;
-  const order = await db.order.findFirst({
-    where: { orderNo, ...(userId ? { userId } : {}) },
-    select: { id: true, status: true },
-  });
-  if (!order) return { ok: false };
-  if (order.status !== "pending_payment") return { ok: true }; // already handled
+  try {
+    const order = await db.order.findFirst({
+      where: { orderNo, ...(userId ? { userId } : {}) },
+      select: { id: true, status: true },
+    });
+    if (!order) {
+      metric.end("mark_order_paid_order_not_found");
+      return { ok: false };
+    }
+    if (order.status !== "pending_payment") {
+      metric.end("mark_order_paid_already_confirmed");
+      return { ok: true };
+    }
 
-  await db.$transaction(async (tx) => {
-    await tx.order.update({ where: { id: order.id }, data: { status: "confirmed" } });
-    await tx.payment.updateMany({
-      where: { orderId: order.id },
-      data: { status: "captured", gatewayPaymentId, signatureVerified: true },
+    await db.$transaction(async (tx) => {
+      await tx.order.update({ where: { id: order.id }, data: { status: "confirmed" } });
+      await tx.payment.updateMany({
+        where: { orderId: order.id },
+        data: { status: "captured", gatewayPaymentId, signatureVerified: true },
+      });
+      await tx.orderStatusEvent.create({
+        data: { orderId: order.id, fromStatus: "pending_payment", toStatus: "confirmed", note: "Payment verified" },
+      });
     });
-    await tx.orderStatusEvent.create({
-      data: { orderId: order.id, fromStatus: "pending_payment", toStatus: "confirmed", note: "Payment verified" },
-    });
-  });
-  return { ok: true };
+
+    trackEvent("payment_success", { orderNo, gatewayPaymentId });
+    metric.end("mark_order_paid_success");
+    return { ok: true };
+  } catch (error) {
+    captureException(error, { params });
+    trackEvent("payment_failure", { orderNo, gatewayPaymentId, error: error instanceof Error ? error.message : String(error) });
+    metric.end("mark_order_paid_failed");
+    return { ok: false };
+  }
 }

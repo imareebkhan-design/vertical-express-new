@@ -4,7 +4,6 @@ import { Printer } from "lucide-react";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { getOrderByNo, type OrderAddressSnapshot } from "@/lib/services/orders";
 import { formatPaise } from "@/lib/money";
-import { computeGst } from "@/lib/services/tax";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 
@@ -22,8 +21,47 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
   if (!order) notFound();
 
   const addr = order.address as unknown as OrderAddressSnapshot;
-  const taxableBase = Math.max(0, order.subtotalPaise - order.discountPaise);
-  const gst = computeGst(taxableBase, addr.state);
+
+  // Backwards compatibility check
+  const hasSnapshots = order.items.every((item) => item.subtotalPaise !== null);
+
+  let cgstPaise = 0;
+  let sgstPaise = 0;
+  let igstPaise = 0;
+  let taxPaise = order.taxPaise;
+  let ratePct = 18;
+  let intraState = true;
+
+  if (hasSnapshots) {
+    order.items.forEach((item) => {
+      cgstPaise += item.cgstPaise ?? 0;
+      sgstPaise += item.sgstPaise ?? 0;
+      igstPaise += item.igstPaise ?? 0;
+    });
+    intraState = igstPaise === 0;
+    ratePct = order.subtotalPaise > 0 ? Math.round((taxPaise * 100) / order.subtotalPaise) : 18;
+  } else {
+    // Old exclusive math fallback (since computeGst has become inclusive, compute old exclusive values)
+    const taxableBase = Math.max(0, order.subtotalPaise - order.discountPaise);
+    const computedTax = Math.round(taxableBase * 0.18);
+    taxPaise = computedTax;
+    intraState = addr.state ? (addr.state.toLowerCase().includes("jammu") || addr.state.toLowerCase().includes("kashmir") || addr.state.toLowerCase() === "jk") : true;
+    if (intraState) {
+      sgstPaise = Math.floor(computedTax / 2);
+      cgstPaise = computedTax - sgstPaise;
+    } else {
+      igstPaise = computedTax;
+    }
+  }
+
+  const gst = {
+    intraState,
+    ratePct,
+    taxPaise,
+    cgstPaise,
+    sgstPaise,
+    igstPaise,
+  };
 
   return (
     <div className="min-h-screen bg-neutral-100 py-8 px-4 font-sans print:bg-white print:p-0">
@@ -100,18 +138,26 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100 font-semibold text-neutral-700">
-            {order.items.map((item) => (
-              <tr key={item.id}>
-                <td className="py-3 pr-2">
-                  <span className="font-extrabold text-ink">{item.title}</span>
-                  <br />
-                  <span className="text-[11px] text-neutral-400">{item.variantName}</span>
-                </td>
-                <td className="py-3 text-center">{item.qty}</td>
-                <td className="py-3 text-right">{formatPaise(item.unitPricePaise)}</td>
-                <td className="py-3 text-right font-extrabold text-ink">{formatPaise(item.lineTotalPaise)}</td>
-              </tr>
-            ))}
+            {order.items.map((item) => {
+              const unitPrice = hasSnapshots
+                ? Math.round((item.taxableValuePaise ?? 0) / item.qty)
+                : item.unitPricePaise;
+              const total = hasSnapshots
+                ? (item.taxableValuePaise ?? 0)
+                : item.lineTotalPaise;
+              return (
+                <tr key={item.id}>
+                  <td className="py-3 pr-2">
+                    <span className="font-extrabold text-ink">{item.title}</span>
+                    <br />
+                    <span className="text-[11px] text-neutral-400">{item.variantName}</span>
+                  </td>
+                  <td className="py-3 text-center">{item.qty}</td>
+                  <td className="py-3 text-right">{formatPaise(unitPrice)}</td>
+                  <td className="py-3 text-right font-extrabold text-ink">{formatPaise(total)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 

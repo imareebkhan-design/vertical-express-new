@@ -7,6 +7,7 @@ export interface CartLine {
   itemId: string;
   variantId: string;
   productSlug: string;
+  categorySlug: string;
   title: string;
   variantName: string;
   brandName: string;
@@ -19,6 +20,9 @@ export interface CartLine {
   nextTier: { minQty: number; pricePaise: number } | null;
   lineTotalPaise: number;
   inStock: boolean;
+  adjusted?: boolean;
+  adjustmentReason?: "limited" | "out_of_stock";
+  availableStock?: number;
 }
 
 export interface CartSummary {
@@ -31,6 +35,16 @@ export interface CartSummary {
   qualifiesFreeDelivery: boolean;
 }
 
+export interface UpdateCartQtyResult {
+  summary: CartSummary;
+  adjustment?: {
+    status: "limited" | "out_of_stock";
+    available: number;
+    requested: number;
+    message: string;
+  };
+}
+
 const EMPTY: CartSummary = {
   cartId: null,
   lines: [],
@@ -40,6 +54,32 @@ const EMPTY: CartSummary = {
   freeDeliveryRemainingPaise: FREE_DELIVERY_THRESHOLD_PAISE,
   qualifiesFreeDelivery: false,
 };
+
+/** Resolve active warehouse scoped to user address pincode or fallback. */
+export async function resolveWarehouseId(userId: string | null): Promise<string> {
+  if (userId) {
+    const addr = await db.address.findFirst({
+      where: { userId, deletedAt: null },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+      select: { pincode: true },
+    });
+    if (addr) {
+      const sp = await db.serviceablePincode.findFirst({
+        where: { pincode: addr.pincode, isActive: true },
+        select: { warehouseId: true },
+      });
+      if (sp) return sp.warehouseId;
+    }
+  }
+
+  // Fallback to first available warehouse
+  const fallback = await db.warehouse.findFirst({
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+  if (!fallback) throw new Error("No warehouses configured in system");
+  return fallback.id;
+}
 
 /** Resolve unit price for a quantity against the bulk-tier ladder. */
 function tierPrice(
@@ -94,6 +134,7 @@ export async function getCartSummary(
             include: {
               brand: { select: { name: true } },
               images: { where: { isPrimary: true }, take: 1 },
+              category: { select: { slug: true } },
             },
           },
         },
@@ -101,35 +142,65 @@ export async function getCartSummary(
     },
   });
 
-  const lines: CartLine[] = items.map((item) => {
+  const warehouseId = await resolveWarehouseId(userId);
+
+  const lines: CartLine[] = [];
+  for (const item of items) {
     const v = item.variant;
+    
+    // Look up warehouse-scoped inventory
+    const inv = v.inventory.find((i) => i.warehouseId === warehouseId);
+    const available = inv ? Math.max(0, inv.qtyOnHand - inv.qtyReserved) : 0;
+
+    let lineQty = item.qty;
+    let adjusted = false;
+    let adjustmentReason: CartLine["adjustmentReason"] = undefined;
+
+    if (available === 0) {
+      if (item.qty !== 1) {
+        await db.cartItem.update({ where: { id: item.id }, data: { qty: 1 } });
+        lineQty = 1;
+      }
+      adjusted = true;
+      adjustmentReason = "out_of_stock";
+    } else if (item.qty > available) {
+      await db.cartItem.update({ where: { id: item.id }, data: { qty: available } });
+      lineQty = available;
+      adjusted = true;
+      adjustmentReason = "limited";
+    }
+
     const { unitPaise, appliedMinQty, next } = tierPrice(
       v.pricePaise,
       v.bulkTiers.map((t) => ({ minQty: t.minQty, pricePaise: t.pricePaise })),
-      item.qty
+      lineQty
     );
-    const available = v.inventory.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0);
-    return {
+
+    lines.push({
       itemId: item.id,
       variantId: v.id,
       productSlug: v.product.slug,
+      categorySlug: v.product.category.slug,
       title: v.product.title,
       variantName: v.name,
       brandName: v.product.brand.name,
       imageUrl: v.product.images[0]?.url ?? null,
       unitLabel: v.product.unitLabel,
-      qty: item.qty,
+      qty: lineQty,
       basePricePaise: v.pricePaise,
       unitPricePaise: unitPaise,
       appliedTierMinQty: appliedMinQty,
       nextTier: next,
-      lineTotalPaise: unitPaise * item.qty,
+      lineTotalPaise: unitPaise * lineQty,
       inStock: available > 0,
-    };
-  });
+      adjusted,
+      adjustmentReason,
+      availableStock: available,
+    });
+  }
 
-  const subtotalPaise = lines.reduce((sum, l) => sum + l.lineTotalPaise, 0);
-  const count = lines.reduce((sum, l) => sum + l.qty, 0);
+  const subtotalPaise = lines.reduce((sum, l) => sum + (l.inStock ? l.lineTotalPaise : 0), 0);
+  const count = lines.reduce((sum, l) => sum + (l.inStock ? l.qty : 0), 0);
   const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - subtotalPaise);
 
   return {
@@ -159,6 +230,27 @@ export async function addItem(
   });
   if (!variant) throw new Error("Variant not found");
 
+  const warehouseId = await resolveWarehouseId(userId);
+  const inv = await db.inventory.findUnique({
+    where: { variantId_warehouseId: { variantId, warehouseId } },
+  });
+  const available = inv ? Math.max(0, inv.qtyOnHand - inv.qtyReserved) : 0;
+
+  const existing = await db.cartItem.findFirst({
+    where: { cartId: cart.id, variantId },
+    select: { qty: true },
+  });
+  const currentQty = existing?.qty ?? 0;
+  const requestedQty = currentQty + qty;
+
+  if (available === 0) {
+    throw new Error("OUT_OF_STOCK:This item is currently unavailable.");
+  }
+
+  if (requestedQty > available) {
+    throw new Error(`ONLY_X_LEFT:Only ${available} items are available. Requested: ${requestedQty}`);
+  }
+
   await db.cartItem.upsert({
     where: { cartId_variantId: { cartId: cart.id, variantId } },
     update: { qty: { increment: qty } },
@@ -171,17 +263,52 @@ export async function updateItemQty(
   anonId: string | null,
   itemId: string,
   qty: number
-) {
+): Promise<UpdateCartQtyResult> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return;
-  // Ownership check: item must belong to this cart.
-  const item = await db.cartItem.findFirst({ where: { id: itemId, cartId: cart.id } });
-  if (!item) return;
+  if (!cart) return { summary: EMPTY };
+
+  const item = await db.cartItem.findFirst({
+    where: { id: itemId, cartId: cart.id },
+  });
+  if (!item) return { summary: await getCartSummary(userId, anonId) };
+
   if (qty <= 0) {
     await db.cartItem.delete({ where: { id: itemId } });
-  } else {
-    await db.cartItem.update({ where: { id: itemId }, data: { qty: Math.min(999, qty) } });
+    return { summary: await getCartSummary(userId, anonId) };
   }
+
+  const warehouseId = await resolveWarehouseId(userId);
+  const inv = await db.inventory.findUnique({
+    where: { variantId_warehouseId: { variantId: item.variantId, warehouseId } },
+  });
+  const available = inv ? Math.max(0, inv.qtyOnHand - inv.qtyReserved) : 0;
+
+  let adjustment: UpdateCartQtyResult["adjustment"] = undefined;
+
+  if (available === 0) {
+    await db.cartItem.update({ where: { id: itemId }, data: { qty: 1 } });
+    adjustment = {
+      status: "out_of_stock",
+      available: 0,
+      requested: qty,
+      message: "This item is currently unavailable.",
+    };
+  } else if (qty > available) {
+    await db.cartItem.update({ where: { id: itemId }, data: { qty: available } });
+    adjustment = {
+      status: "limited",
+      available,
+      requested: qty,
+      message: `Only ${available} items are available.`,
+    };
+  } else {
+    await db.cartItem.update({ where: { id: itemId }, data: { qty } });
+  }
+
+  return {
+    summary: await getCartSummary(userId, anonId),
+    adjustment,
+  };
 }
 
 export async function removeItem(userId: string | null, anonId: string | null, itemId: string) {
