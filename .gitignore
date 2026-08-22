@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Bare entries (some importers, e.g. Rocket, require these exact names)
+node_modules
+.next
+
 # dependencies
 /node_modules
 /.pnp
