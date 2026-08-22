@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@/prisma/generated/client/client";
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({
@@ -31,7 +31,7 @@ export async function creditCashbackForOrder(params: {
   const cashbackPaise = Math.round(orderTotalPaise * 0.05);
   if (cashbackPaise <= 0) return;
 
-  let wallet = await getOrCreateWallet(userId);
+  const wallet = await getOrCreateWallet(userId);
 
   try {
     await db.$transaction(async (tx) => {
@@ -76,7 +76,7 @@ export async function creditCashbackForOrder(params: {
 }
 
 export async function getUserWallet(userId: string) {
-  let wallet = await getOrCreateWallet(userId);
+  const wallet = await getOrCreateWallet(userId);
   const transactions = await db.walletTransaction.findMany({
     where: { walletId: wallet.id },
     orderBy: { createdAt: "desc" },

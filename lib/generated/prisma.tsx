@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 
 const OrderStatus = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: OrderStatus is not implemented yet.');
   }, []);
   return (
@@ -16,7 +16,7 @@ export { OrderStatus };
 
 const BookingStatus: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: BookingStatus is not implemented yet.');
   }, []);
   return (
@@ -29,7 +29,7 @@ const BookingStatus: React.FC = () => {
 export { BookingStatus };
 const Prisma: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: Prisma is not implemented yet.');
   }, []);
   return (
@@ -42,7 +42,7 @@ const Prisma: React.FC = () => {
 export { Prisma };
 const Category: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: Category is not implemented yet.');
   }, []);
   return (
@@ -55,7 +55,7 @@ const Category: React.FC = () => {
 export { Category };
 const PrismaClient: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: PrismaClient is not implemented yet.');
   }, []);
   return (
@@ -68,7 +68,7 @@ const PrismaClient: React.FC = () => {
 export { PrismaClient };
 const PaymentMethod: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: PaymentMethod is not implemented yet.');
   }, []);
   return (
@@ -81,7 +81,7 @@ const PaymentMethod: React.FC = () => {
 export { PaymentMethod };
 const CategoryGroup: React.FC = () => {
   React.useEffect(() => {
-    // eslint-disable-next-line no-console
+     
     console.warn('Placeholder: CategoryGroup is not implemented yet.');
   }, []);
   return (

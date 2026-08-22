@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import type { Category } from "@/prisma/generated/client";
+import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Desktop Web components

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { Prisma, PaymentMethod, OrderStatus } from "@/prisma/generated/client";
+import { Prisma, PaymentMethod, OrderStatus } from "@/prisma/generated/client/client";
 
 export interface BiFilters {
   startDate?: Date;

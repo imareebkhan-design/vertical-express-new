@@ -21,7 +21,7 @@ import {
   Droplet,
 } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import type { Category } from "@/prisma/generated/client";
+import type { Category } from "@/prisma/generated/client/client";
 import type { RecentlyViewedItem } from "@/components/shop/recently-viewed";
 import { MobileHeader } from "./mobile-header";
 import { MobileSearchBar } from "./mobile-search-bar";

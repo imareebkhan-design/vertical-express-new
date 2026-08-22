@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
@@ -248,6 +248,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   let argIndex = 5;
 
   const searchCond = `(
+    LOWER(p.title) LIKE LOWER($2) OR
     LOWER(p.title) LIKE LOWER($4) OR
     LOWER(b.name) LIKE LOWER($4) OR
     LOWER(c.name) LIKE LOWER($4) OR
@@ -396,7 +397,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
     : [];
 
   const detailsMap = new Map(details.map((d) => [d.id, d]));
-  let items: CatalogItem[] = [];
+  const items: CatalogItem[] = [];
 
   for (const row of rows) {
     const p = detailsMap.get(row.id);

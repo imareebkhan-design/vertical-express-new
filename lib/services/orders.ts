@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { Prisma } from "@/prisma/generated/client";
+import type { Prisma } from "@/prisma/generated/client/client";
 
 export interface OrderAddressSnapshot {
   label: string;

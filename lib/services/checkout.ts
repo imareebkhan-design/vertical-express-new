@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
@@ -353,7 +353,7 @@ export async function markOrderPaid(params: {
   const metric = new MetricsTracker("checkout-service");
   const { orderNo, userId, gatewayPaymentId } = params;
   try {
-    let order = await db.order.findFirst({
+    const order = await db.order.findFirst({
       where: { orderNo, ...(userId ? { userId } : {}) },
       select: { id: true, status: true },
     });

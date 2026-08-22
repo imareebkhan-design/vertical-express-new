@@ -2,10 +2,13 @@
  * Seeds service categories from lib/services.ts into the DB so the Services
  * page and admin can read them dynamically. Idempotent (upsert by slug).
  */
-import { PrismaClient } from "../prisma/generated/client";
+import "dotenv/config";
+import { PrismaClient } from "../prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { SERVICE_CATEGORIES } from "../lib/services";
 
-const db = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const db = new PrismaClient({ adapter });
 
 // Map lucide icon components to stable string keys for DB storage.
 const ICON_KEYS: Record<string, string> = {

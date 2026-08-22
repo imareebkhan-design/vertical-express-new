@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCw, SlidersHorizontal, Loader2, AlertCircle, Check } from "lucide-react";
-import type { Category } from "@/prisma/generated/client";
+import type { Category } from "@/prisma/generated/client/client";
 import type { CatalogResult, CatalogItem, CatalogSort } from "@/lib/services/catalog";
 import { fetchProductsAction } from "@/actions/catalog";
 import { MobileProductCard } from "../home/mobile-product-card";

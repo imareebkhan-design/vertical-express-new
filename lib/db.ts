@@ -1,4 +1,4 @@
-import { PrismaClient } from "@/prisma/generated/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 // Reuse a single Prisma client across HMR reloads in development.
