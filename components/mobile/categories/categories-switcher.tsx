@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components

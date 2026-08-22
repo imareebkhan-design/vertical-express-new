@@ -21,8 +21,8 @@ export function Categories() {
           stagger={0.04}
           className="grid grid-cols-2 gap-x-4 gap-y-6 sm:gap-x-5 md:grid-cols-4 lg:grid-cols-6"
         >
-          {CATEGORIES.map((cat) => (
-            <StaggerItem key={cat.slug}>
+          {CATEGORIES?.map((cat) => (
+            <StaggerItem key={cat?.slug}>
               <CategoryCard category={cat} />
             </StaggerItem>
           ))}

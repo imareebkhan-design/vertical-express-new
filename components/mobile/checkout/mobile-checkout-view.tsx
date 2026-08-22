@@ -508,9 +508,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 }}
                 className={cn(
                   "flex items-center justify-between w-full rounded-xl border p-3.5 text-left text-xs font-bold transition-all",
-                  paymentMethod === "online"
-                    ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                    : "border-mist/20 bg-surface text-ink/75"
+                  paymentMethod === "online" ?"border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/75"
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -532,9 +530,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   "flex items-center justify-between w-full rounded-xl border p-3.5 text-left text-xs font-bold transition-all",
                   !totals.codAllowed
                     ? "opacity-50 bg-mist/5 text-ink/30 cursor-not-allowed border-transparent"
-                    : paymentMethod === "cod"
-                    ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                    : "border-mist/20 bg-surface text-ink/75"
+                    : paymentMethod === "cod" ?"border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/75"
                 )}
               >
                 <div className="flex items-center gap-2">
@@ -677,8 +673,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   className={cn(
                     "flex-1 rounded-xl border py-2 text-xs font-bold text-center transition-all",
                     addressForm.label === lbl
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                      : "border-mist/20 bg-surface text-ink/75"
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/75"
                   )}
                 >
                   {LABEL_DISPLAY[lbl]}

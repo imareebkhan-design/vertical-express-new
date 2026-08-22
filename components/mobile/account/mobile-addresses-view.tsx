@@ -265,8 +265,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                   className={cn(
                     "flex-1 rounded-xl border py-2 text-xs font-bold text-center transition-all",
                     addressForm.label === lbl
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                      : "border-mist/20 bg-surface text-ink/75"
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/75"
                   )}
                 >
                   {LABEL_DISPLAY[lbl]}

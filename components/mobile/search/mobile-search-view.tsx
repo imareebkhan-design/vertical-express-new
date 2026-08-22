@@ -659,8 +659,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                   }}
                   className={`rounded-xl border px-3 py-2.5 text-xs font-bold text-center transition-all ${
                     sort === s.id
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                      : "border-mist/20 bg-surface text-ink/70"
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
                   }`}
                 >
                   {s.label}
@@ -681,8 +680,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
               }}
               className={`flex items-center justify-between w-full rounded-2xl border p-3.5 text-left text-xs font-bold transition-all ${
                 inStockOnly
-                  ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                  : "border-mist/20 bg-surface text-ink/70"
+                  ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
               }`}
             >
               <span>Exclude Out of Stock (In Stock Only)</span>
@@ -705,8 +703,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                       onClick={() => handleBrandToggle(b.slug)}
                       className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
                         isSelected
-                          ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                          : "border-mist/20 bg-surface text-ink/70"
+                          ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
                       }`}
                     >
                       {b.name} ({b.count})

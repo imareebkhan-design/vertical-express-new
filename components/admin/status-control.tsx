@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import type { OrderStatus, BookingStatus } from "@prisma/client";
+import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/client";
 import { adminAdvanceOrder, adminAdvanceBooking } from "@/actions/admin";
 
 /** Inline dropdown to advance an order or booking to an allowed next status. */

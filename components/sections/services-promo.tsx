@@ -30,7 +30,7 @@ export function ServicesPromo() {
             transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
             className="pointer-events-none absolute -top-1/2 left-1/4 size-[32rem] rounded-full bg-brand/15 blur-3xl"
           />
-          {FLOATING_ICONS.map(({ icon: Icon, className, delay }) => (
+          {FLOATING_ICONS?.map(({ icon: Icon, className, delay }) => (
             <motion.span
               key={className}
               aria-hidden
@@ -38,7 +38,7 @@ export function ServicesPromo() {
               transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay }}
               className={`pointer-events-none absolute hidden text-brand md:block ${className}`}
             >
-              <Icon className="size-8" strokeWidth={1.4} />
+              {Icon && <Icon className="size-8" strokeWidth={1.4} />}
             </motion.span>
           ))}
 

@@ -126,7 +126,7 @@ export function AccountSwitcher({
   );
 }
 
-function StatCard({ icon: Icon, label, value, href }: { icon: typeof Package; label: string; value: string; href: string }) {
+function StatCard({ icon: Icon, label, value, href }: { icon: React.ElementType; label: string; value: string; href: string }) {
   return (
     <Link href={href} className="rounded-card border border-hairline-border bg-white p-4 text-center shadow-card transition-shadow hover:shadow-card-hover">
       <Icon className="mx-auto size-5 text-brand-deep" strokeWidth={1.8} aria-hidden />

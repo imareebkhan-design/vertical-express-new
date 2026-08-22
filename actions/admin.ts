@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import type { OrderStatus, BookingStatus } from "@prisma/client";
+import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/client";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { advanceOrderStatus, advanceBookingStatus } from "@/lib/services/admin/manage";
 import { type ActionResult, fail, succeed } from "@/lib/validators";

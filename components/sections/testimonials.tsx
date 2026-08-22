@@ -31,8 +31,8 @@ export function Testimonials() {
             ref={scroller}
             className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0 lg:justify-center"
           >
-            {TESTIMONIALS.map((t) => (
-              <StaggerItem key={t.id} className="shrink-0 snap-start">
+            {TESTIMONIALS?.map((t) => (
+              <StaggerItem key={t?.id} className="shrink-0 snap-start">
                 <motion.figure
                   whileHover={{ y: -6 }}
                   transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
@@ -48,18 +48,18 @@ export function Testimonials() {
 
                   <div className="relative">
                     <blockquote className="text-[13px] font-bold leading-snug">
-                      “{t.quote}”
+                      “{t?.quote}”
                     </blockquote>
                     <figcaption className="mt-3">
-                      <p className="text-xs font-extrabold text-brand">{t.name}</p>
-                      <p className="text-[11px] font-semibold text-white/60">{t.role}</p>
+                      <p className="text-xs font-extrabold text-brand">{t?.name}</p>
+                      <p className="text-[11px] font-semibold text-white/60">{t?.role}</p>
                     </figcaption>
                   </div>
 
                   {/* Play affordance to mirror the original video reels */}
                   <button
                     className="absolute inset-0 grid cursor-pointer place-items-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 focus-visible:opacity-100"
-                    aria-label={`Play video testimonial from ${t.name}`}
+                    aria-label={`Play video testimonial from ${t?.name}`}
                   >
                     <span className="grid size-14 place-items-center rounded-full bg-brand text-ink shadow-card-hover transition-transform duration-300 group-hover:scale-110">
                       <Play className="size-6 fill-ink" aria-hidden />

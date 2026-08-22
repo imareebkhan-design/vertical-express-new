@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/prisma/generated/client/client";
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({

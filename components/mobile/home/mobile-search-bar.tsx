@@ -30,7 +30,7 @@ export function MobileSearchBar() {
           <button
             type="button"
             onClick={(e) => {
-              e.preventDefault();
+              e?.preventDefault();
               handleTouch();
             }}
             className="hover:text-ink transition-colors"
@@ -41,7 +41,7 @@ export function MobileSearchBar() {
           <button
             type="button"
             onClick={(e) => {
-              e.preventDefault();
+              e?.preventDefault();
               handleTouch();
             }}
             className="hover:text-ink transition-colors"

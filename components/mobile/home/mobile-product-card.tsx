@@ -210,8 +210,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             className={cn(
               "flex size-8 items-center justify-center rounded-xl transition-all shadow-xs",
               !item.inStock
-                ? "bg-mist/30 text-ink/30 cursor-not-allowed"
-                : "bg-brand-deep text-white hover:opacity-95 active:scale-90"
+                ? "bg-mist/30 text-ink/30 cursor-not-allowed" :"bg-brand-deep text-white hover:opacity-95 active:scale-90"
             )}
             title={!item.inStock ? "Out of stock" : "Quick Add to Cart"}
           >

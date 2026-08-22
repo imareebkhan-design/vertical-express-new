@@ -118,7 +118,7 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
                 { icon: ShieldCheck, label: "Genuine brands" },
               ].map(({ icon: Icon, label }) => (
                 <div key={label} className="rounded-card bg-surface/60 p-3">
-                  <Icon className="mx-auto size-5 text-brand-deep" strokeWidth={1.8} aria-hidden />
+                  {React.createElement(Icon, { className: "mx-auto size-5 text-brand-deep", strokeWidth: 1.8, "aria-hidden": true })}
                   <p className="mt-1 text-[11px] font-bold text-neutral-600">{label}</p>
                 </div>
               ))}

@@ -16,7 +16,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import { triggerHaptic } from "@/lib/native/haptics";
 
 const GROUP_TITLES: Record<string, string> = {

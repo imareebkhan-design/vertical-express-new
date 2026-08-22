@@ -5,14 +5,14 @@ export default function AccountLoading() {
       <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
         {/* Sidebar nav skeleton */}
         <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4]?.map((i) => (
             <div key={i} className="h-9 rounded-lg bg-neutral-100" />
           ))}
         </div>
         {/* Content skeleton */}
         <div className="space-y-6">
           <div className="grid grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3]?.map((i) => (
               <div key={i} className="h-24 rounded-2xl bg-neutral-100" />
             ))}
           </div>
