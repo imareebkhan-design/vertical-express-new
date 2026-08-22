@@ -59,7 +59,9 @@ const themeClasses: Record<Slide["theme"], string> = {
 const AUTOPLAY_MS = 5000;
 
 export function Hero() {
-  const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
+  const [indexDir, setIndex] = useState<[number, number]>([0, 0]);
+  const index = indexDir[0];
+  const direction = indexDir[1];
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const go = useCallback((dir: number) => {

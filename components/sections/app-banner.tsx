@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { motion } from "framer-motion";
 import { Apple, Play, Smartphone } from "lucide-react";
 import { VerticalExpressIcon } from "@/components/ui/logo";
@@ -11,7 +12,7 @@ function StoreBadge({
   topLine,
   bottomLine,
 }: {
-  icon: typeof Apple;
+  icon: React.ElementType;
   topLine: string;
   bottomLine: string;
 }) {

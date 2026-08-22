@@ -1,11 +1,7 @@
 import "server-only";
 
 export type NotificationType =
-  | "order_placed"
-  | "order_shipped"
-  | "out_for_delivery"
-  | "order_delivered"
-  | "wallet_credited";
+  | "order_placed" |"order_shipped" |"out_for_delivery" |"order_delivered" |"wallet_credited";
 
 export interface NotificationPayload {
   userId: string;

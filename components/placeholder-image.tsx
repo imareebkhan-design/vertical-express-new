@@ -21,6 +21,7 @@ export function PlaceholderImage({
   iconClassName,
   showLabel = false,
 }: PlaceholderImageProps) {
+  const IconComponent = Icon as LucideIcon;
   return (
     <div
       role="img"
@@ -30,7 +31,7 @@ export function PlaceholderImage({
         className
       )}
     >
-      <Icon
+      <IconComponent
         className={cn("size-10 text-neutral-300", iconClassName)}
         strokeWidth={1.5}
         aria-hidden

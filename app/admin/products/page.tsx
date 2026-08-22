@@ -22,22 +22,22 @@ export default async function AdminProducts() {
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {products.map((p) => {
-              const variant = p.variants[0];
-              const stock = variant?.inventory.reduce((s, i) => s + i.qtyOnHand, 0) ?? 0;
+            {products?.map((p) => {
+              const variant = p?.variants?.[0];
+              const stock = variant?.inventory?.reduce((s, i) => s + i?.qtyOnHand, 0) ?? 0;
               const low = stock <= 10;
               return (
-                <tr key={p.id} className="font-bold">
-                  <td className="max-w-xs truncate px-4 py-3">{p.title}</td>
-                  <td className="px-4 py-3 font-semibold text-neutral-500">{p.brand.name}</td>
-                  <td className="px-4 py-3 font-semibold text-neutral-500">{p.category.name}</td>
-                  <td className="px-4 py-3">{variant ? formatPaise(variant.pricePaise) : "—"}</td>
+                <tr key={p?.id} className="font-bold">
+                  <td className="max-w-xs truncate px-4 py-3">{p?.title}</td>
+                  <td className="px-4 py-3 font-semibold text-neutral-500">{p?.brand?.name}</td>
+                  <td className="px-4 py-3 font-semibold text-neutral-500">{p?.category?.name}</td>
+                  <td className="px-4 py-3">{variant ? formatPaise(variant?.pricePaise) : "—"}</td>
                   <td className={`px-4 py-3 ${low ? "text-danger" : ""}`}>{stock}{low ? " ⚠" : ""}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-md px-2 py-0.5 text-[11px] font-extrabold uppercase ${
-                      p.status === "published" ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-600"
+                      p?.status === "published" ? "bg-green-100 text-green-800" : "bg-neutral-200 text-neutral-600"
                     }`}>
-                      {p.status}
+                      {p?.status}
                     </span>
                   </td>
                 </tr>

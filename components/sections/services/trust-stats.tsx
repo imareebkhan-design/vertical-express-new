@@ -17,12 +17,12 @@ export function TrustStats() {
               stagger={0.1}
               className="grid grid-cols-2 gap-8 text-center lg:grid-cols-4"
             >
-              {SERVICE_STATS.map((stat) => (
-                <StaggerItem key={stat.label}>
+              {SERVICE_STATS?.map((stat) => (
+                <StaggerItem key={stat?.label}>
                   <p className="text-4xl font-extrabold text-brand sm:text-5xl">
-                    <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+                    <AnimatedCounter value={stat?.value} suffix={stat?.suffix} />
                   </p>
-                  <p className="mt-2 text-sm font-bold text-white/70">{stat.label}</p>
+                  <p className="mt-2 text-sm font-bold text-white/70">{stat?.label}</p>
                 </StaggerItem>
               ))}
             </Stagger>

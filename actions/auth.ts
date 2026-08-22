@@ -37,8 +37,7 @@ export async function sendOtp(rawIdentifier: string): Promise<ActionResult<{ cha
 
       const value = parsed.data;
       const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-      const formattedIdentifier = channel === "phone" 
-        ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+      const formattedIdentifier = channel === "phone" ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
         : value;
 
       const limit = await rateLimit(`otp:${formattedIdentifier}`, 5, 15 * 60 * 1000); // 5 per 15 min
@@ -88,8 +87,7 @@ export async function verifyOtp(
 
       const value = parsed.data;
       const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-      const formattedIdentifier = channel === "phone" 
-        ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+      const formattedIdentifier = channel === "phone" ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
         : value;
       
       if (!/^[A-Za-z0-9]{6,12}$/.test(token.trim())) {

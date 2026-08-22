@@ -3,7 +3,7 @@
  * variants/bulk tiers, one warehouse, Srinagar pincodes, and launch coupon.
  * Idempotent: upserts by slug/sku so it can run repeatedly.
  */
-import { PrismaClient, CategoryGroup } from "@prisma/client";
+import { PrismaClient, CategoryGroup } from "../prisma/generated/client";
 
 const db = new PrismaClient();
 

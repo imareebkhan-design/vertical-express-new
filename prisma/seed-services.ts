@@ -2,7 +2,7 @@
  * Seeds service categories from lib/services.ts into the DB so the Services
  * page and admin can read them dynamically. Idempotent (upsert by slug).
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../prisma/generated/client";
 import { SERVICE_CATEGORIES } from "../lib/services";
 
 const db = new PrismaClient();

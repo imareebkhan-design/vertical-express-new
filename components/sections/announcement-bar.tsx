@@ -10,7 +10,7 @@ export function AnnouncementBar() {
 
   useEffect(() => {
     const timer = setInterval(
-      () => setIndex((i) => (i + 1) % ANNOUNCEMENTS.length),
+      () => setIndex((i) => (i + 1) % ANNOUNCEMENTS?.length),
       3500
     );
     return () => clearInterval(timer);
@@ -31,7 +31,7 @@ export function AnnouncementBar() {
           transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           className="px-4 text-center text-xs font-bold tracking-wide sm:text-[13px]"
         >
-          {ANNOUNCEMENTS[index]}
+          {ANNOUNCEMENTS?.[index]}
         </motion.p>
       </AnimatePresence>
     </div>

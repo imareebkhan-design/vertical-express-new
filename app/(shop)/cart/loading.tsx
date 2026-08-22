@@ -4,7 +4,7 @@ export default function CartLoading() {
       <div className="mb-6 h-8 w-32 rounded-lg bg-neutral-200" />
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
+          {[1, 2, 3]?.map((i) => (
             <div key={i} className="flex gap-4 rounded-2xl border border-neutral-100 bg-white p-4">
               <div className="size-24 rounded-xl bg-neutral-100" />
               <div className="flex-1 space-y-2">

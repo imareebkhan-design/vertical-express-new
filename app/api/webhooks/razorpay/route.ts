@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/prisma/generated/client";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
 import { db } from "@/lib/db";
 import { runWithContext, trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";

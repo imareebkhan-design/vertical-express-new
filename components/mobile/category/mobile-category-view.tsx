@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCw, SlidersHorizontal, Loader2, AlertCircle, Check } from "lucide-react";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client";
 import type { CatalogResult, CatalogItem, CatalogSort } from "@/lib/services/catalog";
 import { fetchProductsAction } from "@/actions/catalog";
 import { MobileProductCard } from "../home/mobile-product-card";
@@ -306,8 +306,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
                   }}
                   className={`rounded-xl border px-3 py-2.5 text-xs font-bold text-center transition-all ${
                     sort === s.id
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                      : "border-mist/20 bg-surface text-ink/70"
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
                   }`}
                 >
                   {s.label}
@@ -328,8 +327,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
               }}
               className={`flex items-center justify-between w-full rounded-2xl border p-3.5 text-left text-xs font-bold transition-all ${
                 inStockOnly
-                  ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                  : "border-mist/20 bg-surface text-ink/70"
+                  ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
               }`}
             >
               <span>Exclude Out of Stock (In Stock Only)</span>
@@ -352,8 +350,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
                       onClick={() => handleBrandToggle(b.slug)}
                       className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
                         isSelected
-                          ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                          : "border-mist/20 bg-surface text-ink/70"
+                          ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-surface text-ink/70"
                       }`}
                     >
                       {b.name} ({b.count})

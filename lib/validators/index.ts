@@ -33,17 +33,7 @@ export type ActionResult<T> =
   | { ok: false; error: { code: ActionErrorCode; message: string; field?: string; metadata?: unknown } };
 
 export type ActionErrorCode =
-  | "UNAUTHENTICATED"
-  | "FORBIDDEN"
-  | "NOT_FOUND"
-  | "VALIDATION"
-  | "OUT_OF_STOCK"
-  | "ONLY_X_LEFT"
-  | "PINCODE_UNSERVICEABLE"
-  | "COUPON_INVALID"
-  | "PAYMENT_FAILED"
-  | "RATE_LIMITED"
-  | "CONFLICT";
+  | "UNAUTHENTICATED" |"FORBIDDEN" |"NOT_FOUND" |"VALIDATION" |"OUT_OF_STOCK" |"ONLY_X_LEFT" |"PINCODE_UNSERVICEABLE" |"COUPON_INVALID" |"PAYMENT_FAILED" |"RATE_LIMITED" |"CONFLICT";
 
 export function fail<T>(code: ActionErrorCode, message: string, field?: string, metadata?: unknown): ActionResult<T> {
   return { ok: false, error: { code, message, field, metadata } };

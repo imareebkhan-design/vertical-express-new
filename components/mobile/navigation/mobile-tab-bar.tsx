@@ -32,23 +32,23 @@ export function MobileTabBar() {
   return (
     <nav className="native-tabbar fixed bottom-0 left-0 right-0 z-40 border-t border-mist/20 bg-surface/95 px-2 pb-[env(safe-area-inset-bottom,12px)] pt-2.5 backdrop-blur-md shadow-[0_-4px_16px_rgba(15,33,56,0.06)]">
       <div className="flex items-center justify-around max-w-md mx-auto">
-        {MAIN_TABS.map((tab) => {
-          const Icon = ICON_MAP[tab.iconName];
+        {MAIN_TABS?.map((tab) => {
+          const Icon = ICON_MAP?.[tab?.iconName];
           const isActive =
-            tab.href === "/"
+            tab?.href === "/"
               ? pathname === "/"
-              : pathname.startsWith(tab.href);
+              : pathname?.startsWith(tab?.href);
 
           return (
             <Link
-              key={tab.id}
-              href={tab.href}
+              key={tab?.id}
+              href={tab?.href}
               onClick={handleTabClick}
               className={`relative flex flex-col items-center justify-center py-1 px-3 transition-colors ${
                 isActive ? "text-brand-deep font-bold" : "text-ink/50 hover:text-ink"
               }`}
               style={{ minWidth: "64px", minHeight: "44px" }}
-              aria-label={tab.label}
+              aria-label={tab?.label}
             >
               <motion.div
                 animate={{ scale: isActive ? 1.15 : 1, y: isActive ? -1 : 0 }}
@@ -57,7 +57,7 @@ export function MobileTabBar() {
               >
                 <Icon className={`size-5 transition-colors ${isActive ? "text-brand-deep" : "text-ink/60"}`} />
                 
-                {tab.id === "cart" && cartCount > 0 && (
+                {tab?.id === "cart" && cartCount > 0 && (
                   <motion.span
                     initial={{ scale: 0.6, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -67,7 +67,7 @@ export function MobileTabBar() {
                   </motion.span>
                 )}
 
-                <span className="mt-1 text-[10px] tracking-tight leading-none">{tab.label}</span>
+                <span className="mt-1 text-[10px] tracking-tight leading-none">{tab?.label}</span>
                 
                 {/* Active Indicator Dot */}
                 {isActive && (

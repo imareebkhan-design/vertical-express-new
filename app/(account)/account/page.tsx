@@ -17,11 +17,12 @@ export default async function AccountOverview() {
   if (!data.user) redirect("/login?next=/account");
   const userId = data.user.id;
 
-  const [{ orders, total }, addresses, wishlistIds] = await Promise.all([
+  const [orderResult, addresses, wishlistIds] = await Promise.all([
     listOrders(userId, 1, 3),
     listAddresses(userId),
     getWishlistProductIds(userId),
   ]);
+  const { orders, total } = orderResult;
 
   return (
     <AccountSwitcher

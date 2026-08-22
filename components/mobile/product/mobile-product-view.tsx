@@ -317,8 +317,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
                   className={cn(
                     "rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95",
                     selectedVariant.id === v.id
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
-                      : "border-mist/20 bg-white text-ink/70"
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-white text-ink/70"
                   )}
                 >
                   {v.name}
@@ -375,8 +374,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             <div className={cn(
               "flex items-center gap-2 rounded-xl p-3 text-xs font-bold",
               pinResult.serviceable
-                ? "bg-emerald-600/10 text-emerald-700"
-                : "bg-danger/10 text-danger"
+                ? "bg-emerald-600/10 text-emerald-700" :"bg-danger/10 text-danger"
             )}>
               {pinResult.serviceable ? (
                 <>
@@ -399,9 +397,9 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             { icon: Truck, label: "60-min delivery" },
             { icon: Wallet, label: "Pay on delivery" },
             { icon: ShieldCheck, label: "Genuine brand" },
-          ].map(({ icon: Icon, label }) => (
+          ].map(({ icon: IconComponent, label }) => (
             <div key={label} className="rounded-xl bg-surface p-2.5 border border-mist/10">
-              <Icon className="mx-auto size-4.5 text-brand-deep" strokeWidth={1.8} />
+              <IconComponent className="mx-auto size-4.5 text-brand-deep" strokeWidth={1.8} />
               <p className="mt-1 text-[9px] font-bold text-ink/60">{label}</p>
             </div>
           ))}

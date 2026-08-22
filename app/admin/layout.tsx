@@ -1,3 +1,4 @@
+import React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, CalendarClock, Package, ShoppingBag, PieChart } from "lucide-react";

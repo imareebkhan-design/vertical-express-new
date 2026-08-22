@@ -31,7 +31,11 @@ export interface OtpProvider {
 }
 
 class SupabaseOtpProvider implements OtpProvider {
-  constructor(readonly channel: OtpChannel) {}
+  readonly channel: OtpChannel;
+
+  constructor(channel: OtpChannel) {
+    this.channel = channel;
+  }
 
   async send(identifier: string): Promise<OtpSendResult> {
     const supabase = await createSupabaseServer();

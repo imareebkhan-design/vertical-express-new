@@ -498,7 +498,7 @@ function StatCard({
   onClick,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  icon: any;
+  icon: React.ElementType;
   label: string;
   value: string;
   onClick: () => void;

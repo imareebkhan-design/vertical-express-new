@@ -47,9 +47,9 @@ function PincodeChip() {
             autoFocus
             value={pincode}
             maxLength={6}
-            onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+            onChange={(e) => setPincode(e?.target?.value?.replace(/\D/g, ""))}
             onBlur={() => setEditing(false)}
-            onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
+            onKeyDown={(e) => e?.key === "Enter" && setEditing(false)}
             className="w-16 border-b border-ink text-sm font-bold focus:outline-none"
             aria-label="Delivery pincode"
           />
@@ -78,10 +78,10 @@ export function Navbar() {
   const getActiveTab = () => {
     if (!pathname) return "";
     if (pathname === "/") return "shop";
-    if (pathname.startsWith("/categories") || pathname.startsWith("/category")) return "categories";
-    if (pathname.startsWith("/search")) return "search";
-    if (pathname.startsWith("/account/orders")) return "orders";
-    if (pathname.startsWith("/account")) return "account";
+    if (pathname?.startsWith("/categories") || pathname?.startsWith("/category")) return "categories";
+    if (pathname?.startsWith("/search")) return "search";
+    if (pathname?.startsWith("/account/orders")) return "orders";
+    if (pathname?.startsWith("/account")) return "account";
     return "";
   };
 
@@ -98,9 +98,9 @@ export function Navbar() {
               autoFocus
               value={pincode}
               maxLength={6}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+              onChange={(e) => setPincode(e?.target?.value?.replace(/\D/g, ""))}
               onBlur={() => setEditingPincode(false)}
-              onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
+              onKeyDown={(e) => e?.key === "Enter" && setEditingPincode(false)}
               className="w-16 border-b border-deep-navy text-xs font-bold focus:outline-none bg-transparent"
               aria-label="Mobile delivery pincode"
             />
@@ -138,7 +138,6 @@ export function Navbar() {
           </Link>
         </div>
       </header>
-
       {/* Desktop Navigation Header (>= 1024px) */}
       <header
         className={cn(
@@ -183,26 +182,26 @@ export function Navbar() {
           aria-label="Primary navigation"
         >
           <ul className="mx-auto flex max-w-7xl items-center justify-center gap-1 px-6">
-            {NAV_PRIMARY.map((cat) => (
+            {NAV_PRIMARY?.map((cat) => (
               <li
-                key={cat.label}
+                key={cat?.label}
                 className="relative"
-                onMouseEnter={() => setOpenMenu(cat.label)}
+                onMouseEnter={() => setOpenMenu(cat?.label)}
                 onMouseLeave={() => setOpenMenu(null)}
               >
                 <Link
-                  href={cat.href}
+                  href={cat?.href}
                   className={cn(
                     "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink-black",
-                    openMenu === cat.label && "text-ink-black"
+                    openMenu === cat?.label && "text-ink-black"
                   )}
                 >
-                  {cat.label}
-                  {cat.children && (
+                  {cat?.label}
+                  {cat?.children && (
                     <ChevronDown
                       className={cn(
                         "size-3.5 transition-transform duration-200",
-                        openMenu === cat.label && "rotate-180"
+                        openMenu === cat?.label && "rotate-180"
                       )}
                       aria-hidden
                     />
@@ -211,12 +210,12 @@ export function Navbar() {
                 <span
                   className={cn(
                     "absolute inset-x-3 bottom-1 h-0.5 origin-left scale-x-0 rounded-full bg-champagne-gold transition-transform duration-300 ease-[var(--ease-brand)]",
-                    openMenu === cat.label && "scale-x-100"
+                    openMenu === cat?.label && "scale-x-100"
                   )}
                   aria-hidden
                 />
                 <AnimatePresence>
-                  {cat.children && openMenu === cat.label && (
+                  {cat?.children && openMenu === cat?.label && (
                     <motion.div
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -224,13 +223,13 @@ export function Navbar() {
                       transition={{ duration: 0.18, ease: "easeOut" }}
                       className="absolute left-0 top-full z-50 min-w-56 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
                     >
-                      {cat.children.map((child) => (
+                      {cat?.children?.map((child) => (
                         <Link
-                          key={child.label}
-                          href={child.href}
+                          key={child?.label}
+                          href={child?.href}
                           className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink-black"
                         >
-                          {child.label}
+                          {child?.label}
                         </Link>
                       ))}
                     </motion.div>
@@ -241,7 +240,6 @@ export function Navbar() {
           </ul>
         </nav>
       </header>
-
       {/* Mobile BottomNavBar (< 1024px) */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-around border-t border-hairline-border bg-white/90 pb-safe shadow-[0_-4px_12px_rgba(15,33,56,0.08)] rounded-t-2xl backdrop-blur-md lg:hidden">
         {/* Shop Tab */}

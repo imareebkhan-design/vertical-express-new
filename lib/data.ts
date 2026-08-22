@@ -204,7 +204,7 @@ export const FOOTER_LINKS = {
     { label: "Contact", href: "#" },
     { label: "Price Lists", href: "#" },
     { label: "Knowledge Hub", href: "#" },
-    { label: "FAQ's", href: "#" },
+    { label: "FAQ\'s", href: "#" },
   ],
   policy: [
     { label: "Refund Policy", href: "#" },
