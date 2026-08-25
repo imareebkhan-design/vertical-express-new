@@ -52,8 +52,8 @@ See `docs/CURRENT_SYSTEM_AUDIT.md` for the full assessment.
 | Payments | Razorpay fully implemented; **`dummy` gateway active by default** |
 | Mobile | Capacitor 8 scaffolded (`capacitor.config.ts`, `mobile-shell/`) — not built |
 | Hosting | Vercel, `bom1` edge |
-| Tests | **None.** | 
-| CI | **None.** |
+| Tests | 67 tests, 11 files (`lib/**/*.test.ts`) — run against a local Postgres, `npm test` |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) — typecheck, lint, test on every push |
 
 Scale: 133 TS/TSX files, ~10,500 LOC, 60 components, 17 domain services.
 

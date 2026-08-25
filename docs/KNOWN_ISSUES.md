@@ -15,29 +15,29 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
-| ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | OPEN |
-| ISS-002 | Dummy payment gateway confirms orders with no money | CRITICAL | Payments | OPEN |
-| ISS-003 | Razorpay HTTP call executes inside DB transaction | HIGH | Checkout | OPEN |
-| ISS-004 | Inventory decrement not scoped to warehouse | HIGH | Inventory | OPEN |
-| ISS-005 | Payment capture amount never verified | HIGH | Payments | OPEN |
+| ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | FIXED |
+| ISS-002 | Dummy payment gateway confirms orders with no money | CRITICAL | Payments | FIXED |
+| ISS-003 | Razorpay HTTP call executes inside DB transaction | HIGH | Checkout | FIXED |
+| ISS-004 | Inventory decrement not scoped to warehouse | HIGH | Inventory | FIXED |
+| ISS-005 | Payment capture amount never verified | HIGH | Payments | FIXED |
 | ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | OPEN |
 | ISS-007 | Entire catalog is fictional | CRITICAL | Data | BLOCKED (OWNER) |
-| ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | BLOCKED (OWNER) |
+| ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
 | ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | OPEN |
 | ISS-010 | COD collection and reconciliation missing | HIGH | Operations/Finance | OPEN |
 | ISS-011 | Coupon engine is unreachable dead code | MEDIUM | Pricing | OPEN |
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
-| ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | OPEN |
+| ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | FIXED |
 | ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | OPEN |
 | ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | OPEN |
 | ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | OPEN |
-| ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | BLOCKED (LEGAL) |
+| ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
 | ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | OPEN |
 | ISS-019 | Admin product management is read-only | HIGH | Admin | OPEN |
 | ISS-020 | Search has no typo tolerance | MEDIUM | Search | OPEN |
 | ISS-021 | Rate limiter fails open | MEDIUM | Security | OPEN |
 | ISS-022 | No security headers or CSP | MEDIUM | Security | OPEN |
-| ISS-023 | No CI pipeline | MEDIUM | DevOps | OPEN |
+| ISS-023 | No CI pipeline | MEDIUM | DevOps | FIXED |
 | ISS-024 | Migrations run automatically on production deploy | HIGH | DevOps | OPEN |
 | ISS-025 | No refund entity or workflow | MEDIUM | Payments | OPEN |
 | ISS-026 | No GST invoice generation | HIGH | Legal/Finance | BLOCKED (CA) |
@@ -49,6 +49,9 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-032 | Unit of measure stored as a display string | LOW | Data model | OPEN |
 | ISS-033 | No product weight or dimensions | LOW | Data model | OPEN |
 | ISS-034 | Rating fields exist with no review system | LOW | Catalog | OPEN |
+| ISS-037 | Test suite ran against the application database | CRITICAL | Testing/Data | FIXED |
+| ISS-038 | `font-sans` never resolved; site rendered in the system font | MEDIUM | Design system | FIXED |
+| ISS-039 | Amber used as body text in ~148 places | MEDIUM | Design system | OPEN |
 
 ---
 
@@ -58,7 +61,12 @@ new issue, add it with the same fields and the evidence that supports it.*
 |---|---|
 | **Severity** | **CRITICAL** |
 | **Area** | Money / Tax |
-| **Status** | OPEN — math is mine to fix, rates are the owner's/CA's to supply |
+| **Status** | FIXED (verified 25 Aug 2026) |
+
+**Resolution.** `lib/services/tax.ts` treats prices as GST-inclusive and extracts tax from the
+inclusive base. Intra-state J&K supply splits CGST/SGST; outside J&K uses IGST.
+Per-category HSN and rate come from `CATEGORY_TAX_CONFIGS` (owner-confirmed,
+Q2.2/Q2.3). Covered by four tests in `lib/services/__tests__/tax.test.ts`.
 
 **Description.** `computeTotals()` takes the cart subtotal, calls `computeGst()` on it,
 and adds the result: `totalPaise = taxableBase + gst.taxPaise + deliveryFeePaise`. The
@@ -115,7 +123,11 @@ GST rate + HSN per category (Q4, requires CA).
 |---|---|
 | **Severity** | **CRITICAL** |
 | **Area** | Payments / Production safety |
-| **Status** | OPEN — fixable immediately, no owner input needed |
+| **Status** | FIXED (verified 25 Aug 2026) |
+
+**Resolution.** `lib/services/payments.ts` throws `PaymentConfigError` (`DUMMY_GATEWAY_IN_PRODUCTION`)
+on every dummy-provider path when `isProduction()`, and `activeGateway()` refuses to
+resolve `dummy` in production. It now fails loudly rather than pretending to work.
 
 **Description.** `activeGateway()` returns `"dummy"` whenever `PAYMENT_GATEWAY` is not
 `"razorpay"` or the Razorpay keys are absent. `DummyPaymentProvider.createPayment()`
@@ -163,7 +175,20 @@ account status (Q7).
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Checkout / Reliability |
-| **Status** | OPEN |
+| **Status** | FIXED (25 Aug 2026) |
+
+**Resolution.** `provider.createOrder()` now runs before `db.$transaction` opens in
+`lib/services/checkout.ts:placeOrder`; the transaction contains database work only.
+The warehouse guard was also moved ahead of the gateway call, so a pincode that cannot
+resolve to a warehouse fails without creating a gateway order at all. When the
+transaction fails after a successful gateway call the gateway order is orphaned, which
+is harmless — it is never captured and expires on Razorpay's side.
+
+Covered by `lib/services/__tests__/checkout-transaction.test.ts`, which wraps
+`db.$transaction` to count open transactions and stubs `fetch` to record the depth at
+the moment the gateway is called. It asserts depth 0, and fails with `1 !== 0` against
+the previous implementation. A second test asserts a gateway failure leaves no order
+row and no stock movement.
 
 **Description.** `placeOrder()` opens `db.$transaction(...)` and, as the first statement
 inside it, calls `provider.createPayment()` — which for Razorpay performs an outbound
@@ -202,7 +227,10 @@ Load test: 50 concurrent checkouts without pool exhaustion.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Inventory |
-| **Status** | OPEN |
+| **Status** | FIXED (verified 25 Aug 2026) |
+
+**Resolution.** `lib/services/checkout.ts` resolves `warehouseId` from `ServiceablePincode` and the
+stock decrement is scoped to it, refusing to proceed when it cannot be resolved.
 
 **Description.** The stock decrement is
 `tx.inventory.updateMany({ where: { variantId, ...(warehouse?.warehouseId ? { warehouseId } : {}), qtyOnHand: { gte: line.qty } }, … })`.
@@ -243,7 +271,11 @@ decremented.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Payments / Security |
-| **Status** | OPEN |
+| **Status** | FIXED (verified 25 Aug 2026) |
+
+**Resolution.** The Razorpay webhook verifies the captured amount against the order total, rejects
+mismatched, missing and non-integer amounts, leaves the order `pending_payment`, and
+raises a FATAL alert. Seven tests in `lib/services/__tests__/webhook.test.ts`.
 
 **Description.** `markOrderPaid()` looks up the order, checks it is
 `pending_payment`, and marks it `confirmed` with `status: "captured"`. It never compares
@@ -584,7 +616,12 @@ stack trace and no PII. A simulated outage alerts within 2 minutes.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Testing |
-| **Status** | OPEN |
+| **Status** | FIXED (verified 25 Aug 2026) |
+
+**Resolution.** 67 tests across 11 files covering GST, checkout maths, coupons, cart inventory,
+webhook amount verification and idempotency, payments, search, observability and BI.
+Enforced by CI (ISS-023). Coverage is not exhaustive — fulfilment and invoicing have
+no tests because they have no code yet.
 
 **Description.** There are no tests of any kind. No Vitest, Jest, Playwright or Testing
 Library. No `.test.*` or `.spec.*` files. No `.github/` directory.
@@ -946,7 +983,12 @@ and microphone, `frame-ancestors 'none'`. Verify no `unsafe-inline` for scripts.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | DevOps |
-| **Status** | OPEN |
+| **Status** | FIXED (25 Aug 2026) |
+
+**Resolution.** `.github/workflows/ci.yml` runs on every push and pull request:
+`npm ci`, migrations and seed against a throwaway Postgres 17 service container,
+then `npx tsc --noEmit`, `npm run lint` and `npm test`. Branch protection on `main`
+requiring this check is still worth turning on in GitHub settings.
 
 **Description.** No `.github/` directory. Nothing gates a push. Typecheck, lint and
 (once they exist) tests are never enforced automatically.
@@ -1123,3 +1165,124 @@ endpoint.
 ## Issues resolved
 
 *None yet. Move issues here with the resolving commit SHA and date as they are fixed.*
+
+---
+
+## ISS-037 — Test suite ran against the application database
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Area** | Testing/Data |
+| **Status** | FIXED (25 Aug 2026) |
+
+**Description.** `npm test` resolved `DATABASE_URL` from `.env` — the same remote
+Supabase database the application uses. The suite is not read-only: it creates orders,
+payments, webhook events and inventory rows, and mutates order status. Running it wrote
+`TEST-ORDER-*` records into that database.
+
+**Evidence.** `package.json` test script carried no env-file flag; Prisma Client loads
+`.env` automatically; a full run produced orders named `TEST-ORDER-<timestamp>` and
+payment rows. `.env` `DATABASE_URL` host resolves to a Supabase project.
+
+**Business impact.** Test data mixed into real data. Any suite that touches inventory
+could decrement real stock. It also made CI impossible to enable safely — every push
+would have written to the live database.
+
+**Secondary finding.** Eight tests (cart inventory, search synonyms) were passing only
+because they read seed data that happened to exist in the shared database. Against a
+clean database they failed with *"No categories found in seed to attach test product
+to."* Isolation exposed a real gap in test setup, now closed by seeding as part of
+`db:test:setup`.
+
+**Resolution.**
+- `test-support/db-guard.mjs` — loaded via `node --import` before Prisma is
+  instantiated. Refuses to run unless `VE_TEST_DATABASE=1`, and refuses managed
+  database hosts (Supabase, Neon, RDS, Railway, Render, PlanetScale) unless
+  `VE_TEST_DATABASE_ALLOW_REMOTE=1` is also set. Never prints the connection string.
+- `.env.test` (gitignored) plus `.env.test.example` — the suite loads its own env file
+  via `--env-file-if-exists`, which takes precedence over `.env` because Prisma's dotenv
+  loading does not override already-set variables.
+- `scripts/setup-test-db.sh` (`npm run db:test:setup`) — creates the local database,
+  creates no-login equivalents of the Supabase roles the RLS lockdown migration grants
+  to, applies migrations and seeds. `--reset` drops first.
+- CI uses a throwaway Postgres 17 service container with the same guard active.
+
+**Side effect worth noting.** Against local Postgres the suite runs in **0.96s** rather
+than **50.2s** — a 52× improvement, which is what makes running it on every push
+practical.
+
+**Test required.** Removing `.env.test` makes `npm test` refuse to run rather than fall
+through to `.env`. Verified.
+
+**Owner input required.** Yes — one question. `TEST-ORDER-*` rows and their payments
+exist in the Supabase database from previous runs. If that project is production they
+should be identified and removed, and any reporting that counted them re-checked.
+
+---
+
+## ISS-038 — `font-sans` never resolved; the site rendered in the system font
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Design system |
+| **Status** | FIXED (25 Aug 2026) |
+
+**Description.** `app/globals.css` declared `--font-sans: var(--font-inter), …` inside a
+plain `@theme` block. Tailwind v4 resolves `@theme` values at `:root`, but next/font
+defines `--font-inter` on `<body>`. The reference could not resolve, so `--font-sans`
+fell back to Tailwind's default stack and every page rendered in `ui-sans-serif` —
+the system font — not the brand face. The webfont was downloaded on every page load
+and never used.
+
+**Evidence.** In the browser: `getComputedStyle(document.body).fontFamily` returned
+`ui-sans-serif, system-ui, sans-serif, …` while `--font-jakarta` was present on `<body>`
+and 25 font faces were registered. `getPropertyValue("--font-sans")` on `:root` was
+empty.
+
+**Resolution.** The font token moved to an `@theme inline` block, which substitutes at
+the point of use instead of emitting a `:root` variable, so the `font-sans` utility
+resolves. Because `@theme inline` emits no custom property, the raw `body` rule now
+reads `var(--font-jakarta)` directly. Verified: 40 of 40 sampled elements compute to
+`"Plus Jakarta Sans"`.
+
+**Note.** This was pre-existing and unrelated to the palette change — it would have
+applied equally to Inter. It was found only because the font swap prompted a check of
+what the browser actually computed.
+
+---
+
+## ISS-039 — Amber is used as body text in ~148 places
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Design system / Accessibility |
+| **Status** | OPEN |
+
+**Description.** `text-brand` appears 148 times across 56 components. The design system
+states that amber never carries body text: `#EDAF1C` on white is 1.75:1 and fails WCAG
+AA at any size. Amber is for fills, the brand mark, the speed bolt, ticks and large
+numerals; ink carries every piece of text that has to be read.
+
+**Evidence.** A contrast sweep of the rendered home page found amber text at 12px, e.g.
+testimonial attributions ("Ravi Kumar", "Anita Sharma") at 1.75:1.
+
+**Not a regression.** The previous gold `#FCBD00` has near-identical luminance and failed
+identically. The token repoint changed the hue, not the contrast.
+
+**Complication.** Many of the 148 are `text-brand` on an SVG icon, which the system
+permits — amber is legitimate for marks. Icon and text usages cannot be separated by
+grep, so this needs a component-by-component pass rather than a find-and-replace.
+
+**Mitigation already scheduled.** Several of the worst offenders live in sections due for
+deletion as launch blockers: `testimonials.tsx`, `trust-badges.tsx`, `app-banner.tsx`
+(ISS-008). Whatever remains should be swept afterwards.
+
+**Test required.** A contrast assertion over rendered pages, or a lint rule banning
+`text-brand` on non-SVG elements.
+
+**Owner input required.** No.
+
+---
