@@ -5,19 +5,18 @@ import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "Cement, Ply, Hardware & Painting Srinagar | 60 Min Delivery | Vertical Express",
+  title: "Cement, Ply, Hardware & Painting in Srinagar | Vertical Express",
   description:
-    "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar in 60 minutes. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
+    "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
   keywords: [
     "construction materials",
     "cement delivery",
     "hardware store Srinagar",
-    "60 minute delivery",
   ],
   openGraph: {
-    title: "Vertical Express — Construction materials in 60 minutes",
+    title: "Vertical Express — Building material, on site today",
     description:
-      "Cement, ply, hardware & painting supplies delivered across Srinagar in 60 minutes.",
+      "Cement, ply, hardware and painting supplies delivered across Srinagar.",
     type: "website",
   },
   icons: {

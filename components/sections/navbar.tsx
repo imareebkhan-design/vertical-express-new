@@ -36,10 +36,10 @@ function PincodeChip() {
   const [editing, setEditing] = useState(false);
 
   return (
-    <div className="hidden items-center gap-2 rounded-lg border border-neutral-200 px-3 py-1.5 lg:flex">
-      <MapPin className="size-4 shrink-0 text-brand-deep" aria-hidden />
+    <div className="hidden items-center gap-2 rounded-full bg-chip-soft px-4 py-1.5 lg:flex">
+      <MapPin className="size-4 shrink-0 text-ink-500" aria-hidden />
       <div className="leading-tight">
-        <p className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-ink-500">
           Delivering to
         </p>
         {editing ? (
@@ -50,7 +50,7 @@ function PincodeChip() {
             onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
             onBlur={() => setEditing(false)}
             onKeyDown={(e) => e.key === "Enter" && setEditing(false)}
-            className="w-16 border-b border-ink text-sm font-bold focus:outline-none"
+            className="w-16 border-b border-ink bg-transparent text-sm font-bold focus:outline-none"
             aria-label="Delivery pincode"
           />
         ) : (
@@ -58,7 +58,7 @@ function PincodeChip() {
             onClick={() => setEditing(true)}
             className="cursor-pointer text-sm font-bold hover:text-brand-deep"
           >
-            {pincode} — 60 min
+            {pincode}
           </button>
         )}
       </div>
@@ -101,15 +101,15 @@ export function Navbar() {
               onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
               onBlur={() => setEditingPincode(false)}
               onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
-              className="w-16 border-b border-deep-navy text-xs font-bold focus:outline-none bg-transparent"
+              className="w-16 border-b border-ink text-xs font-bold focus:outline-none bg-transparent"
               aria-label="Mobile delivery pincode"
             />
           ) : (
             <button
               onClick={() => setEditingPincode(true)}
-              className="flex items-center gap-0.5 rounded-full bg-surface-soft px-2.5 py-1 text-xs font-bold text-deep-navy transition-colors hover:bg-neutral-200"
+              className="flex items-center gap-0.5 rounded-full bg-surface-soft px-2.5 py-1 text-xs font-bold text-ink transition-colors hover:bg-neutral-200"
             >
-              <MapPin className="size-3.5 text-deep-navy" />
+              <MapPin className="size-3.5 text-ink" />
               <span>{pincode}</span>
             </button>
           )}
@@ -117,7 +117,7 @@ export function Navbar() {
 
         {/* Center: Brand Title */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Link href="/" className="text-center font-sans text-[15px] font-extrabold tracking-tighter text-deep-navy uppercase">
+          <Link href="/" className="text-center font-sans text-[15px] font-extrabold tracking-tighter text-ink uppercase">
             VERTICAL EXPRESS
           </Link>
         </div>
@@ -126,12 +126,12 @@ export function Navbar() {
         <div className="flex items-center justify-end gap-1 min-w-[70px]">
           <Link
             href="/cart"
-            className="relative p-2 text-deep-navy transition-transform active:scale-95"
+            className="relative p-2 text-ink transition-transform active:scale-95"
             aria-label={`Cart, ${count} items`}
           >
             <ShoppingCart className="size-5" />
             {count > 0 && (
-              <span className="absolute right-0.5 top-0.5 grid size-4.5 place-items-center rounded-full bg-champagne-gold text-[9px] font-extrabold text-ink-black shadow-sm">
+              <span className="absolute right-0.5 top-0.5 grid size-4.5 place-items-center rounded-full bg-brand text-[9px] font-extrabold text-ink shadow-sm">
                 {count}
               </span>
             )}
@@ -167,7 +167,7 @@ export function Navbar() {
                     initial={{ scale: 0.4, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 18 }}
-                    className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-champagne-gold text-[11px] font-extrabold text-ink-black"
+                    className="absolute -right-0.5 -top-0.5 grid size-5 place-items-center rounded-full bg-brand text-[11px] font-extrabold text-ink"
                   >
                     {count}
                   </motion.span>
@@ -193,8 +193,8 @@ export function Navbar() {
                 <Link
                   href={cat.href}
                   className={cn(
-                    "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink-black",
-                    openMenu === cat.label && "text-ink-black"
+                    "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink",
+                    openMenu === cat.label && "text-ink"
                   )}
                 >
                   {cat.label}
@@ -210,7 +210,7 @@ export function Navbar() {
                 </Link>
                 <span
                   className={cn(
-                    "absolute inset-x-3 bottom-1 h-0.5 origin-left scale-x-0 rounded-full bg-champagne-gold transition-transform duration-300 ease-[var(--ease-brand)]",
+                    "absolute inset-x-3 bottom-1 h-0.5 origin-left scale-x-0 rounded-full bg-brand transition-transform duration-300 ease-[var(--ease-brand)]",
                     openMenu === cat.label && "scale-x-100"
                   )}
                   aria-hidden
@@ -228,7 +228,7 @@ export function Navbar() {
                         <Link
                           key={child.label}
                           href={child.href}
-                          className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink-black"
+                          className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
                         >
                           {child.label}
                         </Link>
@@ -249,10 +249,10 @@ export function Navbar() {
           href="/"
           className={cn(
             "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
-            activeTab === "shop" && "text-deep-navy font-bold"
+            activeTab === "shop" && "text-ink font-bold"
           )}
         >
-          <Store className={cn("size-5.5 transition-colors", activeTab === "shop" && "text-deep-navy")} />
+          <Store className={cn("size-5.5 transition-colors", activeTab === "shop" && "text-ink")} />
           <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Shop</span>
         </Link>
 
@@ -261,10 +261,10 @@ export function Navbar() {
           href="/categories"
           className={cn(
             "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
-            activeTab === "categories" && "text-deep-navy font-bold"
+            activeTab === "categories" && "text-ink font-bold"
           )}
         >
-          <LayoutGrid className={cn("size-5.5 transition-colors", activeTab === "categories" && "text-deep-navy")} />
+          <LayoutGrid className={cn("size-5.5 transition-colors", activeTab === "categories" && "text-ink")} />
           <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Categories</span>
         </Link>
 
@@ -273,10 +273,10 @@ export function Navbar() {
           href="/search"
           className={cn(
             "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
-            activeTab === "search" && "text-deep-navy font-bold"
+            activeTab === "search" && "text-ink font-bold"
           )}
         >
-          <Search className={cn("size-5.5 transition-colors", activeTab === "search" && "text-deep-navy")} />
+          <Search className={cn("size-5.5 transition-colors", activeTab === "search" && "text-ink")} />
           <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Search</span>
         </Link>
 
@@ -285,10 +285,10 @@ export function Navbar() {
           href="/account/orders"
           className={cn(
             "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
-            activeTab === "orders" && "text-deep-navy font-bold"
+            activeTab === "orders" && "text-ink font-bold"
           )}
         >
-          <Package className={cn("size-5.5 transition-colors", activeTab === "orders" && "text-deep-navy")} />
+          <Package className={cn("size-5.5 transition-colors", activeTab === "orders" && "text-ink")} />
           <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Orders</span>
         </Link>
 
@@ -297,10 +297,10 @@ export function Navbar() {
           href="/account"
           className={cn(
             "flex flex-col items-center justify-center text-neutral-500 transition-all duration-200 ease-out active:scale-90",
-            activeTab === "account" && "text-deep-navy font-bold"
+            activeTab === "account" && "text-ink font-bold"
           )}
         >
-          <User className={cn("size-5.5 transition-colors", activeTab === "account" && "text-deep-navy")} />
+          <User className={cn("size-5.5 transition-colors", activeTab === "account" && "text-ink")} />
           <span className="text-[10px] font-extrabold uppercase tracking-wide mt-1 font-sans">Account</span>
         </Link>
       </nav>

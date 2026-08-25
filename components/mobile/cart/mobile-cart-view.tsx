@@ -237,7 +237,7 @@ export function MobileCartView() {
                 Delivery Details
               </h3>
               <p className="text-xs font-semibold text-ink/75 leading-relaxed">
-                Vertical Express delivers all building materials across Srinagar in 60 minutes. Choose your exact delivery address on the next screen.
+                Vertical Express delivers building materials across Srinagar. Choose your exact delivery address on the next screen.
               </p>
             </div>
           </div>

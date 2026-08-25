@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: `${product.title} | Vertical Express`,
     description:
       product.description ??
-      `Buy ${product.title} from ${product.brandName} with 60-minute delivery across Srinagar.`,
+      `Buy ${product.title} from ${product.brandName} delivered across Srinagar.`,
     alternates: { canonical: `/product/${slug}` },
     openGraph: {
       title: product.title,

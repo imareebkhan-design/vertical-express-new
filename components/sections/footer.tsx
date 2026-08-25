@@ -102,8 +102,8 @@ export function Footer() {
                 {subscribed ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
               </button>
             </form>
-            <p aria-live="polite" className="mt-2 h-4 text-xs font-bold text-brand">
-              {subscribed && "You're on the list! 🎉"}
+            <p aria-live="polite" className="mt-2 h-4 text-xs font-bold text-white">
+              {subscribed && "You're on the list."}
             </p>
           </div>
         </Reveal>
@@ -115,7 +115,7 @@ export function Footer() {
             <span className="grid size-6 place-items-center rounded bg-brand/10 p-0.5">
               <VerticalExpressIcon className="size-5" />
             </span>
-            © {new Date().getFullYear()}, Vertical Express — recreated for educational purposes
+            © {new Date().getFullYear()} Vertical Express · Srinagar, J&amp;K
           </p>
           <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1">
             {FOOTER_LINKS.policy.slice(0, 4).map((link) => (

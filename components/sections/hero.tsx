@@ -23,9 +23,10 @@ interface Slide {
 const SLIDES: Slide[] = [
   {
     id: "delivery",
-    eyebrow: "Srinagar's fastest",
-    title: "Construction materials in 60 minutes",
-    subtitle: "Cement, ply, hardware, paint & more — delivered to your site, superfast.",
+    eyebrow: "Srinagar",
+    title: "Building material, on site today",
+    subtitle:
+      "Cement, ply, hardware, paint and fittings — small items from our store within the hour, heavy loads by truck.",
     cta: "Shop now",
     theme: "yellow",
     bgImage: "/banner-delivery.jpg",
@@ -43,7 +44,7 @@ const SLIDES: Slide[] = [
     id: "kitchen",
     eyebrow: "New arrivals",
     title: "Kitchen sinks & fittings that last",
-    subtitle: "Premium stainless steel sinks with 60-minute doorstep delivery.",
+    subtitle: "Premium stainless steel sinks, delivered to your site.",
     cta: "Browse kitchen",
     theme: "light",
     productImage: "/products/ss-kitchen-sink.webp",
@@ -52,7 +53,7 @@ const SLIDES: Slide[] = [
 
 const themeClasses: Record<Slide["theme"], string> = {
   yellow: "bg-gradient-to-br from-brand via-brand to-brand-dark text-ink",
-  dark: "bg-gradient-to-br from-ink via-neutral-900 to-navy text-white",
+  dark: "bg-gradient-to-br from-ink via-neutral-900 to-ink text-white",
   light: "bg-gradient-to-br from-surface via-white to-surface text-ink",
 };
 
@@ -192,7 +193,8 @@ export function Hero() {
                   </Button>
                 </Magnetic>
                 <span className="inline-flex items-center gap-1.5 text-sm font-bold opacity-80">
-                  <Clock className="size-4" aria-hidden /> Avg. delivery 60 min
+                  <Clock className="size-4" aria-hidden /> Every product shows its own
+                  delivery speed
                 </span>
               </motion.div>
             </motion.div>

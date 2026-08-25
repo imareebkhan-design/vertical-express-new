@@ -119,12 +119,18 @@ async function main() {
   for (const [i, c] of CATEGORIES.entries()) {
     await db.category.upsert({
       where: { slug: c.slug },
-      update: { name: c.name, group: c.group, isBulk: !!c.bulk, sortOrder: i },
+      // SEO strings are updated as well as created: the 60-minute claim was
+      // seeded into existing rows, so re-running the seed corrects them.
+      update: {
+        name: c.name, group: c.group, isBulk: !!c.bulk, sortOrder: i,
+        seoTitle: `${c.name} in Srinagar | Vertical Express`,
+        seoDescription: `Buy ${c.name.toLowerCase()} from genuine brands, delivered across Srinagar.`,
+      },
       create: {
         slug: c.slug, name: c.name, group: c.group, isBulk: !!c.bulk, sortOrder: i,
         imageUrl: `/categories/${c.slug}.webp`,
-        seoTitle: `${c.name} — 60 Min Delivery in Srinagar`,
-        seoDescription: `Buy ${c.name.toLowerCase()} at trade prices with 60-minute delivery across Srinagar.`,
+        seoTitle: `${c.name} in Srinagar | Vertical Express`,
+        seoDescription: `Buy ${c.name.toLowerCase()} from genuine brands, delivered across Srinagar.`,
       },
     });
   }

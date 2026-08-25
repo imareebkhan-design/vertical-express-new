@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: category.seoTitle ?? `${category.name} | Vertical Express`,
     description:
       category.seoDescription ??
-      `Buy ${category.name.toLowerCase()} at trade prices with 60-minute delivery across Srinagar.`,
+      `Buy ${category.name.toLowerCase()} at trade prices delivered across Srinagar.`,
     alternates: { canonical: `/category/${slug}` },
   };
 }

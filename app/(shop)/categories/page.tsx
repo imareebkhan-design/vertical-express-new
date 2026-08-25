@@ -7,7 +7,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: "All Categories | Vertical Express",
   description:
-    "Browse every construction material category — cement, tiling, electrical, plumbing, hardware and more, delivered in 60 minutes across Srinagar.",
+    "Browse every construction material category — cement, tiling, electrical, plumbing, hardware and more, delivered across Srinagar.",
   alternates: { canonical: "/categories" },
 };
 

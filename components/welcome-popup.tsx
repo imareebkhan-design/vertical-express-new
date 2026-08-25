@@ -56,18 +56,19 @@ export function WelcomePopup() {
             </button>
 
             {/* Placeholder for original promo artwork */}
-            <div className="flex flex-col items-center bg-gradient-to-br from-brand to-brand-dark px-6 pb-6 pt-10 text-center">
+            <div className="flex flex-col items-center bg-amber-soft px-6 pb-6 pt-10 text-center">
               <Truck className="mb-3 size-12 text-ink" strokeWidth={1.4} aria-hidden />
               <p className="text-xs font-extrabold uppercase tracking-widest text-ink/60">
                 New here?
               </p>
               <h2 className="mt-1 text-2xl font-extrabold leading-tight text-ink">
-                Free delivery on your first 3 orders above ₹500
+                Building material delivered across Srinagar
               </h2>
             </div>
             <div className="p-6 text-center">
-              <p className="text-sm font-semibold text-neutral-500">
-                Superfast 60-minute delivery across Srinagar. 8am to 8pm, all days.
+              <p className="text-sm font-semibold text-ink-500">
+                Small items from our store within the hour. Heavy loads by truck. Open
+                8am to 8pm, all days.
               </p>
               <Button size="lg" className="mt-4 w-full" onClick={dismiss}>
                 Start shopping
