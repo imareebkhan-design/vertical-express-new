@@ -78,7 +78,7 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{category.name}</h1>
           <p className="mt-1 text-sm font-semibold text-neutral-500">
             {result.total} {result.total === 1 ? "product" : "products"}
-            {category.isBulk && " · Bulk prices available"}
+            {category.isBulk && " · heavy material, delivered by truck"}
           </p>
         </div>
 
@@ -100,7 +100,7 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
               />
             ) : (
               <>
-                <CatalogGrid items={result.items} />
+                <CatalogGrid items={result.items} categorySlug={slug} />
                 <Pagination page={result.page} perPage={result.perPage} total={result.total} />
               </>
             )}

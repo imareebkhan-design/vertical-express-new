@@ -11,6 +11,8 @@ export interface CatalogItem {
   title: string;
   brandName: string;
   categorySlug: string;
+  /** Heavy material — drives the delivery-speed chip. From Category.isBulk. */
+  categoryIsBulk: boolean;
   imageUrl: string | null;
   unitLabel: string;
   variantId: string;
@@ -92,7 +94,7 @@ function orderBy(sort: CatalogSort | undefined): Prisma.ProductOrderByWithRelati
 type ProductWithRefs = Prisma.ProductGetPayload<{
   include: {
     brand: true;
-    category: { select: { slug: true } };
+    category: { select: { slug: true; isBulk: true } };
     images: { where: { isPrimary: true }; take: 1 };
     variants: {
       where: { isDefault: true };
@@ -114,6 +116,7 @@ function toItem(p: ProductWithRefs): CatalogItem | null {
     title: p.title,
     brandName: p.brand.name,
     categorySlug: p.category.slug,
+    categoryIsBulk: p.category.isBulk,
     imageUrl: p.images[0]?.url ?? null,
     unitLabel: p.unitLabel,
     variantId: variant.id,
@@ -142,7 +145,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         ...(priceSort ? {} : { skip: (page - 1) * perPage, take: perPage }),
         include: {
           brand: true,
-          category: { select: { slug: true } },
+          category: { select: { slug: true, isBulk: true } },
           images: { where: { isPrimary: true }, take: 1 },
           variants: {
             where: { isDefault: true },
@@ -383,6 +386,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
     ? await db.product.findMany({
         where: { id: { in: productIds } },
         include: {
+          category: { select: { isBulk: true } },
           images: { where: { isPrimary: true }, take: 1 },
           variants: {
             where: { isDefault: true },
@@ -411,6 +415,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
       title: p.title,
       brandName: row.brand_name,
       categorySlug: row.category_slug,
+      categoryIsBulk: p.category.isBulk,
       imageUrl: p.images[0]?.url ?? null,
       unitLabel: p.unitLabel,
       variantId: variant.id,
@@ -482,6 +487,8 @@ export interface ProductDetail {
   brandSlug: string;
   categoryName: string;
   categorySlug: string;
+  /** Heavy material — drives the delivery-speed chip. From Category.isBulk. */
+  categoryIsBulk: boolean;
   unitLabel: string;
   specs: { label: string; value: string }[];
   ratingAvg: number;
@@ -527,6 +534,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     brandSlug: p.brand.slug,
     categoryName: p.category.name,
     categorySlug: p.category.slug,
+    categoryIsBulk: p.category.isBulk,
     unitLabel: p.unitLabel,
     specs,
     ratingAvg: Number(p.ratingAvg),
@@ -560,7 +568,7 @@ async function getRelatedProductsRaw(
     take,
     include: {
       brand: true,
-      category: { select: { slug: true } },
+      category: { select: { slug: true, isBulk: true } },
       images: { where: { isPrimary: true }, take: 1 },
       variants: {
         where: { isDefault: true },
@@ -587,7 +595,7 @@ async function getDealsRaw(take = 8): Promise<CatalogItem[]> {
     take,
     include: {
       brand: true,
-      category: { select: { slug: true } },
+      category: { select: { slug: true, isBulk: true } },
       images: { where: { isPrimary: true }, take: 1 },
       variants: {
         where: { isDefault: true },

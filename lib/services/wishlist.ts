@@ -56,7 +56,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
     where: { id: { in: productIds }, status: "published" },
     include: {
       brand: true,
-      category: { select: { slug: true } },
+      category: { select: { slug: true, isBulk: true } },
       images: { where: { isPrimary: true }, take: 1 },
       variants: {
         where: { isDefault: true },
@@ -79,6 +79,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
         title: p.title,
         brandName: p.brand.name,
         categorySlug: p.category.slug,
+        categoryIsBulk: p.category.isBulk,
         imageUrl: p.images[0]?.url ?? null,
         unitLabel: p.unitLabel,
         variantId: variant.id,

@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
-import { BulkTierTable } from "@/components/shop/bulk-tier-table";
 import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/lib/services/catalog";
 
@@ -41,10 +40,6 @@ export function PdpActions({ product }: { product: ProductDetail }) {
   const hasDiscount = variant.compareAtPaise != null && variant.compareAtPaise > variant.pricePaise;
   const lineTotal = unitPaise * qty;
 
-  const nextTier = [...variant.bulkTiers]
-    .sort((a, b) => a.minQty - b.minQty)
-    .find((t) => qty < t.minQty);
-
   const handleAdd = async () => {
     const ok = await addItem(variant.id, qty, product.title);
     if (ok) {
@@ -59,11 +54,11 @@ export function PdpActions({ product }: { product: ProductDetail }) {
       <div className="flex items-baseline gap-3">
         <span className="text-3xl font-extrabold">{formatPaise(unitPaise)}</span>
         {hasDiscount && (
-          <s className="text-lg font-semibold text-neutral-400">
+          <s className="text-lg font-semibold text-ink-300">
             {formatPaise(variant.compareAtPaise!)}
           </s>
         )}
-        <span className="text-sm font-semibold text-neutral-400">{product.unitLabel}</span>
+        <span className="text-sm font-semibold text-ink-500">{product.unitLabel}</span>
       </div>
 
       {/* Variant selector (only if multiple) */}
@@ -74,8 +69,8 @@ export function PdpActions({ product }: { product: ProductDetail }) {
               key={v.id}
               onClick={() => setVariantId(v.id)}
               className={cn(
-                "rounded-[8px] border-2 px-3 py-2 text-sm font-bold transition-all duration-200",
-                v.id === variantId ? "border-brand-deep bg-brand-deep text-white" : "border-neutral-200 hover:border-brand-deep"
+                "rounded-full px-4 py-2 text-sm font-bold transition-colors duration-200",
+                v.id === variantId ? "bg-ink text-white" : "bg-chip text-ink hover:bg-hush"
               )}
             >
               {v.name}
@@ -84,19 +79,12 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         </div>
       )}
 
-      {/* Bulk tiers */}
-      <BulkTierTable
-        basePaise={variant.pricePaise}
-        tiers={variant.bulkTiers}
-        unitLabel={product.unitLabel}
-        activeQty={qty}
-      />
-
-      {nextTier && (
-        <p className="rounded-lg bg-brand/15 px-3 py-2 text-sm font-bold text-brand-deep">
-          Add {nextTier.minQty - qty} more to unlock {formatPaise(nextTier.pricePaise)} {product.unitLabel}
-        </p>
-      )}
+      {/* Trade / bulk tier pricing is not promoted — owner decision, 25 Aug 2026.
+          The ladder is NOT removed from price resolution above: lib/services/cart.ts
+          and checkout.ts still apply it server-side, so hiding it here while leaving
+          it there would make the displayed price differ from the charged price.
+          Retiring it properly is a server change (cart, checkout, catalog, schema)
+          and belongs with the Phase 3 work, not a visual pass. */}
 
       {/* Qty + add (desktop) */}
       <div className="hidden items-center gap-3 sm:flex">
@@ -122,7 +110,7 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
         >
           {added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
         </motion.button>
@@ -150,7 +138,7 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] active:scale-95 transition-all duration-200"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink shadow-[0_2px_4px_rgba(252,189,0,0.15)] active:scale-95 transition-all duration-200"
         >
           {added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
         </motion.button>

@@ -6,6 +6,7 @@ import type { CatalogItem } from "@/lib/services/catalog";
 import { ProductCard } from "@/components/product-card";
 import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
 import { paiseToRupees } from "@/lib/money";
+import { speedClassFor } from "@/components/ui/speed-chip";
 import { cn } from "@/lib/utils";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
@@ -86,7 +87,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
                   compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
                   unit: item.unitLabel,
                   image: item.imageUrl ?? undefined,
-                  bulkNote: item.hasBulkTiers ? "Bulk prices available" : undefined,
+                  speed: speedClassFor(item.categoryIsBulk),
                 }}
               />
             </StaggerItem>
