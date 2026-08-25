@@ -29,7 +29,10 @@ export interface Product {
   price: number;
   compareAt: number;
   unit: string;
-  bulkNote?: string;
+  /** Delivery speed for this product. Derived from Category.isBulk. */
+  speed?: "express" | "scheduled" | "leadtime" | "seasonal";
+  /** Express window for the delivery pincode, from ServiceablePincode. */
+  etaMinutes?: number;
   icon?: LucideIcon;
   /** Product photo under /public/products; icon placeholder shows if missing. */
   image?: string;
@@ -42,11 +45,16 @@ export interface Testimonial {
   quote: string;
 }
 
+/**
+ * Store announcements.
+ *
+ * Only statements we can stand behind. Removed: a free-delivery threshold that is
+ * an unconfirmed guess (ISS-030), and two unverified speed claims. Emoji are not
+ * part of the brand.
+ */
 export const ANNOUNCEMENTS = [
-  "Open 8am to 8pm (All Days)",
-  "Free delivery for first 3 orders above ₹500 🚀",
-  "Serving Srinagar with ❤️",
-  "Superfast delivery in minutes 🚀",
+  "Open 8am to 8pm, all days",
+  "Delivering across Srinagar",
 ];
 
 export const NAV_PRIMARY: NavCategory[] = [
@@ -110,7 +118,7 @@ export const DEALS: Product[] = [
     price: 320,
     compareAt: 335,
     unit: "per bag",
-    bulkNote: "Bulk price from ₹310/bag (100+ bags)",
+    speed: "scheduled",
     icon: Blocks,
   },
   {
@@ -200,18 +208,17 @@ export const TESTIMONIALS: Testimonial[] = [
 
 export const FOOTER_LINKS = {
   company: [
-    { label: "About Us", href: "#" },
-    { label: "Contact", href: "#" },
-    { label: "Price Lists", href: "#" },
-    { label: "Knowledge Hub", href: "#" },
-    { label: "FAQ's", href: "#" },
+    { label: "How we work", href: "/how-we-work" },
+    { label: "Contact", href: "/contact" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Services", href: "https://verticalconstruction.in" },
   ],
   policy: [
-    { label: "Refund Policy", href: "#" },
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Shipping Policy", href: "#" },
-    { label: "Contact Information", href: "#" },
+    { label: "Returns & refunds", href: "/refunds" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+    { label: "Shipping Policy", href: "/shipping" },
+    { label: "Contact", href: "/contact" },
   ],
 };
 
