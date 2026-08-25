@@ -186,19 +186,35 @@ export async function placeOrder(params: {
     select: { warehouseId: true },
   });
 
-  const provider = getPaymentProvider(paymentMethod);
+  // The warehouse must resolve before we touch the gateway. Creating a gateway
+  // order we already know cannot be fulfilled leaves an avoidable orphan behind.
+  if (!warehouse?.warehouseId) {
+    metric.end("place_order_pincode_unserviceable");
+    throw new Error("PINCODE_UNSERVICEABLE");
+  }
+  const warehouseId = warehouse.warehouseId;
 
-  let gatewayOrderId: string | null = null;
+  const provider = getPaymentProvider(paymentMethod);
+  const isCod = paymentMethod === "cod";
+
+  // ISS-003 — the gateway call happens BEFORE the transaction opens. For Razorpay
+  // this is an outbound HTTPS request; running it inside `db.$transaction` held a
+  // pooled connection and an open transaction across arbitrary network latency,
+  // which exhausts the pool under concurrent checkout and takes down the whole
+  // application rather than just checkout.
+  //
+  // If the transaction below then fails, the gateway order is orphaned — which is
+  // harmless: it is never captured and expires on the gateway's side. A held
+  // connection is not harmless.
+  const payResult = await provider.createOrder({
+    orderId: "pending",
+    amountPaise: totals.totalPaise,
+  });
+  const gatewayOrderId = payResult.gatewayOrderId;
+
   let order;
   try {
     order = await db.$transaction(async (tx) => {
-      const isCod = paymentMethod === "cod";
-      const payResult = await provider.createOrder({
-        orderId: "pending",
-        amountPaise: totals.totalPaise,
-      });
-      gatewayOrderId = payResult.gatewayOrderId;
-
       // Prepare line items with full financial snapshots
       let remainingDiscount = totals.discountPaise;
       const orderItemsData = cart.lines.map((l, idx) => {
@@ -261,7 +277,7 @@ export async function placeOrder(params: {
           deliveryFeePaise: totals.deliveryFeePaise,
           totalPaise: totals.totalPaise,
           etaMinutes: totals.etaMinutes,
-          warehouseId: warehouse?.warehouseId ?? null,
+          warehouseId,
           notes: notes || null,
           items: {
             create: orderItemsData,
@@ -286,16 +302,12 @@ export async function placeOrder(params: {
         },
       });
 
-      if (!warehouse?.warehouseId) {
-        throw new Error("PINCODE_UNSERVICEABLE");
-      }
-
       // Atomic, race-free stock decrement
       for (const line of cart.lines) {
         const res = await tx.inventory.updateMany({
           where: {
             variantId: line.variantId,
-            warehouseId: warehouse.warehouseId,
+            warehouseId,
             qtyOnHand: { gte: line.qty },
           },
           data: { qtyOnHand: { decrement: line.qty } },
