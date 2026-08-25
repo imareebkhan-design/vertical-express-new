@@ -1,31 +1,32 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
 import { CartProvider } from "@/hooks/use-cart";
 import { NativeShellProvider } from "@/components/mobile/native-shell-provider";
 
-const inter = Inter({
-  variable: "--font-inter",
+// One geometric sans throughout. Headlines mix weights inside a single line:
+// a 300-weight grey lead-in, then 800-weight ink.
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3001"),
-  title: "Cement, Ply, Hardware & Painting Srinagar | 60 Min Delivery | Vertical Express",
+  title: "Cement, Ply, Hardware & Painting in Srinagar | Vertical Express",
   description:
-    "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar in 60 minutes. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
+    "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
   keywords: [
     "construction materials",
     "cement delivery",
     "hardware store Srinagar",
-    "60 minute delivery",
   ],
   openGraph: {
-    title: "Vertical Express — Construction materials in 60 minutes",
+    title: "Vertical Express — Building material, on site today",
     description:
-      "Cement, ply, hardware & painting supplies delivered across Srinagar in 60 minutes.",
+      "Cement, ply, hardware and painting supplies delivered across Srinagar.",
     type: "website",
   },
   icons: {
@@ -38,7 +39,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${jakarta.variable} antialiased`}>
         {/* Skip to main content — accessibility / keyboard nav */}
         <a
           href="#main-content"

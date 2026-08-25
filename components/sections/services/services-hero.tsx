@@ -34,10 +34,10 @@ function BlueprintCard() {
       <motion.div
         animate={reduced ? {} : { y: [0, -10, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        className="rounded-2xl border border-navy/10 bg-white p-5 shadow-card-hover"
+        className="rounded-2xl border border-ink/10 bg-white p-5 shadow-card-hover"
       >
         {/* Blueprint grid */}
-        <div className="relative mb-4 h-44 overflow-hidden rounded-xl bg-navy">
+        <div className="relative mb-4 h-44 overflow-hidden rounded-xl bg-ink">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:22px_22px]" />
           <div className="absolute left-6 top-6 h-20 w-28 rounded border-2 border-brand/80" />
           <div className="absolute bottom-6 right-8 h-14 w-20 rounded border-2 border-white/50" />

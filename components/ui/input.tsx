@@ -7,7 +7,9 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
       type={type}
       ref={ref}
       className={cn(
-        "flex h-11 w-full rounded-lg border border-neutral-300 bg-white px-4 text-sm text-ink placeholder:text-neutral-400 transition-colors focus:border-ink focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50",
+        // A soft fill rather than a stroke. Focus is an ink ring: amber against the
+        // warm canvas is ~1.9:1 and would not meet the 3:1 a focus indicator needs.
+        "flex h-12 w-full rounded-2xl bg-chip-soft px-4 text-sm font-medium text-ink placeholder:text-ink-500 transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-ink disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}

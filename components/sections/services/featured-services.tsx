@@ -12,7 +12,7 @@ const themeClasses: Record<ServicePackage["theme"], { card: string; chip: string
     chip: "bg-ink/10 text-ink",
   },
   navy: {
-    card: "bg-gradient-to-br from-navy to-ink text-white",
+    card: "bg-gradient-to-br from-ink to-ink text-white",
     chip: "bg-white/10 text-white",
   },
   light: {
