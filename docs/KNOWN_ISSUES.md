@@ -32,7 +32,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | OPEN |
 | ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | OPEN |
 | ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
-| ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | OPEN |
+| ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | PARTIAL |
 | ISS-019 | Admin product management is read-only | HIGH | Admin | OPEN |
 | ISS-020 | Search has no typo tolerance | MEDIUM | Search | OPEN |
 | ISS-021 | Rate limiter fails open | MEDIUM | Security | OPEN |
@@ -1326,5 +1326,44 @@ should be retired with the rest of the services split rather than left orphaned.
 `--color-ops-*` tokens. They are for `/admin` only and must never appear on a
 customer-facing surface, where the palette is ink, amber and grey with no green or red.
 Every chip carries a word as well as a colour.
+
+---
+
+---
+
+## Gap audit before Phase 3 (25 Aug 2026)
+
+A sweep of Phases 1 and 2 found the Phase 1 claim removal was incomplete — it covered
+the desktop sections and page metadata but not the mobile views or `lib/data.ts`.
+
+**Closed in this pass:** `TRUST_ITEMS` (carried the 4.9 Google rating and a "100%
+genuine" assurance, unreferenced but still in source), orphaned `TESTIMONIALS` data and
+its type, a "FASTEST DELIVERY" badge on the mobile home view, emoji in the cart banner,
+mobile greeting, both error pages and two admin buttons.
+
+**ISS-018 partially closed:** `robots.ts` and `sitemap.ts` fell back to
+`https://verticalexpress.dev` (wrong TLD) and `metadataBase` to `localhost:3001`. The
+fallbacks now point at `https://www.verticalexpress.in`. **Still open** because the real
+fix is setting `NEXT_PUBLIC_SITE_URL` in the deployment — a fallback is a safety net,
+not a configuration.
+
+**Also fixed:** `CONTACT.email` was `hello@verticalexpress.co` — the wrong TLD, rendered
+in the footer as the site's contact route.
+
+**`.env.example` was missing six variables the code reads** — `RESEND_API_KEY`,
+`EMAIL_FROM`, `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `NEXT_PUBLIC_POSTHOG_KEY`,
+`NEXT_PUBLIC_POSTHOG_HOST`. All three services no-op when unset, so transactional email,
+error monitoring and analytics were silently inert with nothing to indicate it.
+
+**Raised, not actioned — needs the owner.** `lib/services.ts` publishes statistics on
+the services page: "500+ Projects Completed", "250+ Verified Professionals", "1000+
+Happy Customers", "50+ Service Categories", plus a claim that every professional is
+"background-checked and skill-verified". These are the same class as the removed 4.9
+rating, but unlike that one they could be true. They were left in place pending
+confirmation rather than deleted.
+
+**Build fragility noted.** `next/font` fetches Plus Jakarta Sans from Google Fonts at
+build time; a build with no network access to Google Fonts fails outright. Observed once
+during this pass. Worth self-hosting the face before it bites a deploy.
 
 ---
