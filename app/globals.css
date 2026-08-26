@@ -83,6 +83,24 @@
   --color-success: var(--color-ink-900);
   --color-danger: #AE3626;
 
+  /* ---- Operations console only -------------------------------------------
+   * The storefront uses ink, amber and grey, and bans green and red: a shopper
+   * does not need to scan sixty rows for a breach. A dispatcher does, and three
+   * states are not enough to do it at speed.
+   *
+   * These five are for /admin ONLY and must never appear on a customer-facing
+   * surface. Every chip built from them carries a word as well as a colour, so
+   * hue speeds up scanning rather than carrying the meaning.
+   * -------------------------------------------------------------------- */
+  --color-ops-ok: #1E7A5A;        /* settled, delivered, banked, healthy */
+  --color-ops-ok-tint: #E2EFE9;
+  --color-ops-warn: #8A6206;      /* needs a person today */
+  --color-ops-warn-tint: var(--color-amber-soft);
+  --color-ops-bad: #AE3626;       /* a promise is broken or about to be */
+  --color-ops-bad-tint: #F7E3DF;
+  --color-ops-info: #2A5C93;      /* in progress, nobody need act */
+  --color-ops-info-tint: #E3EAF3;
+
   /* Border radius — large. 20–28px on cards, fully round on buttons and chips. */
   --radius-card: 1.5rem;      /* 24px */
   --radius-card-lg: 1.75rem;  /* 28px — outer cards, hero panels */

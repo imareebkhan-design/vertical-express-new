@@ -29,7 +29,10 @@ export async function adminListOrders(page = 1, perPage = 20, status?: OrderStat
       orderBy: { placedAt: "desc" },
       skip: (page - 1) * perPage,
       take: perPage,
-      include: { items: { select: { id: true } } },
+      include: {
+        items: { select: { id: true } },
+        payments: { select: { status: true, gateway: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      },
     }),
     db.order.count({ where }),
   ]);
@@ -117,4 +120,24 @@ export async function adminListProducts(page = 1, perPage = 30) {
     db.product.count(),
   ]);
   return { products, total, page, perPage };
+}
+
+/**
+ * Full detail for one order, for the operations console.
+ *
+ * Everything here is a snapshot taken at order time — the address JSON, the line
+ * prices, the GST breakup — so this reads what the customer actually agreed to
+ * rather than what the catalogue says today.
+ */
+export async function adminGetOrder(orderNo: string) {
+  return db.order.findUnique({
+    where: { orderNo },
+    include: {
+      items: { orderBy: { id: "asc" } },
+      payments: { orderBy: { createdAt: "desc" } },
+      statusEvents: { orderBy: { createdAt: "asc" } },
+      warehouse: { select: { name: true, city: true } },
+      user: { select: { id: true, phone: true, email: true } },
+    },
+  });
 }

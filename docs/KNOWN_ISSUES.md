@@ -28,7 +28,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-011 | Coupon engine is unreachable dead code | MEDIUM | Pricing | OPEN |
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
 | ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | FIXED |
-| ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | OPEN |
+| ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | PARTIAL |
 | ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | OPEN |
 | ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | OPEN |
 | ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
@@ -1284,5 +1284,47 @@ deletion as launch blockers: `testimonials.tsx`, `trust-badges.tsx`, `app-banner
 `text-brand` on non-SVG elements.
 
 **Owner input required.** No.
+
+---
+
+---
+
+## Phase 2 note — operations console (25 Aug 2026)
+
+The admin area was five read-mostly pages behind a top nav. It is now a console with a
+grouped sidebar and eleven screens: Today, Orders, Order detail, Products, Inventory,
+Customers, Payments, Serviceability, Coupons, Reports.
+
+**Built only against data that exists.** The canvas design also specifies a dispatch
+board, pick-and-pack, driver POD, COD cash reconciliation, GST invoicing, a stock
+movement ledger, purchasing and goods receipt, suppliers, support tickets and credit.
+None of those are here, because none of `Shipment`, `Batch`, `StockMovement`, `Invoice`,
+`CashCollection`, `PurchaseOrder`, `Supplier`, `Ticket` or a credit model exist in the
+schema. A panel that renders a plausible number from nothing is worse than an absent
+panel.
+
+**Deliberately read-only, with the reason stated on each screen:**
+
+- *Inventory* — no `StockMovement`, so an adjustment would change stock with no reason,
+  reference or actor recorded. That is the gap ISS-015 describes; adjustment ships with
+  the ledger.
+- *Products* — editing needs `hsnCode` and `gstRate` per product, which the schema does
+  not carry. An invoice cannot legally be raised without them (ISS-019, ISS-026).
+- *Serviceability* — this table decides whether an order can be taken, what delivery
+  costs and whether COD is offered. Editing it changes what customers are promised, so
+  it needs an audit trail first (ISS-015).
+
+**Verified during the build:** the order status machine in `lib/services/admin/manage.ts`
+already validates transitions and throws `INVALID_TRANSITION`, so ISS-014 is partially
+addressed for the admin path — the customer-facing paths were not audited.
+
+**Also noted:** `/admin/bookings` still exists but is no longer linked from the sidebar.
+Services operations leave with verticalconstruction.in (owner decision), so that route
+should be retired with the rest of the services split rather than left orphaned.
+
+**Ops-only status palette.** Five states — neutral, info, warn, bad, ok — added as
+`--color-ops-*` tokens. They are for `/admin` only and must never appear on a
+customer-facing surface, where the palette is ink, amber and grey with no green or red.
+Every chip carries a word as well as a colour.
 
 ---

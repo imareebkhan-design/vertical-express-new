@@ -1,46 +1,54 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CalendarClock, Package, ShoppingBag, PieChart } from "lucide-react";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { Logo } from "@/components/ui/logo";
+import { activeGateway } from "@/lib/services/payments";
+import { AdminSidebar } from "@/components/admin/sidebar";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard", icon: BarChart3 },
-  { href: "/admin/bi", label: "BI Suite", icon: PieChart },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/bookings", label: "Bookings", icon: CalendarClock },
-];
-
+/**
+ * Operations console shell.
+ *
+ * A fixed sidebar rather than the storefront's nav — this is a tool used all day
+ * by people who need every destination one click away.
+ *
+ * The gateway warning is deliberately permanent and not dismissable. While the
+ * active gateway is `dummy`, orders confirm with no money taken, and that fact
+ * should be in front of whoever is working the console rather than in a doc.
+ */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const admin = await getAdminUser();
   if (!admin) redirect("/login?next=/admin");
 
+  let gatewayWarning: string | null = null;
+  try {
+    if (activeGateway() === "dummy") {
+      gatewayWarning = "Gateway: dummy. Orders confirm with no money taken (ISS-002).";
+    }
+  } catch {
+    // activeGateway throws on a misconfigured environment. Surfacing that is more
+    // useful than a blank sidebar.
+    gatewayWarning = "Payment gateway is misconfigured. Check PAYMENT_GATEWAY.";
+  }
+
   return (
-    <div className="min-h-screen bg-surface/40">
-      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 sm:px-6">
-          <Link href="/admin" className="hover:opacity-90 transition-opacity">
-            <Logo variant="admin" className="h-10" showTagline={false} />
+    <div className="flex min-h-screen bg-canvas">
+      <AdminSidebar adminEmail={admin.email} gatewayWarning={gatewayWarning} />
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7">
+          <Link href="/admin" className="text-[13px] font-extrabold lg:hidden">
+            Operations
           </Link>
-          <nav aria-label="Admin" className="ml-auto flex gap-1 overflow-x-auto">
-            {NAV.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-bold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
-              >
-                <Icon className="size-4" aria-hidden />
-                <span className="hidden sm:inline">{label}</span>
-              </Link>
-            ))}
-          </nav>
-          <Link href="/" className="text-xs font-bold text-neutral-500 hover:text-ink">
-            ← Store
+          <div className="flex-1" />
+          <Link
+            href="/"
+            className="rounded-xl bg-chip px-3.5 py-2 text-xs font-bold transition-colors hover:bg-hush"
+          >
+            View store
           </Link>
-        </div>
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6">{children}</main>
+        </header>
+
+        <main className="min-w-0 flex-1 px-5 py-6 sm:px-7">{children}</main>
+      </div>
     </div>
   );
 }
