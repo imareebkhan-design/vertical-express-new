@@ -5,6 +5,7 @@ import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
+import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
 import { trackEvent, MetricsTracker, captureException } from "@/lib/observability";
 
 export interface CheckoutTotals {
@@ -254,6 +255,8 @@ export async function placeOrder(params: {
       });
 
       const created = await tx.order.create({
+        // The created line ids are needed to attach shipment items below.
+        include: { items: { select: { id: true, variantId: true } } },
         data: {
           orderNo: orderNumber(),
           idempotencyKey: idempotencyKey ?? null,
@@ -314,6 +317,29 @@ export async function placeOrder(params: {
         });
         if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
       }
+
+      // Split the order into physically separate deliveries.
+      //
+      // Inside the transaction on purpose: an order must never exist without its
+      // shipments, or the dispatch board would have nothing to work and the
+      // customer would have been shown a split that was not recorded.
+      //
+      // A cart holds one row per variant, so variantId identifies a line uniquely.
+      const orderItemIdByRef: Record<string, string> = {};
+      for (const item of created.items) orderItemIdByRef[item.variantId] = item.id;
+
+      await createShipmentsForOrder(tx, {
+        orderId: created.id,
+        warehouseId,
+        orderItemIdByRef,
+        planned: planShipments(
+          cart.lines.map((l) => ({
+            ref: l.variantId,
+            qty: l.qty,
+            categoryIsBulk: l.categoryIsBulk,
+          }))
+        ),
+      });
 
       // Clear the cart
       const dbCart = await tx.cart.findUnique({ where: { userId } });

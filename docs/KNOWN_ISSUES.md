@@ -23,7 +23,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | OPEN |
 | ISS-007 | Entire catalog is fictional | CRITICAL | Data | BLOCKED (OWNER) |
 | ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
-| ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | OPEN |
+| ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | IN PROGRESS |
 | ISS-010 | COD collection and reconciliation missing | HIGH | Operations/Finance | OPEN |
 | ISS-011 | Coupon engine is unreachable dead code | MEDIUM | Pricing | OPEN |
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
@@ -446,6 +446,17 @@ confirmation).
 ---
 
 ## ISS-009 — The fulfilment loop does not exist
+
+**Progress (26 Aug 2026).** The data model now exists. Migration
+`20260826095435_add_shipments` adds `Shipment` and `ShipmentItem`, and
+`placeOrder` records the split inside the order transaction using the same
+`Category.isBulk` rule the storefront shows on every product card — so the split
+a customer is told about is the split that is written.
+
+Still missing, and none of it is faked in the UI: driver and vehicle assignment,
+slot selection, dispatch, proof of delivery, and deriving order state from
+shipment state. `promisedAt`, `dispatchedAt`, `deliveredAt` and `deliveryCode`
+are columns waiting for that work.
 
 | | |
 |---|---|

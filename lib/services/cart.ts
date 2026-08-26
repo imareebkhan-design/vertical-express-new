@@ -8,6 +8,8 @@ export interface CartLine {
   variantId: string;
   productSlug: string;
   categorySlug: string;
+  /** Heavy material — decides which shipment the line travels in. */
+  categoryIsBulk: boolean;
   title: string;
   variantName: string;
   brandName: string;
@@ -134,7 +136,7 @@ export async function getCartSummary(
             include: {
               brand: { select: { name: true } },
               images: { where: { isPrimary: true }, take: 1 },
-              category: { select: { slug: true } },
+              category: { select: { slug: true, isBulk: true } },
             },
           },
         },
@@ -181,6 +183,7 @@ export async function getCartSummary(
       variantId: v.id,
       productSlug: v.product.slug,
       categorySlug: v.product.category.slug,
+      categoryIsBulk: v.product.category.isBulk,
       title: v.product.title,
       variantName: v.name,
       brandName: v.product.brand.name,

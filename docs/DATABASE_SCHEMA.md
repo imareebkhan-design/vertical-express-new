@@ -122,3 +122,68 @@ warehouses 1─N inventory/serviceable_pincodes/orders
 carts 1─N cart_items    orders 1─N order_items/payments/status_events
 service_categories 1─N services 1─N bookings   bookings N─1 professionals, 1─1 quotes(optional)
 ```
+
+---
+
+## Shipments (migration `20260826095435_add_shipments`)
+
+Added 26 Aug 2026. **Purely additive** — two new tables, two new enums, no column
+altered or dropped on any existing table.
+
+### Why
+
+An order that mixes small goods with heavy material cannot have one arrival time:
+the wire leaves the Srinagar store within the hour, the cement goes on a truck.
+`Order.status` is a single flat enum and cannot express "shipment 1 is out for
+delivery, shipment 2 has not been loaded". Every screen that shows a split — the
+cart, the checkout slot pickers, the dispatch board, split COD collection —
+depends on this table existing.
+
+### Tables
+
+**`shipments`** — one physical delivery within an order.
+
+| Column | Notes |
+|---|---|
+| `order_id` | FK, cascade delete |
+| `sequence` | 1-based, unique per order. Renders as "Shipment 1 of 2" |
+| `speed_class` | `SpeedClass` enum |
+| `status` | `ShipmentStatus` enum, defaults `pending` |
+| `warehouse_id` | nullable FK |
+| `promised_at` | null until slot selection exists |
+| `dispatched_at`, `delivered_at` | null until the fulfilment loop is built |
+| `delivery_code` | shared with the driver at the gate; null until POD is built |
+
+**`shipment_items`** — which order lines travel in which shipment.
+
+References `order_items` rather than `product_variants`, so the price snapshot
+taken at order time is preserved and a single line can later be split across
+shipments when stock is partial. Unique on `(shipment_id, order_item_id)`.
+
+### Enums
+
+`SpeedClass`: `express`, `scheduled`, `leadtime`, `seasonal`.
+Only `express` and `scheduled` are ever written today — they derive from
+`Category.isBulk`, the same flag the storefront already uses for the chip on every
+product card. `leadtime` and `seasonal` are declared because the design system
+defines four states and adding an enum value later costs a migration; they need a
+per-variant source of truth that does not exist yet.
+
+`ShipmentStatus`: `pending`, `packed`, `out_for_delivery`, `delivered`, `cancelled`.
+
+### Expand / migrate / contract
+
+This is the **expand** step. `Order.status` remains the authoritative order state
+and is written exactly as before; shipments are recorded alongside it. Nothing
+reads shipment status yet.
+
+The **contract** step — deriving order state from its shipments and retiring the
+flat status — is a later release, per the rule in CLAUDE.md that a column is never
+dropped in the same release that stops writing it.
+
+### Rollback
+
+Drop `shipment_items`, then `shipments`, then the two enum types. No existing data
+is touched, so a rollback loses only shipment rows written since deploy. Orders
+placed before this migration have no shipments and are unaffected — any reader
+must treat an empty `shipments` array as "not split", not as an error.
