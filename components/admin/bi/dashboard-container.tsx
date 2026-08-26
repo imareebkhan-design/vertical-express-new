@@ -112,7 +112,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             onClick={triggerPrintReport}
             className="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
           >
-            🖨️ PDF / Print
+            PDF / Print
           </button>
           <button
             onClick={() => {
@@ -122,7 +122,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             }}
             className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
           >
-            📥 Export CSV
+            Export CSV
           </button>
         </div>
       </div>

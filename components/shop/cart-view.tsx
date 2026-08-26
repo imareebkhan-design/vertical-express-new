@@ -34,7 +34,7 @@ export function CartView() {
         {/* Free-delivery meter */}
         <div className="mb-5 rounded-card border border-hairline-border bg-surface-soft/30 p-4">
           {qualifiesFreeDelivery ? (
-            <p className="text-sm font-extrabold text-success">🎉 You&apos;ve unlocked free delivery!</p>
+            <p className="text-sm font-extrabold text-success">Free delivery applied.</p>
           ) : (
             <p className="text-sm font-bold text-neutral-600">
               Add <span className="text-brand-deep">{formatPaise(freeDeliveryRemainingPaise)}</span> more to

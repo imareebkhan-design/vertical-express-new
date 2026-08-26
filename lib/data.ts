@@ -38,13 +38,6 @@ export interface Product {
   image?: string;
 }
 
-export interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  quote: string;
-}
-
 /**
  * Store announcements.
  *
@@ -173,38 +166,6 @@ export const DEALS: Product[] = [
   },
 ];
 
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    id: "t1",
-    name: "Ravi Kumar",
-    role: "Site Engineer, Hyderpora",
-    quote: "Cement reached my site in 45 minutes. Saved a full day of labour cost.",
-  },
-  {
-    id: "t2",
-    name: "Anita Sharma",
-    role: "Homeowner, Rajbagh",
-    quote: "Mid-renovation, we ran out of tile adhesive on a Sunday. Vertical Express delivered before lunch.",
-  },
-  {
-    id: "t3",
-    name: "Mohammed Irfan",
-    role: "Contractor, Lal Chowk",
-    quote: "Prices match the local mandi and I don't have to send a worker to fetch materials.",
-  },
-  {
-    id: "t4",
-    name: "Deepa Nair",
-    role: "Interior Designer, Nishat",
-    quote: "The hardware selection is excellent. Hinges and channels arrive in an hour, every time.",
-  },
-  {
-    id: "t5",
-    name: "Suresh Gowda",
-    role: "Builder, Bemina",
-    quote: "Pay on delivery and genuine brands. My default supplier for every project now.",
-  },
-];
 
 export const FOOTER_LINKS = {
   company: [
@@ -223,13 +184,8 @@ export const FOOTER_LINKS = {
 };
 
 export const CONTACT = {
-  email: "hello@verticalexpress.co",
+  email: "hello@verticalexpress.in",
   address:
     "Vertical Express Commerce, Residency Road, Lal Chowk, Srinagar, Jammu & Kashmir 190001",
 };
 
-export const TRUST_ITEMS: { icon: "star" | "shield" | "banknote"; title: string; caption: string }[] = [
-  { icon: "star", title: "4.9 Google Rating", caption: "Loved by thousands of builders & homeowners" },
-  { icon: "shield", title: "Quality Assurance", caption: "100% genuine brands, sourced directly" },
-  { icon: "banknote", title: "Pay on Delivery", caption: "Check your order first, then pay" },
-];

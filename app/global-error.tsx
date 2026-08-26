@@ -34,7 +34,7 @@ export default function GlobalError({
           padding: "1rem",
         }}
       >
-        <span style={{ fontSize: "3rem" }}>⚠️</span>
+        <span style={{ fontSize: "3rem" }} aria-hidden>!</span>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111" }}>
           Something went wrong
         </h1>

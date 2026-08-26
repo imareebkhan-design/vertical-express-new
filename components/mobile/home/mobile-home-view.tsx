@@ -58,7 +58,7 @@ const HERO_BANNERS: HomeBanner[] = [
     id: "express-delivery",
     title: "60-Min Site Delivery",
     subtitle: "Cement, tools, and adhesives straight to your jobsite.",
-    badge: "FASTEST DELIVERY",
+    badge: "IN STOCK NOW",
     href: "/categories",
     bgGradient: "bg-gradient-to-r from-amber-500 to-orange-600",
   },
@@ -115,9 +115,9 @@ export function MobileHomeView({ deals, featured, newArrivals, categories }: Mob
 
   const getGreeting = () => {
     const hrs = new Date().getHours();
-    if (hrs < 12) return "Good morning 👋";
-    if (hrs < 17) return "Good afternoon ☀️";
-    return "Good evening 🌙";
+    if (hrs < 12) return "Good morning";
+    if (hrs < 17) return "Good afternoon";
+    return "Good evening";
   };
 
   const handleRefresh = () => {
