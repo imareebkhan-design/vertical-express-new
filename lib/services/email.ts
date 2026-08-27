@@ -119,7 +119,7 @@ export async function sendOrderConfirmationEmail(to: string, order: OrderEmailDa
   return sendEmail({
     to,
     subject: `Order ${order.orderNo} confirmed · Vertical Express`,
-    html: shell("Order confirmed 🎉", body),
+    html: shell("Order confirmed", body),
   });
 }
 

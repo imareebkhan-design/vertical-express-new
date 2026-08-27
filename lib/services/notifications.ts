@@ -41,10 +41,10 @@ export async function notifyOrderStatusChange(params: {
     title = `Order #${orderNo} Packed`;
     body = `Your items have been packed and are ready for dispatch.`;
   } else if (status === "out_for_delivery") {
-    title = `Order #${orderNo} Out for Delivery! 🚚`;
+    title = `Order #${orderNo} is out for delivery`;
     body = `Our delivery partner is on the way with your order.`;
   } else if (status === "delivered") {
-    title = `Order #${orderNo} Delivered! 🎉`;
+    title = `Order #${orderNo} delivered`;
     body = `Your order has been delivered. 5% cashback has been credited to your wallet!`;
   }
 

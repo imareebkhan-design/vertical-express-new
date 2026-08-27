@@ -52,6 +52,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-037 | Test suite ran against the application database | CRITICAL | Testing/Data | FIXED |
 | ISS-038 | `font-sans` never resolved; site rendered in the system font | MEDIUM | Design system | FIXED |
 | ISS-039 | Amber used as body text in ~148 places | MEDIUM | Design system | OPEN |
+| ISS-040 | Production build fails intermittently on connection-pool exhaustion | HIGH | DevOps | FIXED |
 
 ---
 
@@ -1376,5 +1377,52 @@ confirmation rather than deleted.
 **Build fragility noted.** `next/font` fetches Plus Jakarta Sans from Google Fonts at
 build time; a build with no network access to Google Fonts fails outright. Observed once
 during this pass. Worth self-hosting the face before it bites a deploy.
+
+---
+
+
+## ISS-040 — Production build fails intermittently on connection-pool exhaustion
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | DevOps / Build |
+| **Status** | FIXED (26 Aug 2026) |
+
+**Description.** `next build` prerenders every published product page via
+`generateStaticParams` — 96 static pages today. `DATABASE_URL` points at the Supabase
+pgbouncer pooler with `connection_limit=5` and a 10s pool timeout. At Next's default
+static-generation concurrency the build opened more concurrent Prisma queries than the
+pool allows and pages failed with *"Timed out fetching a new connection from the
+connection pool"*.
+
+**Evidence.** Three consecutive builds each failed on a **different** product page
+(`exterior-emulsion-20l`, `pvc-conduit-25mm-3m`, `inverter-battery-combo`) — the
+signature of pool exhaustion rather than a bad page.
+
+**Business impact.** `vercel-build` runs `next build`, so this is an intermittently
+failing deploy. It would present as "the deploy randomly fails, retry usually works",
+which is expensive to diagnose under pressure.
+
+**Resolution.** `experimental.staticGenerationMaxConcurrency: 2` in `next.config.ts`,
+holding prerender concurrency below the connection limit so queued pages wait on the
+scheduler rather than racing for a connection, plus `staticGenerationRetryCount: 2` for
+a genuinely slow response. A page that fails twice still fails the build — the retry
+does not mask real errors.
+
+**Rejected approach.** Switching the Prisma client to `DIRECT_URL` during
+`NEXT_PHASE=phase-production-build` was tried first and made it **worse** — 13 pool
+errors instead of 3, and the home page began failing. Reverted. The direct connection
+is not a drop-in substitute for the pooler here.
+
+**Note on raising the ceiling instead.** The concurrency cap is the safe fix inside the
+repository. Raising `connection_limit` on the build-time DSN would also work and would
+build faster, but that is the owner's Vercel environment to change, and a higher limit
+has runtime consequences for serverless.
+
+**Test required.** Two consecutive clean builds reaching `Generating static pages
+(96/96)` with zero `prisma:error` lines. Verified.
+
+**Owner input required.** No.
 
 ---
