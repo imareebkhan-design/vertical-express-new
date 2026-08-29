@@ -15,7 +15,7 @@ import { PincodeCheck } from "@/components/shop/pincode-check";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/recently-viewed";
 import { PageLoader } from "@/components/page-loader";
-import { ChevronRight, ShieldCheck, Truck, Wallet } from "lucide-react";
+import { ChevronRight, ShieldCheck, Wallet } from "lucide-react";
 import Link from "next/link";
 import { paiseToRupees } from "@/lib/money";
 

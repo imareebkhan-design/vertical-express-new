@@ -4,10 +4,20 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 /**
  * OTP provider abstraction.
  *
- * The login UI is channel-agnostic: it collects an identifier (email today,
- * phone once an SMS provider such as MSG91/Twilio is configured in Supabase)
- * and a one-time code. Switching channels is a configuration change:
- * set AUTH_OTP_CHANNEL="phone" — no UI or action changes required.
+ * ⚠ NOT ON THE LIVE LOGIN PATH. Nothing imports this module except its own
+ * tests. `actions/auth.ts` calls `supabase.auth.signInWithOtp` directly and
+ * chooses the channel from the identifier itself — `value.includes("@")` — so
+ * `AUTH_OTP_CHANNEL` has no effect on how anyone actually logs in.
+ *
+ * That is not a bug in the behaviour: auto-detecting from the identifier is
+ * better than a global switch, because it lets email and phone coexist during a
+ * migration instead of forcing one for everybody. Phone login therefore needs no
+ * code change at all — only an SMS provider configured in Supabase (ISS-006).
+ *
+ * It IS a documentation hazard: the handover records "AUTH_OTP_CHANNEL=phone is
+ * a config flip", which would do nothing. Kept because a real provider
+ * abstraction is worth having when a second one arrives; delete it if that never
+ * happens rather than leaving a module that looks load-bearing and is not.
  */
 export type OtpChannel = "email" | "phone";
 

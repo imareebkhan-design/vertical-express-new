@@ -20,7 +20,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-003 | Razorpay HTTP call executes inside DB transaction | HIGH | Checkout | FIXED |
 | ISS-004 | Inventory decrement not scoped to warehouse | HIGH | Inventory | FIXED |
 | ISS-005 | Payment capture amount never verified | HIGH | Payments | FIXED |
-| ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | OPEN |
+| ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | BLOCKED (OWNER) |
 | ISS-007 | Entire catalog is fictional | CRITICAL | Data | BLOCKED (OWNER) |
 | ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
 | ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | IN PROGRESS |
@@ -349,6 +349,32 @@ appears in logs or responses.
 Twilio, with Indian DLT template registration (which itself takes 3–5 days).
 
 ---
+
+**Correction (30 Aug 2026).** The handover records that `AUTH_OTP_CHANNEL=phone` is "a
+config flip, not code". It is not: that variable is read only by
+`lib/services/auth-provider.ts`, **which nothing imports**. Setting it changes nothing.
+
+The live path, `actions/auth.ts`, already selects the channel from the identifier —
+`value.includes("@")` — and normalises a 10-digit number to E.164. So phone login needs
+**no application code change at all**; both channels can work simultaneously. Five tests in
+`auth-channel.test.ts` now pin that real behaviour, including that non-Indian-mobile
+prefixes and wrong lengths are refused before any SMS is paid for. The four existing
+`auth-provider.test.ts` tests are annotated as not covering the live path — they passed
+while the module they test was unreachable, which is worse than no coverage.
+
+**Progress (MSG91).** MSG91 is **not** natively supported by Supabase (MessageBird, Twilio,
+Vonage and TextLocal are), so it needs a Send SMS Hook. Written:
+`supabase/functions/send-sms-hook/index.ts` — verifies the Standard Webhooks signature,
+calls MSG91, never logs the OTP, fails loudly when unconfigured. Setup documented in
+`docs/PHONE_OTP_SETUP.md`.
+
+**Blocked on the owner, and cannot be unblocked from here:**
+1. **DLT registration** — sender ID and template must be pre-registered with an Indian DLT
+   registry before any transactional SMS delivers. Days, plus business documents.
+2. MSG91 account and authkey.
+3. **Verifying the MSG91 request contract.** The call in the hook is written from their
+   public v5 flow API but is NOT confirmed against a real request — their reference is
+   behind a login. It is marked in the file and must be checked before going live.
 
 ## ISS-007 — The entire catalog is fictional
 

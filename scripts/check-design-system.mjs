@@ -15,7 +15,7 @@
  * So this checks the values, not just the class names.
  */
 import { readFileSync } from "node:fs";
-import { globSync } from "node:fs";
+
 import { execSync } from "node:child_process";
 
 const FILES = execSync(
