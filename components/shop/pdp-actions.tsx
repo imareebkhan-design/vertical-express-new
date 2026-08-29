@@ -110,14 +110,14 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
         >
           {added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
 
       {/* Sticky mobile action bar */}
-      <div className="fixed inset-x-0 bottom-20 z-30 flex items-center gap-3 border-t border-hairline-border bg-white/90 backdrop-blur-md p-3 shadow-[0_-4px_12px_rgba(15,33,56,0.08)] sm:hidden">
+      <div className="fixed inset-x-0 bottom-20 z-30 flex items-center gap-3 border-t border-hairline-border bg-white/90 backdrop-blur-md p-3 shadow-[0_-4px_12px_rgba(17,17,17,0.08)] sm:hidden">
         <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
@@ -138,7 +138,7 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <motion.button
           whileTap={{ scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink shadow-[0_2px_4px_rgba(252,189,0,0.15)] active:scale-95 transition-all duration-200"
+          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card active:scale-95 transition-all duration-200"
         >
           {added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
         </motion.button>

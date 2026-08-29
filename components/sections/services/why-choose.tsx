@@ -25,7 +25,7 @@ export function WhyChoose() {
             return (
               <StaggerItem key={feature.title}>
                 <div className="group flex h-full items-start gap-4 rounded-card border border-neutral-100 bg-white p-5 shadow-card transition-all duration-300 hover:-translate-y-1 hover:shadow-card-hover sm:p-6">
-                  <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-brand/15 transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110 group-hover:bg-brand/25">
+                  <span className="grid size-12 shrink-0 place-items-center rounded-panel bg-brand/15 transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110 group-hover:bg-brand/25">
                     <Icon className="size-6 text-brand-deep" strokeWidth={1.8} aria-hidden />
                   </span>
                   <div>

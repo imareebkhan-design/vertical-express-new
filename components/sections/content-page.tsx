@@ -75,7 +75,7 @@ export function ContentPage({
                   <li key={s.id}>
                     <Link
                       href={`#${s.id}`}
-                      className="block rounded-xl px-2 py-1.5 text-[13px] font-semibold text-ink-700 transition-colors hover:bg-hush"
+                      className="block rounded-full px-2 py-1.5 text-[13px] font-semibold text-ink-700 transition-colors hover:bg-hush"
                     >
                       {s.heading}
                     </Link>

@@ -26,7 +26,7 @@ export default async function AdminCoupons() {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[820px]">
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -88,7 +88,7 @@ export default async function AdminCoupons() {
         )}
       </div>
 
-      <p className="rounded-2xl bg-ops-warn-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-warn">
+      <p className="rounded-panel bg-ops-warn-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-warn">
         Coupon wiring in the cart is incomplete (ISS-011): a code can be displayed as
         applied without being deducted server-side. Treat the discounts listed here as
         configured intent, not as what a customer is actually charged, until that is fixed.

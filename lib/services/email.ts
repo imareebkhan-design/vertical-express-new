@@ -60,7 +60,7 @@ export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolea
 
 // ---- Templates -------------------------------------------------------------
 
-const BRAND = "#efc41a";
+const BRAND = "#EDAF1C";
 
 function shell(title: string, body: string): string {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
@@ -98,7 +98,7 @@ export async function sendOrderConfirmationEmail(to: string, order: OrderEmailDa
     )
     .join("");
   const line = (label: string, value: string, bold = false) =>
-    `<tr><td style="padding:4px 0;color:#666${bold ? ";font-weight:800;color:#1a1a1a" : ""}">${label}</td><td style="padding:4px 0;text-align:right${
+    `<tr><td style="padding:4px 0;color:#666${bold ? ";font-weight:800;color:#111111" : ""}">${label}</td><td style="padding:4px 0;text-align:right${
       bold ? ";font-weight:800" : ""
     }">${value}</td></tr>`;
 

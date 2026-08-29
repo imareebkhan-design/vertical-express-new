@@ -72,7 +72,7 @@ export function AdminSidebar({
   return (
     <aside className="hidden w-[246px] flex-none flex-col gap-0.5 bg-white p-3.5 lg:flex">
       <Link href="/admin" className="mb-3 flex items-center gap-2.5 px-3 py-1">
-        <span className="grid size-8 flex-none place-items-center rounded-xl bg-brand">
+        <span className="grid size-8 flex-none place-items-center rounded-chip bg-brand">
           <BarChart3 className="size-4 text-ink" aria-hidden />
         </span>
         <span className="min-w-0">
@@ -96,7 +96,7 @@ export function AdminSidebar({
                 href={href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex h-9.5 items-center gap-2.5 rounded-xl px-3 text-[13px] transition-colors",
+                  "flex h-9.5 items-center gap-2.5 rounded-panel px-3 text-[13px] transition-colors",
                   active
                     ? "bg-ink font-bold text-white"
                     : "font-semibold text-ink-700 hover:bg-hush"
@@ -113,13 +113,13 @@ export function AdminSidebar({
       <div className="flex-1" />
 
       {gatewayWarning && (
-        <div className="flex items-start gap-2.5 rounded-2xl bg-ops-bad-tint p-3">
+        <div className="flex items-start gap-2.5 rounded-panel bg-ops-bad-tint p-3">
           <AlertTriangle className="mt-0.5 size-4 flex-none text-ops-bad" aria-hidden />
           <p className="text-[11px] font-bold leading-snug text-ops-bad">{gatewayWarning}</p>
         </div>
       )}
 
-      <div className="mt-2 flex items-center gap-2.5 rounded-xl px-3 py-2.5">
+      <div className="mt-2 flex items-center gap-2.5 rounded-full px-3 py-2.5">
         <span className="grid size-7 flex-none place-items-center rounded-full bg-amber-soft text-[10px] font-extrabold">
           {adminEmail.slice(0, 2).toUpperCase()}
         </span>

@@ -22,7 +22,7 @@ function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl bg-white p-4 shadow-card">
+    <section className="rounded-panel bg-white p-4 shadow-card">
       <div className="mb-3 flex items-center gap-3">
         <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
         <span className="flex-1" />
@@ -72,7 +72,7 @@ export default async function AdminOrderDetail({
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/admin/orders"
-          className="grid size-9 place-items-center rounded-xl bg-chip transition-colors hover:bg-hush"
+          className="grid size-9 place-items-center rounded-chip bg-chip transition-colors hover:bg-hush"
           aria-label="Back to orders"
         >
           <ArrowLeft className="size-4" aria-hidden />
@@ -185,7 +185,7 @@ export default async function AdminOrderDetail({
               <span className="tabular-nums">{str("pincode")}</span>
             </p>
             {order.notes && (
-              <p className="mt-3 rounded-xl bg-canvas p-2.5 text-[11px] font-semibold text-ink-700">
+              <p className="mt-3 rounded-panel bg-canvas p-2.5 text-[11px] font-semibold text-ink-700">
                 {order.notes}
               </p>
             )}

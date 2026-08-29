@@ -51,3 +51,6 @@ supabase/.temp/
 /android/build/
 /android/local.properties
 *.xcuserstate
+
+# Category SEO rollback snapshots — contain live data
+.seo-backups/

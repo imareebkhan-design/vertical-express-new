@@ -48,7 +48,7 @@ export default async function BookingsPage() {
                   <li key={b.id} className="rounded-card border border-neutral-100 bg-white p-4 shadow-card">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-extrabold">{b.service.name}</p>
-                      <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-neutral-600">
+                      <span className="rounded-chip bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-neutral-600">
                         {STATUS_LABEL[b.status] ?? b.status}
                       </span>
                     </div>

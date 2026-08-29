@@ -15,7 +15,7 @@ export interface KpiCardProps {
 export function KpiCard({ label, value, subValue, change, sparklineData, color = "blue" }: KpiCardProps) {
 
   return (
-    <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm hover:shadow-md transition-all">
+    <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-neutral-400 uppercase tracking-wider">{label}</span>
         {change && (
@@ -192,7 +192,7 @@ export function LineChart({ data, height = 300, prefix = "" }: LineChartProps) {
       {/* HTML Tooltip */}
       {hoverIndex !== null && points[hoverIndex] && (
         <div
-          className="absolute rounded-lg border border-neutral-100 bg-white p-2.5 shadow-lg text-xs font-bold transition-all z-20 pointer-events-none"
+          className="absolute rounded-chip border border-neutral-100 bg-white p-2.5 shadow-lg text-xs font-bold transition-all z-20 pointer-events-none"
           style={{
             left: `${(points[hoverIndex].x / svgWidth) * 100}%`,
             top: `${(points[hoverIndex].y / svgHeight) * 100 - 45}%`,
@@ -300,7 +300,7 @@ export function BarChart({ data, height = 300, prefix = "" }: BarChartProps) {
 
       {hoverIndex !== null && data[hoverIndex] && (
         <div
-          className="absolute rounded-lg border border-neutral-100 bg-white p-2.5 shadow-lg text-xs font-bold transition-all z-20 pointer-events-none"
+          className="absolute rounded-chip border border-neutral-100 bg-white p-2.5 shadow-lg text-xs font-bold transition-all z-20 pointer-events-none"
           style={{
             left: `${((paddingLeft + hoverIndex * (barWidth + barGap) + barWidth / 2 + barGap / 2) / svgWidth) * 100}%`,
             top: `${((paddingTop + chartHeight - ((data[hoverIndex].value - minVal) / range) * chartHeight) / svgHeight) * 100 - 45}%`,
@@ -395,7 +395,7 @@ export function DonutChart({ data, prefix = "" }: DonutChartProps) {
         {segments.map((seg, idx) => (
           <div
             key={idx}
-            className={`flex items-center gap-2.5 px-2 py-1 rounded-md transition-colors ${
+            className={`flex items-center gap-2.5 px-2 py-1 rounded-full transition-colors ${
               hoverIndex === idx ? "bg-neutral-50" : ""
             }`}
             onMouseEnter={() => setHoverIndex(idx)}

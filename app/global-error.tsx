@@ -28,7 +28,7 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           gap: "1.5rem",
-          background: "#f9f9f9",
+          background: "#F3F2F0",
           fontFamily: "system-ui, sans-serif",
           textAlign: "center",
           padding: "1rem",
@@ -50,7 +50,7 @@ export default function GlobalError({
           onClick={reset}
           style={{
             padding: "0.6rem 1.5rem",
-            background: "#FFD600",
+            background: "#EDAF1C",
             border: "none",
             borderRadius: "9999px",
             fontWeight: 700,

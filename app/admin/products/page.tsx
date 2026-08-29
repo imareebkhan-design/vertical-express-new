@@ -15,7 +15,7 @@ export default async function AdminProducts() {
         <p className="mt-0.5 text-[11px] font-semibold text-ink-500">{total} products</p>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[820px]">
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -71,7 +71,7 @@ export default async function AdminProducts() {
         </table>
       </div>
 
-      <p className="rounded-2xl bg-ops-warn-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-warn">
+      <p className="rounded-panel bg-ops-warn-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-warn">
         Read-only (ISS-019). Creating and editing products from here needs HSN and GST rate
         per product, which the schema does not carry yet — and an invoice cannot be raised
         without them. Editing arrives with those columns.

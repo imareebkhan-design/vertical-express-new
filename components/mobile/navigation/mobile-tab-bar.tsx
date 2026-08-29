@@ -30,7 +30,7 @@ export function MobileTabBar() {
   };
 
   return (
-    <nav className="native-tabbar fixed bottom-0 left-0 right-0 z-40 border-t border-mist/20 bg-surface/95 px-2 pb-[env(safe-area-inset-bottom,12px)] pt-2.5 backdrop-blur-md shadow-[0_-4px_16px_rgba(15,33,56,0.06)]">
+    <nav className="native-tabbar fixed bottom-0 left-0 right-0 z-40 border-t border-mist/20 bg-surface/95 px-2 pb-[env(safe-area-inset-bottom,12px)] pt-2.5 backdrop-blur-md shadow-[0_-4px_16px_rgba(17,17,17,0.06)]">
       <div className="flex items-center justify-around max-w-md mx-auto">
         {MAIN_TABS.map((tab) => {
           const Icon = ICON_MAP[tab.iconName];

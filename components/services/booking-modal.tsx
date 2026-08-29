@@ -73,7 +73,7 @@ export function BookingModal({
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-card-hover sm:p-8"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-card-lg bg-white p-6 shadow-card-hover sm:p-8"
           >
             <button
               onClick={close}
@@ -123,7 +123,7 @@ export function BookingModal({
                           key={t}
                           type="button"
                           onClick={() => set("propertyType", t)}
-                          className={`rounded-lg border-2 px-3 py-1.5 text-xs font-extrabold uppercase capitalize transition-colors ${
+                          className={`rounded-full border-2 px-3 py-1.5 text-xs font-extrabold uppercase capitalize transition-colors ${
                             values.propertyType === t ? "border-ink bg-ink text-white" : "border-neutral-200 hover:border-ink"
                           }`}
                         >
@@ -140,7 +140,7 @@ export function BookingModal({
                       rows={3}
                       required
                       placeholder="e.g. 3BHK full interior, or waterproofing for a 1200 sq ft terrace"
-                      className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-neutral-400 focus:border-ink focus:outline-none"
+                      className="w-full rounded-field border border-neutral-300 bg-white px-4 py-2.5 text-sm text-ink placeholder:text-neutral-400 focus:border-ink focus:outline-none"
                     />
                   </Field>
 

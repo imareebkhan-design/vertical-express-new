@@ -89,7 +89,7 @@ export function OrderActions({
       name: "Vertical Express",
       order_id: rzp.orderId,
       prefill: { email: email ?? undefined },
-      theme: { color: "#efc41a" },
+      theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async (r: any) => {
         const confirm = await confirmRazorpayPayment({

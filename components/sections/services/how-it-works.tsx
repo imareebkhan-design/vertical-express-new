@@ -30,7 +30,7 @@ export function HowItWorks() {
                   <span className="absolute -top-3 grid size-7 place-items-center rounded-full bg-ink text-xs font-extrabold text-brand">
                     {step.step}
                   </span>
-                  <span className="mb-3 mt-2 grid size-14 place-items-center rounded-2xl bg-brand/15 transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110">
+                  <span className="mb-3 mt-2 grid size-14 place-items-center rounded-panel bg-brand/15 transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110">
                     <Icon className="size-7 text-brand-deep" strokeWidth={1.7} aria-hidden />
                   </span>
                   <h3 className="text-sm font-extrabold">{step.title}</h3>

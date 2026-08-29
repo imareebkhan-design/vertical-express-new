@@ -113,7 +113,6 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
 
             <div className="mt-6 grid grid-cols-3 gap-3 text-center">
               {[
-                { icon: Truck, label: "60-min delivery" },
                 { icon: Wallet, label: "Pay on delivery" },
                 { icon: ShieldCheck, label: "Genuine brands" },
               ].map(({ icon: Icon, label }) => (

@@ -27,7 +27,7 @@ export function FloatingCart() {
         >
           <Link
             href="/cart"
-            className="flex w-full cursor-pointer items-center justify-between rounded-2xl bg-ink px-5 py-4 text-white shadow-card-hover transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
+            className="flex w-full cursor-pointer items-center justify-between rounded-card-lg bg-ink px-5 py-4 text-white shadow-card-hover transition-transform duration-200 hover:-translate-y-0.5 active:translate-y-0"
           >
             <span className="flex items-center gap-3">
               <span className="relative">

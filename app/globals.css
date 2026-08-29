@@ -68,6 +68,15 @@
    * These names are used ~340 times across the components. Repointing them is
    * what moves the whole storefront without editing 83 files.
    * -------------------------------------------------------------------- */
+  /* `mist` predates the token migration and was never carried across: it is used
+     265 times over 25 files (almost all of components/mobile) and resolved to
+     nothing, so `border border-mist/40` fell back to currentColor — a hard dark
+     rule exactly where the system forbids one — and `bg-mist/40` painted nothing
+     at all. Aliased rather than swept through 25 files, the same way the names
+     below were. ink-300 is the right anchor: at the /20–/40 opacities in use it
+     lands on #E9E8E6, within a hair of --color-line. */
+  --color-mist: var(--color-ink-300);
+
   --color-brand: var(--color-amber);          /* accent fills, marks, the bolt */
   --color-brand-dark: var(--color-amber-deep);
   --color-brand-deep: var(--color-ink-900);   /* was navy — 256 usages land here */
@@ -101,11 +110,44 @@
   --color-ops-info: #2A5C93;      /* in progress, nobody need act */
   --color-ops-info-tint: #E3EAF3;
 
+  /* ---- Warm neutral ramp -------------------------------------------------
+   * Tailwind's built-in `neutral` is a COOL grey, and it is used 376 times in
+   * live code — beside the warm canvas (#F3F2F0) that mismatch is most of what
+   * reads as "the site is drifting". Overriding the scale in place warms every
+   * one of them at once, the same lever the alias layer above used to move ~340
+   * usages without editing 83 files.
+   *
+   * Steps 100–500, 700 and 900 are existing system tokens. 50, 600, 800 and 950
+   * are interpolated between them to keep the scale monotonic — warmed
+   * neighbours of colours the system already owns, not new hues.
+   * -------------------------------------------------------------------- */
+  --color-neutral-50:  #F5F4F1;
+  --color-neutral-100: #F2F0EC;  /* = chip-soft */
+  --color-neutral-200: #EDEBE7;  /* = chip */
+  --color-neutral-300: #E7E4DF;  /* = line */
+  --color-neutral-400: #B7B3AC;  /* = ink-300 */
+  --color-neutral-500: #8B8781;  /* = ink-500 */
+  --color-neutral-600: #6B6660;
+  --color-neutral-700: #3D3B38;  /* = ink-700 */
+  --color-neutral-800: #262320;
+  --color-neutral-900: #111111;  /* = ink-900 */
+  --color-neutral-950: #0A0908;
+
   /* Border radius — large. 20–28px on cards, fully round on buttons and chips. */
   --radius-card: 1.5rem;      /* 24px */
   --radius-card-lg: 1.75rem;  /* 28px — outer cards, hero panels */
   --radius-panel: 1.25rem;    /* 20px — inner cards, tint panels */
   --radius-pill: 9999px;
+
+  /* Two sizes the 20–28px scale above cannot serve, named here so they stop
+   * being undocumented exceptions:
+   *   chip  — elements under ~48px (thumbnails, small tiles). 20px on a 40px
+   *           square is a circle, so the scale's floor is genuinely wrong here.
+   *   field — inputs. This is what components/ui/input.tsx has always rendered;
+   *           naming it records the decision rather than silently changing
+   *           every form on the site to 20px. */
+  --radius-chip: 0.75rem;   /* 12px */
+  --radius-field: 1rem;     /* 16px */
 
   /* Shadows — wide, soft, low opacity. No hard borders anywhere. */
   --shadow-card: 0 6px 20px rgba(17, 17, 17, 0.05), 0 1px 3px rgba(17, 17, 17, 0.04);

@@ -101,7 +101,7 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
             value={minR}
             onChange={(e) => setMinR(e.target.value.replace(/\D/g, ""))}
             aria-label="Minimum price"
-            className="h-10 w-full rounded-lg border border-neutral-200 px-2 text-sm font-bold focus:border-ink focus:outline-none"
+            className="h-10 w-full rounded-field border border-neutral-200 px-2 text-sm font-bold focus:border-ink focus:outline-none"
           />
           <span className="text-neutral-400">–</span>
           <input
@@ -109,7 +109,7 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
             value={maxR}
             onChange={(e) => setMaxR(e.target.value.replace(/\D/g, ""))}
             aria-label="Maximum price"
-            className="h-10 w-full rounded-lg border border-neutral-200 px-2 text-sm font-bold focus:border-ink focus:outline-none"
+            className="h-10 w-full rounded-field border border-neutral-200 px-2 text-sm font-bold focus:border-ink focus:outline-none"
           />
         </div>
         <Button variant="outline" size="sm" className="mt-3 w-full" onClick={applyPrice}>

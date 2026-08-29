@@ -4,24 +4,11 @@ import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 
 export const revalidate = 300;
 
+/* The root layout already sets the full metadata for this URL — title,
+ * description, canonical, Open Graph, Twitter and robots. Duplicating it here
+ * only creates two places to keep in sync, and they had already drifted. */
 export const metadata: Metadata = {
-  title: "Cement, Ply, Hardware & Painting in Srinagar | Vertical Express",
-  description:
-    "Vertical Express delivers construction materials, hardware and home-improvement supplies across Srinagar. Cement, tiling, plywood, wires, paint and more — genuine brands at trade prices.",
-  keywords: [
-    "construction materials",
-    "cement delivery",
-    "hardware store Srinagar",
-  ],
-  openGraph: {
-    title: "Vertical Express — Building material, on site today",
-    description:
-      "Cement, ply, hardware and painting supplies delivered across Srinagar.",
-    type: "website",
-  },
-  icons: {
-    icon: "/logo-icon.png",
-  },
+  alternates: { canonical: "/" },
 };
 
 export default async function Home() {

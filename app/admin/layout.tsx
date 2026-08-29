@@ -41,7 +41,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <div className="flex-1" />
           <Link
             href="/"
-            className="rounded-xl bg-chip px-3.5 py-2 text-xs font-bold transition-colors hover:bg-hush"
+            className="rounded-full bg-chip px-3.5 py-2 text-xs font-bold transition-colors hover:bg-hush"
           >
             View store
           </Link>

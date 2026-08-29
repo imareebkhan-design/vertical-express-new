@@ -50,7 +50,7 @@ export function AccountButton() {
     return (
       <Link
         href="/login"
-        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
+        className="flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
         aria-label="Log in"
       >
         <User className="size-5" aria-hidden />
@@ -67,7 +67,7 @@ export function AccountButton() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
+        className="flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
       >
         <span className="grid size-6 place-items-center rounded-full bg-brand text-[11px] font-extrabold uppercase text-ink">
           {handle[0]}
@@ -87,13 +87,13 @@ export function AccountButton() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute right-0 top-full z-50 mt-1 min-w-48 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
+            className="absolute right-0 top-full z-50 mt-1 min-w-48 rounded-panel border border-neutral-100 bg-white p-2 shadow-card-hover"
           >
             <Link
               href="/account"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
+              className="flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
             >
               <UserRound className="size-4" /> My Account
             </Link>
@@ -101,7 +101,7 @@ export function AccountButton() {
               href="/account/orders"
               role="menuitem"
               onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
+              className="flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
             >
               <Package className="size-4" /> My Orders
             </Link>
@@ -109,7 +109,7 @@ export function AccountButton() {
               role="menuitem"
               onClick={handleSignOut}
               disabled={pending}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-danger transition-colors hover:bg-danger/5"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-danger transition-colors hover:bg-danger/5"
             >
               <LogOut className="size-4" /> {pending ? "Signing out…" : "Sign out"}
             </button>

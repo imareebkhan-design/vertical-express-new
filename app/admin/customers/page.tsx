@@ -33,15 +33,15 @@ export default async function AdminCustomers({
             defaultValue={sp.q ?? ""}
             placeholder="Search phone or email"
             aria-label="Search customers"
-            className="h-9 w-56 rounded-xl bg-chip-soft px-3.5 text-[12.5px] font-semibold text-ink placeholder:text-ink-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+            className="h-9 w-56 rounded-field bg-chip-soft px-3.5 text-[12.5px] font-semibold text-ink placeholder:text-ink-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
           />
-          <button className="h-9 rounded-xl bg-ink px-4 text-[12px] font-bold text-white">
+          <button className="h-9 rounded-panel bg-ink px-4 text-[12px] font-bold text-white">
             Search
           </button>
         </form>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[720px]">
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -103,7 +103,7 @@ export default async function AdminCustomers({
             <Link
               key={p}
               href={{ pathname: "/admin/customers", query: { ...(sp.q ? { q: sp.q } : {}), page: p } }}
-              className={`grid size-9 place-items-center rounded-xl text-[12px] tabular-nums transition-colors ${
+              className={`grid size-9 place-items-center rounded-chip text-[12px] tabular-nums transition-colors ${
                 p === page ? "bg-ink font-bold text-white" : "bg-chip font-semibold hover:bg-hush"
               }`}
             >
@@ -113,7 +113,7 @@ export default async function AdminCustomers({
         </div>
       )}
 
-      <p className="rounded-2xl bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
+      <p className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
         No notes, tickets or segments — there is no CRM model in the schema. This is what
         the order data honestly supports.
       </p>

@@ -94,7 +94,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
             </p>
           </div>
           <div className="text-right">
-            <span className="inline-block rounded-md bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
+            <span className="inline-block rounded-full bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
               TAX INVOICE
             </span>
             <p className="mt-2 text-xs font-extrabold text-ink">Invoice #: INV-{order.orderNo}</p>

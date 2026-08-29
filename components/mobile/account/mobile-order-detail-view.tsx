@@ -90,7 +90,7 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
         currency: "INR",
         name: "Vertical Express",
         order_id: rzp.orderId,
-        theme: { color: "#efc41a" },
+        theme: { color: "#EDAF1C" },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async (response: any) => {
           triggerHaptic("medium");

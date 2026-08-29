@@ -18,11 +18,11 @@ export default async function AdminServiceability() {
         </p>
       </div>
 
-      <section className="rounded-2xl bg-white p-4 shadow-card">
+      <section className="rounded-panel bg-white p-4 shadow-card">
         <h2 className="mb-3 text-[15px] font-bold tracking-tight">Warehouses</h2>
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {warehouses.map((w) => (
-            <li key={w.id} className="flex items-center gap-3 rounded-xl bg-canvas px-3 py-2.5">
+            <li key={w.id} className="flex items-center gap-3 rounded-full bg-canvas px-3 py-2.5">
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[12.5px] font-bold">{w.name}</p>
                 <p className="text-[11px] font-semibold text-ink-500">
@@ -37,7 +37,7 @@ export default async function AdminServiceability() {
         </ul>
       </section>
 
-      <section className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <section className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <h2 className="mb-3 text-[15px] font-bold tracking-tight">Pincodes</h2>
         <table className="w-full min-w-[680px]">
           <thead>
@@ -87,7 +87,7 @@ export default async function AdminServiceability() {
         )}
       </section>
 
-      <p className="rounded-2xl bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
+      <p className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
         Read-only for now. This table is what the storefront uses to decide whether it can
         take an order, what it charges for delivery and whether COD is offered — editing it
         changes what customers are promised, so it needs an audit trail before it becomes

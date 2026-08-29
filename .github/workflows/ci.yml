@@ -86,5 +86,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # Guards the two blind spots the token migration could not reach:
+      # retired brand colours hidden inside arbitrary values, and stray hex.
+      - name: Design system
+        run: npm run check:ds
+
       - name: Test
         run: npm test

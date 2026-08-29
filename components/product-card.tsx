@@ -82,7 +82,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           )}
         </MaybeLink>
         {hasDiscount && (
-          <span className="absolute left-3 top-3 z-10 rounded-full bg-brand px-2.5 py-0.5 font-sans text-[10px] font-extrabold tracking-wide text-ink shadow-sm">
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-brand px-2.5 py-0.5 font-sans text-[10px] font-extrabold tracking-wide text-ink shadow-card">
             {discount}% OFF
           </span>
         )}
@@ -147,7 +147,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={handleAdd}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-[8px] bg-brand text-xs font-extrabold uppercase tracking-wider text-ink shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
+            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full bg-ink text-xs font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
           >
             {added ? <><Check className="size-3.5" /> Added</> : "Add"}
           </motion.button>

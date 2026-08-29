@@ -36,7 +36,7 @@ function Stat({
   tone?: "bad" | "warn";
 }) {
   return (
-    <div className="rounded-2xl bg-white p-4 shadow-card">
+    <div className="rounded-panel bg-white p-4 shadow-card">
       <div className="flex items-center gap-2">
         <span className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
           {label}
@@ -108,7 +108,7 @@ export default async function AdminToday() {
         />
       </div>
 
-      <section className="rounded-2xl bg-white p-4 shadow-card" aria-labelledby="queue-heading">
+      <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="queue-heading">
         <div className="mb-3 flex items-center gap-3">
           <h2 id="queue-heading" className="text-[15px] font-bold tracking-tight">
             Needs you now
@@ -185,7 +185,7 @@ export default async function AdminToday() {
         )}
       </section>
 
-      <section className="rounded-2xl bg-white p-4 shadow-card" aria-labelledby="stock-heading">
+      <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="stock-heading">
         <div className="mb-3 flex items-center gap-3">
           <h2 id="stock-heading" className="text-[15px] font-bold tracking-tight">
             Running low
@@ -205,7 +205,7 @@ export default async function AdminToday() {
             {t.lowStock.map((s) => (
               <li
                 key={`${s.variantId}-${s.warehouseName}`}
-                className="flex items-center gap-3 rounded-xl bg-canvas px-3 py-2.5"
+                className="flex items-center gap-3 rounded-full bg-canvas px-3 py-2.5"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12.5px] font-bold">{s.productTitle}</p>

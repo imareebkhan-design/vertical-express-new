@@ -64,7 +64,7 @@ export function RecentlyViewedSection({ currentSlug }: { currentSlug?: string })
             href={`/product/${item.slug}`}
             className="group rounded-card border border-hairline-border bg-white p-3 shadow-card transition-shadow hover:shadow-card-hover"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface/60">
+            <div className="relative aspect-square w-full overflow-hidden rounded-panel bg-surface/60">
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}

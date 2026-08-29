@@ -42,7 +42,7 @@ export default async function AdminBookings() {
                     <span className="line-clamp-2">{b.scope}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase text-neutral-600">
+                    <span className="rounded-chip bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase text-neutral-600">
                       {b.status.replace(/_/g, " ")}
                     </span>
                   </td>

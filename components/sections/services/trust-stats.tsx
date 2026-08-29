@@ -9,7 +9,7 @@ export function TrustStats() {
     <section aria-label="Why customers trust us" className="py-12 sm:py-16">
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <Reveal>
-          <div className="rounded-2xl bg-ink px-6 py-12 text-white sm:px-12">
+          <div className="rounded-card-lg bg-ink px-6 py-12 text-white sm:px-12">
             <h2 className="mb-10 text-center text-2xl font-extrabold tracking-tight sm:text-3xl">
               Why Customers Trust Us
             </h2>

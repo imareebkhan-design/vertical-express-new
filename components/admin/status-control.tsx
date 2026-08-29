@@ -45,7 +45,7 @@ export function StatusControl({
         <select
           defaultValue=""
           onChange={(e) => onChange(e.target.value)}
-          className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
+          className="cursor-pointer rounded-field border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
         >
           <option value="">Advance…</option>
           {options.map((o) => (

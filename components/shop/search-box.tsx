@@ -91,7 +91,7 @@ export function SearchBox({ className }: { className?: string }) {
       </form>
 
       {open && query.trim().length >= 2 && (
-        <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-card-hover">
+        <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-panel border border-line bg-white shadow-card-hover">
           {!hasResults && !loading && (
             <p className="px-4 py-6 text-center text-sm font-semibold text-neutral-500">
               No matches for “{query}”. Press Enter to search anyway.
@@ -108,7 +108,7 @@ export function SearchBox({ className }: { className?: string }) {
                   key={c.slug}
                   href={`/category/${c.slug}`}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-2 py-2 text-sm font-bold text-neutral-700 hover:bg-surface"
+                  className="block rounded-full px-2 py-2 text-sm font-bold text-neutral-700 hover:bg-surface"
                 >
                   {c.name}
                 </Link>
@@ -126,9 +126,9 @@ export function SearchBox({ className }: { className?: string }) {
                   key={p.slug}
                   href={`/product/${p.slug}`}
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface"
+                  className="flex items-center gap-3 rounded-full px-2 py-2 hover:bg-surface"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-tile">
+                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-chip bg-tile">
                     {p.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={p.imageUrl} alt="" className="size-full object-contain p-1" />

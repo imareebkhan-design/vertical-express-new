@@ -19,7 +19,16 @@ interface Slide {
   productImage?: string;
 }
 
-/* Placeholder slides standing in for the original banner artwork. */
+/* Placeholder slides standing in for the original banner artwork.
+ *
+ * The two full-bleed banners were removed on 29 Aug 2026. Both carried claims
+ * baked into the artwork as pixels, which the ISS-008 code sweep could not
+ * reach: banner-delivery.jpg read "SRINAGAR'S FASTEST / Construction materials
+ * in 60 minutes / Avg. delivery 60 min" — an unverified SLA, and speed in the
+ * header, which the design system forbids outright — and banner-wires.png
+ * advertised "BANK OFFERS ... proudly presented by Partner Bank", complete with
+ * a Mastercard, for a partnership that does not exist. Slides now use the
+ * foreground product treatment with the honest copy already written below. */
 const SLIDES: Slide[] = [
   {
     id: "delivery",
@@ -29,7 +38,7 @@ const SLIDES: Slide[] = [
       "Cement, ply, hardware, paint and fittings — small items from our store within the hour, heavy loads by truck.",
     cta: "Shop now",
     theme: "yellow",
-    bgImage: "/banner-delivery.jpg",
+    productImage: "/products/ppc-cement-50kg.webp",
   },
   {
     id: "wires",
@@ -38,7 +47,7 @@ const SLIDES: Slide[] = [
     subtitle: "Top electrical brands in stock. Order by the coil or by the box.",
     cta: "Explore electrical",
     theme: "dark",
-    bgImage: "/banner-wires.png",
+    productImage: "/hero/polycab-optima.png",
   },
   {
     id: "kitchen",
@@ -88,7 +97,7 @@ export function Hero() {
 
   return (
     <section aria-label="Featured offers" className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
-      <div className="relative overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-card-lg">
         <AnimatePresence initial={false} custom={direction} mode="popLayout">
           <motion.div
             key={slide.id}

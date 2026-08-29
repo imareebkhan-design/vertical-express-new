@@ -110,7 +110,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         <div className="flex gap-2">
           <button
             onClick={triggerPrintReport}
-            className="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
+            className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
           >
             PDF / Print
           </button>
@@ -120,7 +120,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               else if (activeTab === "customers") handleExportCustomers();
               else handleExportSales();
             }}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
           >
             Export CSV
           </button>
@@ -128,7 +128,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
       </div>
 
       {/* 2. Filters Accordion / Panel */}
-      <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm print:hidden">
+      <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm print:hidden">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-neutral-400 mb-4">
           Report Filters
         </h2>
@@ -140,7 +140,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -149,7 +149,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             />
           </div>
 
@@ -159,7 +159,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={warehouseId}
               onChange={(e) => setWarehouseId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Warehouses</option>
               {initialData.filters.warehouses.map((w) => (
@@ -176,7 +176,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={brandId}
               onChange={(e) => setBrandId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Brands</option>
               {initialData.filters.brands.map((b) => (
@@ -193,7 +193,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Categories</option>
               {initialData.filters.categories.map((c) => (
@@ -210,7 +210,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Methods</option>
               <option value="razorpay">Razorpay</option>
@@ -225,7 +225,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={orderStatus}
               onChange={(e) => setOrderStatus(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Statuses</option>
               <option value="pending_payment">Pending Payment</option>
@@ -243,7 +243,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={customerType}
               onChange={(e) => setCustomerType(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Customers</option>
               <option value="new">New Customers</option>
@@ -259,7 +259,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               placeholder="e.g. SAVE10"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm uppercase"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm uppercase"
             />
           </div>
 
@@ -267,14 +267,14 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
           <div className="flex items-end gap-2 sm:col-span-3 lg:col-span-1">
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800 transition-colors"
+              className="flex-1 rounded-full bg-neutral-900 px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800 transition-colors"
             >
               Filter
             </button>
             <button
               type="button"
               onClick={handleClearFilters}
-              className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-colors"
+              className="rounded-full border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-colors"
             >
               Reset
             </button>
@@ -340,11 +340,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Sales Trend</h3>
                 <LineChart data={initialData.sales.dailySales.map(d => ({ label: d.label, value: d.net / 100 }))} prefix="₹" />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Fulfillment SLA Status</h3>
                 <DonutChart
                   data={[
@@ -356,7 +356,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+            <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
               <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Performing Products</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-neutral-500">
@@ -393,11 +393,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue Breakdown by Category</h3>
                 <DonutChart data={initialData.products.topCategories.map(c => ({ label: c.label, value: c.value / 100 }))} prefix="₹" />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue Breakdown by Brand</h3>
                 <DonutChart data={initialData.products.topBrands.map(b => ({ label: b.label, value: b.value / 100 }))} prefix="₹" />
               </div>
@@ -416,11 +416,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Stock Aging Distribution</h3>
                 <DonutChart data={initialData.inventory.aging} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Out of Stock & Low Stock Items</h3>
                 <div className="flex flex-col gap-3">
                   <div className="flex justify-between text-xs font-semibold">
@@ -451,11 +451,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Customer Growth Curve</h3>
                 <LineChart data={initialData.customers.growth.map(c => ({ label: c.label, value: c.count }))} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Customers</h3>
                 <div className="flex flex-col gap-4">
                   {initialData.customers.topCustomers.map((c, idx) => (
@@ -487,7 +487,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Searches</h3>
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.topSearches.map((s, idx) => (
@@ -498,7 +498,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">No-Result Searches</h3>
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.noResultSearches.map((s, idx) => (
@@ -524,17 +524,17 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Warehouse Order Volume</h3>
                 <BarChart data={initialData.operations.warehousePerf.map(w => ({ label: w.name, value: w.count }))} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Order Cancellation Reasons</h3>
                 <DonutChart data={initialData.orders.cancelledReasons} />
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+            <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
               <h3 className="text-sm font-bold text-neutral-800 mb-4">Hourly Fulfillment Activity Heatmap</h3>
               <Heatmap data={initialData.operations.hourlyActivity} />
             </div>

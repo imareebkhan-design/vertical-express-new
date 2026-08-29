@@ -34,10 +34,10 @@ function BlueprintCard() {
       <motion.div
         animate={reduced ? {} : { y: [0, -10, 0] }}
         transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-        className="rounded-2xl border border-ink/10 bg-white p-5 shadow-card-hover"
+        className="rounded-card-lg border border-ink/10 bg-white p-5 shadow-card-hover"
       >
         {/* Blueprint grid */}
-        <div className="relative mb-4 h-44 overflow-hidden rounded-xl bg-ink">
+        <div className="relative mb-4 h-44 overflow-hidden rounded-panel bg-ink">
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:22px_22px]" />
           <div className="absolute left-6 top-6 h-20 w-28 rounded border-2 border-brand/80" />
           <div className="absolute bottom-6 right-8 h-14 w-20 rounded border-2 border-white/50" />
@@ -51,7 +51,7 @@ function BlueprintCard() {
           { icon: Truck, label: "Materials on site", pct: "w-1/2" },
         ].map(({ icon: Icon, label, pct }) => (
           <div key={label} className="mb-3 flex items-center gap-3">
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-tile">
+            <span className="grid size-8 shrink-0 place-items-center rounded-chip bg-tile">
               <Icon className="size-4 text-neutral-700" />
             </span>
             <div className="flex-1">
@@ -64,7 +64,7 @@ function BlueprintCard() {
             </div>
           </div>
         ))}
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-ink px-3 py-2 text-white">
+        <div className="mt-4 flex items-center gap-2 rounded-full bg-ink px-3 py-2 text-white">
           <ShieldCheck className="size-4 text-brand" />
           <span className="text-xs font-extrabold">Quality checked at every stage</span>
         </div>
@@ -79,7 +79,7 @@ export function ServicesHero() {
       aria-label="Construction services"
       className="mx-auto max-w-7xl px-4 pt-4 sm:px-6"
     >
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-surface via-white to-tile px-6 py-14 sm:px-12 lg:px-16 lg:py-20">
+      <div className="relative overflow-hidden rounded-card-lg bg-gradient-to-br from-surface via-white to-tile px-6 py-14 sm:px-12 lg:px-16 lg:py-20">
         <div className="grid items-center gap-10 md:grid-cols-2">
           <motion.div initial="hidden" animate="visible" variants={containerVariants}>
             <motion.p

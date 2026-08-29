@@ -35,6 +35,23 @@ export function speedClassFor(isBulk: boolean): SpeedClass {
   return isBulk ? "scheduled" : "express";
 }
 
+/**
+ * The wording for a speed class, exported so surfaces that cannot use the chip
+ * itself still say the same thing. The login hero renders a proportionally
+ * scaled chip and would otherwise carry its own copy of these strings — and two
+ * surfaces naming the same goods differently is exactly the contradiction this
+ * component exists to prevent.
+ */
+export function speedLabel(speed: SpeedClass, etaMinutes = 60): string {
+  return speed === "express"
+    ? `${etaMinutes} min`
+    : speed === "scheduled"
+      ? "Heavy — by truck"
+      : speed === "leadtime"
+        ? "2–3 days"
+        : "Seasonal";
+}
+
 const styles: Record<SpeedClass, string> = {
   express: "bg-ink text-white",
   scheduled: "bg-chip text-ink",
@@ -56,14 +73,7 @@ export function SpeedChip({
   className,
   ...props
 }: SpeedChipProps) {
-  const label =
-    speed === "express"
-      ? `${etaMinutes} min`
-      : speed === "scheduled"
-        ? "Heavy — by truck"
-        : speed === "leadtime"
-          ? "2–3 days"
-          : "Seasonal";
+  const label = speedLabel(speed, etaMinutes);
 
   return (
     <span

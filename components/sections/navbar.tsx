@@ -90,7 +90,7 @@ export function Navbar() {
   return (
     <>
       {/* Mobile TopAppBar (< 1024px) */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex h-16 w-full items-center justify-between border-b border-hairline-border bg-white/80 px-4 shadow-sm backdrop-blur-md lg:hidden">
+      <header className="fixed top-0 left-0 right-0 z-40 flex h-16 w-full items-center justify-between border-b border-hairline-border bg-white/80 px-4 shadow-header backdrop-blur-md lg:hidden">
         {/* Left: Location Pin / Pincode editor */}
         <div className="flex items-center gap-1 min-w-[70px]">
           {editingPincode ? (
@@ -107,7 +107,7 @@ export function Navbar() {
           ) : (
             <button
               onClick={() => setEditingPincode(true)}
-              className="flex items-center gap-0.5 rounded-full bg-surface-soft px-2.5 py-1 text-xs font-bold text-ink transition-colors hover:bg-neutral-200"
+              className="flex items-center gap-0.5 rounded-full bg-surface-soft px-2.5 py-1 text-xs font-bold text-ink transition-colors hover:bg-chip"
             >
               <MapPin className="size-3.5 text-ink" />
               <span>{pincode}</span>
@@ -131,7 +131,7 @@ export function Navbar() {
           >
             <ShoppingCart className="size-5" />
             {count > 0 && (
-              <span className="absolute right-0.5 top-0.5 grid size-4.5 place-items-center rounded-full bg-brand text-[9px] font-extrabold text-ink shadow-sm">
+              <span className="absolute right-0.5 top-0.5 grid size-4.5 place-items-center rounded-full bg-brand text-[9px] font-extrabold text-ink shadow-card">
                 {count}
               </span>
             )}
@@ -155,7 +155,7 @@ export function Navbar() {
             <AccountButton />
             <Link
               href="/cart"
-              className="relative flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
+              className="relative flex cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
               aria-label={`Cart, ${count} items`}
             >
               <ShoppingCart className="size-5" aria-hidden />
@@ -193,7 +193,7 @@ export function Navbar() {
                 <Link
                   href={cat.href}
                   className={cn(
-                    "flex items-center gap-1 rounded-md px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink",
+                    "flex items-center gap-1 rounded-full px-3 py-3 text-[13px] font-bold text-neutral-700 transition-colors hover:text-ink",
                     openMenu === cat.label && "text-ink"
                   )}
                 >
@@ -222,13 +222,13 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: 8 }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="absolute left-0 top-full z-50 min-w-56 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
+                      className="absolute left-0 top-full z-50 min-w-56 rounded-panel border border-line bg-white p-2 shadow-card-hover"
                     >
                       {cat.children.map((child) => (
                         <Link
                           key={child.label}
                           href={child.href}
-                          className="block rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
+                          className="block rounded-full px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
                         >
                           {child.label}
                         </Link>
@@ -243,7 +243,7 @@ export function Navbar() {
       </header>
 
       {/* Mobile BottomNavBar (< 1024px) */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-around border-t border-hairline-border bg-white/90 pb-safe shadow-[0_-4px_12px_rgba(15,33,56,0.08)] rounded-t-2xl backdrop-blur-md lg:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-20 items-center justify-around border-t border-hairline-border bg-white/90 pb-safe shadow-[0_-4px_12px_rgba(17,17,17,0.08)] rounded-t-card-lg backdrop-blur-md lg:hidden">
         {/* Shop Tab */}
         <Link
           href="/"

@@ -14,7 +14,7 @@ export function FilterSheet({ facets, activeCount }: { facets: CatalogFacets; ac
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-bold transition-colors hover:border-ink lg:hidden"
+        className="flex items-center gap-2 rounded-full border border-neutral-200 px-3 py-2 text-sm font-bold transition-colors hover:border-ink lg:hidden"
       >
         <SlidersHorizontal className="size-4" aria-hidden />
         Filters
@@ -49,7 +49,7 @@ export function FilterSheet({ facets, activeCount }: { facets: CatalogFacets; ac
                 <h2 className="text-lg font-extrabold">Filters</h2>
                 <button
                   onClick={() => setOpen(false)}
-                  className="grid size-9 cursor-pointer place-items-center rounded-lg hover:bg-surface"
+                  className="grid size-9 cursor-pointer place-items-center rounded-full hover:bg-surface"
                   aria-label="Close"
                 >
                   <X className="size-5" />
@@ -58,7 +58,7 @@ export function FilterSheet({ facets, activeCount }: { facets: CatalogFacets; ac
               <FilterSidebar facets={facets} />
               <button
                 onClick={() => setOpen(false)}
-                className="mt-6 w-full cursor-pointer rounded-lg bg-ink py-3 text-sm font-extrabold uppercase tracking-widest text-white"
+                className="mt-6 w-full cursor-pointer rounded-full bg-ink py-3 text-sm font-extrabold uppercase tracking-widest text-white"
               >
                 Show results
               </button>

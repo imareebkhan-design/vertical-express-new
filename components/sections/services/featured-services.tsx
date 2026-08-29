@@ -30,12 +30,12 @@ function PackageCard({ pkg }: { pkg: ServicePackage }) {
       whileHover={{ y: -6 }}
       transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "group flex h-full w-[85vw] max-w-md shrink-0 snap-start flex-col justify-between overflow-hidden rounded-2xl p-6 shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-[420px] sm:p-8",
+        "group flex h-full w-[85vw] max-w-md shrink-0 snap-start flex-col justify-between overflow-hidden rounded-card-lg p-6 shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-[420px] sm:p-8",
         theme.card
       )}
     >
       <div>
-        <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-white/60 shadow-card backdrop-blur-sm">
+        <span className="mb-4 grid size-14 place-items-center rounded-panel bg-white/60 shadow-card backdrop-blur-sm">
           <Icon className="size-7 text-ink" strokeWidth={1.6} aria-hidden />
         </span>
         <h3 className="text-xl font-extrabold leading-tight sm:text-2xl">{pkg.name}</h3>

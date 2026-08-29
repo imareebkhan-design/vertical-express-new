@@ -4,6 +4,7 @@ import React, { useState, useTransition } from "react";
 import { Phone, Loader2, ArrowRight } from "lucide-react";
 import { sendOtp } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
+import { LoginHero } from "@/components/auth/login-hero";
 import { triggerHaptic } from "@/lib/native/haptics";
 
 interface MobileLoginViewProps {
@@ -44,6 +45,8 @@ export function MobileLoginView({ onOtpSent }: MobileLoginViewProps) {
 
   return (
     <div className="flex flex-col min-h-screen bg-surface px-6 pt-12 pb-8">
+      <LoginHero className="mb-8 -mx-6 h-[240px]" />
+
       {/* Header */}
       <div className="mb-8">
         <div className="flex size-12 items-center justify-center rounded-2xl bg-brand-deep/10 text-brand-deep mb-4">

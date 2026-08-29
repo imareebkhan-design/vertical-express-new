@@ -70,7 +70,7 @@ export function AddressForm({
             key={l}
             type="button"
             onClick={() => set("label", l)}
-            className={`rounded-lg border-2 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide capitalize transition-colors ${
+            className={`rounded-full border-2 px-3 py-1.5 text-xs font-extrabold uppercase tracking-wide capitalize transition-colors ${
               values.label === l ? "border-brand-deep bg-brand-deep text-white" : "border-neutral-200 hover:border-brand-deep"
             }`}
           >

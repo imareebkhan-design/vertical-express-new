@@ -21,7 +21,7 @@ export function AccountNav({ active }: { active: string }) {
             key={href}
             href={href}
             aria-current={isActive ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition-colors ${
               isActive ? "bg-brand-deep text-white" : "text-neutral-600 hover:bg-surface hover:text-ink"
             }`}
           >

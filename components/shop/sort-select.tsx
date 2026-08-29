@@ -33,7 +33,7 @@ export function SortSelect() {
       <select
         value={current}
         onChange={(e) => onChange(e.target.value)}
-        className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
+        className="cursor-pointer rounded-full border border-neutral-200 bg-white px-3 py-2 text-sm font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
       >
         {OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>

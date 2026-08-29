@@ -21,7 +21,7 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
         initial={{ opacity: 0.5 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.25 }}
-        className="relative aspect-square overflow-hidden rounded-2xl bg-tile"
+        className="relative aspect-square overflow-hidden rounded-panel bg-tile"
       >
         {current && !currentFailed ? (
           // eslint-disable-next-line @next/next/no-img-element -- runtime fallback needed
@@ -47,7 +47,7 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
               aria-label={`View image ${i + 1}`}
               aria-current={i === active}
               className={cn(
-                "size-16 shrink-0 overflow-hidden rounded-lg border-2 bg-tile transition-colors",
+                "size-16 shrink-0 overflow-hidden rounded-chip border-2 bg-tile transition-colors",
                 i === active ? "border-brand-deep" : "border-transparent hover:border-neutral-300"
               )}
             >

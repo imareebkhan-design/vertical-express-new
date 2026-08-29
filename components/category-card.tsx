@@ -22,7 +22,7 @@ export function CategoryCard({ category }: { category: Category }) {
       >
         <div className="relative aspect-square overflow-hidden rounded-[22px] bg-tile shadow-none transition-shadow duration-300 group-hover:shadow-card-hover">
           {category.bulk && (
-            <span className="absolute left-3 top-3 z-10 rounded-md bg-brand px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-card">
+            <span className="absolute left-3 top-3 z-10 rounded-full bg-brand px-2 py-1 text-[10px] font-extrabold uppercase tracking-wide text-ink shadow-card">
               Bulk Prices
             </span>
           )}

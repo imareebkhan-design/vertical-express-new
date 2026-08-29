@@ -14,7 +14,7 @@ const STATUS_META: Record<string, { label: string; className: string }> = {
 export function OrderStatusBadge({ status }: { status: string }) {
   const meta = STATUS_META[status] ?? { label: status, className: "bg-neutral-200 text-neutral-600" };
   return (
-    <span className={cn("inline-flex rounded-md px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide", meta.className)}>
+    <span className={cn("inline-flex rounded-full px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide", meta.className)}>
       {meta.label}
     </span>
   );

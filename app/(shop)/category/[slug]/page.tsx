@@ -32,7 +32,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const category = await getCategoryBySlug(slug);
   if (!category) return { title: "Category not found" };
   return {
-    title: category.seoTitle ?? `${category.name} | Vertical Express`,
+    // `absolute` bypasses the root layout's "%s | Vertical Express" template:
+    // seoTitle is already a complete, length-checked title (see
+    // scripts/category-seo.mjs), and letting the template append the brand a
+    // second time produced "Cement in Srinagar | Vertical Express | Vertical
+    // Express" and pushed long names back over Google's ~60 char limit.
+    title: { absolute: category.seoTitle ?? `${category.name} | Vertical Express` },
     description:
       category.seoDescription ??
       `Buy ${category.name.toLowerCase()} at trade prices delivered across Srinagar.`,

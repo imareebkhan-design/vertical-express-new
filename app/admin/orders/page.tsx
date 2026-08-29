@@ -45,7 +45,7 @@ export default async function AdminOrders({
             <Link
               key={f.key}
               href={f.key === "all" ? "/admin/orders" : `/admin/orders?status=${f.key}`}
-              className={`inline-flex h-8 items-center rounded-xl px-3.5 text-[12px] transition-colors ${
+              className={`inline-flex h-8 items-center rounded-panel px-3.5 text-[12px] transition-colors ${
                 on ? "bg-ink font-bold text-white" : "bg-chip font-semibold text-ink hover:bg-hush"
               }`}
             >
@@ -55,7 +55,7 @@ export default async function AdminOrders({
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[820px]">
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -133,7 +133,7 @@ export default async function AdminOrders({
                 pathname: "/admin/orders",
                 query: { ...(active.status ? { status: active.key } : {}), page: p },
               }}
-              className={`grid size-9 place-items-center rounded-xl text-[12px] tabular-nums transition-colors ${
+              className={`grid size-9 place-items-center rounded-chip text-[12px] tabular-nums transition-colors ${
                 p === page ? "bg-ink font-bold text-white" : "bg-chip font-semibold hover:bg-hush"
               }`}
             >

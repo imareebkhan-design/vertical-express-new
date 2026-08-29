@@ -45,11 +45,11 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
               className="relative rounded-card border border-hairline-border bg-white p-4 shadow-card"
             >
               <div className="mb-2 flex items-center gap-2">
-                <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase capitalize text-neutral-600">
+                <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase capitalize text-neutral-600">
                   {a.label}
                 </span>
                 {a.isDefault && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-brand/20 px-2 py-0.5 text-[11px] font-extrabold uppercase text-brand-deep">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand/20 px-2 py-0.5 text-[11px] font-extrabold uppercase text-brand-deep">
                     <Check className="size-3" /> Default
                   </span>
                 )}

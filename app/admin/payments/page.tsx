@@ -34,7 +34,7 @@ export default async function AdminPayments({
       </div>
 
       {gateway === "dummy" && (
-        <div className="flex items-start gap-3 rounded-2xl bg-ops-bad-tint p-4">
+        <div className="flex items-start gap-3 rounded-panel bg-ops-bad-tint p-4">
           <AlertTriangle className="mt-0.5 size-5 flex-none text-ops-bad" aria-hidden />
           <div>
             <p className="text-[13px] font-extrabold text-ops-bad">
@@ -49,7 +49,7 @@ export default async function AdminPayments({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-2xl bg-white p-4 shadow-card">
+      <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[860px]">
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -131,7 +131,7 @@ export default async function AdminPayments({
             <Link
               key={p}
               href={{ pathname: "/admin/payments", query: { page: p } }}
-              className={`grid size-9 place-items-center rounded-xl text-[12px] tabular-nums transition-colors ${
+              className={`grid size-9 place-items-center rounded-chip text-[12px] tabular-nums transition-colors ${
                 p === page ? "bg-ink font-bold text-white" : "bg-chip font-semibold hover:bg-hush"
               }`}
             >

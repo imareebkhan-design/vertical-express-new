@@ -45,7 +45,7 @@ export function WelcomePopup() {
             exit={{ scale: 0.9, y: 16, opacity: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="relative w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-card-hover"
+            className="relative w-full max-w-sm overflow-hidden rounded-panel bg-white shadow-card-hover"
           >
             <button
               onClick={dismiss}

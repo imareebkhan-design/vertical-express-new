@@ -64,7 +64,7 @@ export function CartView() {
               >
                 <Link
                   href={`/product/${line.productSlug}`}
-                  className="size-20 shrink-0 overflow-hidden rounded-lg bg-tile sm:size-24"
+                  className="size-20 shrink-0 overflow-hidden rounded-panel bg-tile sm:size-24"
                 >
                   {line.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -90,7 +90,7 @@ export function CartView() {
                     <button
                       onClick={() => removeItem(line.itemId)}
                       aria-label={`Remove ${line.title}`}
-                      className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-neutral-400 transition-colors hover:bg-danger/5 hover:text-danger"
+                      className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 transition-colors hover:bg-danger/5 hover:text-danger"
                     >
                       <Trash2 className="size-4" />
                     </button>

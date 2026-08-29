@@ -106,7 +106,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
       name: "Vertical Express",
       order_id: rzp.orderId,
       prefill: { email: email ?? undefined },
-      theme: { color: "#efc41a" },
+      theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async (r: any) => {
         const confirm = await confirmRazorpayPayment({
@@ -267,7 +267,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               Promo Code
             </label>
             {appliedCoupon ? (
-              <div className="flex items-center justify-between rounded-lg border border-brand-deep/30 bg-surface-soft/40 px-3 py-2 text-xs font-extrabold">
+              <div className="flex items-center justify-between rounded-full border border-brand-deep/30 bg-surface-soft/40 px-3 py-2 text-xs font-extrabold">
                 <span className="text-brand-deep">Code: {appliedCoupon}</span>
                 <button
                   type="button"
@@ -284,7 +284,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
                   placeholder="e.g. FIRST3"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-200 px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:border-brand-deep focus:outline-none"
+                  className="w-full rounded-full border border-line px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:border-brand-deep focus:outline-none"
                 />
                 <Button size="sm" type="button" onClick={applyCouponHandler} disabled={!couponCode.trim()}>
                   Apply
