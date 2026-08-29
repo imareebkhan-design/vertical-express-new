@@ -29,7 +29,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
 | ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | FIXED |
 | ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | PARTIAL |
-| ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | OPEN |
+| ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | PARTIAL |
 | ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | OPEN |
 | ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
 | ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | PARTIAL |
@@ -734,6 +734,27 @@ coupon change, and staff role change. No exceptions for "minor" actions.
 
 **Test required.** Every admin mutation produces exactly one audit row with correct
 before/after values.
+
+**Resolution (30 Aug 2026) — PARTIAL.** `AuditLog` (append-only) and `lib/services/audit.ts`
+added, with `recordAudit(tx, entry)` taking the transaction client so the audit row shares
+the mutation's fate. An audit written after the fact goes missing exactly when something
+has gone wrong; this cannot.
+
+Wired today: order status changes, inventory release on admin cancellation, booking status
+changes. Five tests cover one-row-per-mutation, correct before/after, no row on a refused
+transition, and — the load-bearing one — that a row does not survive a rolled-back
+transaction.
+
+**Why PARTIAL.** The issue also asks for price changes, refunds, coupon changes and staff
+role changes. None of those mutation paths exist yet: admin product management is
+read-only (ISS-019), there is no refund entity (ISS-025), and there is no staff model
+(ISS-027). Each must call `recordAudit` in the same transaction when it is built. This
+issue closes when ISS-019, ISS-025 and ISS-027 land audited.
+
+**Found while wiring.** `advanceBookingStatus` took no actor, ran no transaction, and never
+called `nextBookingStatuses` — the validation existed but was dead, so any booking could
+jump to any status, including backwards or straight to completed. Now validated,
+transactional and audited, matching how orders already worked. (Relates to ISS-014.)
 
 **Owner input required.** No.
 

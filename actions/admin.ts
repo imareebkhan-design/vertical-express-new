@@ -23,7 +23,13 @@ export async function adminAdvanceOrder(orderId: string, to: OrderStatus): Promi
 export async function adminAdvanceBooking(bookingId: string, to: BookingStatus): Promise<ActionResult<null>> {
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
-  await advanceBookingStatus(bookingId, to);
-  revalidatePath("/admin/bookings");
-  return succeed(null);
+  try {
+    await advanceBookingStatus(admin.id, bookingId, to);
+    revalidatePath("/admin/bookings");
+    return succeed(null);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (msg === "INVALID_TRANSITION") return fail("CONFLICT", "That status change isn't allowed");
+    return fail("NOT_FOUND", "Booking not found");
+  }
 }

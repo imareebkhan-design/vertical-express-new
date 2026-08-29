@@ -4,6 +4,7 @@ import type { OrderStatus, BookingStatus } from "@prisma/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { releaseOrderInventory } from "@/lib/services/orders";
+import { recordAudit } from "@/lib/services/audit";
 
 // Allowed forward transitions for the order fulfilment state machine.
 const ORDER_FLOW: Record<string, OrderStatus[]> = {
@@ -62,7 +63,28 @@ export async function advanceOrderStatus(
     // Restock on admin cancellation.
     if (to === "cancelled") {
       await releaseOrderInventory(tx, orderId, order.warehouseId);
+      // Stock moved. Recorded separately from the status change because it is a
+      // different kind of loss to investigate.
+      await recordAudit(tx, {
+        actorType: "admin",
+        actorId: actorUserId,
+        action: "inventory.released",
+        entityType: "order",
+        entityId: orderId,
+        before: { reason: "admin_cancellation", warehouseId: order.warehouseId },
+      });
     }
+    // Same transaction as the update above: an order cannot change state
+    // without leaving a trace.
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actorUserId,
+      action: "order.status_changed",
+      entityType: "order",
+      entityId: orderId,
+      before: { status: order.status },
+      after: { status: to },
+    });
   });
 
   if (to === "delivered") {
@@ -101,8 +123,29 @@ export function nextBookingStatuses(current: BookingStatus): BookingStatus[] {
   return [...forward, "cancelled"];
 }
 
-export async function advanceBookingStatus(bookingId: string, to: BookingStatus) {
-  await db.booking.update({ where: { id: bookingId }, data: { status: to } });
+export async function advanceBookingStatus(
+  actorUserId: string,
+  bookingId: string,
+  to: BookingStatus
+) {
+  const booking = await db.booking.findUnique({ where: { id: bookingId } });
+  if (!booking) throw new Error("NOT_FOUND");
+  // `nextBookingStatuses` existed but was never called: any booking could be
+  // moved to any status, including backwards or straight to completed. (ISS-014)
+  if (!nextBookingStatuses(booking.status).includes(to)) throw new Error("INVALID_TRANSITION");
+
+  await db.$transaction(async (tx) => {
+    await tx.booking.update({ where: { id: bookingId }, data: { status: to } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actorUserId,
+      action: "booking.status_changed",
+      entityType: "booking",
+      entityId: bookingId,
+      before: { status: booking.status },
+      after: { status: to },
+    });
+  });
 }
 
 export async function adminListProducts(page = 1, perPage = 30) {
