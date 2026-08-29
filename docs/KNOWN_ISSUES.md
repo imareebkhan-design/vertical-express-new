@@ -38,7 +38,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-021 | Rate limiter fails open | MEDIUM | Security | OPEN |
 | ISS-022 | No security headers or CSP | MEDIUM | Security | OPEN |
 | ISS-023 | No CI pipeline | MEDIUM | DevOps | FIXED |
-| ISS-024 | Migrations run automatically on production deploy | HIGH | DevOps | OPEN |
+| ISS-024 | Migrations run automatically on production deploy | HIGH | DevOps | FIXED |
 | ISS-025 | No refund entity or workflow | MEDIUM | Payments | OPEN |
 | ISS-026 | No GST invoice generation | HIGH | Legal/Finance | BLOCKED (CA) |
 | ISS-027 | Admin authorization via env allowlist only | MEDIUM | Security | OPEN |
@@ -1043,6 +1043,23 @@ environment.
 **Business impact.** A failed migration mid-deploy leaves the production database in an
 unknown state with no rehearsed recovery. On a database holding orders and payments, this
 is the highest-consequence operational risk in the project.
+
+**Resolution (30 Aug 2026).** `vercel-build` no longer writes to the database. It runs
+`scripts/predeploy-migrations.mjs`, which calls `prisma migrate status` and **fails the
+build** when migrations are pending, printing the command to apply them.
+
+Dropping `migrate deploy` on its own was not enough: a deploy could then ship code
+expecting a column the database lacks, moving the failure from build time to runtime in
+front of customers. Asking rather than writing catches that at build time instead.
+
+Applying migrations is now a deliberate act — `npm run db:deploy`, run by a person who is
+watching. `npm run db:status` reports without changing anything. `ALLOW_AUTO_MIGRATE=1`
+restores the old behaviour for a genuine emergency and warns loudly when used.
+
+Verified against a throwaway database: pending migrations exit 1, up-to-date exits 0.
+
+**Still open:** there is no staging environment, so migrations are still rehearsed only
+against a local database rather than a production-like one.
 
 **Recommended fix.** Remove `migrate deploy` from `vercel-build`. Run migrations as an
 explicit, reviewed step against staging first, then production. Take a manual snapshot

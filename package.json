@@ -15,7 +15,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "vercel-build": "prisma generate && node scripts/predeploy-migrations.mjs && next build",
     "cap:add:ios": "cap add ios",
     "cap:add:android": "cap add android",
     "cap:sync": "cap sync",
@@ -23,7 +23,8 @@
     "cap:android": "cap open android",
     "check:ds": "node scripts/check-design-system.mjs",
     "seo:categories": "node scripts/category-seo.mjs",
-    "seo:products": "node scripts/product-copy.mjs"
+    "seo:products": "node scripts/product-copy.mjs",
+    "db:status": "prisma migrate status"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
