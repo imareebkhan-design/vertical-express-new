@@ -72,6 +72,9 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         addressId,
         paymentMethod: method,
         idempotencyKey: idempotencyKey.current,
+        // Send the code, not the discount. The server re-resolves the coupon and
+        // recomputes the total; a client-supplied figure is never trusted.
+        couponCode: appliedCoupon,
       });
       if (!res.ok) {
         setError(res.error.message);

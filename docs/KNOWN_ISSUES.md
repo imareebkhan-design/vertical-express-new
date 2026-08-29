@@ -25,12 +25,12 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
 | ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | IN PROGRESS |
 | ISS-010 | COD collection and reconciliation missing | HIGH | Operations/Finance | OPEN |
-| ISS-011 | Coupon engine is unreachable dead code | MEDIUM | Pricing | OPEN |
+| ISS-011 | Coupon engine is unreachable dead code | HIGH | Pricing | FIXED |
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
 | ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | FIXED |
 | ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | PARTIAL |
 | ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | PARTIAL |
-| ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | OPEN |
+| ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | FIXED |
 | ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
 | ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | PARTIAL |
 | ISS-019 | Admin product management is read-only | HIGH | Admin | OPEN |
@@ -554,7 +554,7 @@ own message.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Pricing |
-| **Status** | OPEN |
+| **Status** | FIXED |
 
 **Description.** A complete `Coupon` model exists (type, value, minimum order, usage
 limits, per-user limits, first-N-orders, date window) and `Cart` carries a `couponId`
@@ -585,6 +585,28 @@ twice to one order.
 **Owner input required.** Only to confirm the promotion is real (Q10).
 
 ---
+
+**Correction (30 Aug 2026).** "Unreachable dead code" understated it. The path was
+reachable and actively misleading: `validateCoupon` returned discounted totals, the UI
+announced "Coupon applied!" and showed the reduced figure — then `placeOrder` was called
+without the code. `computeTotals` received `undefined`, `discountPaise` came back 0, and
+the customer was charged full price for the total they had just been shown as discounted.
+Severity raised MEDIUM → HIGH: a customer seeing one price and being charged another is
+the failure class CLAUDE.md ranks above all others.
+
+**Resolution.** `couponCode` is threaded UI → action → `placeOrder` → `computeTotals`. The
+client sends the CODE, never a discount figure; the server re-resolves the coupon and
+recomputes the total, so a tampered client cannot mint a discount. `Order.couponCode` — a
+column that existed but was never written — now records which coupon produced the
+discount.
+
+Three end-to-end tests pin it, the first being the one that would have caught the bug:
+the discount shown must equal the discount charged. Verified by stashing the fix: the test
+fails without it and passes with it.
+
+**Not covered.** `usageLimit`, `perUserLimit` and `firstNOrders` exist on `Coupon` and are
+still not enforced — a coupon can be redeemed more often than intended. Tracked separately
+rather than folded in silently.
 
 ## ISS-012 — No error monitoring, uptime checking or analytics
 
@@ -766,7 +788,7 @@ transactional and audited, matching how orders already worked. (Relates to ISS-0
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Cart |
-| **Status** | OPEN |
+| **Status** | FIXED |
 
 **Description.** `getCartSummary()` computes an `inStock` boolean per line, but
 `addItem()` validates only that the variant exists and is active — it never checks
@@ -793,6 +815,11 @@ checkout still rejects if stock changed after add.
 **Owner input required.** No.
 
 ---
+
+**Correction (30 Aug 2026).** This was already fixed in code and the register was stale.
+`lib/services/cart.ts` throws `ONLY_X_LEFT` and `OUT_OF_STOCK`, and seven tests in
+`cart-inventory.test.ts` cover add, update and cart-refresh clamping. Found by verifying
+the register against the code rather than trusting it — the third stale entry so far.
 
 ## ISS-017 — Legal pages missing; every footer link is dead
 

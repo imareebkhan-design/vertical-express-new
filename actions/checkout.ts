@@ -66,6 +66,8 @@ export async function placeOrder(input: {
   paymentMethod: "online" | "cod";
   notes?: string;
   idempotencyKey?: string;
+  /** Re-validated server-side; the client's discount figure is never trusted. */
+  couponCode?: string | null;
 }): Promise<ActionResult<PlaceOrderData>> {
   const supabase = await createSupabaseServer();
   const { data: authData } = await supabase.auth.getUser();
@@ -83,6 +85,7 @@ export async function placeOrder(input: {
       paymentMethod: method,
       notes: input.notes,
       idempotencyKey: input.idempotencyKey,
+      couponCode: input.couponCode,
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");

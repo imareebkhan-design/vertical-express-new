@@ -138,9 +138,17 @@ export async function placeOrder(params: {
   paymentMethod: PaymentMethodId;
   notes?: string;
   idempotencyKey?: string;
+  /**
+   * The coupon the customer applied at checkout. Previously this never reached
+   * here: the UI showed a discounted total from validateCoupon and then placed
+   * the order without it, so the customer saw one price and was charged
+   * another. The code is re-validated server-side below — the client is never
+   * trusted for a discount. (ISS-011)
+   */
+  couponCode?: string | null;
 }): Promise<PlaceOrderResult> {
   const metric = new MetricsTracker("checkout-service");
-  const { userId, addressId, paymentMethod, notes, idempotencyKey } = params;
+  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode } = params;
 
   trackEvent("checkout_started", { paymentMethod });
 
@@ -172,7 +180,7 @@ export async function placeOrder(params: {
     throw new Error("CART_EMPTY");
   }
 
-  const totals = await computeTotals(cart, address.pincode, address.state);
+  const totals = await computeTotals(cart, address.pincode, address.state, couponCode);
   if (!totals.serviceable) {
     metric.end("place_order_pincode_unserviceable");
     throw new Error("PINCODE_UNSERVICEABLE");
@@ -276,6 +284,9 @@ export async function placeOrder(params: {
           paymentMethod: (paymentMethod === "razorpay-test" || paymentMethod === "razorpay-live") ? "razorpay" : paymentMethod,
           subtotalPaise: totals.subtotalPaise,
           discountPaise: totals.discountPaise,
+          // Record which coupon produced the discount. The column existed but was
+          // never written, so a discounted order carried no trace of why. (ISS-011)
+          couponCode: totals.discountPaise > 0 ? couponCode?.trim().toUpperCase() ?? null : null,
           taxPaise: totals.taxPaise,
           deliveryFeePaise: totals.deliveryFeePaise,
           totalPaise: totals.totalPaise,
