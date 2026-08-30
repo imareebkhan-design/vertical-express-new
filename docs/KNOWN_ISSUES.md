@@ -1721,3 +1721,53 @@ exactly once and write exactly one status event.
 ≥16 random characters). Until it is, the endpoint fails closed and the cleanup does not run.
 
 **Fixed in.** `app/api/cron/cleanup-orders/route.ts` · `vercel.json`
+
+---
+
+## ISS-044 — Third-party branded imagery and category fallback defects in catalogue
+
+| | |
+|---|---|
+| **Severity** | **HIGH** |
+| **Area** | Catalogue / Legal / Brand Assets |
+| **Status** | **PARTIALLY RESOLVED — Product-level remediation completed (31 Aug 2026)** |
+
+**Description.** The storefront catalogue previously referenced real manufacturers' product
+photography and category composite images carrying prominent third-party trademarks under
+fictional Vertical Express branding without authorization. Furthermore, products lacking
+their own images fell back to category composites, and two products referenced a missing asset
+(`/categories/ceiling-fans-exhaust.webp`), rendering broken images.
+
+**Production Remediation Completed (31 Aug 2026).**
+- **Execution:** A dedicated, supervised transaction ([`scripts/remediate-product-images-iss044.mjs`](file:///Users/areebsmac/Virtical%20Express/homerun-clone/scripts/remediate-product-images-iss044.mjs))
+  remediated exactly **29 `ProductImage` rows** in the production database.
+- **Scope:** Changed **`ProductImage.url` ONLY** to the neutral placeholder (`/placeholder-product.webp`).
+- **Integrity & Concurrency Protection:** Guarded by raw-byte SHA-256 backup verification,
+  in-transaction validation of `(id, productId, slug, url)` across all 29 rows, and per-row
+  optimistic mutation predicates (`where: { id, url: expectedUrl }`).
+- **Invariants Verified Post-Execution:**
+  - 29/29 target rows verified pointing to `/placeholder-product.webp`.
+  - Total `ProductImage` count remains exactly **45**.
+  - `ProductImage.alt` remained completely untouched across all rows.
+  - No writes touched `Product`, `Category`, `Inventory`, `Order`, or pricing/stock tables.
+- **Authoritative Backup:** [`.image-backups/product-images-2026-08-30T20-36-06-876Z.json`](file:///Users/areebsmac/Virtical%20Express/homerun-clone/.image-backups/product-images-2026-08-30T20-36-06-876Z.json)
+  (SHA-256: `7a0dbc50c4bf77bd57b6aab4e73a88751620f22db9029a46f7aff775c6f32758`).
+- **Rollback Procedure:** If required, the before-state backup contains the exact pre-remediation
+  URLs in its `rows` and `restore` mapping to reverse the transaction.
+
+**Scope Status Breakdown:**
+- **COMPLETED:**
+  - 29 product-level image URLs remediated in production.
+  - 5 branded product files deleted from `public/products/`.
+  - 6 branded hero images deleted from `public/hero/`.
+  - Neutral placeholder (`public/placeholder-product.webp`) generated and committed.
+  - Asset guard ([`scripts/check-assets.mjs`](file:///Users/areebsmac/Virtical%20Express/homerun-clone/scripts/check-assets.mjs)) installed to enforce provenance and prevent regressions in CI.
+  - `docs/ASSET_PROVENANCE.md` created as the authoritative registry of asset origins.
+  - `prisma/seed.ts` reverted to leave `ProductImage` untouched on updates (§9/§20).
+- **REMAINING / DEFERRED:**
+  - **10 Category Tiles:** Category composites with manufacturer marks remain in `public/categories/`
+    and are rendered via `Category.imageUrl`.
+  - **4 Minor-Mark Assets (F3 Scope):** `/products/ss-kitchen-sink.webp` and 3 category images
+    (`kitchen-sinks-faucets`, `conduits-gi-boxes`, `plywood-mdf-hdhmr`) retained by owner decision.
+  - **Missing Category Asset:** `public/categories/ceiling-fans-exhaust.webp` remains tracked as missing.
+
