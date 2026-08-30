@@ -55,6 +55,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-040 | Production build fails intermittently on connection-pool exhaustion | HIGH | DevOps | FIXED |
 | ISS-041 | Rate limiter was not atomic under concurrency | HIGH | Security | FIXED |
 | ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | OPEN |
+| ISS-043 | Cleanup cron endpoint is unauthenticated and unscheduled | MEDIUM | Security/Operations | FIXED |
 
 ---
 
@@ -1642,3 +1643,64 @@ sufficient — this does not justify adding a job runner (DEC-011 defers Inngest
 window are not.
 
 **Owner input required.** No.
+
+---
+
+## ISS-043 — Cleanup cron endpoint is unauthenticated and unscheduled
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Security/Operations |
+| **Status** | **FIXED** |
+
+**Description.** Found during the production-configuration review, and not previously
+catalogued. `GET /api/cron/cleanup-orders` cancels expired `pending_payment` orders and
+returns their stock to inventory. It shipped with **no authentication of any kind** — no
+secret, no token, no header check — and `middleware.ts` does not gate it, because
+`PROTECTED_PREFIXES` covers only `/account`, `/checkout` and `/admin`. Separately, no
+`vercel.json` existed, so **the job was never scheduled and never ran**.
+
+**Evidence.** `app/api/cron/cleanup-orders/route.ts` — a bare `export async function GET()`
+taking no request argument. `cleanupExpiredPendingOrders` had exactly one caller: this
+route. No `crons` configuration existed anywhere in the repository.
+
+**User impact.** The security half was bounded: the endpoint accepts **no inputs**, so an
+attacker could not name an order, target a customer, or widen the 15-minute window — only
+orders already eligible for cancellation were ever touched, and the status-guarded
+`updateMany` prevented double-release. The realistic harm was denial of service: an
+unauthenticated, unthrottled endpoint opening up to 20 interactive transactions per call
+against a pooler sized at `connection_limit=5`.
+
+**Business impact.** The unscheduled half was the more damaging one. `placeOrder` decrements
+inventory when an order is created, and nothing returned it. Every abandoned checkout would
+have held its stock permanently, so sellable quantity would drain with no matching sales and
+no physical count could ever reconcile.
+
+**Resolution.** The route now authenticates with `CRON_SECRET`, which Vercel sends
+automatically as an `Authorization: Bearer …` header on every cron invocation — the
+platform's own mechanism, so no new dependency or bespoke scheme. Comparison is
+timing-safe. It **fails closed**: an unset `CRON_SECRET` denies rather than allows,
+following the same reasoning accepted for the OTP limiter in DEC-016. The check runs before
+any database access, so an unauthorised caller cannot generate pool load. A `vercel.json`
+schedules the job every 5 minutes (owner decision, 31 Aug 2026); this requires a Pro plan,
+as Hobby caps cron at once per day and **fails deployment** on a more frequent expression.
+
+**`cleanupExpiredPendingOrders` was not modified.** It was already transactional per order
+and already idempotent via its `status: 'pending_payment'` guard, which is exactly what
+Vercel's documented "cron delivery may miss or duplicate runs" requirement demands. The
+idempotency and concurrency tests below assert that pre-existing behaviour and passed
+without any change to it.
+
+**Test.** `lib/services/__tests__/cron-cleanup.test.ts` — 8 tests: missing header, wrong
+token, bare secret without the `Bearer` scheme, and unset secret all return 401 while
+mutating nothing; an authorised call cancels and releases exactly the ordered quantity;
+an order inside the window survives; repeated and concurrent authorised runs release stock
+exactly once and write exactly one status event.
+
+**Owner input required.** Answered — every 5 minutes, 15-minute expiry window unchanged.
+
+**Production requirement.** `CRON_SECRET` must be set in Vercel Production (Sensitive,
+≥16 random characters). Until it is, the endpoint fails closed and the cleanup does not run.
+
+**Fixed in.** `app/api/cron/cleanup-orders/route.ts` · `vercel.json`
