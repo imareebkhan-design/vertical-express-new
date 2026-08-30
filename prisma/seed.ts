@@ -49,13 +49,23 @@ interface SeedProduct {
   specs?: { label: string; value: string }[];
 }
 
+/**
+ * Neutral, brand-free stand-in for a product without its own photograph (ISS-044).
+ *
+ * The fallback used to be `/categories/${p.category}.webp`, which quietly substituted a
+ * category composite — and those composites carry real manufacturer marks. That one line
+ * turned 6 branded files into 39 branded product listings. A product without an image
+ * now shows a neutral placeholder rather than someone else's product.
+ */
+const PRODUCT_PLACEHOLDER = "/placeholder-product.webp";
+
 const PRODUCTS: SeedProduct[] = [
   // Deals (match existing homepage cards and images)
-  { slug: "ppc-cement-50kg", title: "PPC Cement, 50 kg Bag", brand: "BuildPro", category: "cement", unitLabel: "per bag", priceR: 320, compareAtR: 335, isDeal: true, image: "/products/ppc-cement-50kg.webp", tiers: [[10, 315], [30, 312], [100, 310]], specs: [{ label: "Grade", value: "PPC (Fly-ash based)" }, { label: "Weight", value: "50 kg" }] },
-  { slug: "waterproof-primer-20l", title: "Interior Waterproofing Primer, 20 L", brand: "AquaSeal", category: "waterproofing", unitLabel: "per can", priceR: 4899, compareAtR: 6799, isDeal: true, image: "/products/waterproof-primer-20l.webp", specs: [{ label: "Coverage", value: "≈ 220 sq ft/L" }, { label: "Volume", value: "20 L" }] },
-  { slug: "distemper-white-20kg", title: "Acrylic Distemper Paint, White, 20 kg", brand: "HomeCrown", category: "painting", unitLabel: "per bucket", priceR: 1549, compareAtR: 2499, isDeal: true, image: "/products/distemper-white-20kg.webp" },
-  { slug: "gp-sealant-white", title: "General Purpose Sealant, White", brand: "GripFast", category: "fevicol", unitLabel: "per tube", priceR: 199, compareAtR: 645, isDeal: true, image: "/products/gp-sealant-white.webp" },
-  { slug: "inverter-battery-combo", title: "1050 VA Inverter & 180 Ah Battery Combo", brand: "PowerCell", category: "home-appliances-power-backup", unitLabel: "per combo", priceR: 24499, compareAtR: 25599, isDeal: true, image: "/products/inverter-battery-combo.webp" },
+  { slug: "ppc-cement-50kg", title: "PPC Cement, 50 kg Bag", brand: "BuildPro", category: "cement", unitLabel: "per bag", priceR: 320, compareAtR: 335, isDeal: true, tiers: [[10, 315], [30, 312], [100, 310]], specs: [{ label: "Grade", value: "PPC (Fly-ash based)" }, { label: "Weight", value: "50 kg" }] },
+  { slug: "waterproof-primer-20l", title: "Interior Waterproofing Primer, 20 L", brand: "AquaSeal", category: "waterproofing", unitLabel: "per can", priceR: 4899, compareAtR: 6799, isDeal: true, specs: [{ label: "Coverage", value: "≈ 220 sq ft/L" }, { label: "Volume", value: "20 L" }] },
+  { slug: "distemper-white-20kg", title: "Acrylic Distemper Paint, White, 20 kg", brand: "HomeCrown", category: "painting", unitLabel: "per bucket", priceR: 1549, compareAtR: 2499, isDeal: true },
+  { slug: "gp-sealant-white", title: "General Purpose Sealant, White", brand: "GripFast", category: "fevicol", unitLabel: "per tube", priceR: 199, compareAtR: 645, isDeal: true },
+  { slug: "inverter-battery-combo", title: "1050 VA Inverter & 180 Ah Battery Combo", brand: "PowerCell", category: "home-appliances-power-backup", unitLabel: "per combo", priceR: 24499, compareAtR: 25599, isDeal: true },
   { slug: "ss-kitchen-sink", title: "Stainless Steel Kitchen Sink, Single Bowl", brand: "FlowMax", category: "kitchen-sinks-faucets", unitLabel: "per piece", priceR: 2899, compareAtR: 4299, isDeal: true, image: "/products/ss-kitchen-sink.webp", specs: [{ label: "Size", value: "24 x 18 in" }, { label: "Finish", value: "Satin" }] },
 
   // Cement & civil
@@ -185,7 +195,7 @@ async function main() {
         }`.trim(),
         images: {
           create: {
-            url: p.image ?? `/categories/${p.category}.webp`,
+            url: p.image ?? PRODUCT_PLACEHOLDER,
             alt: p.title,
             isPrimary: true,
           },

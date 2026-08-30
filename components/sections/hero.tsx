@@ -38,7 +38,9 @@ const SLIDES: Slide[] = [
       "Cement, ply, hardware, paint and fittings — small items from our store within the hour, heavy loads by truck.",
     cta: "Shop now",
     theme: "yellow",
-    productImage: "/products/ppc-cement-50kg.webp",
+    // No product image: the previous one was a Priya Cement bag, including their ISI
+    // licence number, used to sell a "BuildPro" product (ISS-044). Falls back to the
+    // neutral icon treatment below until we have imagery of stock we actually hold.
   },
   {
     id: "wires",
@@ -47,7 +49,7 @@ const SLIDES: Slide[] = [
     subtitle: "Top electrical brands in stock. Order by the coil or by the box.",
     cta: "Explore electrical",
     theme: "dark",
-    productImage: "/hero/polycab-optima.png",
+    // No product image: the previous one was a Polycab product photograph (ISS-044).
   },
   {
     id: "kitchen",

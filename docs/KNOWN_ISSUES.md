@@ -470,6 +470,23 @@ number — a local trade business with no visible phone number will not be trust
 **Test required.** A content lint or test asserting the string "educational purposes"
 does not appear anywhere in the built output.
 
+---
+
+### ISS-008 / ISS-044 addendum — Login hero brand names in text (31 Aug 2026, FIXED)
+
+The login hero (`components/auth/login-hero.tsx`) rendered six third-party brand names
+as visible text in addition to using their product photography. The on-screen labels
+read: "ACC Suraksha Power", "Dr. Fixit Pidiproof LW+ 101", "Polycab Optima+",
+"Asian Paints Tractor Uno", "Asian Paints SmartCare", "Loctite General Purpose Sealant".
+None of these products exist in the Vertical Express catalogue and no authorisation was
+held for the marks or photography.
+
+The remediation pass (ISS-044) initially tracked only the image references and missed
+the text labels — a gap discovered and corrected in the same session. The component was
+replaced with six generic material categories (CEMENT / WATERPROOFING / ELECTRICAL /
+PAINT / HARDWARE / PLUMBING) using the neutral placeholder image. No manufacturer name
+appears in any rendered content. Status: **FIXED**.
+
 **Owner input required.** **YES, blocking** — Q1 (contact details), Q10 Part A (per-claim
 confirmation).
 

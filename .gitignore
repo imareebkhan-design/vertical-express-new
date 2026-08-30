@@ -54,3 +54,6 @@ supabase/.temp/
 
 # Category SEO rollback snapshots — contain live data
 .seo-backups/
+
+# Image remediation backups — operational data, never committed (ISS-044)
+.image-backups/

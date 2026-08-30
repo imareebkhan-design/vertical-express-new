@@ -105,7 +105,7 @@ export const CATEGORIES: Category[] = [
 export const DEALS: Product[] = [
   {
     id: "ppc-cement-50kg",
-    image: "/products/ppc-cement-50kg.webp",
+    image: "/placeholder-product.webp",
     title: "PPC Cement, 50 kg Bag",
     brandLine: "Trusted trade brand",
     price: 320,
@@ -116,7 +116,7 @@ export const DEALS: Product[] = [
   },
   {
     id: "waterproof-primer-20l",
-    image: "/products/waterproof-primer-20l.webp",
+    image: "/placeholder-product.webp",
     title: "Interior Waterproofing Primer, 20 L",
     brandLine: "Advanced damp protection",
     price: 4899,
@@ -126,7 +126,7 @@ export const DEALS: Product[] = [
   },
   {
     id: "distemper-white-20kg",
-    image: "/products/distemper-white-20kg.webp",
+    image: "/placeholder-product.webp",
     title: "Acrylic Distemper Paint, White, 20 kg",
     brandLine: "Smooth matt finish",
     price: 1549,
@@ -136,7 +136,7 @@ export const DEALS: Product[] = [
   },
   {
     id: "gp-sealant-white",
-    image: "/products/gp-sealant-white.webp",
+    image: "/placeholder-product.webp",
     title: "General Purpose Sealant, White",
     brandLine: "Multi-surface silicone",
     price: 199,
@@ -146,7 +146,7 @@ export const DEALS: Product[] = [
   },
   {
     id: "inverter-battery-combo",
-    image: "/products/inverter-battery-combo.webp",
+    image: "/placeholder-product.webp",
     title: "1050 VA Inverter & 180 Ah Battery Combo",
     brandLine: "Home power backup",
     price: 24499,

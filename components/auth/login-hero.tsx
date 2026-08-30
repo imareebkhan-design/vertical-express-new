@@ -43,25 +43,29 @@ interface HeroProduct {
   speed: SpeedClass;
 }
 
+const PLACEHOLDER = "/placeholder-product.webp";
+
 /**
- * Product facts come from the artboard. The cement bag is named from the
- * artwork itself — the authored caption read "Gold Water Shield PPC", but the
- * photographed bag is Suraksha Power. Its grade is not legible on the bag and
- * is therefore not claimed.
+ * Material categories, not products (ISS-044).
+ *
+ * This carousel previously showed six manufacturer product photographs and named
+ * them in text — ACC Suraksha Power, Dr. Fixit Pidiproof LW+ 101, Polycab Optima+,
+ * Asian Paints Tractor Uno and SmartCare, Loctite General Purpose Sealant. None of
+ * those products exist in our catalogue, and we hold no authorization for the marks
+ * or the photography, so the login screen was advertising other companies' goods.
+ *
+ * What is left is deliberately generic: a material category and a neutral shape. No
+ * brand is named, no specific product is claimed, and the delivery speeds are the
+ * ones the catalogue already models. The scales vary per slot so the sequence still
+ * reads as a composition rather than a repeat.
  */
 const PRODUCTS: HeroProduct[] = [
-  { src: "/hero/acc-suraksha-power.png", ar: 0.632, fill: 0.82,
-    brand: "ACC", name: "Suraksha Power, 50 kg", speed: "scheduled" },
-  { src: "/hero/drfixit-pidiproof.png", ar: 0.6421, fill: 0.8,
-    brand: "DR. FIXIT", name: "Pidiproof LW+ 101, 20 L", speed: "express" },
-  { src: "/hero/polycab-optima.png", ar: 1.2274, fill: 0.62,
-    brand: "POLYCAB", name: "Optima+ 1.5 sq mm, 90 m", speed: "express" },
-  { src: "/hero/asianpaints-tractor-uno.png", ar: 0.9445, fill: 0.72,
-    brand: "ASIAN PAINTS", name: "Tractor Uno Distemper, 20 kg", speed: "express" },
-  { src: "/hero/loctite-sealant.png", ar: 0.2825, fill: 0.88,
-    brand: "LOCTITE", name: "General Purpose Sealant, 280 ml", speed: "express" },
-  { src: "/hero/asianpaints-smartcare.png", ar: 0.7811, fill: 0.8,
-    brand: "ASIAN PAINTS", name: "SmartCare Damp Sheath, 20 L", speed: "express" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.62, brand: "CEMENT", name: "Bagged cement", speed: "scheduled" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.5, brand: "WATERPROOFING", name: "Waterproofing compounds", speed: "express" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.7, brand: "ELECTRICAL", name: "Wires & cables", speed: "express" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.55, brand: "PAINT", name: "Interior & exterior paint", speed: "express" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.66, brand: "HARDWARE", name: "Adhesives & sealants", speed: "express" },
+  { src: PLACEHOLDER, ar: 1, fill: 0.58, brand: "PLUMBING", name: "Pipes & fittings", speed: "scheduled" },
 ];
 
 const TOTAL_SECONDS = 15;
