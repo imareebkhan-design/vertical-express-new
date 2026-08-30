@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { withSentryConfig } from "@sentry/nextjs";
 import { siteIsIndexable } from "./lib/site-indexing";
 
 /**
@@ -210,7 +211,7 @@ export function securityHeaders(isDev: boolean) {
  *
  * The phase is supplied by Next itself and is unambiguous.
  */
-export default function config(phase: string): NextConfig {
+function config(phase: string): NextConfig {
   const isDev = phase === PHASE_DEVELOPMENT_SERVER;
 
   return {
@@ -255,3 +256,28 @@ export default function config(phase: string): NextConfig {
     },
   };
 }
+
+/**
+ * Sentry build-time integration (ISS-012).
+ *
+ * `withSentryConfig` supports a function config, so the phase-driven config above
+ * is passed through unchanged — the CSP and the header set it returns are not
+ * touched by this wrapper.
+ *
+ * `tunnelRoute` is deliberately NOT enabled. It proxies events through our own
+ * origin to dodge ad-blockers, which would mean excluding the tunnel path from
+ * `middleware.ts` and changing what `connect-src` has to allow. The CSP already
+ * derives the Sentry ingest origin from the DSN, so events reach Sentry directly
+ * without it. Worth revisiting only if reports actually go missing.
+ *
+ * Source-map upload activates when `SENTRY_AUTH_TOKEN` is present; until then the
+ * build simply skips it, so production stack traces will point at minified code.
+ * That is the "readable stack traces" follow-up, not part of first-error setup.
+ */
+export default withSentryConfig(config, {
+  org: "vertical-express",
+  project: "javascript-nextjs",
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  widenClientFileUpload: true,
+  silent: !process.env.CI,
+});
