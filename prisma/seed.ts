@@ -181,16 +181,7 @@ async function main() {
   for (const p of PRODUCTS) {
     const product = await db.product.upsert({
       where: { slug: p.slug },
-      update: {
-        title: p.title,
-        isDeal: !!p.isDeal,
-        images: {
-          updateMany: {
-            where: { isPrimary: true },
-            data: { url: p.image ?? PRODUCT_PLACEHOLDER, alt: p.title },
-          },
-        },
-      },
+      update: { title: p.title, isDeal: !!p.isDeal },
       create: {
         slug: p.slug,
         title: p.title,
