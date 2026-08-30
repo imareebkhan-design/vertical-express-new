@@ -41,7 +41,11 @@ export async function sendOtp(rawIdentifier: string): Promise<ActionResult<{ cha
         ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
         : value;
 
-      const limit = await rateLimit(`otp:${formattedIdentifier}`, 5, 15 * 60 * 1000); // 5 per 15 min
+      // Fails closed (ISS-021, DEC-016): if the limiter is unreachable we refuse
+      // to send rather than risk OTP-bombing a victim and paying for every SMS.
+      const limit = await rateLimit(`otp:${formattedIdentifier}`, 5, 15 * 60 * 1000, {
+        failClosed: true,
+      }); // 5 per 15 min
       if (!limit.allowed) {
         const mins = Math.ceil(limit.retryAfterMs / 60000);
         return fail("RATE_LIMITED", `Too many attempts. Try again in ${mins} minute${mins > 1 ? "s" : ""}.`);

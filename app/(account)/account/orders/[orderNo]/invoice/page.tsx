@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Printer } from "lucide-react";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { getOrderByNo, type OrderAddressSnapshot } from "@/lib/services/orders";
 import { formatPaise } from "@/lib/money";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
+import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
 
 export const metadata: Metadata = {
   title: "Tax Invoice | Vertical Express",
@@ -70,15 +69,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
         <a href={`/account/orders/${order.orderNo}`} className="text-xs font-bold text-neutral-600 hover:text-ink">
           ← Back to Order Details
         </a>
-        <Button onClick={() => undefined} className="flex items-center gap-2" id="print-btn">
-          <Printer className="size-4" /> Print / Download PDF
-        </Button>
-
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `document.getElementById('print-btn')?.addEventListener('click', function() { window.print(); });`,
-          }}
-        />
+        <PrintInvoiceButton className="flex items-center gap-2" />
       </div>
 
       {/* Invoice Document */}

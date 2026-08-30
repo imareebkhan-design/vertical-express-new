@@ -35,8 +35,8 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | PARTIAL |
 | ISS-019 | Admin product management is read-only | HIGH | Admin | OPEN |
 | ISS-020 | Search has no typo tolerance | MEDIUM | Search | OPEN |
-| ISS-021 | Rate limiter fails open | MEDIUM | Security | OPEN |
-| ISS-022 | No security headers or CSP | MEDIUM | Security | OPEN |
+| ISS-021 | Rate limiter fails open | MEDIUM | Security | FIXED |
+| ISS-022 | No security headers or CSP | MEDIUM | Security | FIXED |
 | ISS-023 | No CI pipeline | MEDIUM | DevOps | FIXED |
 | ISS-024 | Migrations run automatically on production deploy | HIGH | DevOps | FIXED |
 | ISS-025 | No refund entity or workflow | MEDIUM | Payments | OPEN |
@@ -53,6 +53,8 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-038 | `font-sans` never resolved; site rendered in the system font | MEDIUM | Design system | FIXED |
 | ISS-039 | Amber used as body text in ~148 places | MEDIUM | Design system | OPEN |
 | ISS-040 | Production build fails intermittently on connection-pool exhaustion | HIGH | DevOps | FIXED |
+| ISS-041 | Rate limiter was not atomic under concurrency | HIGH | Security | FIXED |
+| ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | OPEN |
 
 ---
 
@@ -1003,7 +1005,7 @@ actually call things.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Security |
-| **Status** | OPEN |
+| **Status** | **FIXED** — `failClosed` option added; the OTP bucket sets it |
 
 **Description.** `rateLimit()` wraps its logic in a try/catch that returns
 `{ allowed: true }` on any error. The comment explains the intent — never block a
@@ -1028,6 +1030,16 @@ OTP bucket → denied.
 
 **Owner input required.** No.
 
+**Resolution.** `rateLimit()` takes a fourth `options` argument with `failClosed`,
+defaulting to `false` so search, serviceability and booking keep failing open — correct
+for them. `actions/auth.ts` passes `failClosed: true` for the OTP bucket, per DEC-016.
+A limiter outage there now denies with a full-window `retryAfterMs` instead of allowing.
+Covered by `lib/services/__tests__/rate-limit.test.ts`, including a test that asserts the
+OTP caller actually passes the option — the limiter being correct is useless if its one
+critical caller forgets to ask for it.
+
+**Fixed in.** `lib/services/rate-limit.ts` · `actions/auth.ts`
+
 ---
 
 ## ISS-022 — No security headers or Content Security Policy
@@ -1036,7 +1048,7 @@ OTP bucket → denied.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Security |
-| **Status** | OPEN |
+| **Status** | **FIXED** — full header set enforced; CSP is not nonce-based, by owner decision |
 
 **Description.** `next.config.ts` defines no `headers()`. There is no CSP, no
 `X-Content-Type-Options`, no `Referrer-Policy`, no `Permissions-Policy`, no
@@ -1060,6 +1072,40 @@ and microphone, `frame-ancestors 'none'`. Verify no `unsafe-inline` for scripts.
 **Test required.** A header-presence test in CI; target grade A on securityheaders.com.
 
 **Owner input required.** No.
+
+**Resolution.** `next.config.ts` now exports a function of the build **phase** and returns
+`headers()` for `/(.*)`: a Content Security Policy, `X-Content-Type-Options: nosniff`,
+`Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` denying camera,
+microphone, geolocation and browsing-topics, and `X-Frame-Options: DENY` alongside CSP
+`frame-ancestors 'none'`. HSTS continues to come from Vercel.
+
+**Deviation from the recommendation above, owner-approved.** The CSP is deliberately
+**not** nonce-based. Next applies nonces during server-side rendering, so a nonce forces
+every page to render dynamically and "Static optimization and Incremental Static
+Regeneration (ISR) are disabled". That would cost all 96 prerendered pages, which is the
+wrong trade on mid-tier Android over degrading 4G. `script-src` therefore carries
+`'unsafe-inline'`, which is also what covers the three JSON-LD blocks — their content is
+dynamic, so a static hash cannot. The single executable inline script the app shipped (the
+invoice print handler) was replaced with a client component, so no application code
+depends on `'unsafe-inline'` any more.
+
+`https://*.razorpay.com` is allowed in `script-src`, `frame-src`, `connect-src` and
+`img-src`. The wildcard is deliberate: Razorpay publishes no authoritative CSP host list,
+and browser verification showed the payment modal frame loads from **`api.razorpay.com`**,
+not `checkout.razorpay.com` — a host-specific policy would have silently broken payment.
+
+**Verified.** Production build emits the correct policy (no `'unsafe-eval'`, no `ws:`,
+`upgrade-insecure-requests` present) and still prerenders 96/96 pages. In a browser:
+`checkout.razorpay.com/v1/checkout.js` loads and `window.Razorpay` is a function; the
+modal iframe loads from `api.razorpay.com` with zero CSP violations; JSON-LD parses on
+home and product pages; home, product, cart, login and services report no violations.
+
+**Not verified — blocked.** A fully rendered Razorpay payment modal, which needs a real
+key (ISS-002 refuses to boot a production server on the dummy gateway), and the invoice
+print button, which sits behind authentication.
+
+**Fixed in.** `next.config.ts` · `app/(account)/account/orders/[orderNo]/invoice/page.tsx`
+· `components/account/print-invoice-button.tsx`
 
 ---
 
@@ -1517,3 +1563,82 @@ has runtime consequences for serverless.
 **Owner input required.** No.
 
 ---
+
+---
+
+## ISS-041 — Rate limiter was not atomic under concurrency
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Security |
+| **Status** | **FIXED** |
+
+> **Numbering note.** The owner asked for this to be filed as ISS-027. That number was
+> already taken by *Admin authorization via env allowlist only*, so it was filed here
+> instead rather than overwrite a live security entry.
+
+**Description.** Found while fixing ISS-021, and not previously catalogued. `rateLimit()`
+read the current window with `findUnique` and then wrote it with a separate `update` or
+`upsert`. That is a read-modify-write race: concurrent callers all read the same `hits`,
+all evaluated themselves as under the limit, and all proceeded.
+
+**Evidence.** A test against the old implementation: **20 concurrent calls against a limit
+of 5 allowed all 20**. The failure is not a partial leak but a total one — every caller
+took the "no row yet" branch and reset the window, so the limiter did nothing at all under
+a cold burst.
+
+**User impact.** The limiter's stated protection did not exist in the exact circumstance it
+was written for. A burst is what a limiter is *for*; a limiter that only holds under
+sequential traffic is decorative.
+
+**Business impact.** Compounds ISS-021. Once phone OTP is live (ISS-006), a concurrent
+burst against one number bypasses the 5-per-15-minutes cap entirely — uncapped SMS spend
+and a harassment vector, with the per-message cost paid by us.
+
+**Resolution.** The read and the write are now one statement — `INSERT ... ON CONFLICT
+(bucket) DO UPDATE ... RETURNING` — so concurrent callers serialise on the row lock. All
+time arithmetic moved into the database (`LOCALTIMESTAMP`) as part of the same fix: the
+first attempt passed JavaScript `Date` values into `$queryRaw` against a
+`TIMESTAMP`-without-time-zone column, and the two ends disagreed about the time zone. On
+an IST machine that skewed the window by 5h30m, which would have made an active window
+look long expired and reset the counter on nearly every call.
+
+**Test.** `lib/services/__tests__/rate-limit.test.ts` — 20 concurrent calls against a limit
+of 5 allow exactly 5. Confirmed to fail against the previous implementation before the fix
+was applied.
+
+**Fixed in.** `lib/services/rate-limit.ts`
+
+---
+
+## ISS-042 — `rate_limits` rows are never reclaimed
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Area** | Security/Data |
+| **Status** | OPEN |
+
+**Description.** Noticed while fixing ISS-021 and ISS-041; pre-existing and not made worse
+by that work. Nothing ever deletes from `rate_limits`. The table gains a permanent row per
+distinct bucket key, and two of the four buckets are keyed by client IP
+(`svc:${ip}`, `search:${ip}`), so the row count grows with unique visitors and never falls.
+
+**Evidence.** `lib/services/rate-limit.ts` writes only. No cleanup job, cron or TTL exists
+anywhere in the repository.
+
+**User impact.** None today.
+
+**Business impact.** Slow unbounded growth in a Supabase table, and gradually slower index
+lookups on a query that sits in the OTP and search paths. Immaterial at launch volume;
+worth closing before it is measured in millions of rows.
+
+**Recommended fix.** A periodic delete of rows whose `window_start` is older than the
+longest window in use (currently one hour). A Vercel cron calling a small route handler is
+sufficient — this does not justify adding a job runner (DEC-011 defers Inngest).
+
+**Test required.** Rows older than the retention horizon are removed; rows inside an active
+window are not.
+
+**Owner input required.** No.
