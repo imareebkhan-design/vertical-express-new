@@ -35,7 +35,7 @@ const HEX = /#[0-9A-Fa-f]{6}\b/g;
 const ALLOWED_HEX_VALUES = new Set(["#EDAF1C", "#111111", "#F3F2F0"]);
 const ALLOWED_HEX_FILES = [
   "components/auth/login-hero.tsx",      // inline styles in a canvas scene; values are system tokens
-  "app/(auth)/login/page.tsx",           // Clerk's appearance API takes literal hex, not CSS vars
+  "components/auth/sign-in-form.tsx",    // Google's brand mark — its colours are fixed by Google, not by us
   "components/admin/bi/charts.tsx",      // chart series need literal hex, not CSS vars
   "app/global-error.tsx",                // replaces the root layout; cannot use Tailwind
   "lib/services/email.ts",               // HTML email; no stylesheet, inline hex is the only option

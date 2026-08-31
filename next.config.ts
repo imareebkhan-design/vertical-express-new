@@ -43,35 +43,27 @@ const posthogOrigin =
  */
 const RAZORPAY = "https://*.razorpay.com";
 
-/**
- * Clerk's Frontend API origin, derived from the publishable key rather than
- * hardcoded.
- *
- * The key is `pk_<test|live>_<base64 of "frontend-api-host$">`, so the host the
- * browser will actually be sent to is already in the value the app is
- * configured with. Reading it here means the development and production
- * instances each allow their own host with no second setting to keep in sync —
- * the same reasoning the Supabase and Sentry origins above follow.
- *
- * Clerk also serves avatars from img.clerk.com and, when bot protection is on,
- * runs Cloudflare Turnstile in a frame. Both are included: a missing host does
- * not degrade, it silently blocks sign-in.
- */
-function clerkFrontendOrigin(publishableKey: string | undefined): string | null {
-  if (!publishableKey) return null;
-  const encoded = publishableKey.replace(/^pk_(test|live)_/, "");
-  if (encoded === publishableKey) return null;
-  try {
-    const host = Buffer.from(encoded, "base64").toString("utf8").replace(/\$+$/, "");
-    return /^[a-z0-9.-]+$/i.test(host) && host.includes(".") ? `https://${host}` : null;
-  } catch {
-    return null;
-  }
-}
 
-const clerkOrigin = clerkFrontendOrigin(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-const CLERK_IMAGES = "https://img.clerk.com";
-const CLERK_TURNSTILE = "https://challenges.cloudflare.com";
+/**
+ * Firebase Auth's origins.
+ *
+ * Sign-in touches more hosts than it looks: identitytoolkit and
+ * securetoken for the auth API, the project's own authDomain for the OAuth
+ * handshake, apis.google.com for the Google sign-in client, and
+ * gstatic/recaptcha for the invisible bot check phone auth requires.
+ *
+ * A missing host here does not degrade — it blanks the sign-in form and the
+ * only clue is a console CSP violation. That is exactly how the previous
+ * provider's widget failed silently, so the list is explicit rather than
+ * discovered later.
+ */
+const FIREBASE_AUTH_DOMAIN = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+  ? `https://${process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}`
+  : null;
+const GOOGLE_APIS = "https://*.googleapis.com";
+const GOOGLE_CLIENT = "https://apis.google.com";
+const GSTATIC = "https://www.gstatic.com";
+const RECAPTCHA = "https://www.google.com https://www.recaptcha.net";
 
 /**
  * Content Security Policy — ISS-022.
@@ -107,15 +99,16 @@ export function contentSecurityPolicy(isDev: boolean): string {
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
     RAZORPAY,
     posthogOrigin,
-    clerkOrigin,
-    CLERK_TURNSTILE,
+    GOOGLE_CLIENT,
+    GSTATIC,
+    RECAPTCHA,
   ]
     .filter(Boolean)
     .join(" "),
   `style-src 'self' 'unsafe-inline'`,
   // Supabase Storage is the provisioned image host (DEC-011); product imagery
   // moves there with admin product management (ISS-019).
-  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, CLERK_IMAGES]
+  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, GSTATIC, "https://*.googleusercontent.com"]
     .filter(Boolean)
     .join(" "),
   `font-src 'self' data:`,
@@ -125,13 +118,18 @@ export function contentSecurityPolicy(isDev: boolean): string {
     posthogOrigin,
     supabaseOrigin,
     sentryOrigin,
-    clerkOrigin,
+    GOOGLE_APIS,
+    "https://securetoken.googleapis.com",
+    "https://identitytoolkit.googleapis.com",
+    FIREBASE_AUTH_DOMAIN,
     // Turbopack HMR runs over a websocket in development.
     isDev ? "ws: wss:" : null,
   ]
     .filter(Boolean)
     .join(" "),
-  [`frame-src 'self'`, RAZORPAY, clerkOrigin, CLERK_TURNSTILE].filter(Boolean).join(" "),
+  [`frame-src 'self'`, RAZORPAY, FIREBASE_AUTH_DOMAIN, GOOGLE_CLIENT, RECAPTCHA]
+    .filter(Boolean)
+    .join(" "),
   `worker-src 'self' blob:`,
   `media-src 'self'`,
   `manifest-src 'self'`,

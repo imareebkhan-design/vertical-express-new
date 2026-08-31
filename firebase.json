@@ -1,0 +1,17 @@
+{
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "verticalexpress.in",
+      "www.verticalexpress.in"
+    ],
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Vertical Express",
+        "supportEmail": "hello@verticalexpress.in"
+      }
+    }
+  }
+}

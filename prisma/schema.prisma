@@ -11,12 +11,15 @@ datasource db {
 /// Mirrors Supabase auth.users (id = auth.uid). Populated on first login.
 model User {
   id        String    @id @db.Uuid
-  /// Clerk's user id (`user_...`). Added alongside the UUID primary key rather
-  /// than replacing it: every Address, Order, Cart and Wallet row points at
-  /// `id`, and changing a primary key's type under live foreign keys is not a
-  /// migration, it is a rewrite. Nullable through the expand phase so existing
-  /// rows stay valid while auth moves across.
-  clerkId   String?   @unique @map("clerk_id")
+  /// Clerk's user id. Retained through the expand phase of the move to Firebase
+  /// so a rollback does not lose the mapping; drops in a later release once
+  /// nothing reads it (expand → migrate → contract).
+  clerkId    String?  @unique @map("clerk_id")
+  /// Firebase Auth's uid — the current identity mapping. Added alongside the
+  /// UUID primary key, never replacing it: Address, Order, Cart and Wallet all
+  /// reference `id`, and retyping a primary key under live foreign keys is a
+  /// rewrite, not a migration.
+  firebaseUid String? @unique @map("firebase_uid")
   phone     String?   @unique
   email     String?   @unique
   role      Role      @default(customer)

@@ -1,50 +1,49 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE } from "@/lib/auth/session-cookie";
 
 /**
- * Session handling and route protection.
+ * Route protection and the request-id header.
  *
- * Clerk replaces the Supabase session refresh that used to run here. What has
- * not changed is the request-id header: every request gets one, it is threaded
- * into the structured logs, and it is how a customer's report is traced back to
- * a specific server action. That must keep working regardless of who issues
- * sessions.
+ * This checks only for the *presence* of the session cookie, not its validity.
+ * That is deliberate: verifying a Firebase session cookie needs the Admin SDK,
+ * which does not run on the Edge runtime, and forcing this file onto Node would
+ * put a cold start in front of every request including static assets.
  *
- * /admin is also gated server-side in its own layout against the admin
- * allowlist. This is defence in depth — an unauthenticated request is bounced
- * before any admin code runs.
+ * Presence is enough for what middleware is for — redirecting a signed-out
+ * visitor to sign-in instead of showing them an empty account page. It is NOT
+ * the security boundary. Every protected page and every server action resolves
+ * identity through getAuthUserId(), which verifies the cookie properly and
+ * returns null for a forged one. A fabricated cookie gets you a redirect to a
+ * page that then treats you as signed out.
+ *
+ * /admin is additionally gated in its own layout against the admin allowlist.
  */
-const isProtected = createRouteMatcher(["/account(.*)", "/checkout(.*)", "/admin(.*)"]);
+const PROTECTED = [/^\/account(\/|$)/, /^\/checkout(\/|$)/, /^\/admin(\/|$)/];
 
-export default clerkMiddleware(async (auth, request) => {
+export function middleware(request: NextRequest) {
   const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
 
-  if (isProtected(request)) {
-    const { userId } = await auth();
-    if (!userId) {
-      /* Carry the intended destination so sign-in returns the customer to the
-         checkout they were in the middle of, not to the home page. */
-      const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.search = "";
-      url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
-    }
+  const { pathname } = request.nextUrl;
+  if (PROTECTED.some((p) => p.test(pathname)) && !request.cookies.get(SESSION_COOKIE)) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.search = "";
+    /* Carry the destination so sign-in returns the customer to the checkout
+       they were in the middle of, not to the home page. */
+    url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
   }
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set("x-request-id", requestId);
   return response;
-});
+}
 
 export const config = {
   matcher: [
-    // Skip static assets and Next internals; run on pages and server actions.
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)",
     "/(api|trpc)(.*)",
-    // Clerk's auto-proxy path — must be matched for the handshake to work.
-    "/__clerk/:path*",
   ],
 };

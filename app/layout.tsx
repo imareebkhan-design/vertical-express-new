@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
@@ -80,19 +79,11 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        {/* Inside <body>, not wrapping <html> — Clerk injects into the body
-            and placing it outside breaks hydration. */}
-        {/* Telemetry off rather than opening connect-src for it. Clerk beacons
-            usage to clerk-telemetry.com, which the CSP blocks; the app has no
-            need for that data and widening the policy to admit a third-party
-            analytics endpoint is the wrong trade. Sign-in is unaffected. */}
-        <ClerkProvider telemetry={false}>
-          <SmoothScrollProvider>
-            <CartProvider>
-              <NativeShellProvider>{children}</NativeShellProvider>
-            </CartProvider>
-          </SmoothScrollProvider>
-        </ClerkProvider>
+        <SmoothScrollProvider>
+          <CartProvider>
+            <NativeShellProvider>{children}</NativeShellProvider>
+          </CartProvider>
+        </SmoothScrollProvider>
       </body>
     </html>
   );
