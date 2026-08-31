@@ -93,7 +93,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             className="absolute right-3 top-3 grid size-8 cursor-pointer place-items-center rounded-full bg-white/90 shadow-card backdrop-blur transition-transform hover:scale-110 active:scale-95"
           >
             <Heart
-              className={cn("size-4 transition-colors", saved ? "fill-danger text-danger" : "text-neutral-500")}
+              className={cn("size-4 transition-colors", saved ? "fill-ink text-ink" : "text-neutral-500")}
             />
           </button>
         )}

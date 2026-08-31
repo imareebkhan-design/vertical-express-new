@@ -215,7 +215,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             onClick={handleWishlistToggle}
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
-            <Heart className={cn("size-4.5 transition-colors", saved ? "fill-danger text-danger" : "text-ink/40")} />
+            <Heart className={cn("size-4.5 transition-colors", saved ? "fill-ink text-ink" : "text-ink/40")} />
           </button>
         </div>
       </div>
@@ -292,7 +292,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
               </span>
             )}
             {discount && (
-              <span className="rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] font-extrabold text-danger">
+              <span className="rounded-md bg-amber-soft px-1.5 py-0.5 text-[10px] font-extrabold text-ink">
                 {discount}% OFF
               </span>
             )}

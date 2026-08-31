@@ -10,6 +10,7 @@ import { MobileProductCard } from "../home/mobile-product-card";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { rupeesToPaise } from "@/lib/money";
+import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
 
 interface MobileCategoryViewProps {
   category: Category;
@@ -253,6 +254,12 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           Filters {activeFilterCount > 0 && `(${activeFilterCount})`}
         </button>
       </div>
+
+      {/* The artboard's lead rail — how a customer narrows to a grade or type
+          before scrolling a grid. Web has had it since the category work; this
+          is the phone catching up, on the surface where the decision is
+          actually made. */}
+      <MobileAttributeRail facets={initialResult.facets} slug={slug} />
 
       {/* Products list grid */}
       <div className="flex-1">

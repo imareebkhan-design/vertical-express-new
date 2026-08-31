@@ -71,6 +71,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-056 | Two different fabricated GSTINs shipped as the company's registration | HIGH | Legal/Content | FIXED |
 | ISS-057 | The Slots screen has no backing model — delivery windows do not exist | HIGH | Fulfilment | OPEN |
 | ISS-058 | The storefront's default sort ranks by an always-empty `ratingCount` | MEDIUM | Catalog | PARTIAL |
+| ISS-059 | `--color-danger` red is used for promotions and favourites, not just errors | MEDIUM | Design | PARTIAL |
 
 ---
 
@@ -2384,3 +2385,41 @@ nine units outrank two, and a hundred units across abandoned and cancelled order
 move the ranking at all.
 
 **Owner input required.** Yes, for the default sort.
+
+---
+
+## ISS-059 — Red is used for promotions and favourites, not just errors
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Design |
+| **Status** | PARTIAL — the semantically wrong uses are fixed; error states remain |
+
+**Description.** The app system board is explicit: *"No red either: urgency is carried by
+amber-soft, absence by grey."* ISS-047's sweep removed raw Tailwind greens and reds, and
+`check:ds` now blocks those. It does not catch `--color-danger`, which is a defined system
+token — so 43 uses across 22 customer-facing files survived it.
+
+The token is doing three unrelated jobs:
+
+| Use | Correct? |
+|---|---|
+| Discount badge — "-8% OFF" | **No.** A promotion is not a danger |
+| Wishlist heart fill | **No.** A saved item is affection, not alarm |
+| Validation and failure messages | Arguable — the board says urgency is amber-soft |
+| Destructive controls (remove, delete) | Arguable — weight is defensible here |
+
+**Fixed.** The two that are semantically wrong, and the most visible — the discount badge
+now uses amber-soft with ink text (the design's own "notice this" treatment), and a saved
+heart fills ink. Both appear on every product card in the app.
+
+**Still open.** The error and destructive states, roughly 38 uses. Each needs a judgement
+the sweep should not make blind: an error a customer must not miss is a different problem
+from a delete button, and replacing every one with amber-soft would flatten that
+distinction. Worth doing deliberately, in one pass, with the screens open.
+
+**Not extended to the guard yet.** `check:ds` cannot ban `text-danger` until those are
+resolved, or the build breaks on 38 files.
+
+**Owner input required.** No — a design call, but a considered one.

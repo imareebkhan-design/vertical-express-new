@@ -99,7 +99,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
         {/* Badges Overlay */}
         <div className="flex items-center justify-between gap-1 mb-2">
           {discount && item.inStock ? (
-            <span className="rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] font-extrabold text-danger">
+            <span className="rounded-md bg-amber-soft px-1.5 py-0.5 text-[10px] font-extrabold text-ink">
               -{discount}% OFF
             </span>
           ) : <div />}
@@ -144,7 +144,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             <Heart
               className={cn(
                 "size-3.5 transition-colors",
-                saved ? "fill-danger text-danger" : "text-ink/40"
+                saved ? "fill-ink text-ink" : "text-ink/40"
               )}
             />
           </button>
