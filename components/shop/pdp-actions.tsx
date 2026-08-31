@@ -70,7 +70,6 @@ export function PdpActions({ product }: { product: ProductDetail }) {
             {off}% off
           </span>
         )}
-        <span className="text-sm font-semibold text-ink-500">{product.unitLabel}</span>
       </div>
 
       {/* Tax treatment. Rates and HSN codes are owner-confirmed per category in

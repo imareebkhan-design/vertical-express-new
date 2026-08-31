@@ -72,7 +72,10 @@ export function CartView() {
                   </span>
                 )}
                 <span className="text-[12px] font-medium text-ink-500">
-                  {group.cartLines.reduce((n, l) => n + l.qty, 0)} items
+                  {(() => {
+                    const n = group.cartLines.reduce((sum, l) => sum + l.qty, 0);
+                    return `${n} ${n === 1 ? "item" : "items"}`;
+                  })()}
                 </span>
               </div>
               <p className="mb-3 text-[12px] font-medium leading-4 text-ink-500">

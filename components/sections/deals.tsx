@@ -129,7 +129,9 @@ function DealCard({ item }: { item: CatalogItem }) {
         </div>
 
         <div className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          per {item.unitLabel || "unit"} · MRP {formatINR(compareAtRupees)}
+          {/* unitLabel already reads "per bag" / "per can" — prefixing another
+              "per" produced "per per can". */}
+          {item.unitLabel || "per unit"} · MRP {formatINR(compareAtRupees)}
         </div>
 
         <div className="mt-2.5 pt-1">
