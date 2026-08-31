@@ -103,12 +103,6 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               -{discount}% OFF
             </span>
           ) : <div />}
-
-          {item.hasBulkTiers && item.inStock && (
-            <span className="rounded-md bg-brand-deep/10 px-1.5 py-0.5 text-[10px] font-bold text-brand-deep">
-              Bulk Savings
-            </span>
-          )}
         </div>
 
         {/* Product Image Container */}

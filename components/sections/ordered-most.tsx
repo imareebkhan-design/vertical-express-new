@@ -68,7 +68,7 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
         href={`/product/${item.slug}`}
         className="relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] text-ink-700 no-underline"
         style={{
-          backgroundColor: isExpress ? "var(--t-elec, #EBF1F5)" : "var(--t-civil, #F0ECE6)",
+          backgroundColor: isExpress ? "var(--t-elec)" : "var(--t-civil)",
         }}
       >
         {item.imageUrl && item.imageUrl !== "/placeholder-product.webp" ? (

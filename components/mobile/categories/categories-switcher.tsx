@@ -36,7 +36,7 @@ const GROUPS: GroupDefinition[] = [
   {
     title: "Civil & Interiors",
     theme: "civil",
-    themeColor: "var(--t-civil, #F0ECE6)",
+    themeColor: "var(--t-civil)",
     categories: [
       {
         name: "Cement",
@@ -111,7 +111,7 @@ const GROUPS: GroupDefinition[] = [
   {
     title: "Furniture & Architectural Hardware",
     theme: "furn",
-    themeColor: "var(--t-furn, #F3ECE2)",
+    themeColor: "var(--t-furn)",
     categories: [
       {
         name: "Hinges, Channels & Handles",
@@ -173,7 +173,7 @@ const GROUPS: GroupDefinition[] = [
   {
     title: "Electrical",
     theme: "elec",
-    themeColor: "var(--t-elec, #EBF1F5)",
+    themeColor: "var(--t-elec)",
     categories: [
       {
         name: "Wires, MCB & Distribution",
@@ -263,7 +263,7 @@ const GROUPS: GroupDefinition[] = [
   {
     title: "Plumbing, Sanitary & Bath",
     theme: "plumb",
-    themeColor: "var(--t-plumb, #E8EFF2)",
+    themeColor: "var(--t-plumb)",
     categories: [
       {
         name: "CPVC Pipes & Overhead Tanks",

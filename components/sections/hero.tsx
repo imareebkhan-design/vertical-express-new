@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Clock, MapPin, ShieldCheck, Truck, Zap } from "lucide-react";
+import { ChevronRight, MapPin, Truck, Zap } from "lucide-react";
 
 export function Hero() {
   const [pincode, setPincode] = useState("190014");
@@ -76,7 +76,7 @@ export function Hero() {
           {/* Card 1: Civil (Cement / Bag) */}
           <div
             className="absolute left-4 top-14 flex h-[232px] w-[200px] -rotate-7 items-center justify-center rounded-[36px] bg-civil-soft shadow-card transition-transform hover:scale-105"
-            style={{ backgroundColor: "var(--t-civil, #F0ECE6)" }}
+            style={{ backgroundColor: "var(--t-civil)" }}
           >
             <div className="flex flex-col items-center gap-2 text-ink-700">
               <svg className="size-24 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -89,7 +89,7 @@ export function Hero() {
           {/* Card 2: Paint (Furn / Paint bucket) */}
           <div
             className="absolute left-[160px] top-4 flex h-[260px] w-[220px] rotate-4 items-center justify-center rounded-[40px] bg-furn-soft shadow-card-hover transition-transform hover:scale-105"
-            style={{ backgroundColor: "var(--t-furn, #F3ECE2)" }}
+            style={{ backgroundColor: "var(--t-furn)" }}
           >
             <div className="flex flex-col items-center gap-2 text-ink-700">
               <svg className="size-26 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -102,7 +102,7 @@ export function Hero() {
           {/* Card 3: Elec (Wire coil) */}
           <div
             className="absolute left-[310px] top-24 flex h-[206px] w-[176px] rotate-10 items-center justify-center rounded-[32px] bg-elec-soft shadow-card transition-transform hover:scale-105"
-            style={{ backgroundColor: "var(--t-elec, #EBF1F5)" }}
+            style={{ backgroundColor: "var(--t-elec)" }}
           >
             <div className="flex flex-col items-center gap-2 text-ink-700">
               <svg className="size-20 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">

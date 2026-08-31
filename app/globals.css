@@ -30,6 +30,18 @@
   --color-hush: #EFEDE9;     /* hover fills */
   --color-line: #E7E4DF;     /* 1.5px soft rules — never a hard 1px border */
 
+  /* Trade tints — the quiet background wash behind a category's tile or card.
+     Warm for the building trades, cool for the wet and electrical ones, so a
+     category reads by temperature before it reads by label.
+
+     These were referenced as `var(--t-civil, #F0ECE6)` in 15 places before they
+     existed, so every one silently used its hex fallback and bypassed the token
+     layer. Values are the fallbacks, unchanged — nothing renders differently. */
+  --t-civil: #F0ECE6;        /* cement, masonry, hardware */
+  --t-furn: #F3ECE2;         /* plywood, fittings, joinery */
+  --t-elec: #EBF1F5;         /* wires, switches, lighting */
+  --t-plumb: #E8EFF2;        /* pipes, tanks, sanitary */
+
   /* Accent */
   --color-amber: #EDAF1C;
   --color-amber-deep: #D69B12; /* hover only */

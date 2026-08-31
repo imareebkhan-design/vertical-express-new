@@ -328,25 +328,6 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           </div>
         )}
 
-        {/* Tier Pricing Grid */}
-        {selectedVariant.bulkTiers.length > 0 && (
-          <div className="rounded-2xl border border-brand/20 bg-brand/5 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-brand-deep/10 px-1.5 py-0.5 text-[9px] font-extrabold text-brand-deep uppercase leading-none">
-                Wholesale Price Tiers
-              </span>
-            </div>
-            <div className="divide-y divide-brand/10">
-              {selectedVariant.bulkTiers.map((tier, idx) => (
-                <div key={idx} className="flex justify-between py-2 text-xs text-ink/80">
-                  <span className="font-bold">Buy {tier.minQty}+ {product.unitLabel}s</span>
-                  <span className="font-extrabold text-brand-deep">{formatPaise(tier.pricePaise)} / {product.unitLabel}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {/* Serviceability / Delivery Check */}
         <div className="border-t border-mist/10 pt-4 space-y-3">
           <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">

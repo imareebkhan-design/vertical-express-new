@@ -168,10 +168,10 @@ const CATEGORY_TILES: CategoryTile[] = [
 ];
 
 const THEME_BG = {
-  civil: "var(--t-civil, #F0ECE6)",
-  elec: "var(--t-elec, #EBF1F5)",
-  plumb: "var(--t-plumb, #E8EFF2)",
-  furn: "var(--t-furn, #F3ECE2)",
+  civil: "var(--t-civil)",
+  elec: "var(--t-elec)",
+  plumb: "var(--t-plumb)",
+  furn: "var(--t-furn)",
 };
 
 export function Categories() {

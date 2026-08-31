@@ -353,7 +353,67 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
           </BottomSheetLayout>
         </div>
       ) : (
-        children
+        <div className="flex flex-col min-h-screen">
+          {children}
+          <BottomSheetLayout
+            isOpen={isLocationOpen}
+            onClose={() => {
+              triggerHaptic("light");
+              setIsLocationOpen(false);
+            }}
+            title="Choose Delivery Location"
+          >
+            <form onSubmit={handlePincodeSubmit} className="space-y-4">
+              <p className="text-xs text-ink/60">
+                Enter your 6-digit site pincode to check instant delivery availability.
+              </p>
+
+              <div className="flex items-center rounded-2xl border border-mist/40 bg-surface px-4 py-3 focus-within:border-brand-deep">
+                <MapPin className="size-4 text-brand-deep mr-2" />
+                <input
+                  type="tel"
+                  maxLength={6}
+                  value={pincodeInput}
+                  onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
+                  placeholder="e.g. 190001"
+                  className="w-full bg-transparent text-sm font-bold text-ink outline-none placeholder:text-ink/30"
+                  disabled={isCheckingSvc}
+                  autoFocus
+                />
+              </div>
+
+              {locError && (
+                <div className="flex items-start gap-1.5 text-xs font-semibold text-danger">
+                  <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+                  <span>{locError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleUseCurrentLocation}
+                  disabled={isCheckingSvc}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-mist/30 bg-surface px-4 py-3.5 text-xs font-bold text-ink shadow-xs active:scale-95 disabled:opacity-50"
+                >
+                  <Navigation className="size-3.5 text-brand-deep" />
+                  GPS Pin
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCheckingSvc || pincodeInput.length !== 6}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-deep px-4 py-3.5 text-xs font-bold text-white shadow-md active:scale-95 disabled:opacity-50"
+                >
+                  {isCheckingSvc ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    "Confirm Pincode"
+                  )}
+                </button>
+              </div>
+            </form>
+          </BottomSheetLayout>
+        </div>
       )}
     </NativeShellContext.Provider>
   );
