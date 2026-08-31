@@ -7,6 +7,9 @@ import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
+import { planShipments } from "@/lib/shipment-plan";
+import { SpeedChip } from "@/components/ui/speed-chip";
+import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CheckoutTotals } from "@/lib/services/checkout";
@@ -157,18 +160,31 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
     }
   };
 
+  /* The same split the cart shows and checkout persists — one rule, in
+     lib/shipment-plan.ts. */
+  const byId = new Map(summary.lines.map((l) => [l.itemId, l]));
+  const shipments = planShipments(
+    summary.lines.map((l) => ({ ref: l.itemId, qty: l.qty, categoryIsBulk: l.categoryIsBulk }))
+  ).map((sh) => {
+    const lines = sh.lines.map((pl) => byId.get(pl.ref)).filter(Boolean) as typeof summary.lines;
+    return {
+      ...sh,
+      lines,
+      itemCount: lines.reduce((n, l) => n + l.qty, 0),
+      totalPaise: lines.reduce((n, l) => n + l.lineTotalPaise, 0),
+    };
+  });
+  const shipmentCount = shipments.length;
+
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       <div className="space-y-6">
-        {/* Step 1 — Contact */}
-        <Section step={1} title="Contact">
-          <p className="text-sm font-bold text-neutral-600">
+        {/* The design leads with the site, not the account — a contractor is
+            buying for a place, and the address is the thing that changes. */}
+        <Section step={1} title="Delivery site">
+          <p className="mb-3 text-xs font-bold text-neutral-500">
             Signed in as <span className="text-ink">{email ?? "your account"}</span>
           </p>
-        </Section>
-
-        {/* Step 2 — Delivery */}
-        <Section step={2} title="Delivery address">
           {addresses.length === 0 ? (
             <Link href="/account/addresses">
               <Button variant="outline">
@@ -225,17 +241,97 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           )}
         </Section>
 
-        {/* Step 3 — Payment */}
-        <Section step={3} title="Payment">
+        {/* Step 2 — one slot per shipment. */}
+        <Section step={2} title="Slot for each shipment">
+          <p className="mb-4 text-[13px] font-medium leading-[18.5px] text-ink-700">
+            {shipmentCount > 1
+              ? "Two shipments, two arrival times. Nothing waits for the slower one."
+              : "One shipment."}
+          </p>
+
+          <div className="space-y-3">
+            {shipments.map((sh) => (
+              <div key={sh.sequence} className="rounded-[20px] border border-line bg-canvas p-4">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <SpeedChip speed={sh.speedClass} />
+                  {shipmentCount > 1 && (
+                    <span className="text-[13px] font-bold text-ink">
+                      Shipment {sh.sequence} of {shipmentCount}
+                    </span>
+                  )}
+                  <span className="text-[12px] font-medium text-ink-500">
+                    {sh.itemCount} {sh.itemCount === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                <p className="mt-2 text-[12.5px] font-medium leading-[17px] text-ink-500">
+                  {sh.speedClass === "express"
+                    ? "Small goods, out from the Srinagar store."
+                    : "Heavy material, by truck."}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* The artboard puts a date strip and four two-hour windows here. There
+              is no Slot model and Shipment.promisedAt is null until one exists,
+              so a picker would take a choice and quietly drop it. */}
+          <p className="mt-3 text-[12.5px] font-medium leading-[17px] text-ink-700">
+            <PlaceholderValue pending="slot booking is not built — no Slot model, and ops has not confirmed the windows">
+              Choosing a delivery window is not available yet. We will call to
+              arrange the truck.
+            </PlaceholderValue>
+          </p>
+        </Section>
+
+        {/* Step 3 — GSTIN for input credit. */}
+        <Section step={3} title="Business details">
+          <p className="text-[13px] font-medium leading-[18.5px] text-ink-700">
+            Buying for a business? A GSTIN on the invoice lets you claim input
+            credit.{" "}
+            <PlaceholderValue pending="no Order.gstin field and no Invoice model — the number would be discarded">
+              GST invoicing is not issued yet, so we are not collecting a GSTIN
+              at checkout.
+            </PlaceholderValue>
+          </p>
+        </Section>
+
+        {/* Step 4 — Payment */}
+        <Section step={4} title="Payment">
           <div className="space-y-3">
             <PayOption
               active={method === "cod"}
               onSelect={() => !codDisabled && setMethod("cod")}
               icon={Banknote}
-              title="Pay on delivery"
-              caption={codDisabled ? "Unavailable for this pincode" : "Recommended · pay cash/UPI on delivery"}
+              title="Cash on delivery"
+              caption={
+                codDisabled
+                  ? "Unavailable for this pincode"
+                  : shipmentCount > 1
+                    ? "Pay each driver at their delivery — two payments"
+                    : "Pay the driver at your gate"
+              }
               disabled={codDisabled}
             />
+
+            {/* Two shipments means two drivers and two separate cash handovers.
+                Saying so here is the difference between a buyer having the right
+                money at the gate and an argument on site. The split is real —
+                the same grouping the order is placed with. */}
+            {method === "cod" && !codDisabled && shipmentCount > 1 && (
+              <p className="rounded-[16px] bg-amber-soft px-4 py-3 text-[12.5px] font-medium leading-[18px] text-ink">
+                This order splits as{" "}
+                {shipments.map((sh, i) => (
+                  <span key={sh.sequence}>
+                    <strong className="font-bold tabular-nums">
+                      {formatPaise(sh.totalPaise)}
+                    </strong>{" "}
+                    to the {i === 0 ? "first" : "second"} driver
+                    {i < shipments.length - 1 ? " and " : ""}
+                  </span>
+                ))}
+                .
+              </p>
+            )}
             <PayOption
               active={method === "online"}
               onSelect={() => setMethod("online")}
@@ -253,16 +349,34 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
       <aside className="h-fit lg:sticky lg:top-24">
         <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
           <h2 className="text-lg font-extrabold">Order summary</h2>
-          <ul className="mt-4 space-y-2">
-            {summary.lines.map((l) => (
-              <li key={l.itemId} className="flex justify-between gap-2 text-sm font-bold">
-                <span className="min-w-0 truncate text-neutral-600">
-                  {l.title} × {l.qty}
-                </span>
-                <span>{formatPaise(l.lineTotalPaise)}</span>
-              </li>
+          {/* Grouped the way the goods travel, so the summary and the slot step
+              describe the same two deliveries. */}
+          <div className="mt-4 space-y-3">
+            {shipments.map((sh) => (
+              <div key={sh.sequence}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-2">
+                    <SpeedChip speed={sh.speedClass} />
+                    <span className="text-[11px] font-semibold text-ink-500">
+                      {sh.itemCount} {sh.itemCount === 1 ? "item" : "items"}
+                    </span>
+                  </span>
+                  <span className="text-[13px] font-extrabold tabular-nums text-ink">
+                    {formatPaise(sh.totalPaise)}
+                  </span>
+                </div>
+                <ul className="mt-1.5 space-y-1">
+                  {sh.lines.map((l) => (
+                    <li key={l.itemId} className="flex justify-between gap-2 text-[12px] font-semibold">
+                      <span className="min-w-0 truncate text-ink-500">
+                        {l.title} × {l.qty}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
+          </div>
 
           {/* Coupon Code Section */}
           <div className="mt-4 border-t border-hairline-border pt-4">
