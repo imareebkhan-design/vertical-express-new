@@ -5,7 +5,13 @@
  * Gated, transactional remediation of 29 ProductImage rows referencing
  * unlicensed third-party branded product photos and category composite images.
  *
+ * Usage:
+ *   node scripts/remediate-product-images-iss044.mjs           # DRY RUN (default)
+ *   node scripts/remediate-product-images-iss044.mjs --execute  # live write
+ *
  * Requirements:
+ * - Dry-run is the default. Pass --execute to perform the write.
+ * - Asserts DATABASE_URL is not the local or test database before opening a connection.
  * - Operates under a strict interactive transaction with pessimistic/optimistic checks.
  * - Reconciles before-state against .image-backups/product-images-2026-08-30T20-36-06-876Z.json.
  * - Asserts row count, ID, productId, slug, and current URL in-transaction.
@@ -19,6 +25,24 @@ import { join } from "node:path";
 import { createHash } from "node:crypto";
 
 const ROOT = process.cwd();
+const DRY_RUN = !process.argv.includes("--execute");
+
+// --- Database target assertion --- must run before PrismaClient is instantiated ---
+const DB_URL = process.env.DATABASE_URL ?? "";
+if (!DB_URL) {
+  console.error("[FAIL-CLOSED] DATABASE_URL is not set. Cannot determine target database.");
+  process.exit(1);
+}
+if (DB_URL.includes("localhost") || DB_URL.includes("vertical_express_test") || DB_URL.includes("127.0.0.1")) {
+  const masked = DB_URL.replace(/:\/\/[^@]*@/, "://***@");
+  console.error(
+    `[FAIL-CLOSED] DATABASE_URL looks like the local or test database.\n` +
+      `  URL: ${masked}\n` +
+      `  This script must only run against production. Aborting.`
+  );
+  process.exit(1);
+}
+
 const BACKUP_PATH = join(
   ROOT,
   ".image-backups",
@@ -93,7 +117,11 @@ function validateBackupStructure() {
 }
 
 export async function runRemediation() {
+  const maskedUrl = DB_URL.replace(/:\/\/[^@]*@/, "://***@");
   console.log("=== ISS-044 Production Image Remediation ===");
+  console.log(`  Mode:     ${DRY_RUN ? "DRY RUN — no writes will be made (pass --execute to write)" : "LIVE EXECUTE — writes will be committed"}`);
+  console.log(`  Database: ${maskedUrl}`);
+  console.log("");
   console.log("1. Validating backup file immutability and schema...");
   const backup = validateBackupStructure();
   console.log(`✓ Backup validated: exactly ${backup.rows.length} unique rows targeted.`);
@@ -159,6 +187,17 @@ export async function runRemediation() {
         }
 
         console.log("✓ In-transaction pre-validation passed for all 29 rows.");
+
+        if (DRY_RUN) {
+          // Print the 29 rows that would be changed, then roll back.
+          console.log("\nDRY RUN — rows that would be updated (url only):\n");
+          for (const row of currentRows) {
+            const expected = backupMap.get(row.id);
+            console.log(`  id=${row.id}  slug=${expected.slug}  url: "${expected.url}" → "${EXPECTED_PLACEHOLDER}"`);
+          }
+          console.log(`\n  Total: ${currentRows.length} rows — no writes made.\n`);
+          throw new Error("DRY_RUN_ROLLBACK");
+        }
 
         // --- Atomic mutation: Per-row optimistic lock (where: { id, url: expected.url }) ---
         let updatedCount = 0;
@@ -232,8 +271,13 @@ export async function runRemediation() {
     console.log(`✓ Total ProductImage table count invariant: ${summary.totalProductImages}`);
     console.log("=== REMEDIATION COMPLETE ===");
   } catch (err) {
-    console.error(`\n✗ TRANSACTION FAILED & ROLLED BACK: ${err.message}\n`);
-    process.exit(1);
+    if (err.message === "DRY_RUN_ROLLBACK") {
+      console.log("✓ Dry run complete. Transaction rolled back — no changes written.");
+      console.log("  Re-run with --execute to perform the live write.");
+    } else {
+      console.error(`\n✗ TRANSACTION FAILED & ROLLED BACK: ${err.message}\n`);
+      process.exit(1);
+    }
   } finally {
     await prisma.$disconnect();
   }
