@@ -7,9 +7,6 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Heart,
-  Truck,
-  Wallet,
-  ShieldCheck,
   ChevronDown,
   Check,
   Loader2,
@@ -29,6 +26,8 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 import { MobileProductCard } from "../home/mobile-product-card";
 import { trackProductView, type RecentlyViewedItem } from "@/components/shop/recently-viewed";
+import { PdpPromises } from "@/components/shop/pdp-promises";
+import { speedClassFor } from "@/components/ui/speed-chip";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -374,19 +373,23 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           )}
         </div>
 
-        {/* Brand Trust badging */}
-        <div className="grid grid-cols-3 gap-3 border-t border-b border-mist/10 py-4 text-center">
-          {[
-            { icon: Truck, label: "60-min delivery" },
-            { icon: Wallet, label: "Pay on delivery" },
-            { icon: ShieldCheck, label: "Genuine brand" },
-          ].map(({ icon: Icon, label }) => (
-            <div key={label} className="rounded-xl bg-surface p-2.5 border border-mist/10">
-              <Icon className="mx-auto size-4.5 text-brand-deep" strokeWidth={1.8} />
-              <p className="mt-1 text-[9px] font-bold text-ink/60">{label}</p>
-            </div>
-          ))}
-        </div>
+        {/*
+          The artboard's promise blocks — batch verification, the slot the
+          material actually arrives on, and what happens when a bag turns up
+          damaged.
+
+          This replaced a three-icon badge row that claimed "60-min delivery"
+          and "Genuine brand". Both are on the fabricated-claims list: the
+          60-minute SLA is unverified (ISS-018) and no brand has authorised us
+          to vouch for authenticity. PdpPromises says the same things the design
+          intends, and marks the batch claim with the placeholder rule because
+          the Batch model does not exist yet — so the section is visible and
+          honest rather than confident and wrong.
+
+          Shared with the web PDP, which is the point: one promise, one wording,
+          on both surfaces.
+        */}
+        <PdpPromises speed={speedClassFor(product.categoryIsBulk)} />
 
         {/* Accordions */}
         <div className="space-y-2">
