@@ -23,6 +23,8 @@ import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import type { CheckoutTotals } from "@/lib/services/checkout";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
+import { planShipments } from "@/lib/shipment-plan";
+import { CodSplitNotice } from "@/components/shop/cod-split-notice";
 
 interface MobileCheckoutViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -45,7 +47,23 @@ const generateUUID = () => {
 
 export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutViewProps) {
   const router = useRouter();
-  const { refresh } = useCart();
+  const { summary, refresh } = useCart();
+
+  /* The same split the cart shows and the order is placed with — one rule, in
+     lib/shipment-plan.ts. Computed here so the COD option can say how many
+     drivers the customer will actually be paying. */
+  const shipments = planShipments(
+    summary.lines.map((l) => ({ ref: l.itemId, qty: l.qty, categoryIsBulk: l.categoryIsBulk }))
+  ).map((sh) => {
+    const lines = sh.lines
+      .map((pl) => summary.lines.find((l) => l.itemId === pl.ref))
+      .filter(Boolean) as typeof summary.lines;
+    return {
+      sequence: sh.sequence,
+      itemCount: lines.reduce((n, l) => n + l.qty, 0),
+      totalPaise: lines.reduce((n, l) => n + l.lineTotalPaise, 0),
+    };
+  });
 
   // Local state for address lists
   const [addresses, setAddresses] = useState(initialAddresses);
@@ -568,6 +586,14 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 </div>
                 {paymentMethod === "cod" && <Check className="size-4 text-brand-deep" />}
               </button>
+
+              {/* Two shipments means two drivers and two separate cash
+                  handovers, a day apart. Saying so is the difference between a
+                  buyer having the right money at the gate and a delivery being
+                  refused. Shared with the web checkout. */}
+              {paymentMethod === "cod" && totals?.codAllowed && (
+                <CodSplitNotice shipments={shipments} />
+              )}
             </div>
             {!totals.codAllowed && (
               <span className="text-[9px] text-danger font-bold mt-1 block">

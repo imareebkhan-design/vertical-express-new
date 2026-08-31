@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CheckoutTotals } from "@/lib/services/checkout";
 import type { AddressFormValues } from "@/components/account/address-form";
+import { CodSplitNotice } from "@/components/shop/cod-split-notice";
 
 type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
@@ -315,22 +316,16 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
 
             {/* Two shipments means two drivers and two separate cash handovers.
                 Saying so here is the difference between a buyer having the right
-                money at the gate and an argument on site. The split is real —
-                the same grouping the order is placed with. */}
-            {method === "cod" && !codDisabled && shipmentCount > 1 && (
-              <p className="rounded-[16px] bg-amber-soft px-4 py-3 text-[12.5px] font-medium leading-[18px] text-ink">
-                This order splits as{" "}
-                {shipments.map((sh, i) => (
-                  <span key={sh.sequence}>
-                    <strong className="font-bold tabular-nums">
-                      {formatPaise(sh.totalPaise)}
-                    </strong>{" "}
-                    to the {i === 0 ? "first" : "second"} driver
-                    {i < shipments.length - 1 ? " and " : ""}
-                  </span>
-                ))}
-                .
-              </p>
+                money at the gate and an argument on site.
+
+                Shared with the mobile checkout. The inline version this replaced
+                named an exact figure per driver, but those are goods totals —
+                delivery and tax are charged on the order, not apportioned per
+                shipment — so it quoted a number the customer could hold us to
+                and we would miss. It also said "second driver" for any shipment
+                after the first. */}
+            {method === "cod" && !codDisabled && (
+              <CodSplitNotice shipments={shipments} />
             )}
             <PayOption
               active={method === "online"}
