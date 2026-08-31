@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
@@ -28,7 +27,6 @@ export default async function BookingsPage() {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">My Bookings</h1>

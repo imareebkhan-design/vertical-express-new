@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
@@ -54,7 +53,6 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-xs font-bold text-neutral-500">

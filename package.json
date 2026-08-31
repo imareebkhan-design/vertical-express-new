@@ -22,6 +22,7 @@
     "cap:ios": "cap open ios",
     "cap:android": "cap open android",
     "check:ds": "node scripts/check-design-system.mjs",
+    "check:assets": "node scripts/check-assets.mjs",
     "seo:categories": "node scripts/category-seo.mjs",
     "seo:products": "node scripts/product-copy.mjs",
     "db:status": "prisma migrate status"

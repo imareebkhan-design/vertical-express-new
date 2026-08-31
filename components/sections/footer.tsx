@@ -2,132 +2,163 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Mail, MapPin } from "lucide-react";
-import { CONTACT, FOOTER_LINKS } from "@/lib/data";
-import { Reveal } from "@/components/reveal";
-import { VerticalExpressIcon } from "@/components/ui/logo";
-
-function LinkColumn({
-  title,
-  links,
-}: {
-  title: string;
-  links: { label: string; href: string }[];
-}) {
-  return (
-    <nav aria-label={title}>
-      <h2 className="mb-4 text-sm font-extrabold uppercase tracking-widest text-brand">
-        {title}
-      </h2>
-      <ul className="space-y-2.5">
-        {links.map((link) => (
-          <li key={link.label}>
-            <Link
-              href={link.href}
-              className="group inline-flex items-center gap-1 text-sm font-semibold text-white/70 transition-colors duration-200 hover:text-white"
-            >
-              <span className="block h-px w-0 bg-brand transition-all duration-300 ease-[var(--ease-brand)] group-hover:w-3" />
-              {link.label}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
-}
+import { Phone, Share2 } from "lucide-react";
 
 export function Footer() {
   const [email, setEmail] = useState("");
-  const [subscribed, setSubscribed] = useState(false);
+  const [joined, setJoined] = useState(false);
 
   return (
-    <footer id="contact" className="bg-ink text-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-2 lg:grid-cols-4">
-        <Reveal direction="up" delay={0}>
-          <LinkColumn title="Company" links={FOOTER_LINKS.company} />
-        </Reveal>
-        <Reveal direction="up" delay={0.08}>
-          <LinkColumn title="Policy" links={FOOTER_LINKS.policy} />
-        </Reveal>
-        <Reveal direction="up" delay={0.16}>
+    <footer className="bg-ink text-white pt-[52px] pb-[34px]">
+      <div className="mx-auto max-w-[1200px] px-6">
+        {/* 5-Column Grid: 1.3fr 1fr 1fr 1fr 1.4fr */}
+        <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.4fr]">
+          {/* Column 1: Brand & Info */}
           <div>
-            <h2 className="mb-4 text-sm font-extrabold uppercase tracking-widest text-brand">
-              Contact Information
-            </h2>
-            <address className="space-y-3 text-sm font-semibold not-italic text-white/70">
-              <p className="flex items-start gap-2">
-                <Mail className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                <a href={`mailto:${CONTACT.email}`} className="hover:text-white">
-                  {CONTACT.email}
-                </a>
-              </p>
-              <p className="flex items-start gap-2">
-                <MapPin className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                {CONTACT.address}
-              </p>
-            </address>
+            <div className="flex items-center gap-[11px]">
+              <div className="flex size-[34px] items-center justify-center rounded-[11px] bg-brand text-ink">
+                <svg className="size-[18px] fill-ink stroke-none" viewBox="0 0 24 24" aria-hidden>
+                  <path d="M13.2 2.5 5 13.2h5.2L9.8 21.5 18.5 10.8h-5.3z" />
+                </svg>
+              </div>
+              <span className="text-[15.5px] font-bold tracking-[-0.025em] text-white">
+                Vertical Express
+              </span>
+            </div>
+            <p className="mt-3.5 max-w-[250px] text-[13.5px] font-medium leading-[21px] text-white/60">
+              Construction material delivered across Srinagar. Small items in an hour, heavy loads on a slot you pick.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <a
+                href="tel:+919876543210"
+                className="flex size-[38px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
+                aria-label="Call support"
+              >
+                <Phone className="size-4" />
+              </a>
+              <button
+                onClick={() => {
+                  if (typeof navigator !== "undefined" && navigator.share) {
+                    navigator.share({ title: "Vertical Express", url: "https://verticalexpress.in" }).catch(() => {});
+                  }
+                }}
+                className="flex size-[38px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer"
+                aria-label="Share site"
+              >
+                <Share2 className="size-4" />
+              </button>
+            </div>
           </div>
-        </Reveal>
-        <Reveal direction="up" delay={0.24}>
+
+          {/* Column 2: Materials */}
           <div>
-            <h2 className="mb-4 text-sm font-extrabold leading-snug">
-              Get a first peek at New Products, Special Offers, and so much more.
-            </h2>
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.09em] text-white/45">
+              Materials
+            </p>
+            <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
+              <li><Link href="/category/cement" className="text-white/70 hover:text-white transition-colors">Civil &amp; Interiors</Link></li>
+              <li><Link href="/category/general-hardware-tools" className="text-white/70 hover:text-white transition-colors">Furniture &amp; Hardware</Link></li>
+              <li><Link href="/category/wires-mcb-distribution-boards" className="text-white/70 hover:text-white transition-colors">Electrical</Link></li>
+              <li><Link href="/category/cpvc-pipes-overhead-tanks" className="text-white/70 hover:text-white transition-colors">Plumbing, Sanitary &amp; Bath</Link></li>
+              <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All 21 categories</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 3: Company */}
+          <div>
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.09em] text-white/45">
+              Company
+            </p>
+            <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
+              <li><Link href="/how-we-work" className="text-white/70 hover:text-white transition-colors">About us</Link></li>
+              <li><Link href="/how-we-work" className="text-white/70 hover:text-white transition-colors">How we work</Link></li>
+              <li><Link href="/contact" className="text-white/70 hover:text-white transition-colors">Contact</Link></li>
+              <li><Link href="/faq" className="text-white/70 hover:text-white transition-colors">FAQ</Link></li>
+              <li><Link href="/faq" className="text-white/70 hover:text-white transition-colors">Knowledge hub</Link></li>
+            </ul>
+          </div>
+
+          {/* Column 4: Downloads */}
+          <div>
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.09em] text-white/45">
+              Downloads
+            </p>
+            <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
+              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Get the app</Link></li>
+              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Price lists</Link></li>
+              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Brand catalogues</Link></li>
+              <li>
+                <a
+                  href="https://verticalconstruction.in"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-white/70 hover:text-white transition-colors"
+                >
+                  Services site ↗
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          {/* Column 5: Get in touch */}
+          <div>
+            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.09em] text-white/45">
+              Get in touch
+            </p>
+            <div className="text-[13.5px] font-medium leading-[23px] text-white/70">
+              <a href="mailto:hello@verticalexpress.in" className="hover:text-white transition-colors">hello@verticalexpress.in</a>
+              <br />
+              <span>Lal Chowk, Srinagar, J&amp;K 190001</span>
+              <br />
+              <span className="text-white/50">Open 8 AM – 8 PM, all days</span>
+            </div>
+
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (email.trim()) setSubscribed(true);
+                if (email.trim()) setJoined(true);
               }}
-              className="relative"
+              className="mt-4 flex h-[46px] items-center gap-2.5 rounded-full bg-white/10 pl-4.5 pr-1.5"
             >
-              <label htmlFor="newsletter-email" className="sr-only">
-                Email address
-              </label>
               <input
-                id="newsletter-email"
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email"
-                disabled={subscribed}
-                className="h-12 w-full rounded-full border border-white/20 bg-white/5 pl-5 pr-14 text-sm font-semibold placeholder:text-white/40 transition-colors focus:border-brand focus:outline-none disabled:opacity-60"
+                placeholder={joined ? "You're on the list" : "Your email"}
+                disabled={joined}
+                className="w-full bg-transparent text-[13px] font-medium text-white placeholder:text-white/45 focus:outline-none disabled:opacity-60"
               />
               <button
                 type="submit"
-                aria-label="Subscribe"
-                disabled={subscribed}
-                className="absolute right-1.5 top-1/2 grid size-9 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-brand text-ink transition-transform duration-200 hover:scale-110 active:scale-95"
+                disabled={joined}
+                className="flex h-[34px] shrink-0 items-center justify-center rounded-full bg-brand px-4 text-[12.5px] font-bold text-ink hover:bg-brand/90 transition-colors cursor-pointer disabled:opacity-50"
               >
-                {subscribed ? <Check className="size-4" /> : <ArrowRight className="size-4" />}
+                {joined ? "Joined" : "Join"}
               </button>
             </form>
-            <p aria-live="polite" className="mt-2 h-4 text-xs font-bold text-white">
-              {subscribed && "You're on the list."}
-            </p>
           </div>
-        </Reveal>
-      </div>
+        </div>
 
-      <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs font-semibold text-white/50 sm:flex-row sm:px-6">
-          <p className="flex items-center gap-1.5">
-            <span className="grid size-6 place-items-center rounded bg-brand/10 p-0.5">
-              <VerticalExpressIcon className="size-5" />
-            </span>
-            © {new Date().getFullYear()} Vertical Express · Srinagar, J&amp;K
-          </p>
-          <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1">
-            {FOOTER_LINKS.policy.slice(0, 4).map((link) => (
-              <li key={link.label}>
-                <Link href={link.href} className="transition-colors hover:text-white">
-                  {link.label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        {/* 1.5px Divider */}
+        <div className="my-8 h-[1.5px] bg-white/10" />
+
+        {/* Bottom Rule */}
+        <div className="flex flex-col items-start justify-between gap-4 text-[12.5px] font-medium text-white/45 sm:flex-row sm:items-center">
+          <div className="flex flex-wrap items-center gap-6">
+            <span>© 2026 Vertical Express · Srinagar, J&amp;K</span>
+            <span>GSTIN 01AAAAA0000A1Z5</span>
+          </div>
+
+          <div className="flex items-center gap-6">
+            <Link href="/terms" className="text-white/50 hover:text-white transition-colors">Terms</Link>
+            <Link href="/privacy" className="text-white/50 hover:text-white transition-colors">Privacy</Link>
+            <Link href="/refunds" className="text-white/50 hover:text-white transition-colors">Refunds</Link>
+            <Link href="/shipping" className="text-white/50 hover:text-white transition-colors">Shipping</Link>
+          </div>
         </div>
       </div>
     </footer>
   );
 }
+

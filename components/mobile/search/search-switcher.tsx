@@ -5,10 +5,8 @@ import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { SearchBox } from "@/components/shop/search-box";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
@@ -45,7 +43,6 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
         <div className="mb-6">
@@ -83,7 +80,6 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
         )}
       </main>
       <Footer />
-      <FloatingCart />
     </>
   );
 }

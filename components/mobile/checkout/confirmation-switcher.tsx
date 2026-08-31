@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { PageLoader } from "@/components/page-loader";
@@ -43,7 +42,6 @@ export function ConfirmationSwitcher({ order }: ConfirmationSwitcherProps) {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
         <div className="text-center">

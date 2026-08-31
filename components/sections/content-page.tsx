@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Footer } from "@/components/sections/footer";
 import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 
 export interface ContentSection {
   id: string;
@@ -37,7 +37,6 @@ export function ContentPage({
 }) {
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 pb-4 pt-10 sm:px-6">
         <header className="max-w-3xl">
@@ -103,6 +102,7 @@ export function ContentPage({
         </div>
 
         <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>

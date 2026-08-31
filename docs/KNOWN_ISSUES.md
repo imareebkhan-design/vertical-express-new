@@ -1771,3 +1771,103 @@ This phase achieves one thing: no page carrying a price, a brand name and a buy 
 **Authoritative backup:** `.image-backups/product-images-2026-08-30T20-36-06-876Z.json`
 (SHA-256: `7a0dbc50c4bf77bd57b6aab4e73a88751620f22db9029a46f7aff775c6f32758`, 29 rows, 16 distinct pre-remediation URLs). Copy archived to iCloud Drive with matching hash.
 
+
+---
+
+## ISS-044 — Real manufacturers' product photography sold as own-brand goods
+
+| | |
+|---|---|
+| **Severity** | CRITICAL |
+| **Area** | Legal/Content |
+| **Status** | **PARTIAL** — product surfaces remediated in code; production data and category tiles outstanding |
+
+**Description.** The catalogue shipped real manufacturers' product photography while the
+brand and product data were invented. `prisma/seed.ts` gave six products an explicit
+manufacturer photo, and — the part that multiplied it — fell back to
+`/categories/${p.category}.webp` for every other product. Those category files are
+themselves manufacturer composites, so **27 of 45 products displayed a third-party
+branded image**.
+
+**Evidence.** Every file was opened and inspected. `distemper-white-20kg.webp` is an
+**Asian Paints TRACTOR UNO** photograph carrying their wordmark, a printed **MRP
+₹1580.00**, their Mumbai registered office, customer-care email and a QR code — served
+as a **HomeCrown** distemper at ₹1,549. `ppc-cement-50kg.webp` is **Priya Cement**
+including **ISI mark IS 8112 and licence CM/L-2053537** — served as **BuildPro**. Also
+verified: Loctite, Luminous, UltraTech, Polycab, Finolex, Havells, Anchor, Philips,
+Dr. Fixit, Crompton, V-Guard, Roff, MYK Laticrete, Birla White, Ashirvad, Astral,
+Freemans, Fevicol.
+
+The login hero went further, naming the brands in **text** — "ACC · Suraksha Power",
+"DR. FIXIT · Pidiproof LW+ 101", "ASIAN PAINTS · Tractor Uno" — for products that do not
+exist in the catalogue.
+
+**Origin.** `git log --diff-filter=A`: the product and category images arrived in
+`427400d` (initial commit), an ancestor of the deployed `80d947b` — **live since 15 July
+2026**. The six hero images arrived later in `650545f`. No licence, attribution or
+provenance file existed anywhere in the repository, and the owner has confirmed holding
+no documented authorization. `docs/CURRENT_SYSTEM_AUDIT.md:343` and `:933` independently
+record the authorised-dealer question as still open.
+
+**Business impact.** A real manufacturer's product photograph — in two cases including
+their statutory MRP declaration and BIS licence number — presented as a differently
+branded product at a different price. Trademark and copyright exposure, and a consumer
+misrepresentation risk. Currently shielded only by Vercel SSO, which the custom-domain
+step removes.
+
+**Resolution (code).** The five explicit manufacturer product images and all six hero
+images are removed. The seed fallback now resolves to `/placeholder-product.webp`, a
+neutral asset generated locally from the design tokens — no text, logo, trademark or
+recognisable product; provenance recorded in `docs/ASSET_PROVENANCE.md`. The homepage
+hero falls back to its existing neutral icon treatment; the login hero now shows material
+categories with no brand named. `lib/data.ts` (dead `DEALS` data, exported but never
+imported) was repointed so it no longer references deleted files.
+
+`scripts/check-assets.mjs` runs in CI and fails when a branded file is used as a product
+image, when the seed falls back to a category composite, when a referenced image is
+missing, or when a product-surface asset has no provenance entry.
+
+**Deliberately NOT fixed — this issue is not closed.**
+- **10 branded category tiles remain live** via `Category.imageUrl`: `cement`,
+  `cpvc-pipes-overhead-tanks`, `fevicol`, `general-hardware-tools`,
+  `home-appliances-power-backup`, `lighting`, `painting`, `tiling`, `waterproofing`,
+  `wires-mcb-distribution-boards`.
+- **6 products with minor marks** retained by owner decision: `gi-box-8x6`,
+  `pvc-conduit-25mm-3m`, `kitchen-faucet-pullout`, `ss-kitchen-sink`,
+  `bwp-plywood-19mm`, `hdhmr-board-17mm`.
+- **29 production `ProductImage` rows still point at branded files.** Correcting them is
+  a separate owner-supervised operation; the code change alone does not alter production.
+- 33 branded files remain on disk.
+
+**Owner input required.** Replacement imagery for the category tiles, and approval for
+the production data correction.
+
+---
+
+## ISS-045 — `/categories/ceiling-fans-exhaust.webp` referenced but missing
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Content |
+| **Status** | **PARTIAL** — guard added; the file itself is still absent |
+
+**Description.** Found while cross-checking every distinct production image URL against
+the filesystem during the ISS-044 investigation. Two production products —
+`ceiling-fan-1200mm` and `exhaust-fan-250mm` — have `ProductImage.url =
+/categories/ceiling-fans-exhaust.webp`, and that file does not exist in the repository.
+The `CATEGORIES` list in `lib/data.ts` also carries the slug.
+
+**User impact.** Two products render a broken image in production, and have since the
+initial commit. Nothing in the pipeline noticed for months.
+
+**Resolution.** `scripts/check-assets.mjs` now fails on any referenced-but-missing image,
+so this class of defect cannot recur silently. The specific file is exempted via
+`KNOWN_MISSING` so the guard is not permanently red while the underlying gap is open —
+remove that entry once the file exists.
+
+The two affected rows are included in the ISS-044 production correction, so they will
+point at the neutral placeholder rather than nothing.
+
+**Owner input required.** Either supply a category image for ceiling fans, or drop the
+category. Not decided.

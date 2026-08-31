@@ -5,10 +5,8 @@ import type { Category } from "@prisma/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { CategoryCard } from "@/components/category-card";
 import { PageLoader } from "@/components/page-loader";
 
@@ -37,7 +35,6 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">All Categories</h1>
@@ -55,7 +52,6 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
         </div>
       </main>
       <Footer />
-      <FloatingCart />
     </>
   );
 }

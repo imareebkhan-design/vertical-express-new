@@ -67,26 +67,29 @@ export function SearchBox({ className }: { className?: string }) {
 
   return (
     <div ref={boxRef} className={cn("relative", className)}>
-      <form role="search" onSubmit={submit}>
+      <form role="search" onSubmit={submit} className="relative flex items-center">
         <Search
-          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute left-4.5 size-4 text-ink-500"
           aria-hidden
         />
         <input
           type="search"
-          placeholder="Search cement, wires, hinges, paint…"
+          placeholder="Search cement, wire, tiles, fittings…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="h-11 w-full rounded-full border border-neutral-200 bg-surface pl-11 pr-4 text-sm transition-all duration-200 placeholder:text-neutral-400 focus:border-brand focus:bg-white focus:shadow-card focus:outline-none"
+          className="h-[46px] w-full rounded-full bg-chip-soft pl-11 pr-12 text-[13px] font-medium text-ink transition-all placeholder:text-ink-500 focus:bg-paper focus:shadow-card focus:outline-none"
           aria-label="Search products"
           autoComplete="off"
         />
+        <span className="pointer-events-none absolute right-4 hidden rounded-[8px] bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-500 shadow-xs sm:inline-block">
+          /
+        </span>
         {loading && (
-          <Loader2 className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-neutral-400" />
+          <Loader2 className="absolute right-10 size-4 animate-spin text-ink-500" />
         )}
       </form>
 

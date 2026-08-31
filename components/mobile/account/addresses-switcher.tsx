@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AddressManager } from "@/components/account/address-manager";
@@ -36,7 +35,6 @@ export function AddressesSwitcher({ addresses }: AddressesSwitcherProps) {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">My Addresses</h1>

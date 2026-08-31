@@ -5,10 +5,8 @@ import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
 import { PincodeCheck } from "@/components/shop/pincode-check";
@@ -71,7 +69,6 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
         <script
@@ -173,7 +170,6 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
         />
       </main>
       <Footer />
-      <FloatingCart />
     </>
   );
 }

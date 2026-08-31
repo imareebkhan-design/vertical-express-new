@@ -91,5 +91,11 @@ jobs:
       - name: Design system
         run: npm run check:ds
 
+      # Guards the failure that let real manufacturers' product photography ship as
+      # our own catalogue: a branded file used as a product image, a category
+      # composite silently substituted as a fallback, or a referenced image missing.
+      - name: Assets
+        run: npm run check:assets
+
       - name: Test
         run: npm test
