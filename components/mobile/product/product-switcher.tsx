@@ -12,6 +12,8 @@ import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
+import { PdpPromises } from "@/components/shop/pdp-promises";
+import { speedClassFor } from "@/components/ui/speed-chip";
 import { PincodeCheck } from "@/components/shop/pincode-check";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/recently-viewed";
@@ -125,6 +127,8 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
             <div className="mt-6">
               <PdpActions product={product} />
             </div>
+
+            <PdpPromises speed={speedClassFor(product.categoryIsBulk)} />
 
             <div className="mt-6">
               <PincodeCheck defaultPincode="190001" />

@@ -19,6 +19,9 @@ export interface CatalogItem {
   pricePaise: number;
   compareAtPaise: number | null;
   hasBulkTiers: boolean;
+  /** The product's own Grade attribute, when it carries one. Drives the
+   *  category page's "Shop by grade" rail — never composed, only read. */
+  gradeLabel: string | null;
   ratingAvg: number;
   ratingCount: number;
   inStock: boolean;
@@ -106,6 +109,15 @@ type ProductWithRefs = Prisma.ProductGetPayload<{
   };
 }>;
 
+/** Reads the Grade attribute off a product's specs JSON, if present. */
+function gradeOf(specs: unknown): string | null {
+  if (!Array.isArray(specs)) return null;
+  const row = (specs as { label?: string; value?: string }[]).find(
+    (sp) => typeof sp?.label === "string" && sp.label.trim().toLowerCase() === "grade"
+  );
+  return typeof row?.value === "string" && row.value.trim() ? row.value.trim() : null;
+}
+
 function toItem(p: ProductWithRefs): CatalogItem | null {
   const variant = p.variants[0];
   if (!variant) return null;
@@ -123,6 +135,7 @@ function toItem(p: ProductWithRefs): CatalogItem | null {
     pricePaise: variant.pricePaise,
     compareAtPaise: variant.compareAtPaise,
     hasBulkTiers: variant.bulkTiers.length > 0,
+    gradeLabel: gradeOf(p.specs),
     ratingAvg: Number(p.ratingAvg),
     ratingCount: p.ratingCount,
     inStock: available > 0,
@@ -422,6 +435,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
       pricePaise: variant.pricePaise,
       compareAtPaise: variant.compareAtPaise,
       hasBulkTiers: variant.bulkTiers.length > 0,
+    gradeLabel: gradeOf(p.specs),
       ratingAvg: Number(p.ratingAvg),
       ratingCount: p.ratingCount,
       inStock: available > 0,

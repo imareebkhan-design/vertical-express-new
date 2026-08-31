@@ -86,6 +86,9 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
         pricePaise: variant.pricePaise,
         compareAtPaise: variant.compareAtPaise,
         hasBulkTiers: variant.bulkTiers.length > 0,
+        /* The wishlist card does not show a grade rail; the field is on
+           CatalogItem so every surface has the same shape. */
+        gradeLabel: null,
         ratingAvg: Number(p.ratingAvg),
         ratingCount: p.ratingCount,
         inStock: available > 0,

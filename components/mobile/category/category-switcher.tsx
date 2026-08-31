@@ -16,6 +16,7 @@ import { SortSelect } from "@/components/shop/sort-select";
 import { Pagination } from "@/components/shop/pagination";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
+import { CategoryBanner, ShopByGrade } from "@/components/shop/category-banner";
 import { FilterSheet } from "@/components/shop/filter-sheet";
 import { PageLoader } from "@/components/page-loader";
 import { ChevronRight } from "lucide-react";
@@ -70,15 +71,16 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
           <span className="text-ink">{category.name}</span>
         </nav>
 
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">{category.name}</h1>
-            <p className="mt-1 text-sm font-medium text-ink-700">
-              {result.total} {result.total === 1 ? "product" : "products"}
-              {category.isBulk && " · heavy material, delivered by truck on a slot you choose"}
-            </p>
-          </div>
-        </div>
+        <CategoryBanner
+          name={category.name}
+          description={category.description}
+          isBulk={category.isBulk}
+          total={result.total}
+          brandCount={result.facets.brands.length}
+          slug={slug}
+        />
+
+        <ShopByGrade items={result.items} slug={slug} />
 
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <div className="hidden lg:block">
