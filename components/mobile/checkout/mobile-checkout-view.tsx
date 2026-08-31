@@ -22,6 +22,7 @@ import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon }
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import type { CheckoutTotals } from "@/lib/services/checkout";
+import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 interface MobileCheckoutViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -442,6 +443,30 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               })}
             </div>
           )}
+        </div>
+
+        {/*
+          "Buying for a business?" — the Slots artboard.
+
+          Same wording as the web checkout on purpose. A customer who sees one
+          answer on their phone and another on a laptop stops trusting either,
+          and this one is about tax.
+
+          Profile carries a gstin column, but an Order does not, and there is no
+          Invoice model — so a number typed here would be collected and
+          discarded, which is worse than not asking. The block states that
+          rather than presenting a field that goes nowhere.
+        */}
+        <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
+          <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
+            Business details
+          </h3>
+          <p className="mt-3 text-[12px] font-medium leading-[17px] text-ink/70">
+            Buying for a business? A GSTIN on the invoice lets you claim input credit.{" "}
+            <PlaceholderValue pending="no Order.gstin field and no Invoice model — the number would be discarded">
+              GST invoicing is not issued yet, so we are not collecting a GSTIN at checkout.
+            </PlaceholderValue>
+          </p>
         </div>
 
         {/* Coupons experience */}

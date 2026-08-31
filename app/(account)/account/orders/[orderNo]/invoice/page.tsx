@@ -81,7 +81,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
             <p className="mt-2 text-xs font-semibold text-neutral-500">
               Vertical Express Pvt Ltd<br />
               Commercial Hub, Lal Chowk, Srinagar, J&K — 190001<br />
-              GSTIN: 01AABCV1234F1Z0 | Support: care@verticalexpress.in
+              Support: care@verticalexpress.in
             </p>
           </div>
           <div className="text-right">

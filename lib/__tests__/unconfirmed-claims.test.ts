@@ -33,6 +33,20 @@ const BANNED: { re: RegExp; what: string }[] = [
   { re: /\bauthoris?ed (dealer|distributor|reseller)\b/i, what: "an authorised-brand claim — none is held" },
   { re: /\bno minimum order\b/i, what: "a no-minimum-order promise — unconfirmed" },
   { re: /\blowest price(s)? guaranteed\b/i, what: "a price guarantee — unconfirmed" },
+  /*
+   * A GSTIN is a legal identifier on a tax document. Two different invented ones
+   * were shipping — 01AAAAA0000A1Z5 in the footer and 01AABCV1234F1Z0 on the
+   * invoice — each presented as the company's registration. A wrong number on an
+   * invoice is worse than none: a customer claims input credit against it and
+   * the claim fails.
+   *
+   * The real one belongs in configuration, not a component, so the pattern is
+   * banned from source outright.
+   */
+  {
+    re: /\b\d{2}[A-Z]{5}\d{4}[A-Z]\d[Z][A-Z0-9]\b/,
+    what: "a hardcoded GSTIN — the real registration belongs in configuration",
+  },
 ];
 
 function walk(dir: string, out: string[] = []): string[] {

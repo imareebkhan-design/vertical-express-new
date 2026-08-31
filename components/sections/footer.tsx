@@ -147,7 +147,6 @@ export function Footer() {
         <div className="flex flex-col items-start justify-between gap-4 text-[12.5px] font-medium text-white/45 sm:flex-row sm:items-center">
           <div className="flex flex-wrap items-center gap-6">
             <span>© 2026 Vertical Express · Srinagar, J&amp;K</span>
-            <span>GSTIN 01AAAAA0000A1Z5</span>
           </div>
 
           <div className="flex items-center gap-6">

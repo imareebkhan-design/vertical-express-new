@@ -68,6 +68,8 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-053 | Production has none of the 12 environment variables Firebase auth needs | **CRITICAL** | Config/Deploy | OPEN |
 | ISS-054 | `SpeedChip` defaults to the unverified 60-minute delivery claim | MEDIUM | Content/Legal | OPEN |
 | ISS-055 | Every delivered order paid 5% cashback at a rate nobody set | **CRITICAL** | Money/Policy | FIXED |
+| ISS-056 | Two different fabricated GSTINs shipped as the company's registration | HIGH | Legal/Content | FIXED |
+| ISS-057 | The Slots screen has no backing model — delivery windows do not exist | HIGH | Fulfilment | OPEN |
 
 ---
 
@@ -2279,3 +2281,63 @@ Verified by reintroducing one.
 
 **Owner input required.** Yes — is there a cashback programme at all, and at what rate? It
 pays nothing until you answer.
+
+---
+
+## ISS-056 — Two different fabricated GSTINs shipped as the company's registration
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Legal / Content |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** `components/sections/footer.tsx` displayed `GSTIN 01AAAAA0000A1Z5` and
+`app/(account)/account/orders/[orderNo]/invoice/page.tsx` displayed
+`GSTIN: 01AABCV1234F1Z0`. Both were invented, and they did not even match each other.
+
+**Why this is worse than an ordinary placeholder.** A GSTIN on an invoice is a legal
+identifier that a business customer uses to claim input credit. A wrong one does not fail
+politely — the customer files against it and the claim is rejected, after the fact, in
+their accounting. And the invoice is the document they keep.
+
+**Resolution.** Both removed. The real registration belongs in configuration rather than a
+component, and the invoice should render it from there once it exists.
+
+**Guard.** `lib/__tests__/unconfirmed-claims.test.ts` now fails on any GSTIN-shaped string
+in source. Verified by reintroducing one.
+
+**Owner input required.** Yes — the company's actual GSTIN, once registered, set as an
+environment variable.
+
+---
+
+## ISS-057 — The Slots screen has no backing model
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Fulfilment |
+| **Status** | OPEN — needs a model and an operational decision |
+
+**Description.** Artboard 11 ("Site + slots per shipment") is a scheduling screen: a day
+strip, two-hour windows, a per-window capacity state ("Full"), and a chosen slot per
+shipment. None of it has anywhere to live.
+
+- There is no slot or capacity model of any kind.
+- `Shipment.promisedAt` exists and is the intended destination — its own comment reads
+  *"Null until slots exist."* Nothing populates it.
+- `ServiceablePincode` carries `etaMinutes` and a delivery fee, which describes a promise,
+  not a bookable window.
+
+**What was built instead.** The parts of the artboard that are backed: the business-details
+block, mirrored word-for-word from the web checkout so both surfaces say the same thing
+about tax. The slot picker itself is not stubbed — a picker offering windows nobody can
+honour is a promise, and this is the screen where a customer decides when to be on site to
+receive a truck.
+
+**What it needs.** A slot/capacity model, an operational decision on which windows are
+offered and how many trucks each holds, and a writer for `Shipment.promisedAt`. The first
+is engineering; the second two are the owner's.
+
+**Owner input required.** Yes — which delivery windows, and what capacity per window.
