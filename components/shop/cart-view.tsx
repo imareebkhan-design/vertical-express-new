@@ -8,6 +8,9 @@ import { formatPaise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shop/empty-state";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { SpeedChip } from "@/components/ui/speed-chip";
+import { planShipments } from "@/lib/shipment-plan";
+import type { CartLine } from "@/lib/services/cart";
 
 /** Full cart page body — reads the live server cart from context. */
 export function CartView() {
@@ -24,36 +27,63 @@ export function CartView() {
     );
   }
 
-  const { subtotalPaise, qualifiesFreeDelivery, freeDeliveryRemainingPaise, freeDeliveryThresholdPaise } = summary;
-  const progress = Math.min(100, (subtotalPaise / freeDeliveryThresholdPaise) * 100);
+  const { subtotalPaise } = summary;
+
+  /* The same rule checkout persists — see lib/shipment-plan.ts. Grouping here
+     with a private copy of the rule is how the cart ends up promising a split
+     that does not happen. */
+  const byId = new Map(summary.lines.map((l) => [l.itemId, l]));
+  const shipments = planShipments(
+    summary.lines.map((l) => ({ ref: l.itemId, qty: l.qty, categoryIsBulk: l.categoryIsBulk }))
+  ).map((p) => ({
+    ...p,
+    cartLines: p.lines.map((pl) => byId.get(pl.ref)).filter(Boolean) as CartLine[],
+  }));
+  const total = shipments.length;
 
   return (
     <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
       {/* Line items */}
       <div>
-        {/* Free-delivery meter */}
-        <div className="mb-5 rounded-card border border-hairline-border bg-surface-soft/30 p-4">
-          {qualifiesFreeDelivery ? (
-            <p className="text-sm font-extrabold text-success">Free delivery applied.</p>
+        {/* Lead line: state the split before the items, the way the design does. */}
+        <p className="mb-5 text-[14.5px] font-medium leading-[22px] text-ink-700">
+          {summary.count} {summary.count === 1 ? "item" : "items"}
+          {total > 1 ? (
+            <>
+              , splitting into{" "}
+              <strong className="font-bold text-ink">
+                {total === 2 ? "two shipments" : `${total} shipments`}
+              </strong>
+              . Two arrival times — nothing waits for the slower one.
+            </>
           ) : (
-            <p className="text-sm font-bold text-neutral-600">
-              Add <span className="text-brand-deep">{formatPaise(freeDeliveryRemainingPaise)}</span> more to
-              unlock free delivery
-            </p>
+            "."
           )}
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-white">
-            <motion.div
-              className="h-full rounded-full bg-brand"
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            />
-          </div>
-        </div>
+        </p>
 
-        <ul className="space-y-3">
+        <div className="space-y-6">
+          {shipments.map((group) => (
+            <section key={group.sequence} aria-label={`Shipment ${group.sequence} of ${total}`}>
+              <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <SpeedChip speed={group.speedClass} />
+                {total > 1 && (
+                  <span className="text-[13px] font-bold tracking-[-0.01em] text-ink">
+                    Shipment {group.sequence} of {total}
+                  </span>
+                )}
+                <span className="text-[12px] font-medium text-ink-500">
+                  {group.cartLines.reduce((n, l) => n + l.qty, 0)} items
+                </span>
+              </div>
+              <p className="mb-3 text-[12px] font-medium leading-4 text-ink-500">
+                {group.speedClass === "express"
+                  ? "Small goods from the Srinagar store."
+                  : "Heavy material by truck, unloaded at the gate."}
+              </p>
+
+              <ul className="space-y-3">
           <AnimatePresence initial={false}>
-            {summary.lines.map((line) => (
+            {group.cartLines.map((line) => (
               <motion.li
                 key={line.itemId}
                 layout
@@ -125,7 +155,10 @@ export function CartView() {
               </motion.li>
             ))}
           </AnimatePresence>
-        </ul>
+              </ul>
+            </section>
+          ))}
+        </div>
       </div>
 
       {/* Summary */}
@@ -134,19 +167,26 @@ export function CartView() {
           <h2 className="text-lg font-extrabold text-ink">Order summary</h2>
           <dl className="mt-4 space-y-2.5 text-[13.5px] font-bold">
             <div className="flex justify-between">
-              <dt className="text-ink-500">Subtotal ({summary.count} items)</dt>
-              <dd className="text-ink">{formatPaise(subtotalPaise)}</dd>
+              <dt className="text-ink-500">Items ({summary.count})</dt>
+              <dd className="tabular-nums text-ink">{formatPaise(subtotalPaise)}</dd>
             </div>
+            {/* The artboard bills delivery per shipment (₹49 fast, ₹299 heavy).
+                Both are unconfirmed in the placeholder register, and there is no
+                fee in ServiceablePincode to read, so the cart says where the
+                number gets settled rather than inventing one. */}
             <div className="flex justify-between">
-              <dt className="text-ink-500">Delivery</dt>
-              <dd className={qualifiesFreeDelivery ? "text-success" : "text-ink-500"}>
-                {qualifiesFreeDelivery ? "FREE" : "Calculated at checkout"}
-              </dd>
+              <dt className="text-ink-500">
+                Delivery{shipments.length > 1 ? ` · ${shipments.length} shipments` : ""}
+              </dt>
+              <dd className="text-ink-500">Calculated at checkout</dd>
             </div>
           </dl>
-          <div className="mt-4 flex justify-between border-t border-line pt-4 text-lg font-extrabold text-ink">
-            <span>To pay</span>
-            <span>{formatPaise(subtotalPaise)}</span>
+          <div className="mt-4 flex items-baseline justify-between border-t border-line pt-4 text-lg font-extrabold text-ink">
+            <span>
+              To pay
+              <span className="ml-2 text-[11px] font-semibold text-ink-500">Includes GST</span>
+            </span>
+            <span className="tabular-nums">{formatPaise(subtotalPaise)}</span>
           </div>
           <Link href="/checkout" className="mt-5 block no-underline">
             <Button size="lg" className="w-full h-12 rounded-full font-bold">
