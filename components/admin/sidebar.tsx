@@ -14,11 +14,29 @@ import {
   Users,
   Warehouse,
   AlertTriangle,
+  Truck,
+  RefreshCw,
+  ListOrdered,
+  FileText,
+  Factory,
+  LifeBuoy,
+  Wallet,
+  Receipt,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
  * Operations console navigation.
+ *
+ * The full destination set from the operations canvas — nineteen entries across
+ * five groups. Ten of them were missing entirely, which meant a third of the
+ * console the design specifies simply did not exist and nothing said so.
+ *
+ * Every entry leads to a real screen. Where the screen is designed but not
+ * built, it says what it will do and what it needs first, rather than 404ing —
+ * a dispatcher who clicks Returns mid-shift and gets an error page learns not
+ * to trust the tool.
  *
  * Grouped by job rather than by data model, because the people using this are a
  * dispatcher, a warehouse hand, an accountant and the owner — not developers.
@@ -33,6 +51,8 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
     items: [
       { href: "/admin", label: "Today", icon: Home },
       { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+      { href: "/admin/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/admin/returns", label: "Returns", icon: RefreshCw },
     ],
   },
   {
@@ -40,21 +60,33 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
     items: [
       { href: "/admin/products", label: "Products", icon: Box },
       { href: "/admin/inventory", label: "Inventory", icon: Warehouse },
+      { href: "/admin/stock-ledger", label: "Stock ledger", icon: ListOrdered },
+      { href: "/admin/purchasing", label: "Purchasing", icon: FileText },
+      { href: "/admin/suppliers", label: "Suppliers", icon: Factory },
     ],
   },
   {
     heading: "Customers",
-    items: [{ href: "/admin/customers", label: "Customers", icon: Users }],
+    items: [
+      { href: "/admin/customers", label: "Customers", icon: Users },
+      { href: "/admin/support", label: "Support", icon: LifeBuoy },
+    ],
   },
   {
     heading: "Money",
-    items: [{ href: "/admin/payments", label: "Payments", icon: CreditCard }],
+    items: [
+      { href: "/admin/cod-cash", label: "COD cash", icon: Wallet },
+      { href: "/admin/invoices", label: "Invoices", icon: Receipt },
+      { href: "/admin/payments", label: "Payments", icon: CreditCard },
+      { href: "/admin/credit", label: "Credit", icon: BarChart3 },
+    ],
   },
   {
     heading: "Configure",
     items: [
       { href: "/admin/serviceability", label: "Serviceability", icon: MapPin },
       { href: "/admin/coupons", label: "Coupons", icon: Tag },
+      { href: "/admin/staff", label: "Staff & roles", icon: UserCog },
       { href: "/admin/bi", label: "Reports", icon: PieChart },
     ],
   },
