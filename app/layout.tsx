@@ -82,7 +82,11 @@ export default function RootLayout({
         </a>
         {/* Inside <body>, not wrapping <html> — Clerk injects into the body
             and placing it outside breaks hydration. */}
-        <ClerkProvider>
+        {/* Telemetry off rather than opening connect-src for it. Clerk beacons
+            usage to clerk-telemetry.com, which the CSP blocks; the app has no
+            need for that data and widening the policy to admit a third-party
+            analytics endpoint is the wrong trade. Sign-in is unaffected. */}
+        <ClerkProvider telemetry={false}>
           <SmoothScrollProvider>
             <CartProvider>
               <NativeShellProvider>{children}</NativeShellProvider>
