@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
 import { ServicesBanner, SERVICES_SITE_URL } from "@/components/sections/services-banner";
@@ -15,7 +14,7 @@ const PROFESSIONS = [
   {
     name: "Architect",
     desc: "Drawings, approvals and site supervision for a new build or a major renovation.",
-    themeColor: "var(--t-civil, #F0ECE6)",
+    themeColor: "var(--t-civil)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -27,7 +26,7 @@ const PROFESSIONS = [
   {
     name: "Contractor",
     desc: "Civil work — foundation, slab, masonry, plaster — with material supply from us if you want it.",
-    themeColor: "var(--t-civil, #F0ECE6)",
+    themeColor: "var(--t-civil)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
@@ -38,7 +37,7 @@ const PROFESSIONS = [
   {
     name: "Electrician",
     desc: "Wiring, distribution boards, fittings and testing. Small jobs and full-house work.",
-    themeColor: "var(--t-elec, #EBF1F5)",
+    themeColor: "var(--t-elec)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -49,7 +48,7 @@ const PROFESSIONS = [
   {
     name: "Plumber",
     desc: "CPVC lines, tanks, sanitary fitting and leak work.",
-    themeColor: "var(--t-plumb, #E8EFF2)",
+    themeColor: "var(--t-plumb)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M4 6h16v12H4z" />
@@ -61,7 +60,7 @@ const PROFESSIONS = [
   {
     name: "Carpenter",
     desc: "Wardrobes, kitchens, doors and site carpentry in ply, MDF or HDHMR.",
-    themeColor: "var(--t-furn, #F3ECE2)",
+    themeColor: "var(--t-furn)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <rect x="4" y="3" width="16" height="18" rx="2" />
@@ -72,7 +71,7 @@ const PROFESSIONS = [
   {
     name: "Painter",
     desc: "Interior and exterior, putty to finish coat, with the paint supplied at our price.",
-    themeColor: "var(--t-furn, #F3ECE2)",
+    themeColor: "var(--t-furn)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7" />
@@ -83,7 +82,7 @@ const PROFESSIONS = [
   {
     name: "Waterproofing",
     desc: "Roof, bathroom and basement treatment with a written scope.",
-    themeColor: "var(--t-civil, #F0ECE6)",
+    themeColor: "var(--t-civil)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
@@ -93,7 +92,7 @@ const PROFESSIONS = [
   {
     name: "Turnkey home",
     desc: "One contract from drawing to handover, with a single point of contact.",
-    themeColor: "var(--t-plumb, #E8EFF2)",
+    themeColor: "var(--t-plumb)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Download, FileText, Smartphone, ExternalLink } from "lucide-react";
+import { Download, FileText, Smartphone } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
 import { ServicesBanner } from "@/components/sections/services-banner";
 import { DownloadsStrip } from "@/components/sections/downloads-strip";
@@ -38,7 +38,7 @@ const BRAND_CATALOGUES = [
   {
     title: "UltraTech cement range",
     meta: "2026 edition · 4.2 MB",
-    themeColor: "var(--t-civil, #F0ECE6)",
+    themeColor: "var(--t-civil)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M6 3h12l2 6v12H4V9z" />
@@ -49,7 +49,7 @@ const BRAND_CATALOGUES = [
   {
     title: "Asian Paints shade card",
     meta: "2026 edition · 12 MB",
-    themeColor: "var(--t-furn, #F3ECE2)",
+    themeColor: "var(--t-furn)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7" />
@@ -60,7 +60,7 @@ const BRAND_CATALOGUES = [
   {
     title: "Havells wiring & switchgear",
     meta: "2026 edition · 8.4 MB",
-    themeColor: "var(--t-elec, #EBF1F5)",
+    themeColor: "var(--t-elec)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -71,7 +71,7 @@ const BRAND_CATALOGUES = [
   {
     title: "Jaquar bath fittings",
     meta: "2026 edition · 15 MB",
-    themeColor: "var(--t-plumb, #E8EFF2)",
+    themeColor: "var(--t-plumb)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
         <path d="M4 12h16a1 1 0 0 1 1 1v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-2a1 1 0 0 1 1-1z" />
