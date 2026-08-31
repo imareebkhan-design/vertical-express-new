@@ -343,6 +343,45 @@ export const CONTENT: Record<string, ContentDoc> =
         "body": [
           "Srinagar only, for now. Check your pincode at checkout — if we cannot serve it we will say so rather than take the order and fail."
         ]
+      },
+      {
+        "id": "seasonal",
+        "heading": "What does the seasonal chip mean?",
+        "body": [
+          "That the item is one winter genuinely interferes with. Construction here runs on a season — building April to October, interiors through the winter, near-dormant in January and February — and road access to some sites closes for stretches of it. A seasonal chip means the delivery window for that item depends on conditions rather than on our warehouse, and the product page says so rather than quoting a time we would miss.",
+          "How much winter adds is not settled yet. We would rather leave that blank than publish a number we cannot hold."
+        ]
+      },
+      {
+        "id": "cod-limit",
+        "heading": "Is there a limit on cash on delivery?",
+        "body": [
+          "Not one we have set yet. A cash limit per delivery is a real decision — it affects what a driver carries and what a customer has to arrange — and we have not made it, so we are not publishing a figure that might change on your next order.",
+          "One thing that is already true: if your order splits into two deliveries, you pay each driver separately, on the day that delivery arrives. Checkout says so before you choose cash."
+        ]
+      },
+      {
+        "id": "age",
+        "heading": "How old is the cement you deliver?",
+        "body": [
+          "A fair question, and one we cannot answer precisely yet. Cement loses strength as it sits, which is why the packing date on the bag matters more than almost anything else about it.",
+          "We photograph bags before loading, so what leaves the warehouse is recorded. We do not yet record the packing date against your order, so we cannot promise you a maximum age at the point of sale. Until we can, we are not going to claim one."
+        ]
+      },
+      {
+        "id": "gst-invoice",
+        "heading": "Can I get an invoice with my GSTIN?",
+        "body": [
+          "Not yet. Prices include GST and the tax is broken out on your order, but we are not issuing a GST invoice carrying your registration number, and we are not collecting a GSTIN at checkout — a number we collected and could not put on an invoice would be worse than not asking for it.",
+          "If you are buying for a business and need input credit, this is the thing to ask us about, because it changes what the order is worth to you."
+        ]
+      },
+      {
+        "id": "saved-lists",
+        "heading": "Can I save a list of what I order every month?",
+        "body": [
+          "Not yet. Reordering the same set of materials for each pour or each wiring phase is the most obvious thing a trade customer needs from a shop like this, and it is not built. Your past orders are on your account and can be worked from in the meantime."
+        ]
       }
     ]
   }
