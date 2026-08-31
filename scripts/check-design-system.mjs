@@ -29,6 +29,26 @@ const RETIRED = [
   { re: /#FCBD00|rgba?\(\s*252\s*,\s*189\s*,\s*0/i, what: "gold #FCBD00 (Architectural Lifestyle, retired)" },
 ];
 
+/**
+ * Green and red on a customer surface.
+ *
+ * The app system board is unambiguous: "No green anywhere — it is HomeRun's
+ * tell and it would be a fourth colour system. No red either: urgency is
+ * carried by amber-soft, absence by grey."
+ *
+ * This checks raw Tailwind palette classes rather than tokens, because that is
+ * how it got in. `--color-success` is aliased to ink, so `text-success` is
+ * already compliant and passes the alias layer honestly; `text-emerald-600`
+ * routes around the tokens entirely and renders actual green. Twelve of those
+ * had accumulated across the mobile checkout, wallet, confirmation and order
+ * screens, and none of them tripped a single existing check.
+ *
+ * The ops console is exempt: it has its own five-colour status palette
+ * (--color-ops-*) precisely because a dispatcher needs red to mean stop.
+ */
+const BANNED_HUES = /\b(?:bg|text|border|ring|from|to|via)-(emerald|green|lime|teal|red|rose|pink)-\d{2,3}\b/;
+const OPS_SURFACES = ["components/admin/", "app/admin/", "components/ops/"];
+
 /** Any hex outside the token file, minus the ones a design system legitimately inlines. */
 const HEX = /#[0-9A-Fa-f]{6}\b/g;
 /** Values that are correct but must be literal (third-party SDK theme hooks). */
@@ -54,6 +74,17 @@ for (const file of FILES) {
     }
   }
 
+  if (!OPS_SURFACES.some((o) => file.includes(o))) {
+    const hue = src.match(BANNED_HUES);
+    if (hue) {
+      console.error(
+        `ERROR  ${file}\n       uses ${hue[0]} — no green or red on a customer surface.` +
+          `\n       Urgency is amber-soft, absence is grey, success is ink (--color-success).`
+      );
+      errors++;
+    }
+  }
+
   if (!ALLOWED_HEX_FILES.some((a) => file.endsWith(a))) {
     const found = [...new Set(src.match(HEX) || [])].filter((h) => !ALLOWED_HEX_VALUES.has(h.toUpperCase()));
     if (found.length) warn.push(`WARN   ${file}\n       hardcoded hex ${found.join(", ")} — prefer a token`);
@@ -63,7 +94,7 @@ for (const file of FILES) {
 if (warn.length) console.log(warn.join("\n"));
 
 if (errors) {
-  console.error(`\n✗ ${errors} retired-palette violation(s). These are colours the token migration deleted.`);
+  console.error(`\n✗ ${errors} palette violation(s) — retired brand colours, or green/red on a customer surface.`);
   process.exit(1);
 }
 console.log(`✓ design system: no retired palette values in ${FILES.length} files` + (warn.length ? `, ${warn.length} hex warning(s)` : ""));

@@ -277,7 +277,7 @@ export function MobileAccountView({
             className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
                 <Heart className="size-4.5" />
               </div>
               <div>
@@ -328,7 +328,7 @@ export function MobileAccountView({
           {biometricsAvailable && (
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
                   <Fingerprint className="size-4.5" />
                 </div>
                 <div>

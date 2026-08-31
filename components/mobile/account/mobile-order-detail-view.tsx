@@ -242,7 +242,7 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
               })}
             </ol>
             {order.etaMinutes && currentIdx < 3 && (
-              <div className="bg-emerald-50 text-emerald-600 rounded-xl p-3 text-xs font-bold text-center flex items-center justify-center gap-1.5">
+              <div className="bg-amber-soft text-ink rounded-xl p-3 text-xs font-bold text-center flex items-center justify-center gap-1.5">
                 <Clock className="size-4 animate-pulse" />
                 <span>Estimated delivery in ~{order.etaMinutes} mins</span>
               </div>
@@ -295,7 +295,7 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             )}
             <div className="flex justify-between">
               <dt className="font-semibold text-ink/50">Delivery Charges</dt>
-              <dd className={order.deliveryFeePaise === 0 ? "text-emerald-600" : ""}>
+              <dd className={order.deliveryFeePaise === 0 ? "font-bold text-ink" : ""}>
                 {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
               </dd>
             </div>

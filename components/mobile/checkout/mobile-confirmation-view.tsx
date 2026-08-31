@@ -36,7 +36,7 @@ export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 180, damping: 15 }}
-            className="mx-auto flex size-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 mb-4"
+            className="mx-auto flex size-16 items-center justify-center rounded-full bg-amber-soft text-ink mb-4"
           >
             <CheckCircle2 className="size-10" strokeWidth={2} />
           </motion.div>
@@ -106,7 +106,7 @@ export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
             )}
             <div className="flex justify-between">
               <dt className="font-semibold text-ink/50">Delivery Charges</dt>
-              <dd className={order.deliveryFeePaise === 0 ? "text-emerald-600" : ""}>
+              <dd className={order.deliveryFeePaise === 0 ? "font-bold text-ink" : ""}>
                 {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
               </dd>
             </div>

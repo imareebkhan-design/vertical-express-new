@@ -355,8 +355,8 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             <div className={cn(
               "flex items-center gap-2 rounded-xl p-3 text-xs font-bold",
               pinResult.serviceable
-                ? "bg-emerald-600/10 text-emerald-700"
-                : "bg-danger/10 text-danger"
+                ? "bg-amber-soft text-ink"
+                : "bg-chip text-ink-700"
             )}>
               {pinResult.serviceable ? (
                 <>

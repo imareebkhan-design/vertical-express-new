@@ -486,7 +486,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             )}
 
             {couponMsg && (
-              <p className={cn("text-[10px] font-bold", couponMsg.success ? "text-emerald-600" : "text-danger")}>
+              <p className={cn("text-[10px] font-bold", couponMsg.success ? "text-ink" : "text-ink-700")}>
                 {couponMsg.text}
               </p>
             )}
@@ -583,7 +583,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
                   {/* Discount */}
                   {totals.discountPaise > 0 && (
-                    <div className="flex justify-between text-emerald-600">
+                    <div className="flex justify-between text-ink">
                       <dt>Coupon Discount</dt>
                       <dd>-{formatPaise(totals.discountPaise)}</dd>
                     </div>
@@ -592,7 +592,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   {/* Delivery Fee */}
                   <div className="flex justify-between text-ink/70">
                     <dt>Delivery Charges</dt>
-                    <dd className={totals.deliveryFeePaise === 0 ? "text-emerald-600" : ""}>
+                    <dd className={totals.deliveryFeePaise === 0 ? "font-bold text-ink" : ""}>
                       {totals.deliveryFeePaise === 0 ? "FREE" : formatPaise(totals.deliveryFeePaise)}
                     </dd>
                   </div>
@@ -600,7 +600,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   {/* Delivery Serviceability alert banner */}
                   <div className="border-t border-mist/10 pt-3 flex items-center justify-between text-[11px]">
                     <span className="font-extrabold text-ink/40 uppercase">Delivery ETA</span>
-                    <span className={cn("font-extrabold", totals.serviceable ? "text-emerald-600" : "text-danger")}>
+                    <span className={cn("font-extrabold", totals.serviceable ? "text-ink" : "text-ink-700")}>
                       {totals.serviceable ? `ETA ~${totals.etaMinutes} mins` : "Unavailable"}
                     </span>
                   </div>

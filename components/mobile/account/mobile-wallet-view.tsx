@@ -100,7 +100,7 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                       <div
                         className={cn(
                           "flex size-8.5 shrink-0 items-center justify-center rounded-lg",
-                          isCredit ? "bg-emerald-50 text-emerald-600" : "bg-brand-deep/10 text-brand-deep"
+                          isCredit ? "bg-amber-soft text-ink" : "bg-chip text-ink-700"
                         )}
                       >
                         {isCredit ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
@@ -119,7 +119,7 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                       </div>
                     </div>
 
-                    <span className={cn("text-xs font-extrabold", isCredit ? "text-emerald-600" : "text-brand-deep")}>
+                    <span className={cn("text-xs font-extrabold", isCredit ? "text-ink" : "text-ink-700")}>
                       {isCredit ? "+" : "-"}
                       {formatPaise(t.amountPaise)}
                     </span>
