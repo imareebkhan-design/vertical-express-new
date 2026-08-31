@@ -11,6 +11,8 @@ import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { rupeesToPaise } from "@/lib/money";
 import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
+import { listingLayoutFor } from "@/lib/catalog-presentation";
+import { CatalogRow } from "@/components/shop/catalog-row";
 
 interface MobileCategoryViewProps {
   category: Category;
@@ -19,6 +21,9 @@ interface MobileCategoryViewProps {
 }
 
 export function MobileCategoryView({ category, slug, initialResult }: MobileCategoryViewProps) {
+  /* One rule, in lib/catalog-presentation.ts — the same one the web listing
+     uses, so a category does not change shape between surfaces. */
+  const layout = listingLayoutFor(slug);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -261,14 +266,35 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           actually made. */}
       <MobileAttributeRail facets={initialResult.facets} slug={slug} />
 
-      {/* Products list grid */}
+      {/*
+        Rows or grid, by what the category actually is.
+
+        The web branch has honoured this since the listing work; mobile rendered
+        everything as a two-column grid, including cement, wire and pipe. Those
+        are the categories where a buyer already knows what they want and is
+        comparing numbers — IS standard, grade, pack size, rating — and none of
+        that survives a 170px card with a truncated title. A contractor choosing
+        between OPC 43 and OPC 53 was being shown two identical grey bags.
+
+        CatalogRow is reused rather than reimplemented. It was already built
+        mobile-first, and a second row component is how the two surfaces drifted
+        apart in the first place.
+      */}
       <div className="flex-1">
         {displayedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 p-4 bg-surface-container-low/20">
-            {displayedProducts.map((item) => (
-              <MobileProductCard key={item.id} item={item} />
-            ))}
-          </div>
+          layout === "rows" ? (
+            <div className="flex flex-col gap-2.5 p-4">
+              {displayedProducts.map((item) => (
+                <CatalogRow key={item.id} item={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-surface-container-low/20">
+              {displayedProducts.map((item) => (
+                <MobileProductCard key={item.id} item={item} />
+              ))}
+            </div>
+          )
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <AlertCircle className="size-10 text-ink/20 mb-3" />

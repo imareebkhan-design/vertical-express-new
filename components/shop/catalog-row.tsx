@@ -47,12 +47,19 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
         <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-ink-500">
           {item.brandName}
         </p>
-        <h3 className="mt-1 text-[13px] font-bold leading-snug sm:text-sm">
+        <h3 className="mt-1 line-clamp-2 text-[13px] font-bold leading-snug sm:text-sm">
           <Link href={`/product/${item.slug}`} className="hover:underline">
             {item.title}
           </Link>
         </h3>
-        <p className="mt-1 text-[11px] font-semibold text-ink-500">{item.unitLabel}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          <p className="text-[11px] font-semibold text-ink-500">{item.unitLabel}</p>
+          {/* On a phone this sits with the spec line; the desktop row has room
+              for it in the right-hand column and keeps it there. */}
+          <span className="sm:hidden">
+            <SpeedChip speed={speedClassFor(item.categoryIsBulk)} />
+          </span>
+        </div>
 
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-base font-extrabold tabular-nums">
@@ -77,7 +84,9 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
       </div>
 
       <div className="flex flex-none flex-col items-end justify-between gap-3 self-stretch py-0.5">
-        <SpeedChip speed={speedClassFor(item.categoryIsBulk)} />
+        <span className="hidden sm:block">
+          <SpeedChip speed={speedClassFor(item.categoryIsBulk)} />
+        </span>
         <AddToCartButton variantId={item.variantId} title={item.title} disabled={!item.inStock} />
       </div>
     </article>
