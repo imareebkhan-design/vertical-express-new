@@ -57,3 +57,4 @@ supabase/.temp/
 
 # Image remediation backups — operational data, never committed (ISS-044)
 .image-backups/
+.catalog-backups/
