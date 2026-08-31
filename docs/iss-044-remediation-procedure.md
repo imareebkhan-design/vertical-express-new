@@ -162,54 +162,62 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ---
 
-## Gated: Production UPDATE
+## Production UPDATE — Execution Record
 
-**Scope:** `ProductImage.url` ONLY — 29 rows. `Category.imageUrl` is not in scope.
+**Scope:** `ProductImage.url` ONLY — 29 rows. `Category.imageUrl` was not in scope.
 
-The UPDATE does not run until the owner types `APPROVE PRODUCTION UPDATE`.
+**Owner approval:** 2026-08-31 (APPROVE PRODUCTION UPDATE).
 
-### Execution procedure
+**Outcome:** The gated write was not executed. On dry-run (2026-08-31T07:35:50Z), identity
+reconciliation confirmed the correct database (all 29 primary-key ids, productIds, and slugs
+matched the backup exactly), but all 29 rows were already carrying `/placeholder-product.webp`.
+The branded URLs had been replaced before the supervised script ran. The `--execute` path was
+not taken because the URL precondition check (`where: { id, url: expectedUrl }`) would have
+blocked every row — the rows were already at the target state.
 
-**Prerequisites:**
-- Branch `fix/brand-imagery-remediation` must be merged to main and deployed.
-- Backup file `.image-backups/product-images-2026-08-30T20-36-06-876Z.json` must be present on the machine running the script (it is gitignored; keep a copy outside the repo).
-- SHA-256 of backup: `7a0dbc50c4bf77bd57b6aab4e73a88751620f22db9029a46f7aff775c6f32758`
+**Probable cause:** `prisma db seed` was run against the production database during an earlier
+engineering session while commit `2a3b9d7`'s `updateMany` block was active in `prisma/seed.ts`.
+That block updated every primary `ProductImage` to `p.image ?? PRODUCT_PLACEHOLDER`, which for
+the 29 branded products resolves to the placeholder. The `vercel-build` script does not run the
+seed (confirmed: `prisma generate && node scripts/predeploy-migrations.mjs && next build`).
+The exact session cannot be confirmed without examining the full session transcript or database
+audit logs.
 
-**Never inline `DATABASE_URL` on the command line** — it would appear in shell history
-and the process table. Use a gitignored env file:
+**Acceptance checks verified directly against production (2026-08-31T07:35:50Z):**
+
+| Check | Result |
+|---|---|
+| Branded URLs remaining in `ProductImage` | **0** |
+| Distinct URLs in `ProductImage` | **11** |
+| URLs missing from `public/` | **0** |
+| Total `ProductImage` rows | **45** |
+
+**Backup archived:** `.image-backups/product-images-2026-08-30T20-36-06-876Z.json`
+(SHA-256: `7a0dbc50c4bf77bd57b6aab4e73a88751620f22db9029a46f7aff775c6f32758`).
+Copy held in iCloud Drive at matching hash. Local copy is gitignored; do not delete it
+until Phase 3 is closed.
+
+### Procedure notes (for future reference)
+
+**Use a gitignored env file for the connection string** — never inline DATABASE_URL on the
+command line (shell history, process table):
 
 ```sh
-# Create .env.remediation (gitignored via .env*)
-# DATABASE_URL=<production pooler URL from Supabase dashboard>
+# .env.remediation — gitignored via .env*
+# DATABASE_URL=<production session-mode pooler, port 5432>
+# Use session mode (5432), not transaction mode (6543/pgbouncer) — the script runs
+# one interactive transaction over 29 sequential updateMany calls; PgBouncer
+# transaction mode drops prepared statements and may fail mid-run.
 
-# Dry run first — full mutation path runs then rolls back, zero writes committed
 node --env-file=.env.remediation scripts/remediate-product-images-iss044.mjs
-
-# After reviewing the 29-row output, run for real
 node --env-file=.env.remediation scripts/remediate-product-images-iss044.mjs --execute
 ```
 
-**Target identity note:** The `DATABASE_URL` denylist (blocks localhost / 127.0.0.1 /
-vertical_express_test) is a fast fail, not an identity proof. A staging snapshot or
-another Supabase project at an identical pooler hostname passes it. Target identity is
-established by the in-transaction id reconciliation: the 29 primary-key ids exist in
-exactly one database. A wrong database or snapshot fails that check with `[IDENTITY FAIL]`.
-
-**What the script verifies before committing:**
-- Backup SHA-256 matches the approved checksum
-- All 29 rows present in the database by primary key
-- Each row's `productId`, product `slug`, and current `url` match the backup exactly
-- `updateMany` affects exactly 1 row per id (optimistic lock on `id + url`)
-- Re-fetch confirms all 29 rows now carry `/placeholder-product.webp`
-- Total `ProductImage` count remains exactly 45
-
-**Post-commit acceptance checks (--execute only):**
-- All 29 target rows carry the placeholder URL
-- Zero rows anywhere in `ProductImage` still carry a pre-remediation branded URL
-- Every distinct URL in `ProductImage` resolves to a file in `public/`
-
-**Rollback:** The backup `rows` array contains the pre-remediation URL for every row.
-Reverse by running a supervised `UPDATE` using the `restore` map in the backup JSON.
+**Identity proof is the id reconciliation, not the URL denylist.** The denylist blocks
+localhost/127.0.0.1/vertical_express_test as a fast fail. A staging snapshot or another
+Supabase project at an identical pooler hostname passes it. A wrong database fails the
+in-transaction reconciliation with `[IDENTITY FAIL]` — treat that as "wrong database",
+not as a data problem.
 
 ## Build output — actual route count (item 4 - CORRECTED)
 
