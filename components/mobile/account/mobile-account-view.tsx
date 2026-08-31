@@ -19,7 +19,7 @@ import {
   WifiOff,
   Heart,
 } from "lucide-react";
-import { signOut } from "@/actions/auth";
+import { signOutEverywhereOnThisDevice } from "@/lib/auth/sign-out-client";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { checkBiometrics } from "@/lib/native/biometrics";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
@@ -141,7 +141,7 @@ export function MobileAccountView({
   const handleLogout = () => {
     triggerHaptic("medium");
     startLogout(async () => {
-      await signOut();
+      await signOutEverywhereOnThisDevice();
       router.push("/");
       router.refresh();
     });

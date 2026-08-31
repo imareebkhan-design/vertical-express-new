@@ -53,3 +53,23 @@ export async function readSession(): Promise<DecodedIdToken | null> {
   }
 }
 
+/**
+ * Revokes every session this customer has, on every device.
+ *
+ * Clearing the cookie only removes it from the browser doing the clearing. The
+ * cookie itself stays cryptographically valid for its full fourteen days, so a
+ * copied one survives an ordinary sign-out — which is exactly the case where
+ * signing out is the thing you urgently want to work.
+ *
+ * `revokeRefreshTokens` moves the account's `tokensValidAfterTime` to now.
+ * `readSession` already verifies with `checkRevoked: true`, which compares a
+ * cookie's issue time against that stamp, so every outstanding session — this
+ * browser, the old laptop, the lost phone — stops resolving on its next
+ * request. No extra bookkeeping, and nothing to keep in sync.
+ *
+ * Deliberately NOT what ordinary sign-out does: signing out on a phone should
+ * not sign the same person out on their laptop.
+ */
+export async function revokeAllSessions(uid: string): Promise<void> {
+  await getAuth(adminApp()).revokeRefreshTokens(uid);
+}

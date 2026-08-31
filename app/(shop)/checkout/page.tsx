@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CheckoutSwitcher } from "@/components/mobile/checkout/checkout-switcher";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth/current-user";
 import { listAddresses } from "@/lib/services/addresses";
 import type { AddressFormValues } from "@/components/account/address-form";
 
@@ -11,11 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default async function CheckoutPage() {
-  const supabase = await createSupabaseServer();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login?next=/checkout");
+  const user = await getAuthUser();
+  if (!user) redirect("/login?next=/checkout");
 
-  const rows = await listAddresses(data.user.id);
+  const rows = await listAddresses(user.id);
   const addresses: (AddressFormValues & { id: string })[] = rows.map((a) => ({
     id: a.id,
     label: a.label,
@@ -31,6 +30,6 @@ export default async function CheckoutPage() {
   }));
 
   return (
-    <CheckoutSwitcher addresses={addresses} email={data.user.email ?? null} />
+    <CheckoutSwitcher addresses={addresses} email={user.email} />
   );
 }

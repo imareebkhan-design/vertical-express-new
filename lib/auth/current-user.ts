@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
+import { claimableIdentifier, mayClaimRow } from "@/lib/auth/link-policy";
+import { log } from "@/lib/observability";
 
 /**
  * Resolves the signed-in Firebase user to this application's own `User` row.
@@ -53,53 +55,75 @@ export async function getAuthUserId(): Promise<string | null> {
  * The cost is that someone who used Google yesterday and phone today may end up
  * with two accounts. That is annoying and recoverable. Merging them
  * automatically is neither.
+ *
+ * Exported only so lib/__tests__/account-linking.test.ts can drive it against a
+ * real database with synthetic tokens. link-policy.ts proves the decision; this
+ * is the wiring around it — which lookup runs, and whether the update is
+ * actually guarded — and that is not provable from the pure function alone.
  */
-async function provisionUser(token: DecodedIdToken): Promise<string | null> {
+export async function provisionUser(token: DecodedIdToken): Promise<string | null> {
   const uid = token.uid;
+  const email = typeof token.email === "string" ? token.email : null;
 
-  /* `phone_number` is only present when Firebase verified it — the phone
-     provider cannot complete without the OTP. `email_verified` has to be
-     checked explicitly, because email/password sign-up sets an email long
-     before anyone proves they can read it. */
-  const verifiedPhone = typeof token.phone_number === "string" ? token.phone_number : null;
-  const verifiedEmail = token.email_verified === true && typeof token.email === "string"
-    ? token.email
-    : null;
-  const unverifiedEmail = typeof token.email === "string" ? token.email : null;
+  /* The decision is lib/auth/link-policy.ts — a pure function with its own
+     tests, because this is the path that would hand one customer another
+     customer's orders. Nothing clever happens here. */
+  const claim = claimableIdentifier({
+    uid,
+    phoneNumber: typeof token.phone_number === "string" ? token.phone_number : null,
+    email,
+    emailVerified: token.email_verified === true,
+  });
 
-  const claimable = verifiedPhone
-    ? await db.user.findUnique({
-        where: { phone: verifiedPhone },
-        select: { id: true, firebaseUid: true },
-      })
-    : verifiedEmail
-      ? await db.user.findUnique({
-          where: { email: verifiedEmail },
-          select: { id: true, firebaseUid: true },
-        })
-      : null;
+  const phone = claim.kind === "phone" ? claim.value : null;
 
-  if (claimable) {
-    if (!claimable.firebaseUid) {
-      await db.user.update({ where: { id: claimable.id }, data: { firebaseUid: uid } });
-      return claimable.id;
+  if (claim.kind !== "none") {
+    const row =
+      claim.kind === "phone"
+        ? await db.user.findUnique({
+            where: { phone: claim.value },
+            select: { id: true, firebaseUid: true },
+          })
+        : await db.user.findUnique({
+            where: { email: claim.value },
+            select: { id: true, firebaseUid: true },
+          });
+
+    if (mayClaimRow(claim, row, uid) && row) {
+      if (row.firebaseUid === null) {
+        await db.user.update({ where: { id: row.id }, data: { firebaseUid: uid } });
+      }
+      return row.id;
     }
-    /* The row already belongs to a different Firebase identity. Two identities
-       claiming one phone number is a conflict, not a merge — return the new
-       identity's own row instead of handing over someone else's. */
-    if (claimable.firebaseUid !== uid) {
-      return createFreshUser(uid, verifiedPhone, unverifiedEmail);
-    }
-    return claimable.id;
   }
 
-  return createFreshUser(uid, verifiedPhone, unverifiedEmail);
+  return createFreshUser(uid, phone, email);
 }
 
 /**
- * Writes a new row. The unique constraints on phone and email are the real
- * guard here — under a race two concurrent first requests would otherwise both
- * insert, so a conflict falls back to reading whoever won.
+ * Writes a new row for an identity that could not claim an existing one.
+ *
+ * TWO DIFFERENT CONFLICTS ARRIVE HERE, AND THEY NEED OPPOSITE ANSWERS
+ *
+ *   1. A genuine race — two concurrent first requests for the same new uid.
+ *      One insert wins; the loser should read back the winner's row.
+ *
+ *   2. The identifier is spoken for. `provisionUser` has already decided this
+ *      identity may NOT have that row (an unverified email, or a phone bound to
+ *      a different uid). But `phone` and `email` are unique, so inserting a
+ *      second row carrying the same value is impossible.
+ *
+ * Case 2 used to fall into case 1's handler: the insert violated the
+ * constraint, the fallback looked for this uid, found nothing, and returned
+ * null. The customer had authenticated with Firebase perfectly well and held a
+ * valid session cookie, and the application treated them as signed out — on
+ * every subsequent attempt, permanently, with no error to explain it. Safe, in
+ * that nobody inherited anybody's orders; also completely unusable.
+ *
+ * So a claimed identifier now yields an account WITHOUT that identifier. The
+ * customer gets in; the phone or email stays with whoever holds it. It is
+ * recorded loudly because two accounts for one number is a support problem, and
+ * support cannot merge what nobody told them about.
  */
 async function createFreshUser(
   uid: string,
@@ -113,12 +137,63 @@ async function createFreshUser(
     });
     return created.id;
   } catch {
+    /* Case 1: somebody else inserted this uid first. */
     const raced = await db.user.findUnique({
       where: { firebaseUid: uid },
       select: { id: true },
     });
-    return raced?.id ?? null;
+    if (raced) return raced.id;
+
+    /* Case 2: the identifier belongs to another account. Retry without it
+       rather than leaving a fully-authenticated customer with no row. */
+    if (phone === null && email === null) return null;
+
+    log("WARN", {
+      service: "auth-service",
+      event: "identity_conflict_account_created_without_identifier",
+      metadata: {
+        /* The identifier itself is deliberately absent — it belongs to somebody
+           else, and this line goes to a log aggregator. The uid is enough for
+           support to find both accounts. */
+        uid,
+        withheld: phone !== null ? "phone" : "email",
+      },
+    });
+
+    try {
+      const fallback = await db.user.create({
+        data: { id: randomUUID(), firebaseUid: uid, phone: null, email: null },
+        select: { id: true },
+      });
+      return fallback.id;
+    } catch {
+      return (
+        await db.user.findUnique({ where: { firebaseUid: uid }, select: { id: true } })
+      )?.id ?? null;
+    }
   }
+}
+
+/**
+ * The signed-in customer's row, for the few call sites that need more than the
+ * id — chiefly the ones that send an email.
+ *
+ * The email comes from Postgres, not from the Firebase token, because Postgres
+ * is the source of truth for customer data and because a phone-only customer
+ * has no email on their token at all. A customer who later adds an address in
+ * their account should have order mail follow it without Firebase knowing.
+ */
+export async function getAuthUser(): Promise<{
+  id: string;
+  email: string | null;
+  phone: string | null;
+} | null> {
+  const id = await getAuthUserId();
+  if (!id) return null;
+  return db.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, phone: true },
+  });
 }
 
 /** True when a request carries a valid session. */

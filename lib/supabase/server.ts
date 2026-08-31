@@ -27,8 +27,17 @@ export async function createSupabaseServer() {
   );
 }
 
-/** Current authenticated user id, or null. */
-/* getAuthUserId moved to lib/auth/current-user.ts when identity moved to
- * Clerk. Supabase remains the Postgres host and storage; it no longer issues
- * or reads sessions, and leaving a second reader here would be an invitation
- * to authenticate against the wrong system. */
+/* Identity lives in lib/auth/current-user.ts. Supabase is the Postgres host and
+ * nothing else: Prisma reaches it over DATABASE_URL, which does not involve this
+ * client at all.
+ *
+ * This comment previously claimed Supabase "no longer issues or reads sessions".
+ * That was false for six weeks — placeOrder, confirmRazorpayPayment,
+ * submitBooking, the account and checkout pages and the admin gate all still
+ * called supabase.auth.getUser(), which by then signed nobody in, so checkout
+ * was dead (ISS-046). The comment is why it took so long to find: it told every
+ * reader the thing they needed to doubt.
+ *
+ * It is true now. lib/__tests__/single-identity-reader.test.ts keeps it true,
+ * which is the only reason it is safe to write down. This whole file is due for
+ * deletion with the rest of the Supabase Auth cleanup. */

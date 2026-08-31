@@ -133,7 +133,7 @@ export function Navbar() {
 
           {/* Actions: Account + Cart */}
           <div className="flex items-center gap-2.5 shrink-0">
-            {/* Signed out this is a Sign in link; signed in it is Clerk's user
+            {/* Signed out this is a Sign in link; signed in it is the account
                 menu. Previously it was an unconditional /account link, so a
                 signed-out visitor clicking it was bounced to login with no
                 indication they were not signed in. */}

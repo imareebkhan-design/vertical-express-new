@@ -1,129 +1,44 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  GoogleAuthProvider,
-  RecaptchaVerifier,
-  signInWithEmailAndPassword,
-  signInWithPhoneNumber,
-  signInWithPopup,
-  createUserWithEmailAndPassword,
-  type ConfirmationResult,
-  type UserCredential,
-} from "firebase/auth";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { firebaseAuth } from "@/lib/firebase/client";
+import { RECAPTCHA_HOLDER_ID, useFirebaseSignIn } from "@/hooks/use-firebase-sign-in";
 
 /**
- * Sign-in: phone OTP first, then Google, then email.
+ * Sign-in: phone OTP, then Google.
  *
  * The order is the market's, not the framework's. Phone-based identity is the
- * norm in Srinagar, so it leads; email/password is last because a contractor on
- * a site is not inventing a password.
+ * norm in Srinagar, so it leads.
+ *
+ * WHY THERE IS NO EMAIL AND PASSWORD OPTION
+ *
+ * There was one, and it was the weakest path in the product. Nothing ever sent
+ * a verification email, so `email_verified` was false for every account created
+ * that way — which meant the link policy would not let them claim an existing
+ * row and they could never be an admin. Nothing sent a reset either, so a
+ * forgotten password locked the account permanently. It was a method offered in
+ * the UI and supported nowhere (ISS-048).
+ *
+ * Removing it also removes the only thing in this project that Firebase's
+ * per-project scrypt signer key protects. That key has no documented rotation
+ * path, so making it guard nothing is the available remediation.
+ *
+ * A contractor standing on a slab is not inventing a password. Phone and Google
+ * cover the market; Apple joins them when the developer account exists.
  *
  * Whatever the method, it ends the same way: Firebase issues an ID token, we
  * exchange it for an httpOnly session cookie, and the server reads that. The
  * browser never holds anything the server trusts.
  */
-type Mode = "phone" | "email";
 
 export function SignInForm({ next }: { next: string }) {
-  const router = useRouter();
-  const [mode, setMode] = useState<Mode>("phone");
+  /* Credential handling lives in the hook, shared with the mobile screen. This
+     component owns only its markup and which fields it is showing. */
+  const auth = useFirebaseSignIn(next);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmation, setConfirmation] = useState<ConfirmationResult | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
-  /** Trades the Firebase credential for the server session, then continues. */
-  const establishSession = async (cred: UserCredential) => {
-    const idToken = await cred.user.getIdToken();
-    const res = await fetch("/api/auth/session", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-    });
-    if (!res.ok) throw new Error("Could not start your session. Please try again.");
-    router.push(next);
-    router.refresh();
-  };
-
-  /* Firebase requires a bot check before it will send an SMS. Invisible, but it
-     has to be attached to a real element and reused across resends. */
-  const verifier = () => {
-    recaptchaRef.current ??= new RecaptchaVerifier(firebaseAuth(), "recaptcha-holder", {
-      size: "invisible",
-    });
-    return recaptchaRef.current;
-  };
-
-  const readable = (e: unknown) => {
-    const code = (e as { code?: string })?.code ?? "";
-    if (code.includes("invalid-phone-number")) return "That phone number doesn't look right.";
-    if (code.includes("invalid-verification-code")) return "That code isn't correct.";
-    if (code.includes("code-expired")) return "That code has expired — request a new one.";
-    if (code.includes("too-many-requests")) return "Too many attempts. Try again in a few minutes.";
-    if (code.includes("popup-closed")) return "Sign-in was cancelled.";
-    if (code.includes("wrong-password") || code.includes("invalid-credential"))
-      return "Those details don't match an account.";
-    return e instanceof Error ? e.message : "Something went wrong. Please try again.";
-  };
-
-  const sendCode = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      /* Firebase wants E.164. Srinagar customers type ten digits, so assume +91
-         only when the number is bare — never rewrite one they typed in full. */
-      const digits = phone.replace(/[^\d+]/g, "");
-      const e164 = digits.startsWith("+") ? digits : `+91${digits.replace(/^0+/, "")}`;
-      setConfirmation(await signInWithPhoneNumber(firebaseAuth(), e164, verifier()));
-    } catch (e) {
-      setError(readable(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const verifyCode = async () => {
-    if (!confirmation) return;
-    setError(null);
-    setBusy(true);
-    try {
-      await establishSession(await confirmation.confirm(code));
-    } catch (e) {
-      setError(readable(e));
-      setBusy(false);
-    }
-  };
-
-  const withGoogle = async () => {
-    setError(null);
-    setBusy(true);
-    try {
-      await establishSession(await signInWithPopup(firebaseAuth(), new GoogleAuthProvider()));
-    } catch (e) {
-      setError(readable(e));
-      setBusy(false);
-    }
-  };
-
-  const withEmail = async (creating: boolean) => {
-    setError(null);
-    setBusy(true);
-    try {
-      const fn = creating ? createUserWithEmailAndPassword : signInWithEmailAndPassword;
-      await establishSession(await fn(firebaseAuth(), email, password));
-    } catch (e) {
-      setError(readable(e));
-      setBusy(false);
-    }
-  };
+  const { busy, error, confirmation } = auth;
 
   const field =
     "h-12 w-full rounded-full bg-canvas px-4 text-[14px] font-semibold text-ink placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-ink/15";
@@ -136,12 +51,10 @@ export function SignInForm({ next }: { next: string }) {
         Sign in
       </h1>
       <p className="mt-1.5 text-[13px] font-medium text-ink-700">
-        {mode === "phone"
-          ? "We'll text you a one-time code."
-          : "Use your email address and password."}
+        We&apos;ll text you a one-time code.
       </p>
 
-      {mode === "phone" && !confirmation && (
+      {!confirmation && (
         <div className="mt-5 space-y-3">
           <input
             type="tel"
@@ -152,13 +65,13 @@ export function SignInForm({ next }: { next: string }) {
             placeholder="Phone number"
             className={field}
           />
-          <button onClick={sendCode} disabled={busy || phone.length < 10} className={primary}>
+          <button onClick={() => auth.sendCode(phone)} disabled={busy || phone.length < 10} className={primary}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : "Send code"}
           </button>
         </div>
       )}
 
-      {mode === "phone" && confirmation && (
+      {confirmation && (
         <div className="mt-5 space-y-3">
           <input
             inputMode="numeric"
@@ -168,48 +81,17 @@ export function SignInForm({ next }: { next: string }) {
             placeholder="6-digit code"
             className={`${field} tracking-[0.4em]`}
           />
-          <button onClick={verifyCode} disabled={busy || code.length < 6} className={primary}>
+          <button onClick={() => auth.verifyCode(code)} disabled={busy || code.length < 6} className={primary}>
             {busy ? <Loader2 className="size-4 animate-spin" /> : "Verify and continue"}
           </button>
           <button
             onClick={() => {
-              setConfirmation(null);
+              auth.reset();
               setCode("");
             }}
             className="w-full text-[12px] font-bold text-ink-500 hover:text-ink"
           >
             Use a different number
-          </button>
-        </div>
-      )}
-
-      {mode === "email" && (
-        <div className="mt-5 space-y-3">
-          <input
-            type="email"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address"
-            className={field}
-          />
-          <input
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className={field}
-          />
-          <button onClick={() => withEmail(false)} disabled={busy || !email || !password} className={primary}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : "Sign in"}
-          </button>
-          <button
-            onClick={() => withEmail(true)}
-            disabled={busy || !email || !password}
-            className="w-full text-[12px] font-bold text-ink-500 hover:text-ink"
-          >
-            Create an account instead
           </button>
         </div>
       )}
@@ -221,22 +103,11 @@ export function SignInForm({ next }: { next: string }) {
       </div>
 
       <button
-        onClick={withGoogle}
+        onClick={auth.withGoogle}
         disabled={busy}
         className="flex h-12 w-full items-center justify-center gap-2.5 rounded-full bg-chip text-[14px] font-bold text-ink disabled:opacity-50"
       >
         <GoogleMark /> Continue with Google
-      </button>
-
-      <button
-        onClick={() => {
-          setMode(mode === "phone" ? "email" : "phone");
-          setError(null);
-          setConfirmation(null);
-        }}
-        className="mt-3 w-full text-[12px] font-bold text-ink-500 hover:text-ink"
-      >
-        {mode === "phone" ? "Use email instead" : "Use a phone number instead"}
       </button>
 
       {error && (
@@ -246,7 +117,7 @@ export function SignInForm({ next }: { next: string }) {
       )}
 
       {/* RecaptchaVerifier needs a real element to attach to, even invisible. */}
-      <div id="recaptcha-holder" />
+      <div id={RECAPTCHA_HOLDER_ID} />
     </div>
   );
 }

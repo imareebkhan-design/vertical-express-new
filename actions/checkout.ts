@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getAuthUserId } from "@/lib/auth/current-user";
+import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
 import {
   computeTotals,
@@ -12,7 +12,6 @@ import {
 import { activeGateway, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
 import { getOrderByNo } from "@/lib/services/orders";
 import { sendOrderConfirmationEmail } from "@/lib/services/email";
-import { createSupabaseServer } from "@/lib/supabase/server";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /** Fire the order-confirmation email for a freshly-confirmed order (P1-1). */
@@ -69,11 +68,10 @@ export async function placeOrder(input: {
   /** Re-validated server-side; the client's discount figure is never trusted. */
   couponCode?: string | null;
 }): Promise<ActionResult<PlaceOrderData>> {
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
-  const userEmail = authData.user?.email ?? null;
+  const user = await getAuthUser();
+  if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
+  const userId = user.id;
+  const userEmail = user.email;
 
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
@@ -128,10 +126,9 @@ export async function confirmRazorpayPayment(input: {
   razorpayPaymentId: string;
   signature: string;
 }): Promise<ActionResult<{ orderNo: string }>> {
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return fail("UNAUTHENTICATED", "Please log in");
+  const user = await getAuthUser();
+  if (!user) return fail("UNAUTHENTICATED", "Please log in");
+  const userId = user.id;
 
   const valid = verifyRazorpaySignature({
     razorpayOrderId: input.razorpayOrderId,
@@ -146,6 +143,6 @@ export async function confirmRazorpayPayment(input: {
     gatewayPaymentId: input.razorpayPaymentId,
   });
   if (!res.ok) return fail("NOT_FOUND", "Order not found");
-  await emailOrderConfirmation(userId, input.orderNo, authData.user?.email ?? null);
+  await emailOrderConfirmation(userId, input.orderNo, user.email);
   return succeed({ orderNo: input.orderNo });
 }

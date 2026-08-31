@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth/current-user";
 import { createBooking, getServiceBySlug } from "@/lib/services/bookings";
 import { rateLimit } from "@/lib/services/rate-limit";
 import { sendBookingConfirmationEmail } from "@/lib/services/email";
@@ -32,9 +32,11 @@ export async function submitBooking(input: unknown): Promise<ActionResult<{ book
     return fail("RATE_LIMITED", "Too many requests. Please try again later.");
   }
 
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
+  /* Booking is deliberately open to signed-out visitors — a contractor asking
+     for a quote should not have to make an account first. The user is attached
+     when there is one, and left null when there is not. */
+  const user = await getAuthUser();
+  const userId = user?.id ?? null;
   try {
     const booking = await createBooking({
       ...parsed.data,
@@ -43,9 +45,9 @@ export async function submitBooking(input: unknown): Promise<ActionResult<{ book
     });
 
     // P1-1: confirmation email — only when we have an address to send to (logged-in user).
-    if (authData.user?.email) {
+    if (user?.email) {
       const service = await getServiceBySlug(parsed.data.serviceSlug);
-      await sendBookingConfirmationEmail(authData.user.email, {
+      await sendBookingConfirmationEmail(user.email, {
         bookingNo: booking.bookingNo,
         serviceName: service?.name ?? "Service request",
         name: parsed.data.name,

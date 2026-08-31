@@ -58,6 +58,13 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-043 | Cleanup cron endpoint is unauthenticated and unscheduled | MEDIUM | Security/Operations | FIXED |
 | ISS-044 | Third-party branded imagery presented as own-brand goods | CRITICAL | Legal/Content | PARTIAL |
 | ISS-045 | `/categories/ceiling-fans-exhaust.webp` referenced but missing | MEDIUM | Content | PARTIAL |
+| ISS-046 | Checkout, booking and admin still authenticate against Supabase after the Firebase migration | **CRITICAL** | Auth/Commerce | FIXED |
+| ISS-047 | OTP abuse protection was lost in the Firebase migration; no App Check | HIGH | Security/Cost | OPEN |
+| ISS-048 | Email/password sign-in has no password reset and no email verification | MEDIUM | Auth | OPEN |
+| ISS-049 | A contested phone/email left a fully-authenticated customer with no account | **CRITICAL** | Auth | FIXED |
+| ISS-050 | `www.verticalexpress.in` is not a Firebase authorized domain | **CRITICAL** | Auth/Config | OPEN |
+| ISS-051 | `/api/health` disclosed configuration and raw database errors | MEDIUM | Security | FIXED |
+| ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | OPEN |
 
 ---
 
@@ -1803,3 +1810,339 @@ point at the neutral placeholder rather than nothing.
 
 **Owner input required.** Either supply a category image for ceiling fans, or drop the
 category. Not decided.
+
+---
+
+## ISS-046 — Checkout, booking and admin still authenticate against Supabase after the Firebase migration
+
+| | |
+|---|---|
+| **Severity** | **CRITICAL** |
+| **Area** | Auth / Commerce |
+| **Status** | FIXED (1 Sep 2026) — residual dead-file deletion outstanding |
+
+**Description.** Identity moved to Firebase, but six call sites were never moved onto
+`getAuthUserId()`. They still call `supabase.auth.getUser()`. Nothing signs in to Supabase
+any more, so that call now returns `null` for every visitor, including one who has just
+completed a Firebase sign-in.
+
+The system is therefore split across two identity systems that no longer agree:
+
+| Surface | Reads | Works today |
+|---|---|---|
+| `app/(auth)/login/page.tsx`, sign-in form | Firebase | yes |
+| `actions/cart.ts`, `address.ts`, `orders.ts`, `wishlist.ts` | Firebase | yes |
+| `app/(account)/account/{orders,addresses,wallet,wishlist,bookings}` | Firebase | yes |
+| `actions/checkout.ts` → `placeOrder` | **Supabase** | **no** |
+| `actions/checkout.ts` → `confirmRazorpayPayment` | **Supabase** | **no** |
+| `actions/booking.ts` → `submitBooking` | **Supabase** | **no** |
+| `app/(account)/account/page.tsx` | **Supabase** | **no** |
+| `app/(shop)/checkout/page.tsx` | **Supabase** | **no** |
+| `lib/services/admin/authz.ts` | **Supabase** | **no** |
+
+`actions/checkout.ts` reads *both*: `getCheckoutTotals` and `validateCoupon` resolve the
+customer through Firebase and succeed, then `placeOrder` re-resolves the same customer
+through Supabase and fails. A customer can price a basket and cannot buy it.
+
+**Business impact.** No order can be placed. No payment can be confirmed. No service
+booking can be submitted. The account and checkout landing pages redirect a signed-in
+customer to `/login`, which — seeing a valid Firebase session — sends them to the home
+page, so those two routes are unreachable while signed in. The admin console is
+unreachable for everyone.
+
+**Second-order risk.** The two systems do not share an id space. `placeOrder` passes
+`supabase.auth.getUser().data.user.id` as `userId`; every Firebase-path call site passes
+`users.id`. Repointing these at `getAuthUserId()` corrects the id space as well as the
+authentication, but any row written under the old path carries a Supabase uid in a column
+the rest of the system reads as `users.id`.
+
+**Evidence.** `grep -rl "supabase.auth" actions app lib` returns the six files above.
+`grep -rl getAuthUserId` returns eighteen. Verified 31 Aug 2026 against a running dev
+server: `/account` and `/checkout` return 307 to `/login` with no session, and the login
+page redirects an authenticated visitor to `/`.
+
+**Misleading comment.** `lib/supabase/server.ts` states that Supabase "no longer issues or
+reads sessions". That is false and would send the next reader looking in the wrong place.
+
+**Likely files.** `actions/checkout.ts` · `actions/booking.ts` ·
+`app/(account)/account/page.tsx` · `app/(shop)/checkout/page.tsx` ·
+`lib/services/admin/authz.ts` · `lib/supabase/server.ts` · `app/auth/confirm/route.ts`
+(dead Supabase OTP route) · `lib/services/auth-provider.ts` (dead) · `actions/auth.ts` (dead)
+
+**Test required.** Yes — a test asserting that every server action and page resolving a
+customer does so through `getAuthUserId()`, so a second identity reader cannot reappear
+silently. Admin gating additionally needs its email source repointed at the Firebase
+token's verified email.
+
+**Owner input required.** No. The target architecture is already decided; these call sites
+were simply not migrated.
+
+**Resolution (1 Sep 2026).** Every live call site now resolves identity through
+`lib/auth/current-user.ts` and nothing else.
+
+- `getAuthUser()` added alongside `getAuthUserId()` for the call sites that need the
+  customer's email as well as their id. The email is read from Postgres, not from the
+  Firebase token, because a phone-only customer has no email on their token.
+- `placeOrder`, `confirmRazorpayPayment`, `submitBooking`, `/account`, `/checkout` and
+  the admin gate migrated. This also corrects the id space: they passed a Supabase uid
+  where the rest of the system passes `users.id`.
+- **Admin gating additionally required a security fix.** Supabase only ever returned a
+  confirmed email; Firebase sets `email` on the token at sign-up, before anyone proves
+  they can read that inbox. Allowlisting on it unchanged would have let anyone sign up
+  as an address in `ADMIN_EMAILS` and enter the admin console. `getAdminUser()` now
+  requires `email_verified === true`.
+- **Two more live breaks were found while migrating.** Sign-out on the mobile account
+  view called the Supabase action, which cleared nothing — the customer stayed signed
+  in. The web control cleared the client credential first and the server cookie second,
+  so a throw in between left the half that grants access intact. Both now call
+  `signOutEverywhereOnThisDevice()`, which clears the cookie first in a `finally`.
+
+**Guard.** `lib/__tests__/single-identity-reader.test.ts` fails if any file outside
+`lib/auth/` resolves identity itself, and separately asserts that each file excused as
+dead has no live importer. Verified by reintroducing the defect: the guard names the
+offending file. Its first version was vacuous — it derived the repo root from
+`URL.pathname`, which percent-encodes the space in the checkout path, so it scanned zero
+files and passed. It now asserts a non-empty scan before believing a pass.
+
+**Outstanding — cleanup dry run, not yet executed.** Deleting these removes Supabase Auth
+entirely. Nothing outside the group imports any of it:
+
+| Delete | What it is |
+|---|---|
+| `actions/auth.ts` | Supabase OTP send/verify/sign-out actions |
+| `lib/services/auth-provider.ts` | Supabase OTP provider abstraction |
+| `app/auth/confirm/route.ts` | Supabase email-OTP callback |
+| `components/auth/login-form.tsx` | Orphaned Supabase OTP form |
+| `components/mobile/auth/mobile-login-view.tsx` | Orphaned |
+| `components/mobile/auth/mobile-otp-view.tsx` | Orphaned |
+| `lib/supabase/server.ts`, `lib/supabase/client.ts` | Auth-only clients |
+| `lib/services/__tests__/auth-provider.test.ts`, `auth-channel.test.ts` | Cover the deleted modules |
+| deps `@supabase/ssr`, `@supabase/supabase-js` | No non-auth use in the tree |
+| env `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Only `app/api/health/route.ts` still reports them |
+
+`lib/services/__tests__/rate-limit.test.ts` asserts against `actions/auth.ts` source and
+must be repointed at the Firebase path, not deleted. **Postgres is unaffected** — Prisma
+reaches Supabase over `DATABASE_URL`, which does not involve the Supabase SDK.
+
+---
+
+## ISS-047 — OTP abuse protection was lost in the Firebase migration
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Security / Cost |
+| **Status** | OPEN |
+
+**Description.** The retired Supabase path rate-limited OTP sends:
+`rateLimit("otp:" + identifier, 5, 15 * 60 * 1000, { failClosed: true })`, with a comment
+citing ISS-021 and DEC-016 — "if the limiter is unreachable we refuse to send rather than
+risk OTP-bombing a victim and paying for every SMS." The Firebase path has no equivalent.
+
+**Why it cannot simply be re-added.** Under Supabase the send went through our server, so a
+limiter in front of it worked. Under Firebase the browser calls `signInWithPhoneNumber`
+directly against Google — **our server is not in the path and cannot throttle it.** The
+protection did not get dropped by oversight so much as it stopped being implementable
+where it used to live. Re-adding a limiter to a server action would protect nothing.
+
+**The actual replacement is Firebase App Check**, which attests that the caller is our real
+app before Firebase will send an SMS. It is the mechanism Firebase documents for exactly
+this, and it is not configured. Invisible reCAPTCHA is a bot check on one request; it is
+not a volume control.
+
+**Business impact.** SMS pumping: an attacker drives paid SMS to numbers they control.
+The SMS region policy is already restricted to IN, which caps the blast radius to Indian
+numbers but does not cap volume or cost. Every message is billable.
+
+**Secondary — FIXED (1 Sep 2026).** `app/api/auth/session/route.ts` was unthrottled. It is
+ours, so a limiter does work there, and it now carries one: 30 attempts per IP per 5
+minutes, keyed on IP because there is no identity to key on until the token verifies.
+
+It fails **open**, unlike the OTP bucket in DEC-016. That bucket guards spending — each
+send costs money and reaches a real handset — so refusing while the limiter is down is
+correct there. This one guards CPU, and refusing while the limiter is down would lock
+every customer out of signing in to protect nothing that matters.
+
+**The primary issue stands: App Check is still unconfigured and unenforced.**
+
+**Likely files.** Firebase console (App Check) · `lib/firebase/client.ts` ·
+`app/api/auth/session/route.ts` · `lib/services/rate-limit.ts`
+
+**Owner input required.** No, but it costs money to leave open.
+
+---
+
+## ISS-048 — Email/password sign-in has no password reset and no email verification
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Auth |
+| **Status** | OPEN |
+
+**Description.** The sign-in form offers email/password and calls
+`createUserWithEmailAndPassword`, but nothing ever calls `sendEmailVerification` or
+`sendPasswordResetEmail`.
+
+Two consequences, and the second is not obvious:
+
+1. A customer who forgets their password is locked out permanently. There is no route back.
+2. `email_verified` is therefore **always false** for anyone who signed up this way. Two
+   other rules key off it deliberately — `lib/auth/link-policy.ts` will not let an
+   unverified email claim an existing row, and `getAdminUser()` requires a verified email.
+   Both are correct. But it means an email/password identity can never link and can never
+   be an admin, which will read as a bug the first time someone hits it.
+
+**Mitigating.** Phone OTP leads the form and is the market's norm; email/password is the
+last option offered. The blast radius is small today and grows if email/password ever
+becomes a common path.
+
+**Likely files.** `components/auth/sign-in-form.tsx` · `lib/auth/link-policy.ts`
+
+**Owner input required.** No.
+
+---
+
+## ISS-049 — A contested phone or email left a fully-authenticated customer with no account
+
+| | |
+|---|---|
+| **Severity** | **CRITICAL** |
+| **Area** | Auth |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** When an identity could not claim an existing row — an unverified email, or
+a phone already bound to a different Firebase uid — `provisionUser` fell through to
+`createFreshUser`, which tried to insert a second row carrying the same `phone` or `email`.
+Both are `@unique`. The insert violated the constraint, the catch looked for a row with
+this uid, found none, and returned `null`.
+
+`getAuthUserId()` therefore returned `null` for somebody who had authenticated with
+Firebase perfectly well and was holding a valid session cookie. They were bounced from
+`/account` and `/checkout` to `/login`, which — seeing a valid session — sent them to the
+home page. On every attempt. Permanently. With no error anywhere the customer could see.
+
+**How it was found.** Not by reading the code, which had a comment asserting the opposite
+("the second gets its own row, not the first one's orders"), and not by the existing 13
+link-policy tests, which prove the *decision* and never touch a database. It took an
+integration test driving `provisionUser` against real rows — scenarios D and E of the
+production auth verification — which failed on the first run.
+
+**Security assessment.** No takeover: the victim's row was never read, updated or returned.
+The failure was closed. It was purely a denial of service, and the person denied was the
+new customer, not the existing one.
+
+**Realistic triggers.** A phone number recycled between customers · a Firebase account
+deleted and recreated, giving the same person a new uid against their existing row · a
+customer whose email exists on an imported row signing up with email/password, where the
+address is unverified by definition.
+
+**Resolution.** A conflicting identifier now produces an account *without* that identifier:
+the customer gets a working row bound to their uid, and the contested phone or email stays
+with whoever holds it. Logged at WARN with the uid and which field was withheld — never
+the value itself, which belongs to somebody else — because two accounts for one number is
+a support problem and support cannot merge what nobody told them about.
+
+**Test.** `lib/__tests__/account-linking.test.ts` — seven cases against a real database,
+covering scenarios A–F. D and E assert both halves: the contested row is untouched, *and*
+the new account is usable.
+
+---
+
+## ISS-050 — `www.verticalexpress.in` is not a Firebase authorized domain
+
+| | |
+|---|---|
+| **Severity** | **CRITICAL** |
+| **Area** | Auth / Configuration |
+| **Status** | OPEN — owner action, one line in the Firebase console |
+
+**Description.** Firebase's authorized-domain list contains `verticalexpress.in`. The
+application's canonical host is `https://www.verticalexpress.in` — `app/layout.tsx` uses it
+as the `metadataBase` default, and it is the host Vercel actually serves; the apex does not
+currently complete a TLS handshake.
+
+Firebase matches `window.location.hostname` exactly. `www.verticalexpress.in` and
+`verticalexpress.in` are different hostnames, so on production both Google sign-in and
+phone auth's reCAPTCHA will fail with `auth/unauthorized-domain` — the popup opens and
+closes immediately.
+
+**Why it has not been seen yet.** Production has never served this build. The deployment is
+returning HTTP 402 `DEPLOYMENT_DISABLED`, so nobody has reached a sign-in screen there.
+Fixing the billing state without adding this domain will produce a site where sign-in is
+broken for every visitor.
+
+**Fix.** Add `www.verticalexpress.in` to Firebase Console → Authentication → Settings →
+Authorized domains. Decide separately whether the apex should redirect to `www` or be
+served with a valid certificate; whichever hosts the app must be on the list.
+
+**Secondary.** `auth/unauthorized-domain` is not mapped in the sign-in hook's `readable()`,
+so the failure would surface as a raw Firebase string rather than something a customer or a
+support agent could act on.
+
+---
+
+## ISS-051 — `/api/health` disclosed configuration and raw database errors
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Security |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** The endpoint is unauthenticated and internet-facing, so everything it
+returned was public. It returned `paymentGateway`, `otpChannel`, `supabaseConfigured`, and
+— on a database failure — the raw driver error message.
+
+The error message was the serious one. Prisma and Postgres connection errors routinely
+name the host, port, database and user, so the endpoint was **most informative to an
+attacker at exactly the moment the system was failing.** `paymentGateway: "dummy"` was free
+reconnaissance of its own: it announces that orders confirm without money changing hands
+(ISS-002).
+
+**Resolution.** The response is now `{ status, timestamp }` and nothing else. Liveness is
+carried by the HTTP status, which is the one bit a monitor needs; the failure detail goes
+to `captureException`, where operators can see it and the public cannot.
+
+**Test.** `lib/__tests__/health-disclosure.test.ts` — a source test, not a request test,
+because the leak lived in the failure branch that a request against a healthy database
+never reaches. Verified by reintroducing the disclosure: the test fails.
+
+---
+
+## ISS-052 — SMS second-factor MFA is enabled project-wide with no client support
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Auth |
+| **Status** | OPEN — owner decision |
+
+**Description.** The project's Identity Platform config reads
+`mfa: { state: "ENABLED", enabledProviders: ["PHONE_SMS"] }`. This changed on 31 Aug 2026;
+it read `DISABLED` earlier the same day.
+
+**What `ENABLED` actually means.** Firebase has three states: `DISABLED`, `ENABLED`,
+`MANDATORY`. `ENABLED` permits enrolment — it does not require it. **No existing sign-in
+is affected, and nothing is broken today.** The project has 2 users and **0 have enrolled a
+second factor**, so the challenge path is currently unreachable.
+
+**Why it still matters.** Nothing in the client handles it. There is no
+`getMultiFactorResolver` anywhere in the codebase, and no second-factor screen. If anyone
+enrols, their next sign-in throws `auth/multi-factor-auth-required` and cannot complete —
+they would be locked out of their own account with no route back.
+
+**A constraint worth knowing.** Firebase does not allow SMS as a second factor when the
+first factor is phone. This is a phone-first customer base, so SMS-MFA is inapplicable to
+most of it by construction; it would only ever apply to the email/password and Google
+paths.
+
+**Interim mitigation applied.** `auth/multi-factor-auth-required` is now mapped to a plain
+message rather than surfacing a raw Firebase string. That turns a confusing failure into a
+clear one; it does not make the flow work.
+
+**Safest action — owner's call.** Set `mfa.state` back to `DISABLED` until a second-factor
+screen exists. Enrolment is the only thing `ENABLED` buys, and there is no UI to enrol
+through, so the setting currently offers no benefit and one way to lock a customer out.
+**Not done unilaterally** — the setting was changed deliberately and reversing someone's
+security decision without asking is not a call an engineer should make alone.

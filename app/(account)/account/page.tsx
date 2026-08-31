@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/auth/current-user";
 import { listOrders } from "@/lib/services/orders";
 import { listAddresses } from "@/lib/services/addresses";
 import { getWishlistProductIds } from "@/lib/services/wishlist";
@@ -12,10 +12,9 @@ export const metadata: Metadata = {
 };
 
 export default async function AccountOverview() {
-  const supabase = await createSupabaseServer();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login?next=/account");
-  const userId = data.user.id;
+  const user = await getAuthUser();
+  if (!user) redirect("/login?next=/account");
+  const userId = user.id;
 
   const [{ orders, total }, addresses, wishlistIds] = await Promise.all([
     listOrders(userId, 1, 3),
@@ -29,7 +28,7 @@ export default async function AccountOverview() {
       totalOrders={total}
       addresses={addresses}
       wishlistIds={wishlistIds}
-      email={data.user.email ?? null}
+      email={user.email}
     />
   );
 }

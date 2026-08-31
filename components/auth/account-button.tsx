@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { onAuthStateChanged, signOut, type User as FirebaseUser } from "firebase/auth";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { ChevronDown, LogOut, Package, User, UserRound } from "lucide-react";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { signOutEverywhereOnThisDevice } from "@/lib/auth/sign-out-client";
 import { cn } from "@/lib/utils";
 
 /** Navbar auth control: Sign in when signed out, an account menu when signed in. */
@@ -32,11 +33,7 @@ export function AccountButton() {
   }, []);
 
   const handleSignOut = async () => {
-    /* Both halves matter: Firebase clears the browser's credential, and the
-       route clears the httpOnly session cookie the server reads. Dropping
-       either one leaves the customer signed in on the side you forgot. */
-    await signOut(firebaseAuth());
-    await fetch("/api/auth/session", { method: "DELETE" });
+    await signOutEverywhereOnThisDevice();
     setOpen(false);
     router.refresh();
   };
