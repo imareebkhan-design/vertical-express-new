@@ -2,6 +2,16 @@ generator client {
   provider = "prisma-client-js"
 }
 
+/// MIGRATIONS TRAVEL OVER directUrl, NOT url.
+///
+/// `prisma migrate` uses `directUrl` because the pooler cannot hold the
+/// advisory lock a migration needs. The consequence is a trap that has already
+/// been sprung once: overriding only DATABASE_URL to aim a migration at a local
+/// database does nothing — `migrate deploy` reads DIRECT_URL, finds the
+/// production value in .env, and migrates production instead. The command looks
+/// local and is not.
+///
+/// Override BOTH, or use `npm run db:migrate:local`.
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
@@ -10,64 +20,74 @@ datasource db {
 
 /// Mirrors Supabase auth.users (id = auth.uid). Populated on first login.
 model User {
-  id        String    @id @db.Uuid
+  id          String    @id @db.Uuid
   /// Clerk's user id. Retained through the expand phase of the move to Firebase
   /// so a rollback does not lose the mapping; drops in a later release once
   /// nothing reads it (expand → migrate → contract).
-  clerkId    String?  @unique @map("clerk_id")
+  clerkId     String?   @unique @map("clerk_id")
   /// Firebase Auth's uid — the current identity mapping. Added alongside the
   /// UUID primary key, never replacing it: Address, Order, Cart and Wallet all
   /// reference `id`, and retyping a primary key under live foreign keys is a
   /// rewrite, not a migration.
-  firebaseUid String? @unique @map("firebase_uid")
-  phone     String?   @unique
-  email     String?   @unique
-  role      Role      @default(customer)
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
-  addresses Address[]
-  cart      Cart?
-  orders    Order[]
-  profile   Profile?
-  wishlist  Wishlist?
-  wallet    Wallet?
+  firebaseUid String?   @unique @map("firebase_uid")
+  phone       String?   @unique
+  email       String?   @unique
+  role        Role      @default(customer)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  addresses   Address[]
+  cart        Cart?
+  orders      Order[]
+  profile     Profile?
+  wishlist    Wishlist?
+  wallet      Wallet?
 
   @@map("users")
 }
 
 model Profile {
-  id             String   @id @default(uuid()) @db.Uuid
-  userId         String   @unique @map("user_id") @db.Uuid
-  fullName       String?  @map("full_name")
-  avatarUrl      String?  @map("avatar_url")
+  id             String     @id @default(uuid()) @db.Uuid
+  userId         String     @unique @map("user_id") @db.Uuid
+  fullName       String?    @map("full_name")
+  avatarUrl      String?    @map("avatar_url")
   gstin          String?
-  companyName    String?  @map("company_name")
-  marketingOptIn Boolean  @default(false) @map("marketing_opt_in")
-  firstUtm       Json?    @map("first_utm")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName    String?    @map("company_name")
+  /// What the customer is buying as, which is a merchandising fact, not a
+  /// permission. `Role` stays the authorization enum — conflating the two would
+  /// mean a homeowner and a contractor differed in what they may *do*, when
+  /// what actually differs is what they are shown first.
+  buyerType      BuyerType? @map("buyer_type")
+  marketingOptIn Boolean    @default(false) @map("marketing_opt_in")
+  firstUtm       Json?      @map("first_utm")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
 }
 
 model Address {
-  id        String       @id @default(uuid()) @db.Uuid
-  userId    String       @map("user_id") @db.Uuid
-  label     AddressLabel @default(home)
-  name      String
-  phone     String
-  line1     String
-  line2     String?
-  landmark  String?
-  city      String
-  state     String
-  pincode   String       @db.Char(6)
-  isDefault Boolean      @default(false) @map("is_default")
-  deletedAt DateTime?    @map("deleted_at")
-  createdAt DateTime     @default(now()) @map("created_at")
-  updatedAt DateTime     @updatedAt @map("updated_at")
-  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String       @id @default(uuid()) @db.Uuid
+  userId     String       @map("user_id") @db.Uuid
+  label      AddressLabel @default(home)
+  name       String
+  phone      String
+  line1      String
+  line2      String?
+  landmark   String?
+  /// What the driver needs to know to actually reach the gate — "truck can
+  /// reach the rear", "narrow lane, small vehicle only". Free text on purpose:
+  /// Srinagar addresses are landmark-navigated and no structured field would
+  /// capture it. Shown on the site card and carried to the shipment.
+  accessNote String?      @map("access_note")
+  city       String
+  state      String
+  pincode    String       @db.Char(6)
+  isDefault  Boolean      @default(false) @map("is_default")
+  deletedAt  DateTime?    @map("deleted_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isDefault])
   @@index([pincode])
@@ -75,20 +95,21 @@ model Address {
 }
 
 model Category {
-  id             String        @id @default(uuid()) @db.Uuid
-  slug           String        @unique
+  id             String         @id @default(uuid()) @db.Uuid
+  slug           String         @unique
   name           String
-  group          CategoryGroup @default(other)
-  imageUrl       String?       @map("image_url")
+  group          CategoryGroup  @default(other)
+  imageUrl       String?        @map("image_url")
   description    String?
-  isBulk         Boolean       @default(false) @map("is_bulk")
-  sortOrder      Int           @default(0) @map("sort_order")
-  isActive       Boolean       @default(true) @map("is_active")
-  seoTitle       String?       @map("seo_title")
-  seoDescription String?       @map("seo_description")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  isBulk         Boolean        @default(false) @map("is_bulk")
+  sortOrder      Int            @default(0) @map("sort_order")
+  isActive       Boolean        @default(true) @map("is_active")
+  seoTitle       String?        @map("seo_title")
+  seoDescription String?        @map("seo_description")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
   products       Product[]
+  rooms          RoomCategory[]
 
   @@index([group, sortOrder])
   @@map("categories")
@@ -520,6 +541,48 @@ model ShipmentItem {
   @@unique([shipmentId, orderItemId])
   @@index([orderItemId])
   @@map("shipment_items")
+}
+
+/// A room a homeowner shops by, as opposed to the trade taxonomy a contractor
+/// shops by. Both reach the same categories from different directions — the app
+/// canvas leads homeowners with "Shop by room" and contractors with the L1
+/// groups.
+model Room {
+  id         String         @id @default(uuid()) @db.Uuid
+  slug       String         @unique
+  name       String
+  sortOrder  Int            @default(0) @map("sort_order")
+  isActive   Boolean        @default(true) @map("is_active")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  categories RoomCategory[]
+
+  @@index([sortOrder])
+  @@map("rooms")
+}
+
+/// Which categories a room surfaces, and in what order.
+///
+/// An explicit join rather than an implicit many-to-many because the ordering
+/// is editorial: "Bathroom" leads with sanitaryware, not with whichever
+/// category happens to sort first. A category belongs to many rooms — tiling is
+/// in every one of them — so this cannot live on Category.
+model RoomCategory {
+  roomId     String   @map("room_id") @db.Uuid
+  categoryId String   @map("category_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([roomId, categoryId])
+  @@index([roomId, sortOrder])
+  @@map("room_categories")
+}
+
+enum BuyerType {
+  contractor
+  homeowner
+  designer
 }
 
 enum Role {

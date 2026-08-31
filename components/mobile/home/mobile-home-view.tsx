@@ -6,6 +6,7 @@ import { Search, Bell, MapPin, ChevronDown } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import type { Category } from "@prisma/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
 import { CategoryGlyph, type GlyphName } from "./category-glyph";
 import { formatPaise } from "@/lib/money";
 
@@ -176,6 +177,15 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
           low at each site will lead it.
         </p>
       </div>
+
+      {/*
+        The homeowner's entry point, above the trade taxonomy.
+
+        Order matters and is the artboard's, not arbitrary: somebody redoing a
+        bathroom does not know they need Tiling and Sanitary & Bath, so the room
+        comes before the trade grid. A contractor scrolls straight past it.
+      */}
+      <ShopByRoom />
 
       {/* Category entry grid */}
       <div className="px-4 pt-5">

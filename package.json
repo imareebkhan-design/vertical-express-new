@@ -25,6 +25,7 @@
     "check:assets": "node scripts/check-assets.mjs",
     "seo:categories": "node scripts/category-seo.mjs",
     "seo:products": "node scripts/product-copy.mjs",
+    "db:migrate:local": "DATABASE_URL=$LOCAL_TEST_DATABASE_URL DIRECT_URL=$LOCAL_TEST_DATABASE_URL prisma migrate deploy",
     "db:status": "prisma migrate status"
   },
   "dependencies": {
