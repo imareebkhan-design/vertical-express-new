@@ -1117,6 +1117,7 @@ endpoint.
 | **ISS-034** | Rating fields with no review system | Catalog | `Product.ratingAvg` and `ratingCount` are seeded with values but no review submission, storage or moderation exists. | Either build reviews (P1) or stop displaying seeded ratings — displaying a fabricated rating is the same problem as ISS-008. | No |
 | **ISS-035** | OTP endpoint reveals account existence | Security | Error text differs depending on whether the identifier is known. | Return an identical response regardless. | No |
 | **ISS-036** | Repository hygiene | DevOps | `.vercel-old/` is committed. Entire history is one squashed commit, making `git bisect` and blame useless. No Prettier config. | Remove `.vercel-old/`, add Prettier, commit incrementally from here. | No |
+| **ISS-037** | Two mobile shells in the repository | DevOps | Capacitor 8.4.2 (`capacitor.config.ts`, `mobile-shell/`, `@capacitor/*`, `cap:*` scripts) and the Expo shell in `mobile/` (DEC-019) both exist to wrap the same web app. Capacitor has never produced a build — no `ios/` or `android/` project was ever generated. | Retire Capacitor once an EAS production build is proven green: remove `capacitor.config.ts`, `mobile-shell/`, the four `@capacitor/*` dependencies and the `cap:*` scripts. Not done in the same change that adds Expo, so the fallback survives until the replacement is proven. | No |
 
 ---
 

@@ -18,6 +18,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // The Expo shell is a separate workspace with its own React Native
+      // toolchain; next/core-web-vitals rules do not apply to it.
+      "mobile/**",
     ],
   },
 ];

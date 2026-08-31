@@ -424,3 +424,41 @@ saved project lists, the knowledge hub, contractor tier pricing — are explicit
 See `ENGINEERING_ROADMAP.md` and the "Do Not Build Yet" section of `CLAUDE.md`.
 
 **Revisit at:** completion of Stage 5.
+
+---
+
+## DEC-019 — The mobile application is an Expo WebView shell over the deployed web app
+
+**Status:** ACCEPTED · **Date:** 31 Aug 2026
+
+**Decision.** The mobile technology choice deferred by DEC-010 is now made: **Expo, built
+and distributed through EAS**, and for its first release the app is a **WebView shell**
+that renders the deployed Vertical Express web application. It is not a native React
+Native client. It lives in `mobile/` as a separate npm workspace with its own dependency
+tree, linked to EAS project `fb9abf0f-301b-49f4-a8ad-c79fcae2b5b3`.
+
+**Rationale.** The owner requires a store-distributable application. A WebView shell is
+the only option that produces one without first building the HTTP API layer that does not
+exist — today only `/api/serviceability/[pincode]` and `/api/search/suggest` are reachable
+over HTTP, while cart, catalog, checkout, orders, auth, addresses, wishlist and booking
+are Server Actions, which a React Native client cannot call. Expo over Capacitor buys
+cloud builds: iOS binaries without a Mac, which is the practical constraint here.
+
+**Consequences.**
+- The shell implements **no** commerce logic. It renders the web app and hands non-http
+  schemes (`upi:`, `tel:`, `mailto:`) to the OS. DEC-009's constraint holds trivially.
+- https navigation is *not* origin-restricted inside the WebView. This is required: a
+  card payment redirects through the gateway and then an issuing bank's 3-D Secure page,
+  an arbitrary domain that cannot be allowlisted ahead of time.
+- Capacitor 8.4.2 is now redundant — it was scaffolded for the same job. It is left in
+  place for this change and retired separately once an EAS build is proven green
+  (ISS-037). Two shells must not both ship.
+- The shell inherits the web app's performance characteristics exactly. Every gain from
+  ISS-031 (three animation libraries, `lenis` hijacking scroll) lands in the app too.
+- **This decision does not reopen DEC-010's sequencing.** The commerce core still carries
+  four correctness defects (ISS-001 to ISS-005). A shell shipped before those are fixed
+  ships the GST overcharge to a second surface.
+
+**Revisit at:** evidence that mobile-web retention or store review scores justify a native
+client — at which point the HTTP API layer (priority 13) is the prerequisite, not the app.
+

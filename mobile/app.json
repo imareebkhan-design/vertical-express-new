@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Vertical Express",
+    "slug": "vertical-express",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "verticalexpress",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#161616",
+    "primaryColor": "#161616",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "in.verticalexpress.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "in.verticalexpress.app",
+      "versionCode": 1,
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "backgroundColor": "#161616",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "fb9abf0f-301b-49f4-a8ad-c79fcae2b5b3"
+      }
+    }
+  }
+}

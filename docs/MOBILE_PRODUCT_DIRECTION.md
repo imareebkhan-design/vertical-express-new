@@ -61,9 +61,19 @@ project has been generated and no application has been published.**
 Meanwhile the live site displays App Store and Google Play badges linking to `#`. That is
 a false availability claim and must be removed (ISS-008) until an app genuinely exists.
 
-## The decision that is deliberately deferred
+## The decision that was deferred — now made
 
-**Capacitor vs React Native/Expo vs Flutter vs PWA has NOT been decided.**
+> **Superseded 31 Aug 2026 by DEC-019.** The owner has chosen **Expo, built through EAS**,
+> shipping first as a **WebView shell** over the deployed web app. The section below is
+> kept as the reasoning that was in force beforehand; it is history, not current guidance.
+>
+> Two of the three preconditions listed below were **not** met when the decision was
+> taken: core commerce is not stabilised (ISS-001 to ISS-005 are open) and there is no
+> usage data. The API-readiness point was answered rather than waited on — the absence of
+> an HTTP surface is precisely why the first release is a shell and not a native client.
+
+**Capacitor vs React Native/Expo vs Flutter vs PWA had NOT been decided at the time of
+writing.**
 
 Capacitor being already scaffolded is a data point, not a decision. Each option carries
 real trade-offs — native feel, plugin ecosystem, code sharing with the existing Next.js
@@ -92,5 +102,10 @@ codebase.
 ## Recorded position
 
 > Mobile is a **requirement**, not an aspiration. The architecture is already being built
-> to support it. The technology choice is **open** and will be made with evidence, at
-> Stage 6, and not before.
+> to support it.
+
+**Current position (31 Aug 2026, DEC-019).** The technology choice is **closed**: Expo via
+EAS, WebView shell first, in `mobile/`. The non-negotiable constraint at the top of this
+document is unchanged and is satisfied trivially by a shell — it computes no price, no
+stock, no delivery promise, and holds no order or payment state. A native React Native
+client remains a later question, and its prerequisite is the HTTP API layer, not the app.
