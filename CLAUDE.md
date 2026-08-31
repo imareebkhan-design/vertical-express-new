@@ -7,6 +7,62 @@
 
 ---
 
+## Where this code lives — read this first
+
+**This is the live repository:**
+
+```
+github.com/imareebkhan-design/vertical-express-new     ← the code you are reading
+        ↓ deploys via the Vercel Git integration
+Vercel project "homerun-clone"  (team areeb2)
+        ↓ production branch
+main  →  a push here deploys to production, immediately, with no approval step
+```
+
+**`github.com/imareebkhan-design/vertical-express` (no `-new`) is dead.** It was
+archived on 31 August 2026. The two repositories share history and forked at
+`40fb913` in July; the old one holds exactly two commits that never came across,
+and both were checked and found redundant — its `robots.ts` and `sitemap.ts` work
+already exists here, and its `CLAUDE.md` is superseded by this file.
+
+**Nothing needs migrating from it. Do not push to it. Do not read it for context.**
+
+### Why this section exists
+
+Three separate agent sessions independently discovered that the working branches
+were absent from `origin`, each spent effort re-deriving why, and one of them
+pushed a documentation commit into the *dead* repository — which triggered a
+failed Vercel build and cost an afternoon of diagnosis. The Vercel project pointed
+at the old repository until 31 August 2026, so for a period **nothing built here
+could deploy at all**.
+
+If you find yourself puzzled that a branch is missing from `origin`, the answer is
+almost certainly that it is local and unpushed — not that you are in the wrong
+repository.
+
+### Branch conventions
+
+`main` is the production branch and deploys on push. `design-system/apply-tokens`
+has served as the integration line, with feature branches cut from it and merged
+back. Feature branches deploy to Vercel *previews*, which is safe — but the Preview
+environment has **no environment variables**, so a preview build fails at
+`generateStaticParams`, which queries Prisma. That failure is expected and is not a
+code defect.
+
+### Before you push to `main`
+
+Production **cannot boot** without live Razorpay credentials. `assertPaymentConfig()`
+in `instrumentation.ts` throws at server start unless `PAYMENT_GATEWAY=razorpay-live`
+and all three Razorpay secrets are present, so every request returns 500.
+
+Read that carefully, because the intuition runs the wrong way: **not having Razorpay
+credentials is precisely what breaks a production deploy.** The guard exists so the
+site refuses to serve rather than take a customer's money through a dummy gateway
+(ISS-002). Until those credentials are configured in Vercel, push feature branches
+freely and leave `main` alone.
+
+---
+
 ## Product
 
 Vertical Express is a construction-material commerce and hyperlocal delivery platform.
