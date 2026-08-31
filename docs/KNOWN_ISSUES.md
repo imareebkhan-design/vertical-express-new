@@ -70,6 +70,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-055 | Every delivered order paid 5% cashback at a rate nobody set | **CRITICAL** | Money/Policy | FIXED |
 | ISS-056 | Two different fabricated GSTINs shipped as the company's registration | HIGH | Legal/Content | FIXED |
 | ISS-057 | The Slots screen has no backing model — delivery windows do not exist | HIGH | Fulfilment | OPEN |
+| ISS-058 | The storefront's default sort ranks by an always-empty `ratingCount` | MEDIUM | Catalog | PARTIAL |
 
 ---
 
@@ -2341,3 +2342,45 @@ offered and how many trucks each holds, and a writer for `Shipment.promisedAt`. 
 is engineering; the second two are the owner's.
 
 **Owner input required.** Yes — which delivery windows, and what capacity per window.
+
+---
+
+## ISS-058 — The storefront's default sort ranks by an always-empty column
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Catalog |
+| **Status** | PARTIAL — a real ranking now exists; the default sort still needs a decision |
+
+**Description.** `orderBy` in `lib/services/catalog.ts` maps `popular` — which is also the
+`default` case, so it governs every listing that does not ask for something else — to
+`[{ ratingCount: "desc" }, { createdAt: "desc" }]`.
+
+There is no `Review` model. Nothing in the codebase writes `ratingCount`. **All 59
+products in the catalogue sit at zero**, verified directly. The first sort key is therefore
+inert and every listing silently falls through to `createdAt desc`: products are ordered
+newest-first by accident rather than by decision, and presented as popularity.
+
+`lib/services/search.ts` and `getRelatedProductsRaw` order by the same dead column.
+
+**Why it went unnoticed.** It produces a plausible-looking order. Nothing errors, nothing
+is empty, and the ordering only looks wrong if you know what it claims to be.
+
+**What was done.** `mostOrderedInCategory()` ranks by summed `OrderItem.qty`, which is what
+the app canvas's "Most ordered in <category>" section actually means. Orders in
+`pending_payment`, `cancelled`, `refunded` and `refund_initiated` are excluded — something
+abandoned at payment or refused at the gate is not evidence anybody wanted it. With no
+orders yet it returns an empty array, so the caller renders nothing rather than filling the
+space.
+
+**What is still open.** The `popular`/`default` sort itself. Three options, and the choice
+is a product one: rank by real order volume (accurate, but every listing changes as orders
+arrive), keep newest-first but name it honestly, or curate a merchandising order. Leaving
+it as "popular" backed by zeros is the one option that is actively misleading.
+
+**Tests.** `lib/services/__tests__/most-ordered.test.ts` — empty catalogue returns nothing,
+nine units outrank two, and a hundred units across abandoned and cancelled orders do not
+move the ranking at all.
+
+**Owner input required.** Yes, for the default sort.

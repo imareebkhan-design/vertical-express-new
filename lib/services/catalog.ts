@@ -714,3 +714,84 @@ export async function listCategorySlugs(): Promise<string[]> {
   const rows = await db.category.findMany({ where: { isActive: true }, select: { slug: true } });
   return rows.map((r) => r.slug);
 }
+
+/**
+ * The products a category has actually sold most of.
+ *
+ * WHY NOT THE EXISTING "popular" SORT
+ *
+ * `orderBy` treats `popular` as `ratingCount desc`. There is no Review model and
+ * nothing writes that column — every product in the catalogue sits at zero — so
+ * the default sort for the entire storefront silently falls through to
+ * `createdAt desc`. Products are ordered newest-first by accident rather than by
+ * decision, and a section headed "Most ordered" backed by that would be
+ * decoration.
+ *
+ * `OrderItem` is the real signal, and it is the one the artboard actually asks
+ * for. Cancelled and unpaid orders are excluded: something abandoned at payment
+ * or cancelled at the gate is not evidence anybody wanted it.
+ *
+ * Returns an empty array while nothing has been ordered, which is the honest
+ * answer early on — the caller renders nothing rather than filling the space
+ * with whatever happened to be seeded first.
+ */
+export async function mostOrderedInCategory(
+  categorySlug: string,
+  limit = 6
+): Promise<CatalogItem[]> {
+  const rows = await db.orderItem.groupBy({
+    by: ["variantId"],
+    where: {
+      order: {
+        status: { notIn: ["pending_payment", "cancelled", "refunded", "refund_initiated"] },
+      },
+      variant: { product: { category: { slug: categorySlug }, status: "published" } },
+    },
+    _sum: { qty: true },
+    orderBy: { _sum: { qty: "desc" } },
+    take: limit,
+  });
+
+  if (rows.length === 0) return [];
+
+  const variants = await db.productVariant.findMany({
+    where: { id: { in: rows.map((r) => r.variantId) } },
+    select: { id: true, productId: true },
+  });
+
+  /* Preserve the ranking the aggregate produced — findMany does not. */
+  const rank = new Map(rows.map((r, i) => [r.variantId, i]));
+  const productIds = [
+    ...new Set(
+      variants
+        .sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+        .map((v) => v.productId)
+    ),
+  ];
+
+  if (productIds.length === 0) return [];
+
+  const rowsFull = await db.product.findMany({
+    where: { id: { in: productIds }, status: "published" },
+    include: {
+      brand: true,
+      category: { select: { slug: true, isBulk: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: {
+          bulkTiers: { select: { id: true }, take: 1 },
+          inventory: { select: { qtyOnHand: true, qtyReserved: true } },
+        },
+      },
+    },
+  });
+
+  /* findMany does not honour the order of an `in` list, and the whole point of
+     this function is the ranking, so it is reapplied here. */
+  const order = new Map(productIds.map((id, i) => [id, i]));
+  return rowsFull
+    .map(toItem)
+    .filter((x): x is CatalogItem => x !== null)
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
