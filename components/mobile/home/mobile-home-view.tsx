@@ -7,6 +7,7 @@ import type { CatalogItem } from "@/lib/services/catalog";
 import type { Category } from "@prisma/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
+import { QuantityHelpers } from "@/components/mobile/home/quantity-helpers";
 import { CategoryGlyph, type GlyphName } from "./category-glyph";
 import { formatPaise } from "@/lib/money";
 
@@ -186,6 +187,8 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
         comes before the trade grid. A contractor scrolls straight past it.
       */}
       <ShopByRoom />
+
+      <QuantityHelpers />
 
       {/* Category entry grid */}
       <div className="px-4 pt-5">
