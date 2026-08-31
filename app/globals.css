@@ -228,14 +228,19 @@ body {
   font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  padding-top: 4rem; /* 64px for mobile TopAppBar */
-  padding-bottom: 5rem; /* 80px for mobile BottomNavBar */
 }
 
-@media (min-width: 1024px) {
+/* Clearance for the fixed top app bar and bottom nav that `components/sections/
+   navbar.tsx` renders below 1024px.
+ *
+ * Scoped to 768–1023 only. Under 768 the storefront now renders the app-language
+ * views, which carry their own 59px reserved safe area and a floating pill nav —
+ * no fixed chrome to clear — so the old unconditional padding pushed every
+ * mobile-web screen 64px down the page and left 80px dead at the bottom. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
   body {
-    padding-top: 0;
-    padding-bottom: 0;
+    padding-top: 4rem;
+    padding-bottom: 5rem;
   }
 }
 

@@ -1,84 +1,84 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import React from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import {
-  RefreshCw,
-  Sparkles,
-  Flame,
-  ArrowRight,
-  Clock,
-  TrendingUp,
-  HelpCircle,
-  Layers,
-  Package,
-  ShieldCheck,
-  Wrench,
-  Paintbrush,
-  Zap,
-  Droplet,
-} from "lucide-react";
+import { Search, Bell, MapPin, ChevronDown } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import type { Category } from "@prisma/client";
-import type { RecentlyViewedItem } from "@/components/shop/recently-viewed";
-import { MobileHeader } from "./mobile-header";
-import { MobileSearchBar } from "./mobile-search-bar";
-import { MobileProductCard } from "./mobile-product-card";
-import { triggerHaptic } from "@/lib/native/haptics";
+import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { CategoryGlyph, type GlyphName } from "./category-glyph";
 import { formatPaise } from "@/lib/money";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
-  adhesives: Layers,
-  cement: Package,
-  waterproofing: ShieldCheck,
-  tools: Wrench,
-  painting: Paintbrush,
-  electrical: Zap,
-  plumbing: Droplet,
+/**
+ * The app home screen, built to the `HomeFirstRun` artboard.
+ *
+ * The design draws three home variants. `Main` (contractor) and `HomeHomeowner`
+ * lead with an "Order again" rail, saved lists, and a "running low at this site"
+ * rail inferred from past orders. None of those three features exist in the data
+ * model yet — there is no saved-list entity, this view receives no order history,
+ * and the consumption model behind "roughly 6 left" is explicitly unconfirmed in
+ * the placeholder register. `HomeFirstRun` is the design's own answer for a user
+ * with no history, so it is the variant that can be rendered honestly today.
+ *
+ * Everything on screen comes from real catalog data or from fixed copy in the
+ * artboard. No price, delivery time or stock figure is invented here.
+ */
+
+/** The eight entry categories the artboard leads with, and their group tint. */
+const ENTRY_CATEGORIES: {
+  label: string;
+  slug: string;
+  glyph: GlyphName;
+  tint: string;
+}[] = [
+  { label: "Cement", slug: "cement", glyph: "bag", tint: "var(--color-tint-civil)" },
+  { label: "Tiling", slug: "tiling", glyph: "tile", tint: "var(--color-tint-civil)" },
+  { label: "Painting", slug: "painting", glyph: "paint", tint: "var(--color-tint-civil)" },
+  {
+    label: "Wires & MCB",
+    slug: "wires-mcb-distribution-boards",
+    glyph: "wire",
+    tint: "var(--color-tint-electrical)",
+  },
+  { label: "Plywood", slug: "plywood-mdf-hdhmr", glyph: "ply", tint: "var(--color-tint-civil)" },
+  {
+    label: "CPVC & tanks",
+    slug: "cpvc-pipes-overhead-tanks",
+    glyph: "pipe",
+    tint: "var(--color-tint-plumbing)",
+  },
+  {
+    label: "Hardware",
+    slug: "general-hardware-tools",
+    glyph: "tools",
+    tint: "var(--color-tint-furniture)",
+  },
+  { label: "Lighting", slug: "lighting", glyph: "bulb", tint: "var(--color-tint-electrical)" },
+];
+
+/** A category inherits its L1 group's tint; it never picks its own. */
+const GROUP_TINT: Record<string, string> = {
+  cement: "var(--color-tint-civil)",
+  tiling: "var(--color-tint-civil)",
+  painting: "var(--color-tint-civil)",
+  waterproofing: "var(--color-tint-civil)",
+  "plywood-mdf-hdhmr": "var(--color-tint-civil)",
+  fevicol: "var(--color-tint-civil)",
+  "wires-mcb-distribution-boards": "var(--color-tint-electrical)",
+  "switches-sockets": "var(--color-tint-electrical)",
+  "conduits-gi-boxes": "var(--color-tint-electrical)",
+  lighting: "var(--color-tint-electrical)",
+  "ceiling-fans-exhaust": "var(--color-tint-electrical)",
+  "appliances-power-backup": "var(--color-tint-electrical)",
+  "power-tools-accessories": "var(--color-tint-electrical)",
+  "cpvc-pipes-overhead-tanks": "var(--color-tint-plumbing)",
+  "sanitary-bath-fittings": "var(--color-tint-plumbing)",
+  "kitchen-sinks-faucets": "var(--color-tint-plumbing)",
 };
 
-function getCategoryIcon(slug: string) {
-  return CATEGORY_ICONS[slug] || HelpCircle;
+function tintFor(categorySlug: string) {
+  return GROUP_TINT[categorySlug] ?? "var(--color-tint-furniture)";
 }
-
-interface HomeBanner {
-  id: string;
-  title: string;
-  subtitle: string;
-  badge: string;
-  href: string;
-  bgGradient: string;
-}
-
-const HERO_BANNERS: HomeBanner[] = [
-  {
-    id: "express-delivery",
-    title: "60-Min Site Delivery",
-    subtitle: "Cement, tools, and adhesives straight to your jobsite.",
-    badge: "IN STOCK NOW",
-    href: "/categories",
-    bgGradient: "bg-gradient-to-r from-amber-500 to-orange-600",
-  },
-  {
-    id: "bulk-savings",
-    title: "Contractor Bulk Pricing",
-    subtitle: "Save up to 15% extra on pallet & truckload orders.",
-    badge: "BULK SAVINGS",
-    href: "/category/cement",
-    bgGradient: "bg-gradient-to-r from-blue-600 to-indigo-700",
-  },
-  {
-    id: "gst-invoicing",
-    title: "Get 18% GST Input Credit",
-    subtitle: "Enter your GSTIN at checkout for instant formal tax invoices.",
-    badge: "BUSINESS BENEFITS",
-    href: "/account",
-    bgGradient: "bg-gradient-to-r from-emerald-600 to-teal-700",
-  },
-];
 
 interface MobileHomeViewProps {
   deals: CatalogItem[];
@@ -87,369 +87,162 @@ interface MobileHomeViewProps {
   categories: Category[];
 }
 
-export function MobileHomeView({ deals, featured, newArrivals, categories }: MobileHomeViewProps) {
-  const router = useRouter();
-  const [refreshing, setRefreshing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [lastViewed, setLastViewed] = useState<RecentlyViewedItem | null>(null);
+export function MobileHomeView({ featured }: MobileHomeViewProps) {
+  const { pincode, cityName, openLocationModal } = useNativeShell();
 
-  // Pull to refresh gesture states
-  const [pullY, setPullY] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
-  const startY = useRef(0);
-  const [, startTransition] = useTransition();
-
-  useEffect(() => {
-    setMounted(true);
-    // Load last viewed product from local storage
-    try {
-      const raw = localStorage.getItem("ve_recently_viewed_items");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.length > 0) {
-          setLastViewed(parsed[0]);
-        }
-      }
-    } catch {}
-  }, []);
-
-  const getGreeting = () => {
-    const hrs = new Date().getHours();
-    if (hrs < 12) return "Good morning";
-    if (hrs < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
-  const handleRefresh = () => {
-    triggerHaptic("medium");
-    setRefreshing(true);
-    setPullY(0);
-
-    startTransition(async () => {
-      router.refresh();
-      // Reload last viewed product
-      try {
-        const raw = localStorage.getItem("ve_recently_viewed_items");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.length > 0) {
-            setLastViewed(parsed[0]);
-          }
-        }
-      } catch {}
-      setTimeout(() => {
-        setRefreshing(false);
-        triggerHaptic("light");
-      }, 1000);
-    });
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0 && !refreshing) {
-      startY.current = e.touches[0].clientY;
-      setIsPulling(true);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isPulling) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startY.current;
-    if (diff > 0) {
-      // Dragging down: apply elastic scaling
-      setPullY(Math.min(diff * 0.4, 80));
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsPulling(false);
-    if (pullY > 55) {
-      handleRefresh();
-    } else {
-      setPullY(0);
-    }
-  };
-
-  if (!mounted) return <HomeSkeleton />;
+  // The artboard shows two. More would push the nav off a 852px frame.
+  const popular = featured.slice(0, 2);
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className="relative flex flex-col min-h-screen bg-surface pb-24 overflow-x-hidden"
-    >
-      {/* Pull-to-refresh spinner */}
-      <div
-        className="absolute left-0 right-0 z-20 flex items-center justify-center pointer-events-none transition-all duration-150"
-        style={{
-          top: `${pullY - 44}px`,
-          opacity: pullY > 15 ? 1 : 0,
-        }}
-      >
-        <div className="flex size-9 items-center justify-center rounded-full bg-white shadow-md text-brand-deep">
-          <RefreshCw className={`size-4 ${refreshing || pullY > 55 ? "animate-spin text-brand" : ""}`} />
-        </div>
-      </div>
+    <div className="flex flex-col bg-canvas">
+      {/* Reserved safe area — the OS draws its status bar here. */}
+      <div className="h-[59px] flex-none" />
 
-      {/* Sticky Mobile Header */}
-      <MobileHeader hasNotifications={true} />
-
-      {/* Greeting Section */}
-      <div className="px-4 pt-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-extrabold text-ink leading-tight">{getGreeting()}</h1>
-          <p className="text-xs text-ink/50 mt-0.5">Quick site delivery for all materials</p>
-        </div>
+      {/* Site chip, search, notifications */}
+      <div className="flex items-center gap-[9px] px-4 pt-1.5">
         <button
-          onClick={handleRefresh}
-          className={`flex size-8 items-center justify-center rounded-full bg-mist/20 text-ink transition-transform ${
-            refreshing ? "animate-spin text-brand-deep" : "hover:bg-mist/30"
-          }`}
-          title="Refresh Feed"
+          type="button"
+          onClick={openLocationModal}
+          className="flex h-10 min-w-0 flex-1 items-center justify-between rounded-full bg-paper py-0 pl-3.5 pr-2 shadow-card"
         >
-          <RefreshCw className="size-3.5" />
+          <span className="flex min-w-0 items-center gap-2">
+            <MapPin className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
+            <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-ink">
+              {cityName} Site · <span className="tabular-nums text-ink-500">{pincode}</span>
+            </span>
+          </span>
+          <ChevronDown className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
         </button>
+
+        <Link
+          href="/search"
+          aria-label="Search"
+          className="flex size-[38px] flex-none items-center justify-center rounded-full bg-paper text-ink no-underline shadow-card"
+        >
+          <Search className="size-[19px]" strokeWidth={1.7} aria-hidden />
+        </Link>
+        <Link
+          href="/account"
+          aria-label="Notifications"
+          className="flex size-[38px] flex-none items-center justify-center rounded-full bg-paper text-ink no-underline shadow-card"
+        >
+          <Bell className="size-[19px]" strokeWidth={1.7} aria-hidden />
+        </Link>
       </div>
 
-      {/* Search Bar Shortcut */}
-      <MobileSearchBar />
+      {/* Greeting — grey lead-in, then ink */}
+      <div className="px-4 pt-[18px]">
+        {/* The artboard reads "Welcome, Bilal" — grey lead-in, then the name in
+            ink. This view has no user prop, and a fabricated name is worse than
+            a missing one, so the greeting stands alone in ink until the name is
+            available to pass in. */}
+        <h1 className="text-[23px] font-extrabold leading-7 tracking-[-0.022em] text-ink">
+          Welcome
+        </h1>
+      </div>
 
-      {/* Dynamic Continue Shopping Card */}
-      {lastViewed && (
-        <div className="px-4 py-1">
-          <Link
-            href={`/product/${lastViewed.slug}`}
-            onClick={() => triggerHaptic("light")}
-            className="flex items-center gap-3 rounded-2xl border border-brand/40 bg-brand/5 p-3 shadow-xs transition-transform active:scale-[0.98]"
-          >
-            <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-white border border-mist/20">
-              {lastViewed.imageUrl ? (
-                <Image
-                  src={lastViewed.imageUrl}
-                  alt={lastViewed.title}
-                  fill
-                  className="object-contain p-1"
-                  sizes="48px"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-[10px] text-ink/30">No Image</div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <span className="inline-block rounded-full bg-brand-deep/10 px-2 py-0.5 text-[8px] font-extrabold uppercase text-brand-deep leading-none">
-                Continue Shopping
-              </span>
-              <h4 className="truncate text-xs font-bold text-ink mt-0.5 leading-tight">{lastViewed.title}</h4>
-              <p className="text-[10px] text-ink/50 leading-none mt-1">
-                {lastViewed.brandName} • {formatPaise(lastViewed.pricePaise)}
+      {/* First-list prompt */}
+      <div className="px-4 pt-4">
+        <div className="flex flex-col gap-3.5 rounded-[28px] bg-amber-soft p-5">
+          <div className="flex items-start justify-between gap-3.5">
+            <div className="flex-1">
+              <h2 className="text-[19px] font-bold leading-6 tracking-[-0.018em] text-ink">
+                Start your first list
+              </h2>
+              <p className="mt-[7px] text-[13px] font-medium leading-[18.5px] text-ink-700">
+                Put everything for one pour, one wiring phase or one room in a list. Then reorder
+                it in a tap next time.
               </p>
             </div>
-            <ArrowRight className="size-3.5 text-brand-deep shrink-0 mr-1" />
+            <CategoryGlyph name="clip" className="size-[52px] flex-none" />
+          </div>
+          <div className="flex gap-[9px]">
+            <Link
+              href="/categories"
+              className="flex h-11 flex-1 items-center justify-center rounded-full bg-ink text-[13.5px] font-bold tracking-[-0.01em] text-white no-underline"
+            >
+              Add materials
+            </Link>
+            <Link
+              href="/search"
+              className="flex h-11 items-center justify-center rounded-full bg-paper px-[13px] text-[12.5px] font-bold tracking-[-0.01em] text-ink no-underline shadow-card"
+            >
+              Browse first
+            </Link>
+          </div>
+        </div>
+        <p className="mt-[11px] px-1 text-[11px] font-semibold leading-[14px] text-ink-500">
+          This screen fills in as you order — your reorders, saved lists and what&apos;s running
+          low at each site will lead it.
+        </p>
+      </div>
+
+      {/* Category entry grid */}
+      <div className="px-4 pt-5">
+        <div className="flex items-baseline justify-between">
+          <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+            Start with a category
+          </h2>
+          <Link
+            href="/categories"
+            className="text-[11px] font-bold leading-[14px] text-ink no-underline"
+          >
+            All 21
           </Link>
         </div>
-      )}
-
-      {/* Hero Banners Carousel */}
-      <div className="px-4 py-3">
-        <div className="scrollbar-hide flex gap-3 overflow-x-auto snap-x snap-mandatory">
-          {HERO_BANNERS.map((b) => (
-            <Link
-              key={b.id}
-              href={b.href}
-              onClick={() => triggerHaptic("light")}
-              className={`snap-center relative min-w-[280px] max-w-[300px] flex-1 rounded-3xl p-5 text-white shadow-card transition-transform active:scale-[0.98] ${b.bgGradient}`}
-            >
-              <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-xs">
-                {b.badge}
-              </span>
-              <h2 className="mt-2 text-base font-extrabold leading-snug">{b.title}</h2>
-              <p className="mt-1 text-xs opacity-90">{b.subtitle}</p>
-              <div className="mt-4 inline-flex items-center text-xs font-bold underline">
-                Explore Offers <ArrowRight className="ml-1 size-3.5" />
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {ENTRY_CATEGORIES.map((c) => (
+            <Link key={c.slug} href={`/category/${c.slug}`} className="no-underline">
+              <div
+                className="flex h-[74px] w-full items-center justify-center overflow-hidden rounded-[18px]"
+                style={{ backgroundColor: c.tint }}
+              >
+                <CategoryGlyph name={c.glyph} className="size-8" />
+              </div>
+              <div className="mt-1.5 text-center text-[11px] font-semibold leading-[13px] text-ink">
+                {c.label}
               </div>
             </Link>
           ))}
         </div>
       </div>
 
-      {/* Categories Preview */}
-      <div className="py-3">
-        <div className="flex items-center justify-between px-4 mb-2.5">
-          <h2 className="text-sm font-extrabold tracking-tight text-ink uppercase">Top Categories</h2>
-          <Link
-            href="/categories"
-            onClick={() => triggerHaptic("light")}
-            className="flex items-center text-xs font-bold text-brand-deep hover:underline"
-          >
-            View All <ArrowRight className="ml-1 size-3" />
-          </Link>
-        </div>
-
-        <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2">
-          {categories.slice(0, 8).map((cat) => {
-            const Icon = getCategoryIcon(cat.slug);
-            return (
+      {/* Popular — real catalog data */}
+      {popular.length > 0 && (
+        <div className="px-4 pt-5">
+          <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+            Popular in Srinagar this week
+          </h2>
+          <div className="mt-[11px] grid grid-cols-2 gap-2.5">
+            {popular.map((item) => (
               <Link
-                key={cat.slug}
-                href={`/category/${cat.slug}`}
-                onClick={() => triggerHaptic("light")}
-                className="flex min-w-[100px] flex-col items-center justify-center rounded-2xl border border-mist/20 bg-surface p-3 text-center shadow-xs transition-transform active:scale-95"
+                key={item.id}
+                href={`/product/${item.slug}`}
+                className="rounded-[20px] bg-paper p-2 no-underline shadow-card"
               >
-                <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-brand-deep/10 text-brand-deep">
-                  <Icon className="size-5" />
+                <div
+                  className="flex h-24 w-full items-center justify-center overflow-hidden rounded-[18px]"
+                  style={{ backgroundColor: tintFor(item.categorySlug) }}
+                >
+                  <CategoryGlyph name="bag" className="size-11" />
                 </div>
-                <span className="text-xs font-bold text-ink truncate w-full">{cat.name}</span>
-                <span className="text-[9px] text-ink/40 mt-0.5">Explore</span>
+                <div className="mt-[9px] text-[9.5px] font-bold uppercase leading-3 tracking-[0.09em] text-ink-500">
+                  {item.brandName}
+                </div>
+                <div className="mt-[3px] line-clamp-2 h-[34px] overflow-hidden text-[13px] font-bold leading-[17px] tracking-[-0.01em] text-ink">
+                  {item.title}
+                </div>
+                <div className="mt-0.5 text-[14.5px] font-extrabold tabular-nums tracking-[-0.02em] text-ink">
+                  {formatPaise(item.pricePaise)}
+                </div>
               </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Product Scroller Feed */}
-      <div className="space-y-4">
-        {/* Hot Deals & Offers */}
-        <ProductSection
-          title="Hot Deals"
-          subtitle="Exclusive discounts on core essentials"
-          items={deals}
-          icon={<Flame className="size-4 text-danger fill-danger" />}
-        />
-
-        {/* Featured Products */}
-        <ProductSection
-          title="Featured Supplies"
-          subtitle="Top rated building products"
-          items={featured}
-          icon={<Sparkles className="size-4 text-brand" />}
-        />
-
-        {/* Best Sellers */}
-        <ProductSection
-          title="Best Sellers"
-          subtitle="Most ordered on-site essentials"
-          items={featured.slice().reverse()} // reversing list to generate seller diversity without extra query
-          icon={<TrendingUp className="size-4 text-emerald-600" />}
-        />
-
-        {/* New Arrivals */}
-        <ProductSection
-          title="New Arrivals"
-          subtitle="Fresh stock and tools catalogs"
-          items={newArrivals}
-          icon={<Clock className="size-4 text-blue-600" />}
-        />
-      </div>
-    </div>
-  );
-}
-
-interface ProductSectionProps {
-  title: string;
-  subtitle?: string;
-  items: CatalogItem[];
-  icon?: React.ReactNode;
-}
-
-function ProductSection({ title, subtitle, items, icon }: ProductSectionProps) {
-  if (!items || items.length === 0) {
-    return (
-      <section className="px-4 py-3">
-        <h2 className="text-sm font-extrabold text-ink uppercase mb-2">{title}</h2>
-        <div className="rounded-2xl border border-dashed border-mist/30 p-8 text-center text-xs text-ink/40">
-          No items found in this section.
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="py-2.5">
-      <div className="flex items-center justify-between px-4 mb-2.5">
-        <div>
-          <div className="flex items-center gap-1.5">
-            {icon}
-            <h2 className="text-sm font-extrabold tracking-tight text-ink uppercase leading-none">{title}</h2>
-          </div>
-          {subtitle && <p className="text-[10px] text-ink/40 font-semibold mt-1 leading-none">{subtitle}</p>}
-        </div>
-      </div>
-      <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory">
-        {items.map((item) => (
-          <div key={item.id} className="snap-center shrink-0 w-[148px]">
-            <MobileProductCard item={item} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function HomeSkeleton() {
-  return (
-    <div className="flex flex-col min-h-screen bg-surface pb-24 animate-pulse">
-      {/* Header Skeleton */}
-      <div className="flex items-center justify-between border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)]">
-        <div className="flex items-center gap-2">
-          <div className="size-8 rounded-full bg-mist/30" />
-          <div className="space-y-1.5">
-            <div className="h-2.5 w-16 bg-mist/30 rounded-full" />
-            <div className="h-3 w-28 bg-mist/30 rounded-full" />
+            ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="size-9 rounded-full bg-mist/30" />
-          <div className="size-9 rounded-full bg-mist/30" />
-        </div>
-      </div>
+      )}
 
-      {/* Greeting Skeleton */}
-      <div className="px-4 pt-4 space-y-2">
-        <div className="h-4 w-36 bg-mist/30 rounded-full" />
-        <div className="h-3 w-48 bg-mist/20 rounded-full" />
-      </div>
-
-      {/* Search Bar Skeleton */}
-      <div className="px-4 py-3">
-        <div className="h-10 w-full bg-mist/30 rounded-2xl" />
-      </div>
-
-      {/* Hero Banners Skeleton */}
-      <div className="px-4 py-2">
-        <div className="h-32 w-[280px] bg-mist/30 rounded-3xl" />
-      </div>
-
-      {/* Categories Skeleton */}
-      <div className="py-4 space-y-3">
-        <div className="flex items-center justify-between px-4">
-          <div className="h-3.5 w-24 bg-mist/30 rounded-full" />
-          <div className="h-3.5 w-12 bg-mist/20 rounded-full" />
-        </div>
-        <div className="flex gap-3 px-4 overflow-hidden">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex min-w-[100px] flex-col items-center justify-center rounded-2xl bg-mist/20 p-4 space-y-2">
-              <div className="size-10 rounded-xl bg-mist/30" />
-              <div className="h-2.5 w-14 bg-mist/30 rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Products Scroller Skeleton */}
-      <div className="py-4 space-y-3">
-        <div className="px-4">
-          <div className="h-3.5 w-32 bg-mist/30 rounded-full" />
-        </div>
-        <div className="flex gap-3 px-4 overflow-hidden">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="w-[148px] h-52 rounded-2xl bg-mist/20 p-3 space-y-3">
-              <div className="aspect-square w-full rounded-xl bg-mist/30" />
-              <div className="h-2.5 w-20 bg-mist/30 rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* The shell wrapper already reserves nav clearance (pb-24). */}
+      <div className="h-5 flex-none" />
     </div>
   );
 }

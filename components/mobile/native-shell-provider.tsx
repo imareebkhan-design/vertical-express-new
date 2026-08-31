@@ -362,9 +362,21 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
       )}
 
       {showTabBar && (
-        <footer className="native-footer fixed bottom-0 left-0 right-0 z-40 w-full">
-          <MobileTabBar />
-        </footer>
+        <>
+          {/* Content fades into the canvas behind the floating nav rather than
+              being cut by it — the scrim the app design pairs with the pill. */}
+          <div
+            aria-hidden
+            className="pointer-events-none fixed inset-x-0 bottom-0 z-30 h-[120px]"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(243,242,240,0) 0%, var(--color-canvas) 62%)",
+            }}
+          />
+          <footer className="native-footer fixed bottom-0 left-0 right-0 z-40 w-full">
+            <MobileTabBar />
+          </footer>
+        </>
       )}
 
       {locationSheet}
