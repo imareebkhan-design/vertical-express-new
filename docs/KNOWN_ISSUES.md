@@ -66,6 +66,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-051 | `/api/health` disclosed configuration and raw database errors | MEDIUM | Security | FIXED |
 | ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | FIXED |
 | ISS-053 | Production has none of the 12 environment variables Firebase auth needs | **CRITICAL** | Config/Deploy | OPEN |
+| ISS-054 | `SpeedChip` defaults to the unverified 60-minute delivery claim | MEDIUM | Content/Legal | OPEN |
 
 ---
 
@@ -2201,3 +2202,35 @@ touches the disk.
 
 **Do not deploy the Firebase build until this is done.** It is the last hard blocker before
 the real +91 test.
+
+---
+
+## ISS-054 — `SpeedChip` defaults to the unverified 60-minute delivery claim
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Content / Legal |
+| **Status** | OPEN — blocked on the owner confirming the real window |
+
+**Description.** `components/ui/speed-chip.tsx` declares `etaMinutes = 60` as a default
+parameter. Eight call sites render the chip without passing a value, so each of them
+displays "60 min" — a figure `CLAUDE.md` lists as unconfirmed and ISS-018 flags as a
+fabricated claim.
+
+**Why it survived the earlier sweep.** Removing "60 minutes" from copy was treated as a
+content problem, and this is not copy — it is a default parameter that materialises the
+claim at render time in eight places at once. Grepping the pages for the string finds
+nothing.
+
+**Why it is not simply deleted.** The chip is the design's express indicator and a delivery
+promise is the single most load-bearing thing on a product card in this market. An empty
+chip is worse than a wrong one. The fix is the confirmed figure, or the placeholder marker
+if the answer is "we do not know yet" — the same treatment now used on the COD ceiling and
+the winter delay in `site-setup-view.tsx`.
+
+**Note.** The design canvas itself shows "60 min" on these chips, so the artboards will need
+the same correction once the real window is known. Matching the canvas here would mean
+shipping the claim.
+
+**Owner input required.** Yes — what is the actual express window for Srinagar?
