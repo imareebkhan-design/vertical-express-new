@@ -6,6 +6,8 @@ import type { AddressFormValues } from "@/components/account/address-form";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
+import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { CheckoutView } from "@/components/shop/checkout-view";
 import { PageLoader } from "@/components/page-loader";
@@ -37,11 +39,15 @@ export function CheckoutSwitcher({ addresses, email }: CheckoutSwitcherProps) {
   return (
     <>
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-        <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">Checkout</h1>
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
+        <h1 className="mb-2 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Where and when</h1>
+        <p className="mb-6 text-sm font-medium text-ink-700">Two shipments, two slots. Both are set here before you pay.</p>
         <CheckoutView addresses={addresses} email={email} />
+        <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>
   );
 }
+

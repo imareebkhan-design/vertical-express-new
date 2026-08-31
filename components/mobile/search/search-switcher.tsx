@@ -6,6 +6,8 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
+import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { SearchBox } from "@/components/shop/search-box";
 import { EmptyState } from "@/components/shop/empty-state";
@@ -44,15 +46,15 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
   return (
     <>
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+          <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">
             {query ? <>Results for “{query}”</> : "Search"}
           </h1>
           <div className="mt-3 block lg:hidden">
             <SearchBox />
           </div>
-          <p className="mt-1.5 text-sm font-semibold text-neutral-500">
+          <p className="mt-1.5 text-sm font-medium text-ink-700">
             {result.total} {result.total === 1 ? "product" : "products"}
           </p>
         </div>
@@ -78,8 +80,12 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
             </div>
           </div>
         )}
+
+        <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>
   );
 }
+

@@ -5,6 +5,8 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
+import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
 import { WalletView } from "@/components/account/wallet-view";
@@ -39,19 +41,22 @@ export function WalletSwitcher({ wallet, transactions }: WalletSwitcherProps) {
   return (
     <>
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
+        <h1 className="mb-6 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Wallet &amp; credit</h1>
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <AccountNav active="/account/wallet" />
           <div>
-            <h1 className="mb-6 text-2xl font-extrabold tracking-tight">My Wallet</h1>
             <WalletView
               balancePaise={wallet.balancePaise}
               transactions={transactions}
             />
           </div>
         </div>
+        <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>
   );
 }
+

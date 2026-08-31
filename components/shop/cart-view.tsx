@@ -77,7 +77,7 @@ export function CartView() {
                 <div className="flex min-w-0 flex-1 flex-col">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-neutral-400">
+                      <p className="text-[11px] font-bold uppercase tracking-wider text-ink-500">
                         {line.brandName}
                       </p>
                       <Link
@@ -90,23 +90,11 @@ export function CartView() {
                     <button
                       onClick={() => removeItem(line.itemId)}
                       aria-label={`Remove ${line.title}`}
-                      className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-neutral-400 transition-colors hover:bg-danger/5 hover:text-danger"
+                      className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-full text-ink-500 transition-colors hover:bg-danger/5 hover:text-danger"
                     >
                       <Trash2 className="size-4" />
                     </button>
                   </div>
-
-                  {line.appliedTierMinQty && line.appliedTierMinQty > 1 && (
-                    <p className="mt-1 text-[11px] font-bold text-brand-deep">
-                      Bulk price applied ({line.appliedTierMinQty}+)
-                    </p>
-                  )}
-                  {line.nextTier && (
-                    <p className="mt-0.5 text-[11px] font-semibold text-neutral-400">
-                      Add {line.nextTier.minQty - line.qty} more for{" "}
-                      {formatPaise(line.nextTier.pricePaise)} {line.unitLabel}
-                    </p>
-                  )}
 
                   <div className="mt-auto flex items-center justify-between pt-2">
                     <div className="flex items-center rounded-[8px] border border-hairline-border bg-surface-soft/40">
@@ -142,32 +130,32 @@ export function CartView() {
 
       {/* Summary */}
       <aside className="h-fit lg:sticky lg:top-24">
-        <div className="rounded-card border border-hairline-border bg-white p-5 shadow-card">
-          <h2 className="text-lg font-extrabold">Order summary</h2>
-          <dl className="mt-4 space-y-2 text-sm font-bold">
+        <div className="rounded-[26px] border border-line bg-paper p-6 shadow-card">
+          <h2 className="text-lg font-extrabold text-ink">Order summary</h2>
+          <dl className="mt-4 space-y-2.5 text-[13.5px] font-bold">
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Subtotal ({summary.count} items)</dt>
-              <dd>{formatPaise(subtotalPaise)}</dd>
+              <dt className="text-ink-500">Subtotal ({summary.count} items)</dt>
+              <dd className="text-ink">{formatPaise(subtotalPaise)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-neutral-500">Delivery</dt>
-              <dd className={qualifiesFreeDelivery ? "text-success" : ""}>
+              <dt className="text-ink-500">Delivery</dt>
+              <dd className={qualifiesFreeDelivery ? "text-success" : "text-ink-500"}>
                 {qualifiesFreeDelivery ? "FREE" : "Calculated at checkout"}
               </dd>
             </div>
           </dl>
-          <div className="mt-4 flex justify-between border-t border-hairline-border pt-4 text-base font-extrabold">
-            <span>Total</span>
+          <div className="mt-4 flex justify-between border-t border-line pt-4 text-lg font-extrabold text-ink">
+            <span>To pay</span>
             <span>{formatPaise(subtotalPaise)}</span>
           </div>
-          <Link href="/checkout" className="mt-5 block">
-            <Button size="lg" className="w-full">
-              {pending ? <Loader2 className="animate-spin" /> : "Proceed to checkout"}
+          <Link href="/checkout" className="mt-5 block no-underline">
+            <Button size="lg" className="w-full h-12 rounded-full font-bold">
+              {pending ? <Loader2 className="animate-spin" /> : "Choose delivery slots"}
             </Button>
           </Link>
           <Link
             href="/categories"
-            className="mt-3 block text-center text-xs font-bold text-neutral-500 hover:text-ink"
+            className="mt-3 block text-center text-xs font-bold text-ink-500 hover:text-ink no-underline"
           >
             Continue shopping
           </Link>
