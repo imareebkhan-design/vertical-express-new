@@ -72,6 +72,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-057 | The Slots screen has no backing model — delivery windows do not exist | HIGH | Fulfilment | OPEN |
 | ISS-058 | The storefront's default sort ranks by an always-empty `ratingCount` | MEDIUM | Catalog | PARTIAL |
 | ISS-059 | `--color-danger` red is used for promotions and favourites, not just errors | MEDIUM | Design | PARTIAL |
+| ISS-060 | Search has no query log, so "Searched most" and item requests cannot exist | LOW | Search | OPEN |
 
 ---
 
@@ -2423,3 +2424,34 @@ distinction. Worth doing deliberately, in one pass, with the screens open.
 resolved, or the build breaks on 38 files.
 
 **Owner input required.** No — a design call, but a considered one.
+
+---
+
+## ISS-060 — Search has no query log
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Area** | Search |
+| **Status** | OPEN — needs a model, and the empty state works without it |
+
+**Description.** Two things the search artboards ask for have no data behind them:
+
+- **"Searched most in Srinagar"** (artboard 15a) — a list of the queries customers actually
+  run. Nothing records a query anywhere, so this cannot be computed. The existing static
+  `POPULAR_SEARCHES` array is a guess dressed as observation, which is the same mistake as
+  the `ratingCount` sort in ISS-058.
+- **"Request this item"** (artboard 15c) — a button on the empty state. There is nothing to
+  record a request against. A button that swallows the request silently is worse than not
+  offering it, so it is not built.
+
+**What the empty state does instead.** Says plainly that the range is fixed and this is not
+in it, and routes to the catalogue. That turns a dead end into a way forward without
+promising to source something nobody is tracking.
+
+**Why this is LOW.** Neither is load-bearing. But a query log is cheap and unusually
+valuable here — the searches that return nothing are a direct list of what Srinagar wants
+and this shop does not carry, which is exactly the input a first-year catalogue decision
+needs.
+
+**Owner input required.** No, but worth wanting.

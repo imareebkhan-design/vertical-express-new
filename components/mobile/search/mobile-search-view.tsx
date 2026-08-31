@@ -438,11 +438,42 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                       </div>
                     )}
 
+                    {/*
+                      The empty state from artboard 15c.
+
+                      A search that finds nothing is the moment a customer
+                      decides whether this shop is worth coming back to. The
+                      previous version — one grey line reading "No suggestions
+                      found" — treated it as a null result. The artboard treats
+                      it as a conversation: here is why we do not have it, here
+                      is what we do have, and tell us if we should stock it.
+
+                      What is honest to say here: we stock a fixed set of
+                      categories and this is not in them. What is not built is
+                      "Request this item" — there is no model to record a
+                      request against, and a button that swallows the request
+                      silently is worse than not offering it. So the screen
+                      routes to the catalogue instead.
+                    */}
                     {suggestions.products.length === 0 &&
                       suggestions.categories.length === 0 &&
                       suggestions.brands.length === 0 && (
-                        <div className="text-center py-6 text-xs text-ink/40 font-semibold">
-                          No suggestions found. Press search to scan all products.
+                        <div className="py-6 text-center">
+                          <p className="text-[17px] font-extrabold leading-[21px] tracking-[-0.02em] text-ink">
+                            <span className="font-light text-ink-500">Nothing matches</span>
+                            <br />
+                            that yet.
+                          </p>
+                          <p className="mx-auto mt-2.5 max-w-[280px] text-[12px] font-medium leading-[17px] text-ink-700">
+                            We stock a fixed range in Srinagar and this is not in it yet.
+                          </p>
+                          <Link
+                            href="/categories"
+                            onClick={() => triggerHaptic("light")}
+                            className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-[13px] font-bold text-white no-underline"
+                          >
+                            Browse what we stock
+                          </Link>
                         </div>
                       )}
                   </div>
