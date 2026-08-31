@@ -1,99 +1,151 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { ChevronRight, Plus, Check, Zap } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import { ProductCard } from "@/components/product-card";
-import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
-import { paiseToRupees } from "@/lib/money";
-import { speedClassFor } from "@/components/ui/speed-chip";
-import { cn } from "@/lib/utils";
+import { useCart } from "@/hooks/use-cart";
+import { formatINR } from "@/lib/utils";
+import { useState } from "react";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(true);
-
-  const updateArrows = useCallback(() => {
-    const el = scroller.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateArrows();
-    window.addEventListener("resize", updateArrows);
-    return () => window.removeEventListener("resize", updateArrows);
-  }, [updateArrows]);
-
-  const scrollBy = (dir: number) => {
-    scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
-  };
-
   return (
-    <section id="deals" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
-      <Reveal className="mb-6 flex items-end justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            Deals Of The Week
-          </h2>
-          <p className="mt-1 text-sm font-semibold text-neutral-500">
-            Fresh discounts every week on site essentials
-          </p>
-        </div>
-        <div className="hidden gap-2 sm:flex">
-          <button
-            onClick={() => scrollBy(-1)}
-            disabled={!canLeft}
-            aria-label="Scroll deals left"
-            className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
-              !canLeft && "pointer-events-none opacity-30"
-            )}
-          >
-            <ChevronLeft className="size-5" />
-          </button>
-          <button
-            onClick={() => scrollBy(1)}
-            disabled={!canRight}
-            aria-label="Scroll deals right"
-            className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
-              !canRight && "pointer-events-none opacity-30"
-            )}
-          >
-            <ChevronRight className="size-5" />
-          </button>
-        </div>
-      </Reveal>
+    <section id="deals" className="pt-16">
+      <div className="mx-auto max-w-[1200px] px-6">
+        {/* Section Header */}
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">
+              Deals this week
+            </h2>
+            <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
+              <span className="text-ink font-semibold">Prices valid to 31 Aug</span> · while stock lasts
+            </p>
+          </div>
 
-      <Stagger>
-        <div
-          ref={scroller}
-          onScroll={updateArrows}
-          className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
-        >
-          {items.map((item) => (
-            <StaggerItem key={item.id} className="flex shrink-0">
-              <ProductCard
-                href={`/product/${item.slug}`}
-                productId={item.id}
-                product={{
-                  id: item.variantId,
-                  title: item.title,
-                  brandLine: item.brandName,
-                  price: paiseToRupees(item.pricePaise),
-                  compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
-                  unit: item.unitLabel,
-                  image: item.imageUrl ?? undefined,
-                  speed: speedClassFor(item.categoryIsBulk),
-                }}
-              />
-            </StaggerItem>
+          <Link
+            href="/categories"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors shrink-0"
+          >
+            <span>See all deals</span>
+            <ChevronRight className="size-3.5" />
+          </Link>
+        </div>
+
+        {/* 4-Column Grid */}
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.slice(0, 4).map((item) => (
+            <DealCard key={item.id} item={item} />
           ))}
         </div>
-      </Stagger>
+      </div>
     </section>
   );
 }
+
+function DealCard({ item }: { item: CatalogItem }) {
+  const { addItem } = useCart();
+  const [added, setAdded] = useState(false);
+
+  const priceRupees = item.pricePaise / 100;
+  const compareAtRupees = (item.compareAtPaise ?? item.pricePaise) / 100;
+  const discountPercent = compareAtRupees > priceRupees
+    ? Math.round(((compareAtRupees - priceRupees) / compareAtRupees) * 100)
+    : 0;
+
+  const isExpress = !item.categoryIsBulk;
+
+  const handleAdd = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = await addItem(item.variantId, 1, item.title);
+    if (ok) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1400);
+    }
+  };
+
+  return (
+    <div className="group flex flex-col rounded-[22px] bg-paper p-2.5 shadow-card border border-line transition-shadow hover:shadow-card-hover">
+      {/* Visual / Image preview box */}
+      <Link
+        href={`/product/${item.slug}`}
+        className="relative flex h-[200px] w-full items-center justify-center overflow-hidden rounded-[16px] bg-civil-soft text-ink-700 no-underline"
+        style={{
+          backgroundColor: isExpress ? "var(--t-elec, #EBF1F5)" : "var(--t-civil, #F0ECE6)",
+        }}
+      >
+        {item.imageUrl && item.imageUrl !== "/placeholder-product.webp" ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={item.imageUrl}
+            alt=""
+            className="size-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : (
+          <svg className="size-20 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M3 9h18" />
+          </svg>
+        )}
+
+        {/* Discount Badge */}
+        {discountPercent > 0 && (
+          <div className="absolute left-2.5 top-2.5 flex h-[22px] items-center rounded-chip bg-brand px-2 text-[11px] font-extrabold text-ink">
+            {discountPercent}% off
+          </div>
+        )}
+
+        {/* Plus Action Button */}
+        <button
+          onClick={handleAdd}
+          aria-label={`Add ${item.title} to cart`}
+          className="absolute right-2.5 top-2.5 flex size-[34px] items-center justify-center rounded-full bg-ink text-white shadow-card hover:bg-ink/80 transition-colors cursor-pointer"
+        >
+          {added ? <Check className="size-4 text-brand" /> : <Plus className="size-4" />}
+        </button>
+      </Link>
+
+      {/* Info */}
+      <div className="p-2 flex-1 flex flex-col">
+        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
+          {item.brandName}
+        </div>
+
+        <Link
+          href={`/product/${item.slug}`}
+          className="mt-1 line-clamp-1 text-[14.5px] font-bold text-ink hover:text-brand-deep transition-colors no-underline"
+        >
+          {item.title}
+        </Link>
+
+        <div className="mt-0.5 line-clamp-1 text-[13px] font-medium text-ink-500">
+          {item.unitLabel || "Standard pack"}
+        </div>
+
+        <div className="mt-2.5 flex items-baseline gap-2">
+          <span className="text-[17px] font-bold text-ink">
+            {formatINR(priceRupees)}
+          </span>
+        </div>
+
+        <div className="mt-0.5 text-[11px] font-semibold text-ink-500">
+          per {item.unitLabel || "unit"} · MRP {formatINR(compareAtRupees)}
+        </div>
+
+        <div className="mt-2.5 pt-1">
+          {isExpress ? (
+            <span className="inline-flex items-center gap-1 rounded-chip bg-brand px-2 py-0.5 text-[11px] font-extrabold text-ink">
+              <Zap className="size-3 fill-ink stroke-none" />
+              60 min
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-chip bg-amber-soft px-2 py-0.5 text-[11px] font-extrabold text-ink">
+              Tomorrow, 8 AM
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+

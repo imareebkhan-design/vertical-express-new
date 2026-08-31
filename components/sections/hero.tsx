@@ -1,257 +1,175 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock, Truck, Zap } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Magnetic } from "@/components/magnetic";
+import { useState } from "react";
+import Link from "next/link";
+import { ChevronRight, MapPin, Truck, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Slide {
-  id: string;
-  eyebrow: string;
-  title: string;
-  subtitle: string;
-  cta: string;
-  theme: "yellow" | "dark" | "light";
-  bgImage?: string;
-  /** Foreground product photo shown on slides without a full-bleed bgImage. */
-  productImage?: string;
-}
-
-/* Placeholder slides standing in for the original banner artwork.
- *
- * The two full-bleed banners were removed on 29 Aug 2026. Both carried claims
- * baked into the artwork as pixels, which the ISS-008 code sweep could not
- * reach: banner-delivery.jpg read "SRINAGAR'S FASTEST / Construction materials
- * in 60 minutes / Avg. delivery 60 min" — an unverified SLA, and speed in the
- * header, which the design system forbids outright — and banner-wires.png
- * advertised "BANK OFFERS ... proudly presented by Partner Bank", complete with
- * a Mastercard, for a partnership that does not exist. Slides now use the
- * foreground product treatment with the honest copy already written below. */
-const SLIDES: Slide[] = [
-  {
-    id: "delivery",
-    eyebrow: "Srinagar",
-    title: "Building material, on site today",
-    subtitle:
-      "Cement, ply, hardware, paint and fittings — small items from our store within the hour, heavy loads by truck.",
-    cta: "Shop now",
-    theme: "yellow",
-    // No product image: the previous one was a Priya Cement bag, including their ISI
-    // licence number, used to sell a "BuildPro" product (ISS-044). Falls back to the
-    // neutral icon treatment below until we have imagery of stock we actually hold.
-  },
-  {
-    id: "wires",
-    eyebrow: "Wiring week",
-    title: "Genuine wires & cables, trade prices",
-    subtitle: "Top electrical brands in stock. Order by the coil or by the box.",
-    cta: "Explore electrical",
-    theme: "dark",
-    // No product image: the previous one was a Polycab product photograph (ISS-044).
-  },
-  {
-    id: "kitchen",
-    eyebrow: "New arrivals",
-    title: "Kitchen sinks & fittings that last",
-    subtitle: "Premium stainless steel sinks, delivered to your site.",
-    cta: "Browse kitchen",
-    theme: "light",
-    productImage: "/products/ss-kitchen-sink.webp",
-  },
-];
-
-const themeClasses: Record<Slide["theme"], string> = {
-  yellow: "bg-gradient-to-br from-brand via-brand to-brand-dark text-ink",
-  dark: "bg-gradient-to-br from-ink via-neutral-900 to-ink text-white",
-  light: "bg-gradient-to-br from-surface via-white to-surface text-ink",
-};
-
-const AUTOPLAY_MS = 5000;
-
 export function Hero() {
-  const [[index, direction], setIndex] = useState<[number, number]>([0, 0]);
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  const go = useCallback((dir: number) => {
-    setIndex(([i]) => [(i + dir + SLIDES.length) % SLIDES.length, dir]);
-  }, []);
-
-  const resetTimer = useCallback(() => {
-    if (timer.current) clearInterval(timer.current);
-    // Respect prefers-reduced-motion — stop autoplay for users who opted out of animations.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    timer.current = setInterval(() => {
-      // Skip autoplay while hidden: rAF is throttled, so animations would pile up frozen.
-      if (!document.hidden) go(1);
-    }, AUTOPLAY_MS);
-  }, [go]);
-
-  useEffect(() => {
-    resetTimer();
-    return () => {
-      if (timer.current) clearInterval(timer.current);
-    };
-  }, [resetTimer]);
-
-  const slide = SLIDES[index];
+  const [pincode, setPincode] = useState("190014");
+  const [area] = useState("Hyderpora");
+  const [editingPincode, setEditingPincode] = useState(false);
 
   return (
-    <section aria-label="Featured offers" className="mx-auto max-w-7xl px-4 pt-4 sm:px-6">
-      <div className="relative overflow-hidden rounded-card-lg">
-        <AnimatePresence initial={false} custom={direction} mode="popLayout">
-          <motion.div
-            key={slide.id}
-            custom={direction}
-            initial={{ x: direction >= 0 ? "100%" : "-100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: direction >= 0 ? "-100%" : "100%" }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            onClick={() => {
-              if (slide.bgImage && window.innerWidth >= 768) {
-                document.getElementById("deals")?.scrollIntoView({ behavior: "smooth" });
-              }
-            }}
-            className={cn(
-              "relative flex min-h-[320px] flex-col justify-center px-6 py-12 sm:min-h-[380px] sm:px-12 lg:min-h-[440px] lg:px-16 overflow-hidden",
-              slide.bgImage && "md:cursor-pointer",
-              themeClasses[slide.theme]
-            )}
-          >
-            {slide.bgImage && (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={slide.bgImage}
-                alt={slide.title}
-                className="hidden md:block absolute inset-0 h-full w-full object-cover"
-                draggable={false}
-              />
-            )}
+    <section className="pt-[52px]">
+      {/* Hero Main Block */}
+      <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-14 px-6 lg:flex-row">
+        {/* Left: Copy & Value Proposition */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
+            Srinagar · 21 categories · 4,100 products
+          </div>
 
-            {/* Foreground product photo (slides without a full-bleed banner) */}
-            {!slide.bgImage && (
-              <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-1/2 items-center justify-center md:flex" aria-hidden>
-                <div className="relative">
-                  <div className="absolute -inset-10 rounded-full bg-white/30 blur-2xl" />
-                  {slide.productImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={slide.productImage}
-                      alt=""
-                      className="relative max-h-72 w-auto object-contain drop-shadow-xl lg:max-h-96"
-                      draggable={false}
-                    />
-                  ) : (
-                    <Truck className="relative size-40 opacity-25 lg:size-56" strokeWidth={1} />
-                  )}
-                </div>
-              </div>
-            )}
+          <h1 className="mt-3.5 text-4xl font-extrabold tracking-[-0.035em] text-ink sm:text-5xl lg:text-[54px] lg:leading-[58px]">
+            <span className="font-light text-ink/70">Building material,</span>
+            <br />
+            on site today.
+          </h1>
 
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              variants={{
-                hidden: {},
-                visible: { transition: { staggerChildren: 0.09, delayChildren: 0.15 } },
-              }}
-              className={cn("relative max-w-xl", slide.bgImage && "md:hidden")}
+          <p className="mt-4 max-w-[470px] text-[15px] font-medium leading-[23px] text-ink-700">
+            Cement, tiles, wiring, plywood and fittings from UltraTech, ACC, Asian Paints, Century Ply, Havells, Finolex, Jaquar and Hindware — delivered across the valley.
+          </p>
+
+          <div className="mt-[26px] flex flex-wrap items-center gap-3">
+            <Link
+              href="/categories"
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-ink px-6 text-[14px] font-bold text-white shadow-card hover:bg-ink/90 transition-all active:scale-95"
             >
-              <motion.p
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-                }}
-                className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-black/10 px-3 py-1 text-xs font-extrabold uppercase tracking-widest backdrop-blur-sm"
-              >
-                <Zap className="size-3.5" aria-hidden /> {slide.eyebrow}
-              </motion.p>
-              <motion.h1
-                variants={{
-                  hidden: { opacity: 0, y: 28 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-                }}
-                className="text-3xl font-extrabold leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl"
-              >
-                {slide.title}
-              </motion.h1>
-              <motion.p
-                variants={{
-                  hidden: { opacity: 0, y: 24 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } },
-                }}
-                className="mt-4 max-w-md text-sm font-semibold opacity-80 sm:text-base"
-              >
-                {slide.subtitle}
-              </motion.p>
-              <motion.div
-                variants={{
-                  hidden: { opacity: 0, y: 20 },
-                  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
-                }}
-                className="mt-7 flex flex-wrap items-center gap-4"
-              >
-                <Magnetic>
-                  <Button
-                    size="lg"
-                    variant={slide.theme === "yellow" ? "dark" : "primary"}
-                    onClick={() =>
-                      document.getElementById("deals")?.scrollIntoView({ behavior: "smooth" })
-                    }
-                  >
-                    {slide.cta}
-                  </Button>
-                </Magnetic>
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold opacity-80">
-                  <Clock className="size-4" aria-hidden /> Every product shows its own
-                  delivery speed
-                </span>
-              </motion.div>
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
+              <span>Browse materials</span>
+              <ChevronRight className="size-4" />
+            </Link>
 
-        {/* Controls */}
-        <button
-          onClick={() => {
-            go(-1);
-            resetTimer();
-          }}
-          aria-label="Previous slide"
-          className="absolute left-3 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition-all hover:scale-110 hover:bg-white active:scale-95"
-        >
-          <ChevronLeft className="size-5" />
-        </button>
-        <button
-          onClick={() => {
-            go(1);
-            resetTimer();
-          }}
-          aria-label="Next slide"
-          className="absolute right-3 top-1/2 grid size-10 -translate-y-1/2 cursor-pointer place-items-center rounded-full bg-white/80 text-ink shadow-card backdrop-blur transition-all hover:scale-110 hover:bg-white active:scale-95"
-        >
-          <ChevronRight className="size-5" />
-        </button>
+            <Link
+              href="/how-we-work"
+              className="inline-flex h-12 items-center gap-2 rounded-full bg-chip px-6 text-[14px] font-bold text-ink hover:bg-chip-hover transition-all active:scale-95"
+            >
+              How delivery works
+            </Link>
+          </div>
 
-        <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-          {SLIDES.map((s, i) => (
-            <button
-              key={s.id}
-              onClick={() => {
-                setIndex([i, i > index ? 1 : -1]);
-                resetTimer();
-              }}
-              aria-label={`Go to slide ${i + 1}`}
-              aria-current={i === index}
-              className={cn(
-                "h-2 cursor-pointer rounded-full transition-all duration-300 ease-[var(--ease-brand)]",
-                i === index ? "w-8 bg-ink" : "w-2 bg-ink/30 hover:bg-ink/50"
-              )}
+          {/* Delivery speed value props */}
+          <div className="mt-[30px] flex flex-col gap-7 sm:flex-row sm:gap-7">
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 inline-flex items-center gap-1 rounded-chip bg-brand px-2 py-0.5 text-[11px] font-extrabold text-ink">
+                <Zap className="size-3 fill-ink stroke-none" />
+                60 min
+              </span>
+              <div>
+                <div className="text-[13.5px] font-bold text-ink">Hardware, electricals, paint</div>
+                <div className="text-[11px] font-semibold text-ink-500">Held in our Srinagar dark store</div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-2.5">
+              <span className="mt-0.5 inline-flex items-center rounded-chip bg-amber-soft px-2 py-0.5 text-[11px] font-extrabold text-ink">
+                Tomorrow, 8 AM
+              </span>
+              <div>
+                <div className="text-[13.5px] font-bold text-ink">Cement, tiles, tanks</div>
+                <div className="text-[11px] font-semibold text-ink-500">On a slot you pick at checkout</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Graphic Composition */}
+        <div className="relative h-[340px] w-full max-w-[480px] shrink-0 sm:h-[400px] lg:w-[520px]">
+          {/* Card 1: Civil (Cement / Bag) */}
+          <div
+            className="absolute left-4 top-14 flex h-[232px] w-[200px] -rotate-7 items-center justify-center rounded-[36px] bg-civil-soft shadow-card transition-transform hover:scale-105"
+            style={{ backgroundColor: "var(--t-civil, #F0ECE6)" }}
+          >
+            <div className="flex flex-col items-center gap-2 text-ink-700">
+              <svg className="size-24 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
+                <path d="M6 3h12l2 6v12H4V9z" />
+                <path d="M10 3v6h4V3" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 2: Paint (Furn / Paint bucket) */}
+          <div
+            className="absolute left-[160px] top-4 flex h-[260px] w-[220px] rotate-4 items-center justify-center rounded-[40px] bg-furn-soft shadow-card-hover transition-transform hover:scale-105"
+            style={{ backgroundColor: "var(--t-furn, #F3ECE2)" }}
+          >
+            <div className="flex flex-col items-center gap-2 text-ink-700">
+              <svg className="size-26 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
+                <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7" />
+                <path d="M5 11h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Card 3: Elec (Wire coil) */}
+          <div
+            className="absolute left-[310px] top-24 flex h-[206px] w-[176px] rotate-10 items-center justify-center rounded-[32px] bg-elec-soft shadow-card transition-transform hover:scale-105"
+            style={{ backgroundColor: "var(--t-elec, #EBF1F5)" }}
+          >
+            <div className="flex flex-col items-center gap-2 text-ink-700">
+              <svg className="size-20 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" />
+                <circle cx="12" cy="12" r="4" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Bolt Badge */}
+          <div className="absolute left-[110px] top-[260px] flex size-[74px] items-center justify-center rounded-full bg-paper shadow-card-hover">
+            <Zap className="size-8 fill-brand stroke-none" />
+          </div>
+
+          {/* Delivering in Srinagar Pill */}
+          <div className="absolute left-[260px] top-[290px] flex h-10 items-center gap-2 rounded-full bg-paper px-4.5 shadow-card">
+            <Truck className="size-4 text-ink-500" />
+            <span className="text-[13px] font-bold text-ink">Delivering in Srinagar</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Pincode & Info Bar */}
+      <div className="mx-auto max-w-[1200px] px-6 pt-9">
+        <div className="flex flex-wrap items-center gap-5 rounded-[22px] bg-paper px-6 py-4 shadow-card border border-line">
+          <div className="flex items-center gap-2">
+            <MapPin className="size-4.5 text-ink-500" aria-hidden />
+            <span className="text-[13.5px] font-bold text-ink">
+              Delivering to {pincode} · {area}
+            </span>
+          </div>
+
+          {editingPincode ? (
+            <input
+              autoFocus
+              value={pincode}
+              maxLength={6}
+              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+              onBlur={() => setEditingPincode(false)}
+              onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
+              className="w-16 border-b border-ink bg-transparent text-[11px] font-bold focus:outline-none"
+              aria-label="Change delivery pincode"
             />
-          ))}
+          ) : (
+            <button
+              onClick={() => setEditingPincode(true)}
+              className="text-[11px] font-bold text-ink underline underline-offset-2 hover:text-ink-700 cursor-pointer"
+            >
+              Change pincode
+            </button>
+          )}
+
+          <span className="hidden h-[22px] w-[1.5px] rounded bg-line md:block" />
+
+          <div className="text-[13.5px] font-medium text-ink-700">
+            Cash or UPI at the gate · <span className="text-ink-500">up to ₹50,000 per shipment</span>
+          </div>
+
+          <div className="hidden flex-1 lg:block" />
+
+          <div className="text-[13.5px] font-medium text-ink-700">
+            Winter lead times shift — <span className="text-ink-500">seasonal items show 5–7 days</span>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+

@@ -7,14 +7,14 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
-import { Deals } from "@/components/sections/deals";
 import { Categories } from "@/components/sections/categories";
+import { Deals } from "@/components/sections/deals";
 import { HowWeWork } from "@/components/sections/how-we-work";
+import { OrderedMost } from "@/components/sections/ordered-most";
 import { ServicesBanner } from "@/components/sections/services-banner";
 import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { PageLoader } from "@/components/page-loader";
-import { SearchBox } from "@/components/shop/search-box";
 
 // Mobile Native components
 import { MobileHomeView } from "@/components/mobile/home/mobile-home-view";
@@ -35,7 +35,6 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeS
   }, []);
 
   if (!mounted) {
-    // Initial hydration skeleton or simple loader
     return <PageLoader />;
   }
 
@@ -50,19 +49,15 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeS
     );
   }
 
-  // Regular Web layout
   return (
     <>
-      <PageLoader />
       <Navbar />
       <main id="main-content">
-        <div className="px-4 py-3 md:hidden">
-          <SearchBox />
-        </div>
         <Hero />
-        <Deals items={deals} />
         <Categories />
+        <Deals items={deals} />
         <HowWeWork />
+        <OrderedMost items={featured} />
         <ServicesBanner />
         <DownloadsStrip />
       </main>
@@ -70,3 +65,4 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeS
     </>
   );
 }
+

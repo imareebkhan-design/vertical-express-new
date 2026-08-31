@@ -1,83 +1,95 @@
 import Link from "next/link";
 import { Download, FileText, Smartphone } from "lucide-react";
 
-/**
- * Downloads strip. Sits between the services banner and the footer.
- *
- * TWO DELIBERATE RESTRAINTS
- *
- * 1. The app store buttons are inert. Capacitor is scaffolded, not built and not
- *    published, so there is nothing behind a store link. A dead store link costs
- *    more trust than a missing one — the live action is a notify-me.
- *
- * 2. Every price document carries the window it is valid for. A price list with
- *    no date is worthless to a contractor pricing a job, and dangerous to us.
- *    The documents themselves do not exist yet, so the links point at the
- *    downloads page rather than fabricating PDFs.
- */
-
-const PRICE_LISTS = [
-  { title: "Cement, plaster and civil", meta: "23 products" },
-  { title: "Electrical — wire, MCB, switches", meta: "270 products" },
-  { title: "Plumbing, sanitary and bath", meta: "250 products" },
-];
-
 export function DownloadsStrip() {
   return (
-    <section aria-labelledby="downloads-heading" className="mx-auto max-w-7xl px-4 pt-5 sm:px-6">
-      <h2 id="downloads-heading" className="sr-only">
-        Downloads
-      </h2>
-      <div className="grid gap-5 lg:grid-cols-2">
-        {/* App */}
-        <div className="flex items-center gap-6 rounded-[1.75rem] bg-white p-7 shadow-card">
-          <div className="grid size-20 flex-none place-items-center rounded-[1.375rem] bg-tint-electrical">
-            <Smartphone className="size-9 text-ink-700" aria-hidden />
-          </div>
-          <div className="min-w-0">
-            <h3 className="text-lg font-extrabold tracking-tight">Get the app</h3>
-            <p className="mt-1.5 text-[13px] leading-relaxed font-medium text-ink-500">
-              Reorder a saved list in two taps, and track your delivery from the site.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center gap-2.5">
-              <Link
-                href="/contact"
-                className="inline-flex h-9 items-center rounded-full bg-ink px-4 text-xs font-bold text-white transition-colors hover:bg-ink/90"
-              >
-                Notify me at launch
-              </Link>
-              <span className="text-[11px] font-semibold text-ink-500">
-                Not published yet
-              </span>
+    <section aria-labelledby="downloads-heading" className="pt-5 pb-16">
+      <div className="mx-auto max-w-[1200px] px-6">
+        <h2 id="downloads-heading" className="sr-only">
+          Downloads
+        </h2>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          {/* Card 1: Get the app */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5.5 rounded-[26px] bg-paper p-6.5 shadow-card border border-line">
+            <div className="flex size-[78px] shrink-0 items-center justify-center rounded-[22px] bg-elec-soft text-ink">
+              <Smartphone className="size-10 stroke-[1.4]" aria-hidden />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-[18px] font-bold text-ink">Get the app</h3>
+              <p className="mt-1 text-[13.5px] font-medium text-ink-700">
+                Reorder from a saved list in two taps, and track both shipments from the site.
+              </p>
+              <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
+                <Link
+                  href="/downloads"
+                  className="inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-[12px] font-bold text-white shadow-card hover:bg-ink/90 transition-colors"
+                >
+                  Notify me at launch
+                </Link>
+                <span className="inline-flex h-8 items-center rounded-full bg-chip-soft px-3 text-[12px] font-semibold text-ink-500 opacity-60">
+                  App Store
+                </span>
+                <span className="inline-flex h-8 items-center rounded-full bg-chip-soft px-3 text-[12px] font-semibold text-ink-500 opacity-60">
+                  Google Play
+                </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Price lists */}
-        <div className="rounded-[1.75rem] bg-white p-7 shadow-card">
-          <div className="flex items-baseline justify-between gap-4">
-            <h3 className="text-lg font-extrabold tracking-tight">Price lists &amp; catalogues</h3>
-            <Link href="/downloads" className="text-xs font-bold hover:underline">
-              All downloads
-            </Link>
-          </div>
-          <ul className="mt-3">
-            {PRICE_LISTS.map((d, i) => (
-              <li
-                key={d.title}
-                className={`flex items-center gap-3 py-2.5 ${i > 0 ? "border-t border-line" : ""}`}
-              >
-                <FileText className="size-4 flex-none text-ink-500" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[13px] font-bold">{d.title}</p>
-                  <p className="text-[11px] font-semibold text-ink-500">{d.meta}</p>
+          {/* Card 2: Price lists & catalogues */}
+          <div className="rounded-[26px] bg-paper p-6.5 shadow-card border border-line">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[18px] font-bold text-ink">Price lists &amp; catalogues</h3>
+              <Link href="/downloads" className="text-[12px] font-bold text-ink hover:underline">
+                All downloads
+              </Link>
+            </div>
+
+            <div className="mt-3 flex flex-col">
+              {/* Row 1 */}
+              <div className="flex items-center gap-3 py-2.5">
+                <FileText className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-[13.5px] font-bold text-ink">
+                    Cement &amp; civil — trade price list
+                  </p>
+                  <p className="text-[11px] font-medium text-ink-500">PDF · valid 1–30 Sep 2026</p>
                 </div>
-                <Download className="size-4 flex-none text-ink-500" aria-hidden />
-              </li>
-            ))}
-          </ul>
+                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+              </div>
+
+              <div className="h-px bg-line" />
+
+              {/* Row 2 */}
+              <div className="flex items-center gap-3 py-2.5">
+                <FileText className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-[13.5px] font-bold text-ink">
+                    Electrical — Havells &amp; Finolex catalogue
+                  </p>
+                  <p className="text-[11px] font-medium text-ink-500">PDF · 2026 edition</p>
+                </div>
+                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+              </div>
+
+              <div className="h-px bg-line" />
+
+              {/* Row 3 */}
+              <div className="flex items-center gap-3 py-2.5">
+                <FileText className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <div className="flex-1 min-w-0">
+                  <p className="truncate text-[13.5px] font-bold text-ink">
+                    Sanitary &amp; bath — Jaquar, Hindware
+                  </p>
+                  <p className="text-[11px] font-medium text-ink-500">PDF · 2026 edition</p>
+                </div>
+                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
+
