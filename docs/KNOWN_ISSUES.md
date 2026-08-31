@@ -62,9 +62,10 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-047 | OTP abuse protection was lost in the Firebase migration; no App Check | HIGH | Security/Cost | OPEN |
 | ISS-048 | Email/password sign-in has no password reset and no email verification | MEDIUM | Auth | OPEN |
 | ISS-049 | A contested phone/email left a fully-authenticated customer with no account | **CRITICAL** | Auth | FIXED |
-| ISS-050 | `www.verticalexpress.in` is not a Firebase authorized domain | **CRITICAL** | Auth/Config | OPEN |
+| ISS-050 | `www.verticalexpress.in` is not a Firebase authorized domain | **CRITICAL** | Auth/Config | FIXED |
 | ISS-051 | `/api/health` disclosed configuration and raw database errors | MEDIUM | Security | FIXED |
-| ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | OPEN |
+| ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | FIXED |
+| ISS-053 | Production has none of the 12 environment variables Firebase auth needs | **CRITICAL** | Config/Deploy | OPEN |
 
 ---
 
@@ -2055,7 +2056,7 @@ the new account is usable.
 |---|---|
 | **Severity** | **CRITICAL** |
 | **Area** | Auth / Configuration |
-| **Status** | OPEN — owner action, one line in the Firebase console |
+| **Status** | FIXED (1 Sep 2026) |
 
 **Description.** Firebase's authorized-domain list contains `verticalexpress.in`. The
 application's canonical host is `https://www.verticalexpress.in` — `app/layout.tsx` uses it
@@ -2072,9 +2073,12 @@ returning HTTP 402 `DEPLOYMENT_DISABLED`, so nobody has reached a sign-in screen
 Fixing the billing state without adding this domain will produce a site where sign-in is
 broken for every visitor.
 
-**Fix.** Add `www.verticalexpress.in` to Firebase Console → Authentication → Settings →
-Authorized domains. Decide separately whether the apex should redirect to `www` or be
-served with a valid certificate; whichever hosts the app must be on the list.
+**Resolution (1 Sep 2026).** Added via the Identity Toolkit Admin API. The list is now
+`localhost`, `vertical-express.firebaseapp.com`, `vertical-express.web.app`,
+`verticalexpress.in`, `www.verticalexpress.in`.
+
+Still open separately: the apex does not complete a TLS handshake. Decide whether it
+should redirect to `www` or be served with a valid certificate.
 
 **Secondary.** `auth/unauthorized-domain` is not mapped in the sign-in hook's `readable()`,
 so the failure would surface as a raw Firebase string rather than something a customer or a
@@ -2116,7 +2120,7 @@ never reaches. Verified by reintroducing the disclosure: the test fails.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Auth |
-| **Status** | OPEN — owner decision |
+| **Status** | FIXED (1 Sep 2026) |
 
 **Description.** The project's Identity Platform config reads
 `mfa: { state: "ENABLED", enabledProviders: ["PHONE_SMS"] }`. This changed on 31 Aug 2026;
@@ -2141,8 +2145,59 @@ paths.
 message rather than surfacing a raw Firebase string. That turns a confusing failure into a
 clear one; it does not make the flow work.
 
-**Safest action — owner's call.** Set `mfa.state` back to `DISABLED` until a second-factor
-screen exists. Enrolment is the only thing `ENABLED` buys, and there is no UI to enrol
-through, so the setting currently offers no benefit and one way to lock a customer out.
-**Not done unilaterally** — the setting was changed deliberately and reversing someone's
-security decision without asking is not a call an engineer should make alone.
+**Resolution (1 Sep 2026).** Set to `DISABLED` on the owner's instruction. Enrolment was
+the only thing `ENABLED` bought, there was no UI to enrol through, and SMS-as-second-factor
+is structurally inapplicable to a phone-first product. Revisit deliberately, with an
+authenticator app or passkey rather than SMS, when there is a screen to enrol through.
+
+Email/password was disabled in the same pass (ISS-048), so the providers are now phone and
+Google only — matching what the sign-in surfaces offer.
+
+---
+
+## ISS-053 — Production has none of the 12 environment variables Firebase auth needs
+
+| | |
+|---|---|
+| **Severity** | **CRITICAL** |
+| **Area** | Configuration / Deploy |
+| **Status** | OPEN — owner action, values must not pass through a chat |
+
+**Description.** `vercel env ls production` returns nine variables, all from the Supabase
+era. Every variable the Firebase build reads is absent:
+
+```
+FIREBASE_PROJECT_ID                    NEXT_PUBLIC_FIREBASE_API_KEY
+FIREBASE_CLIENT_EMAIL                  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+FIREBASE_PRIVATE_KEY                   NEXT_PUBLIC_FIREBASE_PROJECT_ID
+                                       NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+RAZORPAY_KEY_ID                        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+RAZORPAY_KEY_SECRET                    NEXT_PUBLIC_FIREBASE_APP_ID
+RAZORPAY_WEBHOOK_SECRET
+```
+
+**Why this blocks the deploy rather than merely degrading it.** Both Firebase entry points
+fail loudly by design rather than falling back to a mock, which is correct
+(`docs/DECISIONS.md`, production-safety rule) and means the site does not half-work:
+
+- `lib/auth/firebase-admin.ts` throws when the three server variables are absent. Every
+  path through `getAuthUserId()` therefore throws — **including `/login` itself**, which
+  calls it to redirect an already-signed-in visitor. The sign-in page would 500.
+- `lib/firebase/client.ts` throws without `apiKey`, `authDomain` and `projectId`, so the
+  browser half fails too.
+
+The three Razorpay secrets matter only if `PAYMENT_GATEWAY` is a `razorpay-*` value —
+`assertPaymentConfig()` throws at server start in that case, and the value is stored
+Sensitive so it cannot be read back to confirm.
+
+**Also present and now meaningless.** `AUTH_OTP_CHANNEL` is a Supabase-era variable that
+nothing on the Firebase path reads.
+
+**Fix.** The owner sets these in the Vercel dashboard. **Values must not be pasted into a
+chat and must not be set on the owner's behalf** — see the Secrets rule in `CLAUDE.md`.
+Take `FIREBASE_PRIVATE_KEY` from a freshly rotated service-account key rather than the JSON
+currently sitting in `~/Downloads`, and paste it directly into Vercel so the new key never
+touches the disk.
+
+**Do not deploy the Firebase build until this is done.** It is the last hard blocker before
+the real +91 test.
