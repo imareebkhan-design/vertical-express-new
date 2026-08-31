@@ -18,10 +18,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     throw new Error(
       "EXPO_PUBLIC_SITE_URL is not set. The mobile shell has no origin to load.\n" +
         "Set it to the canonical Vertical Express origin (e.g. https://example.in):\n" +
-        "  • EAS builds — set it as an environment variable on the EAS project at expo.dev\n" +
+        "  • EAS builds — already set per profile in eas.json\n" +
         "  • Local dev  — put it in mobile/.env (see mobile/.env.example)\n" +
-        "The canonical domain is not yet decided (KNOWN_ISSUES ISS-018); it must be\n" +
-        "confirmed by the owner before a store build is produced.",
+        "The canonical host is https://www.verticalexpress.in (KNOWN_ISSUES ISS-018).",
     );
   }
 

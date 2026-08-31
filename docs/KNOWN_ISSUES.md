@@ -787,6 +787,14 @@ market — display a `vercel.app` staging URL, which looks unprofessional and un
 **Business impact.** Search engines are told the canonical version of every page lives on
 a different domain, splitting or suppressing ranking signals for the real domain.
 
+**Domain evidence (31 Aug 2026).** Resolved and probed all five hosts the repository
+references. `https://www.verticalexpress.in` serves the production site (HTTP 200, correct
+`<title>`) and is the canonical host. `verticalexpress.com` belongs to an unrelated US
+business (see ISS-039). `verticalexpress.co`, `.app` and `.dev` do not resolve at all, so
+the references in `lib/data.ts:219`, `capacitor.config.ts` and `app/robots.ts:4` point at
+nothing. The apex `verticalexpress.in` resolves but presents no TLS certificate — only the
+`www` host is served.
+
 **Recommended fix.** Set `NEXT_PUBLIC_SITE_URL=https://www.verticalexpress.in` in the
 Vercel production environment. Add a build-time assertion that the value does not contain
 `vercel.app` when `NODE_ENV=production`.
@@ -1118,6 +1126,8 @@ endpoint.
 | **ISS-035** | OTP endpoint reveals account existence | Security | Error text differs depending on whether the identifier is known. | Return an identical response regardless. | No |
 | **ISS-036** | Repository hygiene | DevOps | `.vercel-old/` is committed. Entire history is one squashed commit, making `git bisect` and blame useless. No Prettier config. | Remove `.vercel-old/`, add Prettier, commit incrementally from here. | No |
 | **ISS-037** | Two mobile shells in the repository | DevOps | Capacitor 8.4.2 (`capacitor.config.ts`, `mobile-shell/`, `@capacitor/*`, `cap:*` scripts) and the Expo shell in `mobile/` (DEC-019) both exist to wrap the same web app. Capacitor has never produced a build — no `ios/` or `android/` project was ever generated. | Retire Capacitor once an EAS production build is proven green: remove `capacitor.config.ts`, `mobile-shell/`, the four `@capacitor/*` dependencies and the `cap:*` scripts. Not done in the same change that adds Expo, so the fallback survives until the replacement is proven. | No |
+| **ISS-038** | Brand icon asset is a broken crop | Content | `public/logo-icon.png` (407x365) is a bad crop of the `logo.png` lockup: it slices through the tagline, rendering `CONSTRUCTIOI` with the final letters cut off at the right edge. It is served as the **browser favicon** (`app/layout.tsx:32`, `app/page.tsx:24`) and in the footer, page loader and app banner. There is no vector source anywhere in the repository. | Re-export the emblem alone from the original artwork as a square, transparent-ground PNG at 1024x1024. This also unblocks the mobile app icons — see `mobile/README.md`. | **YES — artwork** |
+| **ISS-039** | Support contact details are unusable | Content/Legal | `components/mobile/account/mobile-account-view.tsx:481` shows `support@verticalexpress.com` as the customer support email. `verticalexpress.com` is registered to an unrelated US business ("Vertical Express: Motorized Window Shades") — customers who email support reach a stranger. The phone on the line above, `+91 94190 12345`, ends in a placeholder sequence. | Replace both with real, owner-confirmed contact details on a domain Vertical Express controls. Same class of defect as ISS-008. | **YES — real email and phone** |
 
 ---
 

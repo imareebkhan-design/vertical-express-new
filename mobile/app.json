@@ -9,7 +9,9 @@
     "userInterfaceStyle": "dark",
     "backgroundColor": "#161616",
     "primaryColor": "#161616",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "in.verticalexpress.app",
@@ -32,6 +34,18 @@
       "eas": {
         "projectId": "fb9abf0f-301b-49f4-a8ad-c79fcae2b5b3"
       }
-    }
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#161616",
+          "dark": {
+            "backgroundColor": "#161616"
+          },
+          "resizeMode": "contain"
+        }
+      ]
+    ]
   }
 }
