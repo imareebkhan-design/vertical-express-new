@@ -7,7 +7,7 @@ import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shop/empty-state";
-import { PlaceholderImage } from "@/components/placeholder-image";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 
 /** Full cart page body — reads the live server cart from context. */
 export function CartView() {
@@ -66,11 +66,11 @@ export function CartView() {
                   href={`/product/${line.productSlug}`}
                   className="size-20 shrink-0 overflow-hidden rounded-panel bg-tile sm:size-24"
                 >
-                  {line.imageUrl ? (
+                  {line.imageUrl && !isGenericPlaceholder(line.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img src={line.imageUrl} alt={line.title} className="size-full object-contain p-2" />
                   ) : (
-                    <PlaceholderImage label={line.title} className="size-full" iconClassName="size-8" />
+                    <ProductPanel categorySlug={line.categorySlug} label={line.title} className="size-full" />
                   )}
                 </Link>
 

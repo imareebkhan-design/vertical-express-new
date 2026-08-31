@@ -3,12 +3,12 @@
 import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Check, Heart, Minus, Package, Plus } from "lucide-react";
+import { Check, Heart, Minus, Plus } from "lucide-react";
 import type { Product } from "@/lib/data";
 import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
-import { PlaceholderImage } from "@/components/placeholder-image";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { SpeedChip } from "@/components/ui/speed-chip";
 
 interface ProductCardProps {
@@ -30,7 +30,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
   // Source of truth: explicit prop (wishlist page) OR hydrated context set.
   const saved = wishlisted || (productId ? wishlistIds.has(productId) : false);
 
-  const showImage = product.image && !imageFailed;
+  const showImage = !isGenericPlaceholder(product.image) && !imageFailed;
   const hasDiscount = product.compareAt > product.price;
   const discount = hasDiscount
     ? Math.round(((product.compareAt - product.price) / product.compareAt) * 100)
@@ -72,12 +72,11 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
               className="aspect-square w-full bg-white object-contain p-4 transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]"
             />
           ) : (
-            <PlaceholderImage
+            <ProductPanel
+              categorySlug={product.categorySlug ?? ""}
               label={product.title}
-              icon={product.icon ?? Package}
               className="aspect-square w-full transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]"
-              iconClassName="size-16"
-              showLabel
+              glyphClassName="size-1/3"
             />
           )}
         </MaybeLink>

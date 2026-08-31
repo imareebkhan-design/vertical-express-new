@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Package } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { formatPaise, discountPercent } from "@/lib/money";
-import { PlaceholderImage } from "@/components/placeholder-image";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 
@@ -27,7 +26,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
         tabIndex={-1}
         aria-hidden
       >
-        {item.imageUrl ? (
+        {item.imageUrl && !isGenericPlaceholder(item.imageUrl) ? (
           /* next/image has no remotePatterns configured here; matches ProductCard. */
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -36,11 +35,10 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
             className="size-[76px] object-contain p-1.5 sm:size-[92px]"
           />
         ) : (
-          <PlaceholderImage
+          <ProductPanel
+            categorySlug={item.categorySlug}
             label={item.title}
-            icon={Package}
             className="size-[76px] sm:size-[92px]"
-            iconClassName="size-8"
           />
         )}
       </Link>

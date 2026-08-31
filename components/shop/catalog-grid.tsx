@@ -47,6 +47,7 @@ export function CatalogGrid({
             price: paiseToRupees(item.pricePaise),
             compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
             unit: item.unitLabel,
+            categorySlug: item.categorySlug,
             image: item.imageUrl ?? undefined,
             speed: speedClassFor(item.categoryIsBulk),
           }}

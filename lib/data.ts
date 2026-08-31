@@ -33,6 +33,8 @@ export interface Product {
   speed?: "express" | "scheduled" | "leadtime" | "seasonal";
   /** Express window for the delivery pincode, from ServiceablePincode. */
   etaMinutes?: number;
+  /** Drives the tinted product panel's group colour and material drawing. */
+  categorySlug?: string;
   icon?: LucideIcon;
   /** Product photo under /public/products; icon placeholder shows if missing. */
   image?: string;

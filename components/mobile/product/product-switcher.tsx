@@ -86,7 +86,11 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
         </nav>
 
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <ProductGallery images={product.images} title={product.title} />
+          <ProductGallery
+            images={product.images}
+            title={product.title}
+            categorySlug={product.categorySlug}
+          />
 
           <div>
             <Link
