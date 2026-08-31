@@ -289,6 +289,79 @@ export function MobileAccountView({
             </div>
             <ChevronRight className="size-4 text-ink/30" />
           </Link>
+
+          {/*
+            "Wallet & credit" on the Account artboard. The wallet half is real —
+            the Wallet and WalletTransaction models exist and /account/wallet
+            renders them. The credit half is not built and is not mine to
+            invent: credit terms are on the deferred list in CLAUDE.md, so the
+            row says wallet and stops there rather than promising a facility
+            nobody has decided the terms of.
+          */}
+          <Link
+            href="/account/wallet"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <Wallet className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">Wallet</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">
+                  Balance and transaction history
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+
+          <Link
+            href="/account/orders"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <Package className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">My Orders</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">
+                  {ordersCount} order{ordersCount !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+        </div>
+
+        {/*
+          The artboard's footer links. Legal pages are launch blockers in their
+          own right (ISS-008) and a customer on a phone has no other route to
+          them once the web footer is gone.
+
+          The artboard also lists "Returns & refunds". There is no /returns
+          page, and there cannot be a truthful one yet — the return and refund
+          policy is unconfirmed and on the do-not-build list. A link to a 404 is
+          worse than an absent link, so it is absent until the policy exists.
+        */}
+        <div className="rounded-2xl border border-mist/15 bg-white shadow-2xs divide-y divide-mist/10 overflow-hidden">
+          {[
+            { href: "/terms", label: "Terms" },
+            { href: "/privacy", label: "Privacy" },
+          ].map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => triggerHaptic("light")}
+              className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+            >
+              <p className="text-xs font-bold text-ink">{label}</p>
+              <ChevronRight className="size-4 text-ink/30" />
+            </Link>
+          ))}
         </div>
 
         {/* Account settings block */}
