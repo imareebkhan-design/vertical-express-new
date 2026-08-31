@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/ui/logo";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { LoginForm } from "@/components/auth/login-form";
 import { LoginHero } from "@/components/auth/login-hero";
 

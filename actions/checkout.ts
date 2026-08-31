@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
 import {
   computeTotals,

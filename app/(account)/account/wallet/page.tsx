@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getUserWallet } from "@/lib/services/wallet";
 import { WalletSwitcher } from "@/components/mobile/account/wallet-switcher";
 

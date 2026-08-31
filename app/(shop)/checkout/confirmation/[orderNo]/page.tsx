@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getOrderByNo } from "@/lib/services/orders";
 import { ConfirmationSwitcher } from "@/components/mobile/checkout/confirmation-switcher";
 

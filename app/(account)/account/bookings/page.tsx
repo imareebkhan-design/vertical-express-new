@@ -4,7 +4,7 @@ import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
 import { EmptyState } from "@/components/shop/empty-state";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { listMyBookings } from "@/lib/services/bookings";
 
 export const metadata: Metadata = { title: "My Bookings | Vertical Express", robots: { index: false } };

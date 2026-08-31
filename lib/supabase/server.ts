@@ -28,8 +28,7 @@ export async function createSupabaseServer() {
 }
 
 /** Current authenticated user id, or null. */
-export async function getAuthUserId(): Promise<string | null> {
-  const supabase = await createSupabaseServer();
-  const { data } = await supabase.auth.getUser();
-  return data.user?.id ?? null;
-}
+/* getAuthUserId moved to lib/auth/current-user.ts when identity moved to
+ * Clerk. Supabase remains the Postgres host and storage; it no longer issues
+ * or reads sessions, and leaving a second reader here would be an invitation
+ * to authenticate against the wrong system. */

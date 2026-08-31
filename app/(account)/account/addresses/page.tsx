@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AddressesSwitcher } from "@/components/mobile/account/addresses-switcher";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { listAddresses } from "@/lib/services/addresses";
 import type { AddressFormValues } from "@/components/account/address-form";
 

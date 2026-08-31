@@ -1,65 +1,50 @@
-import { createServerClient } from "@supabase/ssr";
-import { NextResponse, type NextRequest } from "next/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
 
-// /admin is also gated server-side in its layout (admin allowlist); this adds
-// defense-in-depth so unauthenticated users are bounced before any admin code runs.
-const PROTECTED_PREFIXES = ["/account", "/checkout", "/admin"];
+/**
+ * Session handling and route protection.
+ *
+ * Clerk replaces the Supabase session refresh that used to run here. What has
+ * not changed is the request-id header: every request gets one, it is threaded
+ * into the structured logs, and it is how a customer's report is traced back to
+ * a specific server action. That must keep working regardless of who issues
+ * sessions.
+ *
+ * /admin is also gated server-side in its own layout against the admin
+ * allowlist. This is defence in depth — an unauthenticated request is bounced
+ * before any admin code runs.
+ */
+const isProtected = createRouteMatcher(["/account(.*)", "/checkout(.*)", "/admin(.*)"]);
 
-export async function middleware(request: NextRequest) {
+export default clerkMiddleware(async (auth, request) => {
   const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
 
-  let response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-  response.headers.set("x-request-id", requestId);
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request: {
-              headers: requestHeaders,
-            },
-          });
-          response.headers.set("x-request-id", requestId);
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
+  if (isProtected(request)) {
+    const { userId } = await auth();
+    if (!userId) {
+      /* Carry the intended destination so sign-in returns the customer to the
+         checkout they were in the middle of, not to the home page. */
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.search = "";
+      url.searchParams.set("next", request.nextUrl.pathname);
+      return NextResponse.redirect(url);
     }
-  );
-
-  // Refresh the session on every matched request (keeps cookies alive).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const { pathname } = request.nextUrl;
-  const needsAuth = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
-
-  if (needsAuth && !user) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
   }
 
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("x-request-id", requestId);
   return response;
-}
+});
 
 export const config = {
-  // Skip static assets and images; run on pages + actions.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|categories/|products/|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: [
+    // Skip static assets and Next internals; run on pages and server actions.
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)",
+    "/(api|trpc)(.*)",
+    // Clerk's auto-proxy path — must be matched for the handshake to work.
+    "/__clerk/:path*",
+  ],
 };

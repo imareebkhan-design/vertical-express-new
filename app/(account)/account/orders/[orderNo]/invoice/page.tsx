@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getOrderByNo, type OrderAddressSnapshot } from "@/lib/services/orders";
 import { formatPaise } from "@/lib/money";
 import { Logo } from "@/components/ui/logo";

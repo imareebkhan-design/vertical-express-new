@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OrdersSwitcher } from "@/components/mobile/account/orders-switcher";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { listOrders } from "@/lib/services/orders";
 
 export const metadata: Metadata = {

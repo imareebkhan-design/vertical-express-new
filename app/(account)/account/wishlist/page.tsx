@@ -4,7 +4,7 @@ import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { EmptyState } from "@/components/shop/empty-state";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getWishlistItems } from "@/lib/services/wishlist";
 
 export const metadata: Metadata = {

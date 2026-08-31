@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { cancelOrder as cancelService, reorder as reorderService, getOrderByNo } from "@/lib/services/orders";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 

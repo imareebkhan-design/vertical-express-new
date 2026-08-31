@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
@@ -79,11 +80,15 @@ export default function RootLayout({
         >
           Skip to main content
         </a>
-        <SmoothScrollProvider>
-          <CartProvider>
-            <NativeShellProvider>{children}</NativeShellProvider>
-          </CartProvider>
-        </SmoothScrollProvider>
+        {/* Inside <body>, not wrapping <html> — Clerk injects into the body
+            and placing it outside breaks hydration. */}
+        <ClerkProvider>
+          <SmoothScrollProvider>
+            <CartProvider>
+              <NativeShellProvider>{children}</NativeShellProvider>
+            </CartProvider>
+          </SmoothScrollProvider>
+        </ClerkProvider>
       </body>
     </html>
   );

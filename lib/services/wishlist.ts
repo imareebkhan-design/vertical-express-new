@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { CatalogItem } from "@/lib/services/catalog";
 
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 
 /** Wishlisted product-id set for the current user (empty for guests). */
 export async function currentWishlistIdSet(): Promise<Set<string>> {

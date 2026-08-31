@@ -2,7 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { randomUUID } from "crypto";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import {
   addItem,
   updateItemQty,
