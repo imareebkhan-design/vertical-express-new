@@ -162,13 +162,22 @@ export default function DownloadsPage() {
                     <p className="mt-0.5 text-[12px] font-medium text-ink-500">{item.meta}</p>
                   </div>
                   <span className="text-[13px] font-medium text-ink-500 hidden sm:inline">{item.size}</span>
-                  <Link
-                    href="/downloads"
-                    className="inline-flex h-8.5 items-center gap-1.5 rounded-full bg-chip-soft px-3.5 text-[12px] font-bold text-ink shadow-card hover:bg-hush transition-colors"
+                  {/*
+                    Inert, and deliberately so. No PDF exists — this control
+                    used to link to /downloads, so clicking "Download" reloaded
+                    the page a contractor was already on.
+
+                    The artboard states the rule for the store buttons on this
+                    same screen: "a dead store link costs more trust than a
+                    missing one." A price list is the stronger case — somebody
+                    is pricing a job against it.
+                  */}
+                  <span
+                    aria-disabled="true"
+                    className="inline-flex h-8.5 cursor-not-allowed items-center rounded-full bg-chip-soft px-3.5 text-[12px] font-semibold text-ink-500 opacity-60"
                   >
-                    <Download className="size-3.5" />
-                    <span>Download</span>
-                  </Link>
+                    Not published
+                  </span>
                 </div>
                 {idx < TRADE_LISTS.length - 1 && <div className="h-px bg-line" />}
               </div>

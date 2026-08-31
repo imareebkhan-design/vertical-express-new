@@ -122,6 +122,13 @@ export function contentSecurityPolicy(isDev: boolean): string {
     "https://securetoken.googleapis.com",
     "https://identitytoolkit.googleapis.com",
     FIREBASE_AUTH_DOMAIN,
+    /* reCAPTCHA does not only load a script and an iframe — it posts back to
+       https://www.google.com/recaptcha/api2/clr. script-src and frame-src had
+       it; connect-src did not, so the browser blocked the callback and the
+       invisible bot check could never complete. Phone sign-in depends on that
+       check passing, which makes this an auth bug wearing a CSP costume: the
+       console shows a policy violation and the sign-in simply never proceeds. */
+    RECAPTCHA,
     // Turbopack HMR runs over a websocket in development.
     isDev ? "ws: wss:" : null,
   ]

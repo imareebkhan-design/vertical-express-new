@@ -73,6 +73,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-058 | The storefront's default sort ranks by an always-empty `ratingCount` | MEDIUM | Catalog | PARTIAL |
 | ISS-059 | `--color-danger` red is used for promotions and favourites, not just errors | MEDIUM | Design | PARTIAL |
 | ISS-060 | Search has no query log, so "Searched most" and item requests cannot exist | LOW | Search | OPEN |
+| ISS-061 | reCAPTCHA's callback was blocked by our own CSP, breaking phone sign-in | **HIGH** | Auth/Security | FIXED |
 
 ---
 
@@ -2455,3 +2456,51 @@ and this shop does not carry, which is exactly the input a first-year catalogue 
 needs.
 
 **Owner input required.** No, but worth wanting.
+
+---
+
+## ISS-061 — reCAPTCHA's callback was blocked by our own CSP
+
+| | |
+|---|---|
+| **Severity** | **HIGH** |
+| **Area** | Auth / Security |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** The Content-Security-Policy allowed `https://www.google.com` in
+`script-src` and `frame-src` but not in `connect-src`. reCAPTCHA does not only load a
+script and render a frame — it posts its result back to
+`https://www.google.com/recaptcha/api2/clr`. The browser blocked that request:
+
+```
+Refused to connect ... violates the following Content Security Policy directive:
+"connect-src 'self' https://*.razorpay.com ... https://identitytoolkit.googleapis.com ..."
+```
+
+Phone sign-in depends on that bot check completing, so this is an auth bug wearing a CSP
+costume. Nothing throws server-side, nothing appears in the logs, and the flow simply stops.
+
+**How it was found.** Not by testing sign-in. It surfaced in the browser console while
+verifying an unrelated page, because the console had been open for a different check.
+
+**This is the second time.** Clerk's `clerk.browser.js` was blocked by `script-src` earlier
+in the same migration and the sign-in page rendered blank. Same shape: an origin present in
+some directives and missing from the one that mattered.
+
+**Why the shape recurs.** One origin usually needs several directives. reCAPTCHA needs
+three — load, frame, report back. Having two of the three looks complete and is not.
+
+**Resolution.** `RECAPTCHA` added to `connect-src`.
+
+**Guard.** `lib/__tests__/csp-auth-origins.test.ts` asserts reCAPTCHA appears in all three
+directives, that the Identity Toolkit and token-refresh origins are in `connect-src`, that
+the auth domain is in `frame-src`, and that it is derived from configuration rather than
+hardcoded. Verified by removing the entry.
+
+The guard's own locator was too strict on first run — it matched `` `script-src 'self'` ``
+and script-src also carries `'unsafe-inline'` — so it failed on a directive that was
+correct. Fixed, and worth noting: the near-miss it exists to catch is the same near-miss it
+made.
+
+**Owner input required.** No. But this class of bug is invisible until somebody opens a
+browser console, which is an argument for keeping a real sign-in in the smoke path.
