@@ -7,6 +7,8 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
+import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { SortSelect } from "@/components/shop/sort-select";
@@ -57,13 +59,13 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
   return (
     <>
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
         />
 
-        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-xs font-bold text-neutral-500">
+        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs font-bold text-ink-500">
           <Link href="/" className="hover:text-ink">Home</Link>
           <ChevronRight className="size-3" aria-hidden />
           <Link href="/categories" className="hover:text-ink">Categories</Link>
@@ -71,12 +73,14 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
           <span className="text-ink">{category.name}</span>
         </nav>
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{category.name}</h1>
-          <p className="mt-1 text-sm font-semibold text-neutral-500">
-            {result.total} {result.total === 1 ? "product" : "products"}
-            {category.isBulk && " · heavy material, delivered by truck"}
-          </p>
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">{category.name}</h1>
+            <p className="mt-1 text-sm font-medium text-ink-700">
+              {result.total} {result.total === 1 ? "product" : "products"}
+              {category.isBulk && " · heavy material, delivered by truck on a slot you choose"}
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
@@ -103,6 +107,9 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
             )}
           </div>
         </div>
+
+        <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>

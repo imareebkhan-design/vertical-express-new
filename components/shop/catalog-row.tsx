@@ -20,7 +20,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
   const off = discountPercent(item.pricePaise, item.compareAtPaise);
 
   return (
-    <article className="flex items-center gap-4 rounded-[1.25rem] bg-white p-3 shadow-card sm:gap-5 sm:p-4">
+    <article className="flex items-center gap-4 rounded-[22px] bg-paper border border-line p-3.5 shadow-card sm:gap-5 sm:p-4">
       <Link
         href={`/product/${item.slug}`}
         className="flex-none overflow-hidden rounded-[1rem] bg-canvas"

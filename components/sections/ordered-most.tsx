@@ -2,14 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Plus, Check, Zap, Snowflake } from "lucide-react";
+import { ChevronRight, Plus, Check, Zap } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
-
-interface OrderedMostProps {
-  items: CatalogItem[];
-}
 
 export function OrderedMost({ items }: { items: CatalogItem[] }) {
   return (

@@ -15,31 +15,31 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
   const currentFailed = failed[active];
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3.5">
       <motion.div
         key={active}
-        initial={{ opacity: 0.5 }}
+        initial={{ opacity: 0.7 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.25 }}
-        className="relative aspect-square overflow-hidden rounded-panel bg-tile"
+        transition={{ duration: 0.2 }}
+        className="relative flex h-[360px] sm:h-[470px] w-full items-center justify-center overflow-hidden rounded-[32px] bg-civil-soft border border-line"
       >
-        {current && !currentFailed ? (
-          // eslint-disable-next-line @next/next/no-img-element -- runtime fallback needed
+        {current && !currentFailed && current.url !== "/placeholder-product.webp" ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={current.url}
             alt={current.alt}
-            className="size-full object-contain p-6"
+            className="size-full object-contain p-8"
             onError={() => setFailed((f) => ({ ...f, [active]: true }))}
           />
         ) : (
-          <div role="img" aria-label={title} className="grid size-full place-items-center">
-            <Package className="size-20 text-sky-900/20" strokeWidth={1.2} aria-hidden />
+          <div role="img" aria-label={title} className="grid size-full place-items-center text-ink-700">
+            <Package className="size-24 stroke-[1.2]" aria-hidden />
           </div>
         )}
       </motion.div>
 
       {images.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-3 overflow-x-auto scrollbar-hide py-1">
           {images.map((img, i) => (
             <button
               key={i}
@@ -47,12 +47,12 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
               aria-label={`View image ${i + 1}`}
               aria-current={i === active}
               className={cn(
-                "size-16 shrink-0 overflow-hidden rounded-chip border-2 bg-tile transition-colors",
-                i === active ? "border-brand-deep" : "border-transparent hover:border-neutral-300"
+                "flex size-[80px] sm:size-[98px] shrink-0 items-center justify-center overflow-hidden rounded-[20px] bg-civil-soft border border-line transition-all cursor-pointer",
+                i === active ? "ring-2 ring-ink ring-offset-2" : "opacity-80 hover:opacity-100"
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={img.alt} className="size-full object-contain p-1.5" />
+              <img src={img.url} alt={img.alt} className="size-full object-contain p-2" />
             </button>
           ))}
         </div>
@@ -60,3 +60,4 @@ export function ProductGallery({ images, title }: { images: { url: string; alt: 
     </div>
   );
 }
+

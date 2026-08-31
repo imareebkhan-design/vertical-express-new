@@ -6,6 +6,8 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
+import { ServicesBanner } from "@/components/sections/services-banner";
+import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
@@ -168,6 +170,8 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
             brandName: product.brandName,
           }}
         />
+        <ServicesBanner />
+        <DownloadsStrip />
       </main>
       <Footer />
     </>

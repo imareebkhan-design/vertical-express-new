@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 
 const TRADES = ["Architect", "Contractor", "Electrician", "Plumber", "Turnkey build"];

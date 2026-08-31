@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, MapPin, Truck, Zap } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { ArrowRight, Clock, ShieldCheck, Zap } from "lucide-react";
 
 export function Hero() {
   const [pincode, setPincode] = useState("190014");

@@ -56,9 +56,9 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
 
   return (
     <motion.article
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-card border border-hairline-border bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-72"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-[22px] border border-line bg-paper shadow-card transition-shadow duration-200 hover:shadow-card-hover sm:w-72"
     >
       <div className="relative overflow-hidden">
         <MaybeLink href={href}>
