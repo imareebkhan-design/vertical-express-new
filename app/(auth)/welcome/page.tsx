@@ -27,5 +27,10 @@ export default async function WelcomePage({ searchParams }: PageProps) {
      ?next= from a link, and an open redirect is an open redirect wherever it is. */
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
-  return <RoleSelectView next={safeNext} />;
+  /* Onboarding runs 3 → 4: what you are, then where you are. Passing the
+     caller's destination through means a customer who arrived here from
+     checkout still lands back in checkout at the end. */
+  const onward = safeNext === "/" ? "/welcome/site" : `/welcome/site?next=${encodeURIComponent(safeNext)}`;
+
+  return <RoleSelectView next={onward} />;
 }
