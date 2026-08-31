@@ -16,7 +16,7 @@ import { PincodeCheck } from "@/components/shop/pincode-check";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/recently-viewed";
 import { PageLoader } from "@/components/page-loader";
-import { ChevronRight, ShieldCheck, Wallet } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { paiseToRupees } from "@/lib/money";
 
@@ -66,6 +66,15 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
     },
   };
 
+  /* Up to four attributes, in the order the record lists them, joined the way
+     the design sets a spec line. */
+  const specLine = [
+    ...product.specs.slice(0, 4).map((sp) => sp.value),
+    product.unitLabel,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <>
       <Navbar />
@@ -93,15 +102,25 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
           />
 
           <div>
+            {/* Brand is a plain uppercase eyebrow — never a mark, never amber. */}
             <Link
               href={`/category/${product.categorySlug}`}
-              className="text-xs font-extrabold uppercase tracking-widest text-brand-deep hover:underline"
+              className="text-[9.5px] font-bold uppercase leading-3 tracking-[0.09em] text-ink-500 no-underline hover:text-ink"
             >
               {product.brandName}
             </Link>
-            <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+            <h1 className="mt-1.5 text-[28px] font-extrabold leading-[34px] tracking-[-0.025em] sm:text-[31px] sm:leading-9">
               {product.title}
             </h1>
+
+            {/* Spec line: the grade and pack a buyer compares on, from the
+                product's own attributes. Nothing is composed that the record
+                does not already carry. */}
+            {specLine && (
+              <p className="mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+                {specLine}
+              </p>
+            )}
 
             <div className="mt-6">
               <PdpActions product={product} />
@@ -109,18 +128,6 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
 
             <div className="mt-6">
               <PincodeCheck defaultPincode="190001" />
-            </div>
-
-            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-              {[
-                { icon: Wallet, label: "Pay on delivery" },
-                { icon: ShieldCheck, label: "Genuine brands" },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="rounded-card bg-surface/60 p-3">
-                  <Icon className="mx-auto size-5 text-brand-deep" strokeWidth={1.8} aria-hidden />
-                  <p className="mt-1 text-[11px] font-bold text-neutral-600">{label}</p>
-                </div>
-              ))}
             </div>
 
             {product.description && (

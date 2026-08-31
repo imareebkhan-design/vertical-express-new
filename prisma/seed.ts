@@ -190,9 +190,18 @@ async function main() {
         unitLabel: p.unitLabel,
         isDeal: !!p.isDeal,
         specs: p.specs ?? undefined,
-        description: `${p.title} — genuine ${p.brand} quality, delivered to your site in Srinagar within the hour. ${
-          p.tiers ? "Bulk prices unlock automatically at higher quantities." : ""
-        }`.trim(),
+        /* Carries no delivery time and no bulk-pricing claim.
+         *
+         * The previous line promised every product was "delivered to your site
+         * in Srinagar within the hour" — on cement that ships by truck, that
+         * contradicted the speed chip immediately above it, and the 60-minute
+         * SLA is unverified in the placeholder register either way. It also
+         * advertised "bulk prices unlock automatically", which the approved
+         * design removes from every frame.
+         *
+         * What is left is what the record actually knows: the brand, and that
+         * we deliver in Srinagar. Speed is the chip's job. */
+        description: `${p.title} — ${p.brand}, supplied for site delivery in Srinagar.`,
         images: {
           create: {
             url: p.image ?? PRODUCT_PLACEHOLDER,

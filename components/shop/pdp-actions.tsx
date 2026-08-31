@@ -7,6 +7,8 @@ import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/lib/services/catalog";
+import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
+import { discountPercent } from "@/lib/money";
 
 /**
  * PDP purchase panel: variant selector, tier-aware pricing, qty stepper,
@@ -48,17 +50,44 @@ export function PdpActions({ product }: { product: ProductDetail }) {
     }
   };
 
+  const off = discountPercent(unitPaise, variant.compareAtPaise);
+  const speed = speedClassFor(product.categoryIsBulk);
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Price */}
-      <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-extrabold">{formatPaise(unitPaise)}</span>
+      {/* Price · struck MRP · percent off */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-3xl font-extrabold tabular-nums tracking-[-0.02em]">
+          {formatPaise(unitPaise)}
+        </span>
         {hasDiscount && (
-          <s className="text-lg font-semibold text-ink-300">
+          <s className="text-lg font-semibold tabular-nums text-ink-300">
             {formatPaise(variant.compareAtPaise!)}
           </s>
         )}
+        {off !== null && (
+          <span className="inline-flex h-[19px] items-center rounded-full bg-amber-soft px-[7px] text-[10px] font-extrabold text-ink">
+            {off}% off
+          </span>
+        )}
         <span className="text-sm font-semibold text-ink-500">{product.unitLabel}</span>
+      </div>
+
+      {/* Tax treatment. Rates and HSN codes are owner-confirmed per category in
+          lib/services/tax.ts, and prices are stored GST-inclusive, so this
+          states what the checkout actually charges. */}
+      <p className="-mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+        Price {product.unitLabel.replace(/^per\s+/i, "per ")}, <strong className="font-bold">including GST</strong>.
+      </p>
+
+      {/* Delivery speed belongs to the goods, never to the header. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <SpeedChip speed={speed} />
+        <span className="text-[13px] font-medium text-ink-700">
+          {speed === "scheduled"
+            ? "Heavy material — delivered by truck."
+            : "Held in our Srinagar store."}
+        </span>
       </div>
 
       {/* Variant selector (only if multiple) */}
