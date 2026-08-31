@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
+import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 interface MobileWalletViewProps {
   balancePaise: number;
@@ -63,21 +64,58 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Wallet Balance Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-deep via-brand to-brand-light p-6 text-white shadow-md">
-          <div className="absolute -right-6 -top-6 opacity-10">
-            <Wallet className="size-36 text-white" />
-          </div>
+        {/*
+          Vertical Credit — artboard 17.
 
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-white/70 block leading-none">
-            Cashback Balance
+          The artboard labels this block "Terms unconfirmed" itself, which is the
+          design's own placeholder register being applied at the source. So every
+          figure here carries the marker: there is no credit model, no limit, no
+          repayment window and no policy deciding any of them. Rendering the
+          block keeps the screen the design intends and keeps the open question
+          visible; inventing a limit would put a number in front of a contractor
+          that nobody has agreed to honour.
+        */}
+        <div className="rounded-[22px] bg-paper p-5 shadow-card">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[15px] font-extrabold text-ink">Vertical Credit</h2>
+            <span className="rounded-full bg-amber-soft px-2.5 py-1 text-[10px] font-bold text-ink">
+              Terms unconfirmed
+            </span>
+          </div>
+          <p className="mt-3 text-[13px] font-medium leading-[18px] text-ink-700">
+            <PlaceholderValue pending="credit terms are on the do-not-build list — no limit, window or rate has been set">
+              A trade credit line is planned, and its limit and repayment terms are not
+              settled yet.
+            </PlaceholderValue>
+          </p>
+        </div>
+
+        {/*
+          Wallet balance.
+
+          This replaced a card that read "5% cashback credited on every delivered
+          order". No cashback policy exists — that was a standing commitment about
+          money, invented in a component, and a customer who read it and did not
+          receive it would have been right to complain. The balance is real; the
+          promise about how it grows was not.
+        */}
+        <div className="rounded-[22px] bg-paper p-5 shadow-card">
+          <span className="block text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
+            Wallet balance
           </span>
-          <span className="text-2xl font-extrabold mt-3.5 block leading-none">
+          <span className="mt-2 block text-[28px] font-extrabold leading-8 tracking-[-0.025em] text-ink">
             {formatPaise(balancePaise)}
           </span>
-          <span className="text-[9px] font-bold text-white/80 mt-2 block">
-            5% cashback credited on every delivered order
-          </span>
+          <button
+            type="button"
+            disabled
+            className="mt-4 h-11 w-full rounded-full bg-chip text-[14px] font-bold text-ink-500"
+          >
+            Add money
+          </button>
+          <p className="mt-2 text-center text-[11px] font-medium text-ink-500">
+            Top-up isn&apos;t available yet.
+          </p>
         </div>
 
         {/* History section */}
@@ -107,7 +145,7 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-ink truncate leading-tight">
-                          {t.description || (isCredit ? "Order Cashback Credited" : "Cashback Discount Applied")}
+                          {t.description || (isCredit ? "Credited to wallet" : "Used on an order")}
                         </p>
                         <span className="text-[8px] text-ink/35 font-semibold mt-1 block">
                           {new Date(t.createdAt).toLocaleDateString("en-IN", {

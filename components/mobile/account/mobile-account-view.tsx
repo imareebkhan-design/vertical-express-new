@@ -170,7 +170,7 @@ export function MobileAccountView({
       body = `Vertical Express has accepted your order. Delivering soon!`;
     } else if (o.status === "delivered") {
       title = `Order #${o.orderNo} delivered`;
-      body = `Cashback reward of 5% has been added to your wallet balance.`;
+      body = `Credit has been added to your wallet balance.`;
     }
     return {
       id: o.id,

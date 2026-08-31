@@ -45,7 +45,7 @@ export async function notifyOrderStatusChange(params: {
     body = `Our delivery partner is on the way with your order.`;
   } else if (status === "delivered") {
     title = `Order #${orderNo} delivered`;
-    body = `Your order has been delivered. 5% cashback has been credited to your wallet!`;
+    body = `Your order has been delivered.`;
   }
 
   return sendNotification({

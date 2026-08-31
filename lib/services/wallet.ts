@@ -1,6 +1,41 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { log } from "@/lib/observability";
+
+/**
+ * The cashback rate, as a percentage of the order total.
+ *
+ * THIS USED TO BE A HARDCODED 5% AND IT PAID OUT.
+ *
+ * `creditCashbackForOrder` runs whenever an order is marked delivered, so every
+ * completed order was crediting five percent of its value to the customer's
+ * wallet at a rate nobody had chosen — ₹2,500 on a ₹50,000 order, as a standing
+ * liability, decided in a source file. `CLAUDE.md` is explicit that a rule like
+ * this is the owner's to set, and no cashback policy exists.
+ *
+ * So the rate now comes from configuration and defaults to **off**. Unset means
+ * no cashback is credited and nothing is promised, which is the only honest
+ * default when the policy is undecided. Setting WALLET_CASHBACK_PERCENT=5 turns
+ * it on deliberately, by someone who meant to.
+ *
+ * Deliberately not a silent fallback to a plausible number: a payout that
+ * pretends to be policy is worse than no payout.
+ */
+function cashbackPercent(): number {
+  const raw = process.env.WALLET_CASHBACK_PERCENT;
+  if (!raw) return 0;
+  const pct = Number(raw);
+  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+    log("ERROR", {
+      service: "wallet-service",
+      event: "invalid_cashback_percent",
+      metadata: { raw },
+    });
+    return 0;
+  }
+  return pct;
+}
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({
@@ -27,8 +62,12 @@ export async function creditCashbackForOrder(params: {
 }) {
   const { userId, orderId, orderNo, orderTotalPaise } = params;
 
-  // Calculate 5% cashback
-  const cashbackPaise = Math.round(orderTotalPaise * 0.05);
+  const pct = cashbackPercent();
+  if (pct === 0) return;
+
+  /* Integer paise throughout — the order total is already paise, and rounding
+     once at the end keeps a fraction of a paisa from becoming a real one. */
+  const cashbackPaise = Math.round((orderTotalPaise * pct) / 100);
   if (cashbackPaise <= 0) return;
 
   const wallet = await getOrCreateWallet(userId);
@@ -54,7 +93,7 @@ export async function creditCashbackForOrder(params: {
           amountPaise: cashbackPaise,
           type: "cashback_credit",
           referenceId: orderId,
-          description: `5% Cashback for order #${orderNo}`,
+          description: `Cashback for order #${orderNo}`,
           expiresAt,
         },
       });

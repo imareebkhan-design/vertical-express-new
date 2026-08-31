@@ -6,7 +6,7 @@ import { WalletSwitcher } from "@/components/mobile/account/wallet-switcher";
 
 export const metadata: Metadata = {
   title: "Wallet | Vertical Express",
-  description: "View your cashback balance and wallet history.",
+  description: "Your wallet balance and transaction history.",
 };
 
 export default async function WalletPage() {

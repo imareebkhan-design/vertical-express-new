@@ -67,6 +67,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | FIXED |
 | ISS-053 | Production has none of the 12 environment variables Firebase auth needs | **CRITICAL** | Config/Deploy | OPEN |
 | ISS-054 | `SpeedChip` defaults to the unverified 60-minute delivery claim | MEDIUM | Content/Legal | OPEN |
+| ISS-055 | Every delivered order paid 5% cashback at a rate nobody set | **CRITICAL** | Money/Policy | FIXED |
 
 ---
 
@@ -2234,3 +2235,47 @@ the same correction once the real window is known. Matching the canvas here woul
 shipping the claim.
 
 **Owner input required.** Yes — what is the actual express window for Srinagar?
+
+---
+
+## ISS-055 — Every delivered order paid 5% cashback at a rate nobody set
+
+| | |
+|---|---|
+| **Severity** | **CRITICAL** |
+| **Area** | Money / Policy |
+| **Status** | FIXED (1 Sep 2026) — default is now off, rate is the owner's to set |
+
+**Description.** `creditCashbackForOrder` computed `Math.round(orderTotalPaise * 0.05)` and
+credited it to the customer's wallet. `manage.ts` calls it whenever an order moves to
+`delivered`. So every completed order created a real liability — **₹2,500 on a ₹50,000
+order** — at a rate decided in a source file.
+
+No cashback policy exists. `CLAUDE.md` names this exact class of thing: "If a rule (a
+price, a delivery time, a COD limit, a GST rate) is not confirmed by the owner, do not
+invent it."
+
+**How it was found.** Not by reading the wallet service. A guard written for *copy* —
+after "5% cashback" turned up in six user-facing files — also scanned `lib/`, and reported
+`lib/services/wallet.ts` and `lib/services/notifications.ts`. The marketing claim was the
+visible end of a live payout.
+
+**Why the copy sweep alone would have made it worse.** Removing the promise from six
+screens while the code kept crediting would have left the business paying out silently,
+with nothing on the site to explain the balances customers were accruing.
+
+**Resolution.** The rate comes from `WALLET_CASHBACK_PERCENT` and **defaults to off**.
+Unset credits nothing. A value outside 0–100, or a non-number, logs and credits nothing —
+deliberately not a silent fallback to a plausible figure, because a payout that pretends to
+be policy is worse than no payout. `WALLET_CASHBACK_PERCENT=5` restores the old behaviour
+for someone who means it.
+
+**Tests.** `lib/services/__tests__/cashback-rate.test.ts` — unset pays zero on a ₹50,000
+order, a configured 5% pays exactly ₹2,500, and three malformed values pay nothing.
+
+**Guard.** `lib/__tests__/unconfirmed-claims.test.ts` fails on any restated cashback rate,
+wallet expiry window, authorised-dealer claim, no-minimum-order promise or price guarantee.
+Verified by reintroducing one.
+
+**Owner input required.** Yes — is there a cashback programme at all, and at what rate? It
+pays nothing until you answer.

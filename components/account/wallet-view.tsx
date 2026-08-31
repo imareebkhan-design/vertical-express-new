@@ -1,6 +1,6 @@
 "use client";
 
-import { Wallet, ArrowDownRight, ArrowUpRight, Clock, ShieldCheck } from "lucide-react";
+import { Wallet, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 
 interface Transaction {
@@ -28,20 +28,20 @@ export function WalletView({ balancePaise, transactions }: WalletViewProps) {
           </div>
           <div>
             <p className="text-xs font-extrabold uppercase tracking-widest text-neutral-300">
-              Cashback Wallet Balance
+              Wallet balance
             </p>
             <p className="text-3xl font-extrabold text-brand">{formatPaise(balancePaise)}</p>
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-4 border-t border-white/10 pt-4 text-xs font-semibold text-neutral-300">
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="size-4 text-brand" /> 5% Cashback auto-earned on delivered orders
-          </span>
-          <span className="flex items-center gap-1">
-            <Clock className="size-4 text-brand" /> Valid for 30 days
-          </span>
-        </div>
+        {/*
+          Two standing commitments used to sit here — "5% cashback auto-earned on
+          delivered orders" and "valid for 30 days". Neither rate nor expiry has
+          been agreed. WalletTransaction does carry an expiresAt, so expiry is a
+          real mechanism; the 30 days was not. Both removed rather than marked,
+          because a benefits strip with placeholder figures reads as a promise
+          either way.
+        */}
       </div>
 
       {/* Transaction History */}
@@ -50,7 +50,7 @@ export function WalletView({ balancePaise, transactions }: WalletViewProps) {
 
         {transactions.length === 0 ? (
           <p className="py-6 text-center text-sm font-semibold text-neutral-500">
-            No wallet transactions yet. Place an order to earn 5% cashback!
+            No wallet transactions yet.
           </p>
         ) : (
           <ul className="divide-y divide-hairline-border">
