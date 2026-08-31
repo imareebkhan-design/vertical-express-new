@@ -44,12 +44,31 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
     push(params);
   };
 
+  /* Attribute params are the lowercased label: ?type=Vitrified&finish=Matt.
+     One value at a time per attribute — a tile is matt or gloss, not both. */
+  const attrKeys = facets.attributes.map((a) => a.label.toLowerCase());
+  const selectedAttrs = Object.fromEntries(
+    attrKeys.map((k) => [k, searchParams.get(k)]).filter(([, v]) => v)
+  ) as Record<string, string>;
+
+  const toggleAttr = (label: string, value: string) => {
+    const key = label.toLowerCase();
+    const params = new URLSearchParams(searchParams);
+    if (params.get(key) === value) params.delete(key);
+    else params.set(key, value);
+    push(params);
+  };
+
   const hasActiveFilters =
-    selectedBrands.length > 0 || searchParams.has("minPrice") || searchParams.has("maxPrice");
+    selectedBrands.length > 0 ||
+    Object.keys(selectedAttrs).length > 0 ||
+    searchParams.has("minPrice") ||
+    searchParams.has("maxPrice");
 
   const reset = () => {
     const params = new URLSearchParams(searchParams);
     params.delete("brand");
+    attrKeys.forEach((k) => params.delete(k));
     params.delete("minPrice");
     params.delete("maxPrice");
     setMinR(String(paiseToRupees(facets.priceRange.minPaise)));
@@ -92,6 +111,32 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
           </ul>
         </div>
       )}
+
+      {/* Attribute groups — type, size, finish, room — in the order
+          lib/catalog-attributes.ts configures for this category. */}
+      {facets.attributes.map((group) => (
+        <div key={group.label}>
+          <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-neutral-400">
+            {group.label}
+          </h3>
+          <ul className="space-y-2">
+            {group.values.map(({ value, count }) => (
+              <li key={value}>
+                <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={selectedAttrs[group.label.toLowerCase()] === value}
+                    onChange={() => toggleAttr(group.label, value)}
+                    className="size-4 cursor-pointer accent-brand"
+                  />
+                  <span className="flex-1">{value}</span>
+                  <span className="text-xs font-semibold text-neutral-400">{count}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
 
       <div>
         <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-neutral-400">Price (₹)</h3>

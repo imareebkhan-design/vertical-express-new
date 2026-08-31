@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import type { CatalogItem, CatalogFacets } from "@/lib/services/catalog";
+import type { CatalogFacets } from "@/lib/services/catalog";
+import { attributeConfigFor } from "@/lib/catalog-attributes";
 import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { CategoryGlyph, categoryTint, glyphFor } from "@/components/ui/product-panel";
 
@@ -66,42 +67,38 @@ export function CategoryBanner({
 }
 
 /**
- * "Shop by grade" — the sub-filter a spec-driven buyer actually reaches for.
+ * The "Shop by …" rail: the first question a buyer of this category asks.
  *
- * Grades are read from each product's own `specs`, so nothing is invented: a
- * category only shows this rail once its products carry a Grade attribute, and
- * it fills in on its own as the catalogue gets real specs. Below two distinct
- * grades there is nothing to choose between, so the section stays hidden.
+ * Cement is chosen by grade. Tile is chosen by type first — vitrified or
+ * ceramic — then size and finish. Which attribute leads is configured per
+ * category in lib/catalog-attributes.ts; the values come from the products
+ * themselves, so a category shows exactly what it stocks.
+ *
+ * Below two distinct values there is nothing to choose between, so the rail
+ * hides itself rather than showing a single card.
  */
-export function ShopByGrade({
-  items,
-  slug,
+export function ShopByAttribute({
   facets,
+  slug,
 }: {
-  items: CatalogItem[];
+  facets: CatalogFacets;
   slug: string;
-  facets?: CatalogFacets;
 }) {
-  void facets;
+  const { railLabel } = attributeConfigFor(slug);
+  const lead = facets.attributes[0];
 
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const grade = item.gradeLabel;
-    if (grade) counts.set(grade, (counts.get(grade) ?? 0) + 1);
-  }
-
-  if (counts.size < 2) return null;
-
-  const grades = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (!lead || lead.values.length < 2) return null;
 
   return (
     <section className="mb-9">
-      <h2 className="mb-4 text-[20px] font-bold tracking-[-0.02em] text-ink">Shop by grade</h2>
+      <h2 className="mb-4 text-[20px] font-bold tracking-[-0.02em] text-ink">
+        {railLabel ?? `Shop by ${lead.label.toLowerCase()}`}
+      </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {grades.map(([grade, n]) => (
+        {lead.values.map(({ value, count }) => (
           <Link
-            key={grade}
-            href={`/category/${slug}?grade=${encodeURIComponent(grade)}`}
+            key={value}
+            href={`/category/${slug}?${lead.label.toLowerCase()}=${encodeURIComponent(value)}`}
             className="rounded-[20px] bg-paper p-4 no-underline shadow-card transition-shadow hover:shadow-card-hover"
           >
             <div
@@ -110,9 +107,9 @@ export function ShopByGrade({
             >
               <CategoryGlyph name={glyphFor(slug)} className="size-7" />
             </div>
-            <p className="text-[13px] font-bold leading-[17px] text-ink">{grade}</p>
+            <p className="text-[13px] font-bold leading-[17px] text-ink">{value}</p>
             <p className="mt-1 text-[11px] font-semibold tabular-nums text-ink-500">
-              {n} {n === 1 ? "product" : "products"}
+              {count} {count === 1 ? "product" : "products"}
             </p>
           </Link>
         ))}

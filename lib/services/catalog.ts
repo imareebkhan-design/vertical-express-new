@@ -1,4 +1,5 @@
 import "server-only";
+import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { unstable_cache } from "next/cache";
@@ -19,9 +20,12 @@ export interface CatalogItem {
   pricePaise: number;
   compareAtPaise: number | null;
   hasBulkTiers: boolean;
-  /** The product's own Grade attribute, when it carries one. Drives the
-   *  category page's "Shop by grade" rail — never composed, only read. */
+  /** The product's own Grade attribute, when it carries one. */
   gradeLabel: string | null;
+  /** Every attribute the product carries, keyed by label — "Type", "Size",
+   *  "Finish", "Room". Drives the category rail and the sidebar filters, and
+   *  is read from the record, never composed. */
+  attributes: Record<string, string>;
   ratingAvg: number;
   ratingCount: number;
   inStock: boolean;
@@ -29,6 +33,8 @@ export interface CatalogItem {
 
 export interface CatalogQuery {
   categorySlug?: string;
+  /** Attribute filters, label -> selected value, e.g. { Type: "Vitrified" }. */
+  attrs?: Record<string, string>;
   search?: string;
   brandSlugs?: string[];
   minPaise?: number;
@@ -42,6 +48,41 @@ export interface CatalogQuery {
 export interface CatalogFacets {
   brands: { slug: string; name: string; count: number }[];
   priceRange: { minPaise: number; maxPaise: number };
+  /** Attribute groups for this category, in the order catalog-attributes.ts
+   *  configures, each carrying only the values actually stocked. Empty when the
+   *  catalogue has no attribute data for the category. */
+  attributes: { label: string; values: { value: string; count: number }[] }[];
+}
+
+/**
+ * Counts attribute values across the matched products.
+ *
+ * Derived from the items themselves rather than a separate query: the values
+ * live in a JSON column, so there is nothing to group by in SQL, and the page
+ * window is small enough that counting in memory is honest and cheap.
+ */
+function buildAttributeFacets(
+  items: CatalogItem[],
+  categorySlug: string | undefined
+): CatalogFacets["attributes"] {
+  if (!categorySlug) return [];
+  const { attributes } = attributeConfigFor(categorySlug);
+
+  return attributes
+    .map((label) => {
+      const counts = new Map<string, number>();
+      for (const item of items) {
+        const value = item.attributes[label];
+        if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
+      }
+      return {
+        label,
+        values: [...counts.entries()]
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value)),
+      };
+    })
+    .filter((group) => group.values.length > 0);
 }
 
 export interface CatalogResult {
@@ -136,6 +177,7 @@ function toItem(p: ProductWithRefs): CatalogItem | null {
     compareAtPaise: variant.compareAtPaise,
     hasBulkTiers: variant.bulkTiers.length > 0,
     gradeLabel: gradeOf(p.specs),
+    attributes: attributesOf(p.specs),
     ratingAvg: Number(p.ratingAvg),
     ratingCount: p.ratingCount,
     inStock: available > 0,
@@ -184,6 +226,17 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
 
     let items = rows.map(toItem).filter((x): x is CatalogItem => x !== null);
 
+    /* Attribute values live in a JSON column, so there is nothing to filter on
+       in SQL. Narrowing here matches how the price and discount sorts already
+       work, and the page window is small. Moves into the query when the search
+       engine lands. */
+    const attrEntries = Object.entries(q.attrs ?? {}).filter(([, v]) => v);
+    if (attrEntries.length > 0) {
+      items = items.filter((item) =>
+        attrEntries.every(([label, value]) => item.attributes[label] === value)
+      );
+    }
+
     if (priceSort) {
       items.sort((a, b) => {
         if (q.sort === "price_asc") return a.pricePaise - b.pricePaise;
@@ -212,6 +265,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
           minPaise: priceAgg._min.pricePaise ?? 0,
           maxPaise: priceAgg._max.pricePaise ?? 0,
         },
+        attributes: buildAttributeFacets(items, q.categorySlug),
       },
     };
   }
@@ -436,6 +490,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
       compareAtPaise: variant.compareAtPaise,
       hasBulkTiers: variant.bulkTiers.length > 0,
     gradeLabel: gradeOf(p.specs),
+    attributes: attributesOf(p.specs),
       ratingAvg: Number(p.ratingAvg),
       ratingCount: p.ratingCount,
       inStock: available > 0,
@@ -488,6 +543,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         minPaise: priceAgg._min.pricePaise ?? 0,
         maxPaise: priceAgg._max.pricePaise ?? 0,
       },
+      attributes: buildAttributeFacets(items, q.categorySlug),
     },
   };
 }

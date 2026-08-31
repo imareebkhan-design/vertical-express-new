@@ -16,7 +16,7 @@ import { SortSelect } from "@/components/shop/sort-select";
 import { Pagination } from "@/components/shop/pagination";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
-import { CategoryBanner, ShopByGrade } from "@/components/shop/category-banner";
+import { CategoryBanner, ShopByAttribute } from "@/components/shop/category-banner";
 import { FilterSheet } from "@/components/shop/filter-sheet";
 import { PageLoader } from "@/components/page-loader";
 import { ChevronRight } from "lucide-react";
@@ -80,7 +80,7 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
           slug={slug}
         />
 
-        <ShopByGrade items={result.items} slug={slug} />
+        <ShopByAttribute facets={result.facets} slug={slug} />
 
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <div className="hidden lg:block">
