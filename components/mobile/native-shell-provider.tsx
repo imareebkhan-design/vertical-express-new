@@ -10,6 +10,7 @@ import { OnboardingFlow } from "@/components/mobile/auth/onboarding-flow";
 import { BiometricLock } from "@/components/mobile/auth/biometric-lock";
 import { BottomSheetLayout } from "@/components/mobile/bottom-sheet-layout";
 import { MobileTabBar } from "@/components/mobile/navigation/mobile-tab-bar";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 interface NativeShellContextType {
   isNative: boolean;
@@ -33,6 +34,7 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
   const [isNative, setIsNative] = useState(false);
+  const { isMobile } = useMobileSurface(isNative);
   const [isOnboarded, setIsOnboarded] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
@@ -277,6 +279,73 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
   // Determine if primary tab page to show footer tab bar
   const isPrimaryTab = ["/", "/categories", "/search", "/cart", "/account"].includes(pathname);
 
+  // The floating pill nav belongs to the app language, and mobile web now shares
+  // it — the design treats the two as the same product below 768px.
+  const showTabBar = isPrimaryTab && isMobile;
+
+  // One instance for both surfaces. The native shell wraps children in its own
+  // <main>; web pages supply their own, so only the wrapper differs.
+  const locationSheet = (
+      <BottomSheetLayout
+        isOpen={isLocationOpen}
+        onClose={() => {
+          triggerHaptic("light");
+          setIsLocationOpen(false);
+        }}
+        title="Choose Delivery Location"
+      >
+        <form onSubmit={handlePincodeSubmit} className="space-y-4">
+          <p className="text-xs text-ink/60">
+            Enter your 6-digit site pincode to check instant delivery availability.
+          </p>
+
+          <div className="flex items-center rounded-2xl border border-mist/40 bg-surface px-4 py-3 focus-within:border-brand-deep">
+            <MapPin className="size-4 text-brand-deep mr-2" />
+            <input
+              type="tel"
+              maxLength={6}
+              value={pincodeInput}
+              onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
+              placeholder="e.g. 190001"
+              className="w-full bg-transparent text-sm font-bold text-ink outline-none placeholder:text-ink/30"
+              disabled={isCheckingSvc}
+              autoFocus
+            />
+          </div>
+
+          {locError && (
+            <div className="flex items-start gap-1.5 text-xs font-semibold text-danger">
+              <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
+              <span>{locError}</span>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <button
+              type="button"
+              onClick={handleUseCurrentLocation}
+              disabled={isCheckingSvc}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-mist/30 bg-surface px-4 py-3.5 text-xs font-bold text-ink shadow-xs active:scale-95 disabled:opacity-50"
+            >
+              <Navigation className="size-3.5 text-brand-deep" />
+              GPS Pin
+            </button>
+            <button
+              type="submit"
+              disabled={isCheckingSvc || pincodeInput.length !== 6}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-deep px-4 py-3.5 text-xs font-bold text-white shadow-md active:scale-95 disabled:opacity-50"
+            >
+              {isCheckingSvc ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                "Confirm Pincode"
+              )}
+            </button>
+          </div>
+        </form>
+      </BottomSheetLayout>
+  );
+
   // 4. Render Main Native Shell Wrapper
   return (
     <NativeShellContext.Provider value={{ isNative, pincode, cityName, openLocationModal }}>
@@ -285,136 +354,20 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
           <main className={`flex-1 w-full ${isPrimaryTab ? "pb-24" : "pb-6"}`}>
             {children}
           </main>
-
-          {isPrimaryTab && (
-            <footer className="native-footer fixed bottom-0 left-0 right-0 z-40 w-full">
-              <MobileTabBar />
-            </footer>
-          )}
-
-          {/* Location Selection Sheet */}
-          <BottomSheetLayout
-            isOpen={isLocationOpen}
-            onClose={() => {
-              triggerHaptic("light");
-              setIsLocationOpen(false);
-            }}
-            title="Choose Delivery Location"
-          >
-            <form onSubmit={handlePincodeSubmit} className="space-y-4">
-              <p className="text-xs text-ink/60">
-                Enter your 6-digit site pincode to check instant delivery availability.
-              </p>
-
-              <div className="flex items-center rounded-2xl border border-mist/40 bg-surface px-4 py-3 focus-within:border-brand-deep">
-                <MapPin className="size-4 text-brand-deep mr-2" />
-                <input
-                  type="tel"
-                  maxLength={6}
-                  value={pincodeInput}
-                  onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 190001"
-                  className="w-full bg-transparent text-sm font-bold text-ink outline-none placeholder:text-ink/30"
-                  disabled={isCheckingSvc}
-                  autoFocus
-                />
-              </div>
-
-              {locError && (
-                <div className="flex items-start gap-1.5 text-xs font-semibold text-danger">
-                  <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
-                  <span>{locError}</span>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleUseCurrentLocation}
-                  disabled={isCheckingSvc}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-mist/30 bg-surface px-4 py-3.5 text-xs font-bold text-ink shadow-xs active:scale-95 disabled:opacity-50"
-                >
-                  <Navigation className="size-3.5 text-brand-deep" />
-                  GPS Pin
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCheckingSvc || pincodeInput.length !== 6}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-deep px-4 py-3.5 text-xs font-bold text-white shadow-md active:scale-95 disabled:opacity-50"
-                >
-                  {isCheckingSvc ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    "Confirm Pincode"
-                  )}
-                </button>
-              </div>
-            </form>
-          </BottomSheetLayout>
         </div>
       ) : (
-        <div className="flex flex-col min-h-screen">
+        <div className={`flex flex-col min-h-screen ${showTabBar ? "pb-24" : ""}`}>
           {children}
-          <BottomSheetLayout
-            isOpen={isLocationOpen}
-            onClose={() => {
-              triggerHaptic("light");
-              setIsLocationOpen(false);
-            }}
-            title="Choose Delivery Location"
-          >
-            <form onSubmit={handlePincodeSubmit} className="space-y-4">
-              <p className="text-xs text-ink/60">
-                Enter your 6-digit site pincode to check instant delivery availability.
-              </p>
-
-              <div className="flex items-center rounded-2xl border border-mist/40 bg-surface px-4 py-3 focus-within:border-brand-deep">
-                <MapPin className="size-4 text-brand-deep mr-2" />
-                <input
-                  type="tel"
-                  maxLength={6}
-                  value={pincodeInput}
-                  onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 190001"
-                  className="w-full bg-transparent text-sm font-bold text-ink outline-none placeholder:text-ink/30"
-                  disabled={isCheckingSvc}
-                  autoFocus
-                />
-              </div>
-
-              {locError && (
-                <div className="flex items-start gap-1.5 text-xs font-semibold text-danger">
-                  <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
-                  <span>{locError}</span>
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={handleUseCurrentLocation}
-                  disabled={isCheckingSvc}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-mist/30 bg-surface px-4 py-3.5 text-xs font-bold text-ink shadow-xs active:scale-95 disabled:opacity-50"
-                >
-                  <Navigation className="size-3.5 text-brand-deep" />
-                  GPS Pin
-                </button>
-                <button
-                  type="submit"
-                  disabled={isCheckingSvc || pincodeInput.length !== 6}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-deep px-4 py-3.5 text-xs font-bold text-white shadow-md active:scale-95 disabled:opacity-50"
-                >
-                  {isCheckingSvc ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    "Confirm Pincode"
-                  )}
-                </button>
-              </div>
-            </form>
-          </BottomSheetLayout>
         </div>
       )}
+
+      {showTabBar && (
+        <footer className="native-footer fixed bottom-0 left-0 right-0 z-40 w-full">
+          <MobileTabBar />
+        </footer>
+      )}
+
+      {locationSheet}
     </NativeShellContext.Provider>
   );
 }

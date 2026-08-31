@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import type { Category } from "@prisma/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
@@ -28,17 +29,13 @@ interface HomeSwitcherProps {
 
 export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return (
       <MobileHomeView
         deals={deals}

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 import type { AddressFormValues } from "@/components/account/address-form";
 
 // Web Components
@@ -22,17 +23,13 @@ interface CheckoutSwitcherProps {
 
 export function CheckoutSwitcher({ addresses, email }: CheckoutSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return <MobileCheckoutView initialAddresses={addresses} email={email} />;
   }
 

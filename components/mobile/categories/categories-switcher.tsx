@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import type { Category } from "@prisma/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
@@ -305,13 +306,9 @@ const GROUPS: GroupDefinition[] = [
 
 export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const filteredGroups = useMemo(() => {
     return GROUPS.map((group) => {
@@ -329,11 +326,11 @@ export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitch
     }).filter(Boolean) as GroupDefinition[];
   }, [activeFilter, searchQuery]);
 
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return <MobileCategoriesView categories={_categories} />;
   }
 
