@@ -181,6 +181,16 @@ export async function adminGetOrder(orderNo: string) {
       statusEvents: { orderBy: { createdAt: "asc" } },
       warehouse: { select: { name: true, city: true } },
       user: { select: { id: true, phone: true, email: true } },
+      /* The physical half of the order. Without it the console shows what was
+         bought and nothing about how it reaches anybody, which is most of what
+         a dispatcher opens this page for. */
+      shipments: {
+        orderBy: { sequence: "asc" },
+        include: {
+          warehouse: { select: { name: true } },
+          items: { select: { qty: true, orderItem: { select: { title: true } } } },
+        },
+      },
     },
   });
 }

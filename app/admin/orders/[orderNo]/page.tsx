@@ -191,6 +191,89 @@ export default async function AdminOrderDetail({
             )}
           </Panel>
 
+          {/*
+            Shipments — the physical half of the order, and the reason a
+            dispatcher opens this page. The console showed what was bought and
+            nothing about how it reaches anybody.
+
+            The delivery code is here because it is the number a driver is asked
+            for at the gate; when a customer rings support saying the driver has
+            no code, this is where it gets read out.
+
+            Driver, vehicle and the promised slot are the artboard's other three
+            fields and none exists — no Driver model, no vehicles, no slots
+            (ISS-057). They are named rather than blanked, so it is clear the
+            data is absent rather than the shipment unassigned.
+          */}
+          <Panel title="Shipments">
+            {order.shipments.length === 0 ? (
+              <p className="text-[12px] font-semibold text-ink-500">
+                No shipments recorded. Orders placed before the shipment split shipped as
+                one undifferentiated delivery.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {order.shipments.map((sh) => (
+                  <div key={sh.id} className="rounded-[12px] bg-canvas p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-bold text-ink">
+                        Shipment {sh.sequence}
+                        <span className="ml-2 font-semibold text-ink-500">
+                          {sh.speedClass === "express" ? "fast" : "heavy — by truck"}
+                        </span>
+                      </p>
+                      <StatusChip
+                        tone={
+                          sh.status === "delivered"
+                            ? "ok"
+                            : sh.status === "cancelled"
+                              ? "bad"
+                              : "warn"
+                        }
+                      >
+                        {sh.status.replace(/_/g, " ")}
+                      </StatusChip>
+                    </div>
+
+                    <Row
+                      label="Items"
+                      value={`${sh.items.reduce((n, i) => n + i.qty, 0)} across ${sh.items.length} ${sh.items.length === 1 ? "line" : "lines"}`}
+                    />
+                    <Row label="From" value={sh.warehouse?.name ?? "unassigned"} />
+                    <Row
+                      label="Delivery code"
+                      value={
+                        sh.deliveryCode ?? (
+                          <span className="text-ink-500">not issued yet</span>
+                        )
+                      }
+                    />
+                    <Row
+                      label="Promised"
+                      value={
+                        sh.promisedAt ? (
+                          new Date(sh.promisedAt).toLocaleString("en-IN")
+                        ) : (
+                          <span className="text-ink-500">
+                            no slot — delivery windows do not exist yet
+                          </span>
+                        )
+                      }
+                    />
+                    <Row
+                      label="Driver & vehicle"
+                      value={
+                        <span className="text-ink-500">
+                          not assignable — no driver or vehicle records exist
+                        </span>
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </Panel>
+
           <Panel
             title="Payment"
             right={payment ? <PaymentStatusChip status={payment.status} /> : undefined}
