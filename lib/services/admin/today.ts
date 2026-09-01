@@ -51,6 +51,14 @@ export interface LowStockItem {
 export interface OpsToday {
   ordersToday: number;
   revenueTodayPaise: number;
+  /** Shipments packed or pending that have not left the warehouse. */
+  shipmentsToDispatch: number;
+  /**
+   * Cash a driver will be handed today, across orders that have not been
+   * delivered yet. The number a dispatcher needs before sending anyone out —
+   * it decides how much float goes on the vehicles.
+   */
+  codToCollectPaise: number;
   queue: QueueItem[];
   queueCounts: Record<QueueKind, number>;
   lowStock: LowStockItem[];
@@ -70,7 +78,15 @@ export async function getOpsToday(): Promise<OpsToday> {
   startOfToday.setHours(0, 0, 0, 0);
   const staleBefore = new Date(Date.now() - STALE_PAYMENT_MINUTES * 60_000);
 
-  const [ordersToday, revenueToday, actionable, lowStock, outOfStockCount] = await Promise.all([
+  const [
+    ordersToday,
+    revenueToday,
+    actionable,
+    lowStock,
+    outOfStockCount,
+    shipmentsToDispatch,
+    codToCollect,
+  ] = await Promise.all([
     db.order.count({ where: { placedAt: { gte: startOfToday } } }),
     db.order.aggregate({
       where: { placedAt: { gte: startOfToday }, status: { notIn: ["cancelled", "refunded"] } },
@@ -108,6 +124,13 @@ export async function getOpsToday(): Promise<OpsToday> {
       },
     }),
     db.inventory.count({ where: { qtyOnHand: { lte: 0 } } }),
+    /* Anything packed or still pending has not left. `out_for_delivery` has,
+       and `delivered`/`cancelled` are done. */
+    db.shipment.count({ where: { status: { in: ["pending", "packed"] } } }),
+    db.order.aggregate({
+      where: { paymentMethod: "cod", status: { in: ["confirmed", "packed", "out_for_delivery"] } },
+      _sum: { totalPaise: true },
+    }),
   ]);
 
   const queue: QueueItem[] = actionable.map((o) => {
@@ -135,6 +158,8 @@ export async function getOpsToday(): Promise<OpsToday> {
 
   return {
     ordersToday,
+    shipmentsToDispatch,
+    codToCollectPaise: codToCollect._sum.totalPaise ?? 0,
     revenueTodayPaise: revenueToday._sum.totalPaise ?? 0,
     queue,
     queueCounts,

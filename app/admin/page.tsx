@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Box, Clock, PackageCheck, ShoppingBag, Truck } from "lucide-react";
+import { AlertTriangle, Box, Clock, PackageCheck, ShoppingBag, Truck, Wallet } from "lucide-react";
 import { getOpsToday, type QueueKind } from "@/lib/services/admin/today";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, StatusChip, type StatusTone } from "@/components/admin/status-chip";
@@ -94,10 +94,17 @@ export default async function AdminToday() {
           tone={needsAction > 0 ? "warn" : undefined}
         />
         <Stat
-          label="In transit"
-          value={String(t.queueCounts.in_transit ?? 0)}
-          sub="out for delivery now"
+          label="Shipments to dispatch"
+          value={String(t.shipmentsToDispatch)}
+          sub="packed or waiting to load"
           icon={Truck}
+          tone={t.shipmentsToDispatch > 0 ? "warn" : undefined}
+        />
+        <Stat
+          label="COD to collect today"
+          value={formatPaise(t.codToCollectPaise)}
+          sub="cash the drivers will be handed"
+          icon={Wallet}
         />
         <Stat
           label="Out of stock"
@@ -107,6 +114,30 @@ export default async function AdminToday() {
           tone={t.outOfStockCount > 0 ? "bad" : undefined}
         />
       </div>
+
+      {/*
+        "Today's capacity" from the artboard — slot occupancy per window, which
+        vehicle is on each, and which window is full and should stop being sold.
+
+        It is the half of this screen a dispatcher would actually run the day
+        from, and none of it can be computed: there are no slots (ISS-057), no
+        vehicles and no drivers. Rendering the board with plausible numbers would
+        be the worst possible version of that, because somebody would stop
+        selling a window on the strength of it.
+      */}
+      <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="capacity-heading">
+        <h2 id="capacity-heading" className="text-[15px] font-bold tracking-tight">
+          Today&rsquo;s capacity
+        </h2>
+        <p className="mt-1 text-[12px] font-medium text-ink-700">
+          Slot occupancy, the vehicle on each window, and which window is full.
+        </p>
+        <p className="mt-3 rounded-[12px] bg-ops-warn-tint px-3.5 py-2.5 text-[12px] font-semibold text-ops-warn">
+          Not built. Delivery slots, vehicles and drivers do not exist yet
+          (ISS-057), so there is no capacity to show — and a board with invented
+          numbers would get a window closed for selling.
+        </p>
+      </section>
 
       <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="queue-heading">
         <div className="mb-3 flex items-center gap-3">
