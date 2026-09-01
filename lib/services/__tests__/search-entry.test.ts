@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { brandsForSearchEntry, closestInStock } from "@/lib/services/catalog";
+import { brandsForSearchEntry, closestInStock, listProducts } from "@/lib/services/catalog";
 import { db } from "@/lib/db";
 
 /**
@@ -111,4 +111,37 @@ test("closest never repeats a product across matched words", async () => {
 test("an empty query asks for nothing", async () => {
   assert.deepEqual(await closestInStock(""), { items: [], matchedOn: [] });
   assert.deepEqual(await closestInStock("   "), { items: [], matchedOn: [] });
+});
+
+test("the closest grid is reachable at all", async () => {
+  /* THE GAP THE REST OF THIS FILE MISSED.
+
+     Every other test calls closestInStock directly. The screen does not — it
+     only asks for a fallback when the main search has already returned
+     nothing. And the main search is not a naive `contains`: it tokenises and
+     expands synonyms, so most queries with one real word in them already
+     return results and never reach the fallback.
+
+     That leaves a way for this feature to be perfectly correct and completely
+     dead. Probing eleven realistic misses found exactly one that reaches it —
+     "helicopter wire", where the main search finds nothing and "wire" on its
+     own finds three. Narrow, but real, and asserted here so that a future
+     change to the main search cannot quietly turn the section into code that
+     never runs without a test going red.
+
+     Verified in the browser at 375px: the screen shows "Nothing matches
+     'helicopter wire'" above "Closest things we do stock — matched on 'wire'"
+     and three copper wire products. */
+  const q = "helicopter wire";
+  const main = await listProducts({ search: q, perPage: 6 });
+  assert.equal(
+    main.items.length,
+    0,
+    "the main search now handles this query, so the fallback never renders for it — " +
+      "find another query that misses, or the closest grid is dead code"
+  );
+
+  const close = await closestInStock(q);
+  assert.ok(close.items.length > 0, "the fallback has nothing for a query the main search missed");
+  assert.deepEqual(close.matchedOn, ["wire"]);
 });
