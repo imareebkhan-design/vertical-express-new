@@ -204,6 +204,49 @@ export default async function AdminPayments({
         )}
       </div>
 
+      {/*
+        Gateway configuration — artboard 17. What is actually wired, without
+        anybody needing shell access to find out.
+
+        The artboard's own note says the system "silently falls back to dummy
+        rather than failing loudly". That is no longer true and is not repeated
+        here: assertPaymentConfig() runs from instrumentation.ts at server
+        start and a production process refuses to boot on anything but
+        razorpay-live with all three secrets present. The fallback survives in
+        development only, which is where it belongs.
+
+        No secret value is read or rendered — only whether each is present.
+      */}
+      <section className="rounded-panel bg-white p-4 shadow-card">
+        <h2 className="text-[15px] font-bold tracking-tight">Gateway configuration</h2>
+        <dl className="mt-3 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+          <Config
+            label="Active gateway"
+            value={gateway}
+            note={gateway === "razorpay-live" ? "real money" : "no money is taken"}
+          />
+          <Config
+            label="Razorpay keys"
+            value={process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET ? "Set" : "Unset"}
+            note="implemented in full either way"
+          />
+          <Config
+            label="Webhook secret"
+            value={process.env.RAZORPAY_WEBHOOK_SECRET ? "Set" : "Unset"}
+            note="the webhook is what confirms an order"
+          />
+          <Config label="Signature check" value="timingSafeEqual" note="constant-time HMAC compare" />
+        </dl>
+        <p className="mt-3 text-[12px] font-medium leading-[17px] text-ink-700">
+          Razorpay is implemented in full; it is not live because the keys are unset. A
+          production server will not start on any other gateway —{" "}
+          <code className="font-bold">assertPaymentConfig()</code> throws at boot rather
+          than letting the site take an order it cannot charge for. Setting the three
+          secrets in Vercel is the whole remaining step, and it is the owner&rsquo;s to
+          take: nobody should paste a key into a console.
+        </p>
+      </section>
+
       {pages > 1 && (
         <div className="flex items-center justify-center gap-2">
           {Array.from({ length: Math.min(pages, 10) }, (_, i) => i + 1).map((p) => (
@@ -219,6 +262,18 @@ export default async function AdminPayments({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function Config({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <div className="rounded-field bg-chip-soft p-3">
+      <dt className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+        {label}
+      </dt>
+      <dd className="mt-1 text-[13px] font-bold text-ink">{value}</dd>
+      <dd className="text-[11.5px] font-semibold text-ink-500">{note}</dd>
     </div>
   );
 }
