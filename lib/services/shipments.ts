@@ -105,3 +105,65 @@ export async function getShipmentsForOrder(userId: string, orderNo: string) {
 
 export type OrderShipments = NonNullable<Awaited<ReturnType<typeof getShipmentsForOrder>>>;
 export type TrackedShipment = OrderShipments["shipments"][number];
+
+/**
+ * The dispatch board: everything that has not left the warehouse yet.
+ *
+ * Grouped by the only lane distinction that is real today — express goes out
+ * from the store, scheduled goes on a truck. The artboard also draws a lane per
+ * two-hour slot with an occupancy count, and that cannot be built: there are no
+ * slots (ISS-057), no vehicles and no drivers, so there is nothing to count or
+ * assign to.
+ *
+ * Ordered oldest first, because on a dispatch board the thing that has been
+ * waiting longest is the thing about to become a complaint.
+ */
+export async function getDispatchBoard() {
+  const shipments = await db.shipment.findMany({
+    where: { status: { in: ["pending", "packed"] } },
+    orderBy: [{ createdAt: "asc" }],
+    select: {
+      id: true,
+      sequence: true,
+      speedClass: true,
+      status: true,
+      deliveryCode: true,
+      createdAt: true,
+      warehouse: { select: { name: true } },
+      items: { select: { qty: true } },
+      order: {
+        select: {
+          orderNo: true,
+          address: true,
+          totalPaise: true,
+          paymentMethod: true,
+        },
+      },
+    },
+  });
+
+  const shape = (s: (typeof shipments)[number]) => {
+    const addr = s.order.address as { label?: string; name?: string; city?: string } | null;
+    return {
+      id: s.id,
+      ref: `${s.order.orderNo}-${s.sequence}`,
+      orderNo: s.order.orderNo,
+      status: s.status,
+      destination: addr?.name ?? addr?.label ?? addr?.city ?? "—",
+      itemCount: s.items.reduce((n, i) => n + i.qty, 0),
+      lineCount: s.items.length,
+      valuePaise: s.order.totalPaise,
+      paymentMethod: s.order.paymentMethod,
+      warehouse: s.warehouse?.name ?? null,
+      waitingSince: s.createdAt,
+    };
+  };
+
+  return {
+    express: shipments.filter((s) => s.speedClass === "express").map(shape),
+    scheduled: shipments.filter((s) => s.speedClass === "scheduled").map(shape),
+  };
+}
+
+export type DispatchBoard = Awaited<ReturnType<typeof getDispatchBoard>>;
+export type DispatchShipment = DispatchBoard["express"][number];
