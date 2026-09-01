@@ -30,6 +30,8 @@ interface MobileAccountViewProps {
   addressesCount: number;
   wishlistCount: number;
   email: string | null;
+  /** How most customers here are identified. Email is the exception. */
+  phone: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentOrders: any[];
   /** The customer's saved delivery addresses, shown as sites. */
@@ -42,6 +44,7 @@ export function MobileAccountView({
   addressesCount,
   wishlistCount,
   email,
+  phone,
   recentOrders,
   sites,
 }: MobileAccountViewProps) {
@@ -229,12 +232,26 @@ export function MobileAccountView({
           <div className="flex size-14 items-center justify-center rounded-full bg-brand-deep/15 text-brand-deep">
             <User className="size-7" />
           </div>
+          {/*
+            The customer's own identity, which this screen used to invent.
+
+            It read `email.split("@")[0]` with a fallback of "VE Builder", and
+            "ve-user@example.com" beneath it. Those were not placeholders for
+            signed-out visitors — this page redirects those away. They were what
+            every customer with no email address saw as their own name, and in
+            a market that signs in by phone that is most of them. Somebody
+            checking they were logged into the right account was shown a name
+            that belonged to nobody.
+
+            Phone leads because phone is how people get in here. Email is shown
+            when it is the only thing we have, and neither is fabricated.
+          */}
           <div className="min-w-0">
-            <h2 className="text-sm font-extrabold text-ink leading-none capitalize">
-              {email ? email.split("@")[0] : "VE Builder"}
+            <h2 className="text-sm font-extrabold text-ink leading-none">
+              {phone ?? email ?? "Your account"}
             </h2>
             <p className="text-[11px] text-ink/40 font-semibold mt-1.5 truncate">
-              {email || "ve-user@example.com"}
+              {phone && email ? email : phone ? "Signed in by phone" : email ? "Signed in by email" : "Signed in"}
             </p>
           </div>
         </div>

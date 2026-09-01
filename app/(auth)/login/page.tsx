@@ -14,12 +14,21 @@ interface PageProps {
 }
 
 export default async function LoginPage({ searchParams }: PageProps) {
-  if (await getAuthUserId()) redirect("/");
-
   const { next } = await searchParams;
   /* Same-site paths only. An open redirect here would let a phishing link
      bounce a freshly signed-in customer to another origin. */
   const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+
+  /* Somebody already signed in has nothing to do on a sign-in form — but send
+     them where they were going, not to the home page. Dropping `next` here is
+     how a customer who followed a link to their order ended up on the shop
+     front instead, with nothing said.
+     
+     Safe from looping only because no route sends an *authenticated* visitor
+     here any more: the console distinguishes "not signed in" from "not an
+     operator" (see adminGate) and answers the second itself. Reintroduce that
+     redirect and this line turns it into an infinite bounce. */
+  if (await getAuthUserId()) redirect(safeNext);
 
   return <LoginSwitcher next={safeNext} />;
 }

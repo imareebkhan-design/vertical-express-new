@@ -1,6 +1,6 @@
 import "server-only";
 import { readSession } from "@/lib/auth/session";
-import { getAuthUserId } from "@/lib/auth/current-user";
+import { getAuthUserId, getAuthUser, isSignedIn } from "@/lib/auth/current-user";
 
 /**
  * Admin authorization via an env allowlist (ADMIN_EMAILS, comma-separated).
@@ -43,4 +43,44 @@ export async function getAdminUser(): Promise<{ id: string; email: string } | nu
 
 export async function isAdmin(): Promise<boolean> {
   return (await getAdminUser()) !== null;
+}
+
+/**
+ * What a console route should do when `getAdminUser()` comes back empty.
+ *
+ * THE BUG THIS EXISTS TO PREVENT
+ *
+ * Every admin route guarded on `!admin` and redirected to `/login?next=…`.
+ * That conflates two different failures which need opposite answers:
+ *
+ *   - Nobody is signed in. Sending them to sign in is exactly right.
+ *   - Somebody IS signed in, and this account is not an operator. Sending them
+ *     to sign in cannot help — they already did, and the login page correctly
+ *     bounces anyone holding a session straight back to the storefront.
+ *
+ * The second case was an infinite bounce that ended on the home page with no
+ * explanation. It was reachable by every customer in the market's default
+ * identity: phone sign-in produces no verified email, so it can never satisfy
+ * the allowlist, so it always took this path.
+ *
+ * Returning a discriminated result rather than redirecting for both keeps the
+ * decision in one place and forces each caller to handle the case that used to
+ * be silently wrong.
+ */
+export type AdminGate =
+  | { state: "admin"; admin: { id: string; email: string } }
+  | { state: "anonymous" }
+  | { state: "not-admin"; identity: string | null };
+
+export async function adminGate(): Promise<AdminGate> {
+  const admin = await getAdminUser();
+  if (admin) return { state: "admin", admin };
+
+  if (!(await isSignedIn())) return { state: "anonymous" };
+
+  /* Signed in, not an operator. The identity is echoed back so the screen can
+     say which account is the problem — "signed in as +91…" is what tells
+     somebody they need to switch, and it is the thing a redirect cannot say. */
+  const user = await getAuthUser();
+  return { state: "not-admin", identity: user?.email ?? user?.phone ?? null };
 }

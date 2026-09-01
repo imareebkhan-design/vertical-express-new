@@ -1,7 +1,6 @@
 import { getBiData } from "@/lib/services/admin/bi";
 import { DashboardContainer } from "@/components/admin/bi/dashboard-container";
-import { getAdminUser } from "@/lib/services/admin/authz";
-import { redirect } from "next/navigation";
+import { adminGate } from "@/lib/services/admin/authz";
 import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
@@ -11,8 +10,14 @@ export default async function BiPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const admin = await getAdminUser();
-  if (!admin) redirect("/login?next=/admin/bi");
+  /* Defence in depth behind the layout's gate, which has already decided
+     whether to redirect or explain. This must NOT redirect to /login on its
+     own: a page and its layout both run, so a redirect here would fire even
+     while the layout was rendering the "not an operator" screen — which is
+     precisely the bounce that gate exists to end. Rendering nothing is right;
+     the layout is not showing this page's output anyway. */
+  const gate = await adminGate();
+  if (gate.state !== "admin") return null;
 
   const params = await searchParams;
 

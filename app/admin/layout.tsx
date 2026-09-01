@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getAdminUser } from "@/lib/services/admin/authz";
+import { adminGate } from "@/lib/services/admin/authz";
+import { NotAnAdmin } from "@/components/admin/not-an-admin";
 import { activeGateway } from "@/lib/services/payments";
 import { AdminSidebar } from "@/components/admin/sidebar";
 
@@ -15,8 +16,11 @@ import { AdminSidebar } from "@/components/admin/sidebar";
  * should be in front of whoever is working the console rather than in a doc.
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const admin = await getAdminUser();
-  if (!admin) redirect("/login?next=/admin");
+  /* Two different failures, two different answers — see adminGate(). Sending
+     an already-signed-in customer to /login was an infinite bounce. */
+  const gate = await adminGate();
+  if (gate.state === "anonymous") redirect("/login?next=/admin");
+  if (gate.state === "not-admin") return <NotAnAdmin identity={gate.identity} />;
 
   let gatewayWarning: string | null = null;
   try {
@@ -31,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-canvas">
-      <AdminSidebar adminEmail={admin.email} gatewayWarning={gatewayWarning} />
+      <AdminSidebar adminEmail={gate.admin.email} gatewayWarning={gatewayWarning} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7">

@@ -29,6 +29,7 @@ export default async function AccountOverview() {
       addresses={addresses}
       wishlistIds={wishlistIds}
       email={user.email}
+      phone={user.phone}
     />
   );
 }

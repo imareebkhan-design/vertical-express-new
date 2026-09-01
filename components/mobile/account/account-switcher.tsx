@@ -27,6 +27,8 @@ interface AccountSwitcherProps {
   addresses: any[];
   wishlistIds: string[];
   email: string | null;
+  /** The market signs in by phone, so this is the usual identity, not email. */
+  phone: string | null;
 }
 
 export function AccountSwitcher({
@@ -35,6 +37,7 @@ export function AccountSwitcher({
   addresses,
   wishlistIds,
   email,
+  phone,
 }: AccountSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
@@ -51,6 +54,7 @@ export function AccountSwitcher({
         sites={addresses}
         wishlistCount={wishlistIds.length}
         email={email}
+        phone={phone}
         recentOrders={orders}
       />
     );
