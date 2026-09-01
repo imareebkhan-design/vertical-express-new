@@ -47,8 +47,10 @@ export default async function AdminProducts() {
               return (
                 <tr key={p.id} className="border-t border-line">
                   <td className="px-3 py-3">
+                    {/* The row opens the editor, not the storefront page — this
+                        is the console, and "View on site" lives inside it. */}
                     <Link
-                      href={`/product/${p.slug}`}
+                      href={`/admin/products/${p.slug}`}
                       className="text-[12.5px] font-bold hover:underline"
                     >
                       {p.title}
