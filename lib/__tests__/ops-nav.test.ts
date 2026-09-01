@@ -58,6 +58,11 @@ test("a screen with no model behind it says so", () => {
     "app/admin/stock-ledger/page.tsx",
     "app/admin/suppliers/page.tsx",
     "app/admin/support/page.tsx",
+    "app/admin/purchasing/page.tsx",
+    "app/admin/cod-cash/page.tsx",
+    "app/admin/invoices/page.tsx",
+    "app/admin/credit/page.tsx",
+    "app/admin/staff/page.tsx",
   ];
 
   for (const rel of UNBACKED) {
@@ -71,7 +76,9 @@ test("a screen with no model behind it says so", () => {
       .replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
     const declares =
       src.includes("OpsNotBuilt") ||
-      /does not exist|no .*model|nothing records|because nothing/i.test(src);
+      /does not exist|no [A-Za-z ]*model|needs an? [A-Za-z ]*model|nothing records|because nothing|cannot be computed|are not (issued|managed|recorded)/i.test(
+        src
+      );
     assert.ok(
       declares,
       `${rel} renders a screen with no data behind it and never says so. ` +

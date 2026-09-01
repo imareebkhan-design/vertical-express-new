@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { OpsScreen, OpsNotBuilt } from "@/components/admin/ops-screen";
+import { OpsScreen } from "@/components/admin/ops-screen";
+import { OpsTable, OpsFilters, OpsStats } from "@/components/admin/ops-table";
 
 export const metadata: Metadata = {
   title: "COD cash | Operations",
@@ -8,15 +9,30 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <OpsScreen title="COD cash" intro="Cash collected by drivers, and whether it has been banked.">
-      <OpsNotBuilt
-        does="Reconciles what each driver was owed against what they handed in, per run and per day."
-        needs={[
-          "A Driver model to attribute collections to",
-          "A cash-handover record; nothing tracks money between the gate and the bank",
-          "The COD ceiling, which is unset — see the FAQ and checkout",
-        ]}
-      />
+    <OpsScreen title="COD cash" intro="Cash collected by drivers, and whether it has reached the bank.">
+      <div className="flex flex-col gap-4">
+        <p className="rounded-[12px] bg-ops-warn-tint px-3.5 py-3 text-[12px] font-semibold leading-[17px] text-ops-warn">
+          Cash on delivery is switched off (ISS-063), and the reconciliation this screen performs is why. Cash moves customer → driver → office → bank with no record between the first step and the last, so a shortfall becomes visible at month end rather than on the day.
+        </p>
+
+        <OpsStats
+          stats={[
+            { label: "Collected today", note: "No collections — cash on delivery is off." },
+            { label: "With drivers now", note: "No driver records exist, so cash cannot be attributed to anyone." },
+            { label: "Deposited today", note: "No deposit record. Nothing tracks money between the gate and the bank." },
+            { label: "Unexplained variance", note: "Cannot be computed without both halves of the trail." },
+          ]}
+        />
+
+        <OpsFilters filters={["Today", "Yesterday", "This week", "Unreconciled"]} active="Today" disabled />
+
+        <OpsTable
+          columns={["Driver", "Vehicle", "Stops", "Collected", "Deposited", "Variance", "Status"]}
+          rows={[]}
+          emptyTitle="No cash movements are recorded."
+          emptyNote="A ledger per driver per day is the only thing that makes a shortfall visible while the driver is still in the building. It needs a Driver model and a deposit record — the same Driver model that blocks dispatch assignment and delivery."
+        />
+      </div>
     </OpsScreen>
   );
 }

@@ -31,17 +31,7 @@ export default function AdminSuppliers() {
         <OpsFilters filters={["All", "Active", "Late", "Onboarding"]} active="All" disabled />
 
         <OpsTable
-          columns={[
-            "Supplier",
-            "Category",
-            "Location",
-            "Contact",
-            "GSTIN",
-            "Lead time",
-            "On-time",
-            "Outstanding",
-            "Status",
-          ]}
+          columns={["Supplier", "Category", "Location", "Contact", "GSTIN", "Lead time", "On-time", "Outstanding", "Status\","]}
           rows={[]}
           emptyTitle="No suppliers are recorded."
           emptyNote="Lead time and on-time percentage are the two columns that earn this screen: in a season where cement arrives late, knowing which supplier is reliably late is what stops a site standing idle."

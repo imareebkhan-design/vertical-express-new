@@ -100,3 +100,45 @@ export function OpsFilters({
     </div>
   );
 }
+
+/**
+ * The four-figure header most operations screens open with.
+ *
+ * Where a figure cannot be computed, pass `note` instead of `value` — the tile
+ * keeps its place in the row and says why it is empty. Dropping the tile
+ * silently would make a four-figure header look like a three-figure one, and
+ * nobody would notice the missing number was ever meant to be there.
+ */
+export function OpsStats({
+  stats,
+}: {
+  stats: { label: string; value?: string; sub?: string; note?: string; tone?: "warn" | "bad" }[];
+}) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {stats.map((s) => (
+        <div
+          key={s.label}
+          className={
+            "rounded-panel p-4 shadow-card " +
+            (s.tone === "bad" ? "bg-ops-bad-tint" : s.tone === "warn" ? "bg-ops-warn-tint" : "bg-white")
+          }
+        >
+          <p className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+            {s.label}
+          </p>
+          {s.value ? (
+            <>
+              <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight text-ink">
+                {s.value}
+              </p>
+              {s.sub && <p className="mt-1 text-[11px] font-semibold text-ink-500">{s.sub}</p>}
+            </>
+          ) : (
+            <p className="mt-2 text-[12.5px] font-semibold leading-[17px] text-ink-700">{s.note}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
