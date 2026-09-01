@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
-import { adminListPayments } from "@/lib/services/admin/stock";
+import { adminListPayments, adminPaymentHealth } from "@/lib/services/admin/stock";
 import { activeGateway } from "@/lib/services/payments";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
@@ -14,7 +14,10 @@ export default async function AdminPayments({
 }) {
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const { payments, total, perPage } = await adminListPayments(page);
+  const [{ payments, total, perPage }, health] = await Promise.all([
+    adminListPayments(page),
+    adminPaymentHealth(),
+  ]);
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   let gateway = "unknown";
@@ -31,6 +34,82 @@ export default async function AdminPayments({
         <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
           {total} payment records · active gateway: {gateway}
         </p>
+      </div>
+
+      {/*
+        "Payments & webhooks" — the figures the artboard leads with.
+
+        Captured and failed today are what an accountant checks first. The
+        unverified count is the one that should stop somebody's morning: a
+        payment marked captured whose HMAC signature never verified means the
+        gateway said one thing and our own check said another, and the money is
+        in doubt.
+
+        Two figures from the artboard are absent and cannot be computed. Webhook
+        lag needs the gateway's event timestamp, and we store only our own.
+        Duplicate events are *prevented* by the unique constraint on
+        gatewayEventId rather than recorded, so a rejected duplicate leaves no
+        row to count — measuring either means changing what we store, not
+        reading it differently.
+      */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+            Captured today
+          </p>
+          <p className="mt-1.5 text-[20px] font-extrabold tabular-nums text-ink">
+            {formatPaise(health.capturedPaise)}
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
+            {health.capturedCount} {health.capturedCount === 1 ? "payment" : "payments"}
+          </p>
+        </div>
+
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+            Failed today
+          </p>
+          <p className="mt-1.5 text-[20px] font-extrabold tabular-nums text-ink">
+            {health.failedCount}
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
+            attempts that did not capture
+          </p>
+        </div>
+
+        <div
+          className={
+            "rounded-panel p-4 shadow-card " +
+            (health.unverifiedCapturedCount > 0 ? "bg-ops-bad-tint" : "bg-white")
+          }
+        >
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+            Captured, signature unverified
+          </p>
+          <p
+            className={
+              "mt-1.5 text-[20px] font-extrabold tabular-nums " +
+              (health.unverifiedCapturedCount > 0 ? "text-ops-bad" : "text-ink")
+            }
+          >
+            {health.unverifiedCapturedCount}
+          </p>
+          <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
+            {health.unverifiedCapturedCount > 0
+              ? "the gateway and our check disagree — investigate"
+              : "every capture verified"}
+          </p>
+        </div>
+
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+            Webhook lag
+          </p>
+          <p className="mt-1.5 text-[13px] font-semibold leading-[18px] text-ink-700">
+            Not measurable — we record when we processed an event, not when the
+            gateway sent it.
+          </p>
+        </div>
       </div>
 
       {gateway === "dummy" && (

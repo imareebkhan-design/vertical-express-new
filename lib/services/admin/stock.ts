@@ -195,3 +195,43 @@ export async function adminListPayments(page = 1, perPage = 30) {
   ]);
   return { payments, total, page, perPage };
 }
+
+/**
+ * The payment health figures the operations artboard leads with.
+ *
+ * Captured and failed today are the two an accountant checks first, and both
+ * come straight off `Payment`. The artboard also asks for webhook lag and a
+ * duplicate-event count, and neither is computable: we record our own
+ * `createdAt`, not the gateway's event timestamp, so there is no lag to measure;
+ * and duplicates are *prevented* by the unique constraint on `gatewayEventId`
+ * rather than recorded, so a rejected one leaves no row to count.
+ *
+ * Both are worth having and both need work that is not this — measuring lag
+ * means storing the gateway timestamp, and counting duplicates means logging
+ * the rejection rather than swallowing it.
+ */
+export async function adminPaymentHealth() {
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const [capturedToday, failedToday, unverifiedToday] = await Promise.all([
+    db.payment.aggregate({
+      where: { status: "captured", createdAt: { gte: startOfToday } },
+      _sum: { amountPaise: true },
+      _count: true,
+    }),
+    db.payment.count({ where: { status: "failed", createdAt: { gte: startOfToday } } }),
+    /* A captured payment whose signature never verified is the one row on this
+       screen that should stop somebody's morning. */
+    db.payment.count({
+      where: { status: "captured", signatureVerified: false, createdAt: { gte: startOfToday } },
+    }),
+  ]);
+
+  return {
+    capturedCount: capturedToday._count,
+    capturedPaise: capturedToday._sum.amountPaise ?? 0,
+    failedCount: failedToday,
+    unverifiedCapturedCount: unverifiedToday,
+  };
+}
