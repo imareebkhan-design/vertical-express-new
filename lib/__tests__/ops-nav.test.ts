@@ -69,6 +69,11 @@ test("a screen with no model behind it says so", () => {
        not harder. "No notes" next to a real order history reads as a customer
        with no problems. */
     "app/admin/customers/[id]/page.tsx",
+    /* Same shape again: the pincode table is real, and the slots and seasonal
+       sections beside it are not. Five slots with capacities drawn on a screen
+       whose neighbouring table is live would read as an arrangement in force —
+       and checkout would go on offering every one of them. */
+    "app/admin/serviceability/page.tsx",
   ];
 
   for (const rel of UNBACKED) {
