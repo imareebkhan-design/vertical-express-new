@@ -10,6 +10,18 @@ export interface ContentSection {
   heading: string;
   /** Paragraphs. `**bold**` at the start of a paragraph renders as a lead-in. */
   body: string[];
+  /**
+   * Optional grouping, used by the FAQ.
+   *
+   * Ten questions in one undifferentiated list is a wall. The artboard sorts
+   * them into Delivery, Payment, Material and genuineness, and Account and
+   * business — because somebody arrives wondering about one of those four
+   * things, not reading top to bottom.
+   *
+   * Optional on purpose: the policy pages are short enough to read straight
+   * through and would be worse for being carved up.
+   */
+  group?: string;
 }
 
 /**
@@ -35,6 +47,15 @@ export function ContentPage({
   sections: ContentSection[];
   pending?: string;
 }) {
+  /* Preserves author order and collapses runs of the same group, so the file
+     stays the source of sequence rather than an alphabetical accident. */
+  const grouped: { group?: string; items: ContentSection[] }[] = [];
+  for (const section of sections) {
+    const last = grouped[grouped.length - 1];
+    if (last && last.group === section.group) last.items.push(section);
+    else grouped.push({ group: section.group, items: [section] });
+  }
+
   return (
     <>
       <Navbar />
@@ -70,14 +91,25 @@ export function ContentPage({
                 On this page
               </p>
               <ul>
-                {sections.map((s) => (
-                  <li key={s.id}>
-                    <Link
-                      href={`#${s.id}`}
-                      className="block rounded-full px-2 py-1.5 text-[13px] font-semibold text-ink-700 transition-colors hover:bg-hush"
-                    >
-                      {s.heading}
-                    </Link>
+                {grouped.map(({ group, items }) => (
+                  <li key={group ?? "_"}>
+                    {group && (
+                      <p className="px-2 pb-1 pt-3 text-[10px] font-extrabold uppercase tracking-[0.09em] text-ink-300 first:pt-0">
+                        {group}
+                      </p>
+                    )}
+                    <ul>
+                      {items.map((s) => (
+                        <li key={s.id}>
+                          <Link
+                            href={`#${s.id}`}
+                            className="block rounded-full px-2 py-1.5 text-[13px] font-semibold text-ink-700 transition-colors hover:bg-hush"
+                          >
+                            {s.heading}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </li>
                 ))}
               </ul>
@@ -85,7 +117,14 @@ export function ContentPage({
           </nav>
 
           <div className="max-w-3xl">
-            {sections.map((s) => (
+            {grouped.map(({ group, items }) => (
+              <div key={group ?? "_"}>
+                {group && (
+                  <h2 className="mb-1 mt-2 text-[11px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+                    {group}
+                  </h2>
+                )}
+                {items.map((s) => (
               <section key={s.id} id={s.id} className="scroll-mt-28 pb-9">
                 <h2 className="text-xl font-extrabold tracking-tight sm:text-2xl">{s.heading}</h2>
                 {s.body.map((p, i) => (
@@ -97,6 +136,8 @@ export function ContentPage({
                   </p>
                 ))}
               </section>
+                ))}
+              </div>
             ))}
           </div>
         </div>

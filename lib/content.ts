@@ -251,10 +251,20 @@ export const CONTENT: Record<string, ContentDoc> =
         ]
       },
       {
-        "id": "payment",
-        "heading": "Pay how you like",
+        "id": "get",
+        "heading": "What you actually get",
         "body": [
-          "Cash or UPI to the driver, or card and net banking online. Nothing is kept on file that you did not ask us to keep.",
+          "A batch code, a packing date, and a photograph of the bag taken as it was loaded. Cement loses strength as it sits, so the packing date is the single most useful fact about a bag of it — more useful than the brand, and the thing nobody at a counter can tell you.",
+          "The intention is that the code on your order and the code on the bag are the same, and that you can check that at the gate. If they do not match, refuse the load: the driver takes it back and we replace it. That is the whole point of printing it.",
+          "Not there yet. We photograph bags at dispatch, but no batch code or packing date is recorded against your order, so there is nothing for you to check against today. Until there is, we are not going to claim you can."
+        ]
+      },
+      {
+        "id": "payment",
+        "heading": "How you pay",
+        "body": [
+          "Online — card, UPI or net banking, through the payment gateway. Nothing is kept on file that you did not ask us to keep.",
+          "Cash on delivery is switched off at the moment. Taking cash needs a driver carrying a float, a record of what was handed over at your gate, and a daily reconciliation, and we would rather not offer it than offer it badly.",
           "If material arrives damaged, wrong or off-batch, tell the driver before they leave. That is the cheapest moment for everyone to put it right."
         ]
       },
@@ -304,6 +314,7 @@ export const CONTENT: Record<string, ContentDoc> =
     "sections": [
       {
         "id": "speed",
+        "group": "Delivery",
         "heading": "How fast is delivery, really?",
         "body": [
           "It depends on the item, and the item tells you. Small goods — hardware, electricals, paint, adhesives — come from our Srinagar store. Cement, tiles, tanks and plywood travel by truck on a scheduled run. Every product card and product page carries its own delivery speed, which is why there is no single promise at the top of the site."
@@ -311,6 +322,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "split",
+        "group": "Delivery",
         "heading": "Why does my order have items with different speeds?",
         "body": [
           "Because it has both kinds of goods in it. Splitting a mixed order into separate deliveries, each with its own arrival time, is being built — today a mixed order is still delivered as one order."
@@ -318,6 +330,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "cash",
+        "group": "Payment",
         "heading": "Can I pay cash?",
         "body": [
           "Not at the moment. Cash on delivery is switched off while we build the part of the operation that makes it work — a driver carrying a float, a record of what was handed over at the gate, and a daily reconciliation. Taking cash without those is how money goes missing between the gate and the bank, and the person it goes missing from is us.",
@@ -326,6 +339,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "gst",
+        "group": "Payment",
         "heading": "Do your prices include GST?",
         "body": [
           "Yes. Prices shown are inclusive, and your invoice shows the tax breakup. Add your GSTIN at checkout and it will appear on every invoice after that."
@@ -333,6 +347,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "genuine",
+        "group": "Material and genuineness",
         "heading": "How do I know the material is genuine?",
         "body": [
           "Stock is bought from authorised distributors and batch details are recorded at goods receipt. Where a batch is recorded for your order it appears on the order. The scan-at-the-gate check is being rolled out."
@@ -340,6 +355,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "area",
+        "group": "Delivery",
         "heading": "Where do you deliver?",
         "body": [
           "Srinagar only, for now. Check your pincode at checkout — if we cannot serve it we will say so rather than take the order and fail."
@@ -347,6 +363,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "seasonal",
+        "group": "Delivery",
         "heading": "What does the seasonal chip mean?",
         "body": [
           "That the item is one winter genuinely interferes with. Construction here runs on a season — building April to October, interiors through the winter, near-dormant in January and February — and road access to some sites closes for stretches of it. A seasonal chip means the delivery window for that item depends on conditions rather than on our warehouse, and the product page says so rather than quoting a time we would miss.",
@@ -355,6 +372,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "cod-limit",
+        "group": "Payment",
         "heading": "Is there a limit on cash on delivery?",
         "body": [
           "There is no cash on delivery at all right now, so the question does not arise yet. When it comes back there will be a limit per delivery, and it will be published here before it applies to anybody."
@@ -362,6 +380,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "age",
+        "group": "Material and genuineness",
         "heading": "How old is the cement you deliver?",
         "body": [
           "A fair question, and one we cannot answer precisely yet. Cement loses strength as it sits, which is why the packing date on the bag matters more than almost anything else about it.",
@@ -370,6 +389,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "gst-invoice",
+        "group": "Account and business",
         "heading": "Can I get an invoice with my GSTIN?",
         "body": [
           "Not yet. Prices include GST and the tax is broken out on your order, but we are not issuing a GST invoice carrying your registration number, and we are not collecting a GSTIN at checkout — a number we collected and could not put on an invoice would be worse than not asking for it.",
@@ -378,6 +398,7 @@ export const CONTENT: Record<string, ContentDoc> =
       },
       {
         "id": "saved-lists",
+        "group": "Account and business",
         "heading": "Can I save a list of what I order every month?",
         "body": [
           "Not yet. Reordering the same set of materials for each pour or each wiring phase is the most obvious thing a trade customer needs from a shop like this, and it is not built. Your past orders are on your account and can be worked from in the meantime."
