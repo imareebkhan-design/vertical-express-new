@@ -342,13 +342,13 @@ export function MobileAccountView({
           own right (ISS-008) and a customer on a phone has no other route to
           them once the web footer is gone.
 
-          The artboard also lists "Returns & refunds". There is no /returns
-          page, and there cannot be a truthful one yet — the return and refund
-          policy is unconfirmed and on the do-not-build list. A link to a 404 is
-          worse than an absent link, so it is absent until the policy exists.
+          Returns & refunds points at /refunds, which exists. An earlier pass
+          removed this link after checking for /returns and concluding the page
+          was missing — it was the wrong path, not a missing page.
         */}
         <div className="rounded-2xl border border-mist/15 bg-white shadow-2xs divide-y divide-mist/10 overflow-hidden">
           {[
+            { href: "/refunds", label: "Returns & refunds" },
             { href: "/terms", label: "Terms" },
             { href: "/privacy", label: "Privacy" },
           ].map(({ href, label }) => (
