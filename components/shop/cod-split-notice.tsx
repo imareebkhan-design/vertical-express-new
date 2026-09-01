@@ -16,6 +16,14 @@ import { PlaceholderValue } from "@/components/ui/placeholder-value";
  * once was going to be asked for part of it today and the rest tomorrow, which
  * on a building site is how a delivery gets refused at the gate.
  *
+ * CURRENTLY UNREACHABLE, DELIBERATELY KEPT
+ *
+ * Cash on delivery is switched off at the business level (cod.enabled), so
+ * checkout never offers it and this never renders. It is kept because the
+ * decision is a switch rather than a direction — when the float, the handover
+ * record and the reconciliation exist, COD comes back and this is still the
+ * right thing to say at that moment.
+ *
  * ON THE AMOUNTS
  *
  * The per-shipment figures are goods totals. Delivery fee and tax are charged

@@ -110,12 +110,12 @@ export function SiteSetupView({ next = "/" }: { next?: string }) {
               </PlaceholderValue>
               .
             </p>
+            {/* Cash on delivery is switched off at the business level until the
+                operation behind it exists — a float, a handover record, a daily
+                reconciliation. Advertising it on the first screen a customer
+                sees would be the earliest possible broken promise. */}
             <p className="text-[13px] font-medium leading-[18px] text-ink-700">
-              Cash on delivery available up to{" "}
-              <PlaceholderValue pending="no COD ceiling has been set — owner decision, see CLAUDE.md">
-                a per-shipment limit
-              </PlaceholderValue>
-              .
+              Payment is online for now. Cash on delivery is not available yet.
             </p>
           </div>
         </div>

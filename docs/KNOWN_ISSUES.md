@@ -75,6 +75,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-060 | Search has no query log, so "Searched most" and item requests cannot exist | LOW | Search | OPEN |
 | ISS-061 | reCAPTCHA's callback was blocked by our own CSP, breaking phone sign-in | **HIGH** | Auth/Security | FIXED |
 | ISS-062 | Nothing records what a product cost, so stock cannot be valued | HIGH | Catalog/Finance | OPEN |
+| ISS-063 | Cash on delivery offered with no cash-handling operation behind it | HIGH | Fulfilment/Money | FIXED |
 
 ---
 
@@ -2539,3 +2540,42 @@ to keep it current. The second part is the harder one.
 
 **Owner input required.** Yes — do you want landed cost per unit, or supplier list price?
 They differ by freight, and for cement arriving in Srinagar that difference is not small.
+
+---
+
+## ISS-063 — Cash on delivery was offered with no cash-handling operation behind it
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Fulfilment / Money |
+| **Status** | FIXED (1 Sep 2026) — switched off pending the operation |
+
+**Description.** Checkout offered cash on delivery wherever a pincode permitted it. Cash on
+delivery is not a payment method, it is an operation: a driver carrying a float, a record of
+what was handed over at the gate, and a daily reconciliation between what was collected and
+what reached the bank. **None of those exist** — the console's own COD cash screen says so
+— and no ceiling had ever been set (`CLAUDE.md`, "COD value limits — no policy exists").
+
+So the storefront was accepting cash orders that nobody had a documented way to collect,
+count or bank.
+
+**Resolution.** Gated on a `cod.enabled` setting, defaulting to **off**, on the owner's
+instruction. Two gates now have to open: the pincode must permit it, and the business must
+have switched it on in the console. The default direction matters — an unconfigured system
+must not offer to take money it has no process for.
+
+Deliberately a switch rather than a deletion. The `cod` enum value stays for existing
+orders, the split notice stays with a comment explaining why it is unreachable, and the ops
+COD-cash screen stays. When the float, the handover record and the reconciliation exist,
+this is one setting.
+
+**Customer-facing copy updated.** The FAQ now says cash is off and why; the app's site-setup
+screen says payment is online for now. Neither pretends the decision is permanent.
+
+**Tests.** `lib/services/__tests__/cod-gate.test.ts` — unset reads as off, a permissive
+pincode does not override the switch, turning it on works, and `"yes"`, `"1"`, `"TRUE"` and
+`""` all read as off. Only an explicit `"true"` enables cash collection.
+
+**Owner input required.** To turn it back on: the float process, the handover record, the
+reconciliation, and a per-shipment ceiling.

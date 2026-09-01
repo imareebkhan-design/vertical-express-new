@@ -7,6 +7,7 @@ import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payment
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
 import { trackEvent, MetricsTracker, captureException } from "@/lib/observability";
+import { SETTING_KEYS, readSetting, parseFlag } from "@/lib/services/settings";
 
 export interface CheckoutTotals {
   subtotalPaise: number;
@@ -106,7 +107,19 @@ export async function computeTotals(
     totalPaise,
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
-    codAllowed: svc.codAllowed,
+    /*
+       Two gates, and both must open.
+
+       The pincode gate has always been here: some areas we will not send cash
+       to. The second is new — cash on delivery is switched off at the business
+       level until the owner turns it on in the console, because collecting cash
+       needs drivers, a float, a handover record and a reconciliation process,
+       and none of those exist yet (see the COD cash ops screen).
+
+       Defaulting to off is the safe direction. An unconfigured system that
+       offers to take cash has promised something nobody can fulfil at the gate.
+    */
+    codAllowed: svc.codAllowed && parseFlag(await readSetting(SETTING_KEYS.codEnabled)),
   };
 }
 

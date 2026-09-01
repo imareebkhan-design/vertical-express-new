@@ -317,10 +317,11 @@ export const CONTENT: Record<string, ContentDoc> =
         ]
       },
       {
-        "id": "cod",
+        "id": "cash",
         "heading": "Can I pay cash?",
         "body": [
-          "Yes, cash or UPI to the driver where cash on delivery is available for your pincode. [A per-order ceiling is being set and will be shown at checkout.]"
+          "Not at the moment. Cash on delivery is switched off while we build the part of the operation that makes it work — a driver carrying a float, a record of what was handed over at the gate, and a daily reconciliation. Taking cash without those is how money goes missing between the gate and the bank, and the person it goes missing from is us.",
+          "It is coming back. Everything else about your order works the same way in the meantime."
         ]
       },
       {
@@ -356,8 +357,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "cod-limit",
         "heading": "Is there a limit on cash on delivery?",
         "body": [
-          "Not one we have set yet. A cash limit per delivery is a real decision — it affects what a driver carries and what a customer has to arrange — and we have not made it, so we are not publishing a figure that might change on your next order.",
-          "One thing that is already true: if your order splits into two deliveries, you pay each driver separately, on the day that delivery arrives. Checkout says so before you choose cash."
+          "There is no cash on delivery at all right now, so the question does not arise yet. When it comes back there will be a limit per delivery, and it will be published here before it applies to anybody."
         ]
       },
       {

@@ -54,6 +54,16 @@ before(async () => {
     data: { pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
+  /* Cash on delivery is now off at the business level until the console turns
+     it on, and these orders are placed as COD. This suite is about coupon
+     arithmetic, not payment policy, so it opts in explicitly rather than
+     inheriting whatever the default happens to be. */
+  await db.setting.upsert({
+    where: { key: "cod.enabled" },
+    create: { key: "cod.enabled", value: "true" },
+    update: { value: "true" },
+  });
+
   const address = await db.address.create({
     data: {
       userId: TEST_USER,
