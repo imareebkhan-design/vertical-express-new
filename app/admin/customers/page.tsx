@@ -124,7 +124,12 @@ export default async function AdminCustomers({
                       <Users className="size-3.5" aria-hidden />
                     </span>
                     <div className="min-w-0">
-                      <p className="text-[12.5px] font-bold tabular-nums">{u.phone ?? "—"}</p>
+                      <Link
+                        href={`/admin/customers/${u.id}`}
+                        className="text-[12.5px] font-bold tabular-nums text-ink no-underline hover:underline"
+                      >
+                        {u.phone ?? u.email ?? "Customer"}
+                      </Link>
                       <p className="truncate text-[11px] font-semibold text-ink-500">
                         {u.email ?? "no email"}
                       </p>
@@ -176,10 +181,6 @@ export default async function AdminCustomers({
         </div>
       )}
 
-      <p className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
-        No notes, tickets or segments — there is no CRM model in the schema. This is what
-        the order data honestly supports.
-      </p>
     </div>
   );
 }

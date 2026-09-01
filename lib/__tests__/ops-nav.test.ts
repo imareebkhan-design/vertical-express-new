@@ -63,6 +63,12 @@ test("a screen with no model behind it says so", () => {
     "app/admin/invoices/page.tsx",
     "app/admin/credit/page.tsx",
     "app/admin/staff/page.tsx",
+    /* Not a whole screen — two panels of one. Customer detail is mostly real
+       (orders, sites, wallet, lifetime value), and the two panels that are not
+       sit beside four that are, which makes them easier to mistake for data,
+       not harder. "No notes" next to a real order history reads as a customer
+       with no problems. */
+    "app/admin/customers/[id]/page.tsx",
   ];
 
   for (const rel of UNBACKED) {

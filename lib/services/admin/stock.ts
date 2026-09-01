@@ -283,3 +283,78 @@ export async function adminCustomerMix() {
     repeatRatePct: ordered.length === 0 ? null : Math.round((repeated.length / ordered.length) * 100),
   };
 }
+
+/**
+ * Everything the console can honestly say about one customer.
+ *
+ * Artboard 21 draws six panels. Four are backed by real tables — orders, sites,
+ * value, money. Two are not: "Notes and issues" needs a CRM model that does not
+ * exist, and "Segments" needs a segmentation rule set that nobody has written.
+ * They are returned as nulls rather than omitted so the screen can say which
+ * thing is missing instead of rendering an empty list that reads as "no issues
+ * with this customer".
+ *
+ * Deleted addresses are excluded. A site the customer removed is not a site.
+ */
+export async function adminCustomerDetail(id: string) {
+  const user = await db.user.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      phone: true,
+      email: true,
+      createdAt: true,
+      profile: {
+        select: { fullName: true, companyName: true, gstin: true, buyerType: true },
+      },
+      wallet: { select: { balancePaise: true } },
+      addresses: {
+        where: { deletedAt: null },
+        orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          label: true,
+          name: true,
+          line1: true,
+          line2: true,
+          landmark: true,
+          accessNote: true,
+          city: true,
+          pincode: true,
+          isDefault: true,
+        },
+      },
+      orders: {
+        orderBy: { placedAt: "desc" },
+        select: {
+          id: true,
+          orderNo: true,
+          status: true,
+          paymentMethod: true,
+          totalPaise: true,
+          placedAt: true,
+          _count: { select: { items: true } },
+        },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  /* Cancelled and refunded orders are excluded from value, matching the list
+     screen. Money that came back is not lifetime value. */
+  const counted = user.orders.filter(
+    (o) => o.status !== "cancelled" && o.status !== "refunded"
+  );
+  const lifetimePaise = counted.reduce((s, o) => s + o.totalPaise, 0);
+
+  return {
+    ...user,
+    lifetimePaise,
+    orderCount: counted.length,
+    /* Integer division on paise — an average in rupees-with-decimals would be a
+       float touching currency. */
+    averageOrderPaise: counted.length ? Math.round(lifetimePaise / counted.length) : null,
+    lastOrderAt: counted[0]?.placedAt ?? null,
+  };
+}
