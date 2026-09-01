@@ -373,7 +373,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
-                <h3 className="text-sm font-bold text-neutral-800 mb-4">Sales Trend</h3>
+                <h3 className="text-sm font-bold text-neutral-800 mb-4">GMV by day</h3>
                 <LineChart data={initialData.sales.dailySales.map(d => ({ label: d.label, value: d.net / 100 }))} prefix="₹" />
               </div>
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
@@ -436,7 +436,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue Breakdown by Category</h3>
+                <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue by category</h3>
                 <DonutChart data={initialData.products.topCategories.map(c => ({ label: c.label, value: c.value / 100 }))} prefix="₹" />
               </div>
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
