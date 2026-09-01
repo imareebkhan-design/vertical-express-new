@@ -32,6 +32,7 @@ type Product = {
   deliverySpeed: string;
   hsn: string | null;
   gstRatePct: number | null;
+  images: { id: string; url: string; alt: string; isPrimary: boolean }[];
   variants: {
     id: string;
     name: string;
@@ -39,6 +40,14 @@ type Product = {
     pricePaise: number;
     compareAtPaise: number | null;
     onHand: number;
+    stock: {
+      warehouseId: string;
+      warehouse: string;
+      city: string;
+      onHand: number;
+      committed: number;
+      lowStockThreshold: number;
+    }[];
   }[];
 };
 
@@ -136,7 +145,7 @@ export function ProductEditor({
       <Section title="Fulfilment">
         <Field
           label="Delivery speed"
-          hint="The category decides unless you say otherwise. A 5 kg bag of white cement does not need a truck; a 40-piece box of tiles does."
+          hint="The category decides unless you say otherwise. A 5 kg bag of white cement does not need a truck; a 40-piece box of tiles does. Set per product, not per variant as the artboard has it — a bundle of ten bags travels the way one bag does, and the variant-level version would mean a cart whose two rows of the same product split across vehicles."
         >
           <select
             value={form.deliverySpeed}
@@ -149,6 +158,13 @@ export function ProductEditor({
             <option value="express">Fast — out from the store</option>
             <option value="scheduled">Heavy — by truck</option>
           </select>
+        </Field>
+        <Field label="Seasonal override">
+          <p className="text-[13px] font-semibold text-ink-700">
+            <PlaceholderValue pending="no seasonal rule is stored or applied anywhere; see Serviceability">
+              Not set
+            </PlaceholderValue>
+          </p>
         </Field>
         <Field label="Unit weight">
           <p className="text-[13px] font-semibold text-ink-700">
@@ -177,6 +193,80 @@ export function ProductEditor({
           Set per category, not per product, and not editable here: a rate typed on the
           wrong screen becomes a tax error on every order in that category. The rates in
           use are owner-confirmed; changing one is a decision for the CA, not a form field.
+        </p>
+      </Section>
+
+      <Section title="Images">
+        {product.images.length === 0 ? (
+          <p className="text-[12.5px] font-semibold text-ink-700">
+            No images. The product will render with a placeholder on the storefront.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2.5">
+            {product.images.map((img) => (
+              <figure key={img.id} className="w-[132px]">
+                {/* Plain img: these are catalogue URLs of unknown origin and
+                    dimensions, and next/image would need both. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.url}
+                  alt={img.alt}
+                  className="h-[100px] w-full rounded-field bg-chip-soft object-cover"
+                />
+                <figcaption className="mt-1 text-[11px] font-semibold text-ink-500">
+                  {img.isPrimary ? "Primary" : img.alt || "No alt text"}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        )}
+        <p className="text-[12px] font-medium leading-[17px] text-ink-700">
+          Read-only. Uploading needs somewhere to put the file — there is no object store
+          configured, and a URL field that accepts anything typed into it is how a
+          manufacturer&rsquo;s photography ends up on our catalogue without a licence.
+        </p>
+      </Section>
+
+      <Section title="Stock by warehouse">
+        <OpsTable
+          columns={["Variant", "Warehouse", "On hand", "Committed", "Available", "Reorder at"]}
+          rows={product.variants.flatMap((v) =>
+            v.stock.map((s) => [
+              v.name,
+              `${s.warehouse} · ${s.city}`,
+              String(s.onHand),
+              String(s.committed),
+              String(s.onHand - s.committed),
+              String(s.lowStockThreshold),
+            ])
+          )}
+          emptyTitle="No stock record."
+          emptyNote="This product has no inventory row at any warehouse, so the storefront treats every variant as out of stock."
+        />
+        <p className="mt-2 text-[12px] font-medium leading-[17px] text-ink-700">
+          &ldquo;Reorder at&rdquo; is the low-stock threshold. Raising a purchase order
+          from here needs a supplier and a purchase-order model; neither exists yet.
+        </p>
+      </Section>
+
+      <Section title="Genuineness">
+        <p className="text-[12px] font-medium leading-[17px] text-ink-700">
+          Batch tracking, shelf life and a photo at dispatch are the three things that
+          settle an argument about whether a bag of cement was fresh and was ours. None of
+          them is recorded: there is no batch field at goods receipt, no shelf-life
+          property on a product, and no proof-of-delivery capture. Cement genuinely does
+          go off, so this is the panel most worth building next on this screen — but it
+          needs a receiving process before it needs a form.
+        </p>
+      </Section>
+
+      <Section title="Audit">
+        <p className="text-[12px] font-medium leading-[17px] text-ink-700">
+          Nothing on this page keeps a history. A price change, a status change and a
+          brand reassignment are all recorded to the application log and nowhere a person
+          can read them — ISS-015, still open. The artboard shows who changed a price
+          three weeks ago, which is exactly the question that gets asked, and exactly the
+          one this screen cannot answer.
         </p>
       </Section>
 
