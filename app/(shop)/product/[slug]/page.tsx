@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   getProductBySlug,
   getRelatedProducts,
+  boughtWithProduct,
   listProductSlugs,
 } from "@/lib/services/catalog";
 import { ProductSwitcher } from "@/components/mobile/product/product-switcher";
@@ -41,12 +42,22 @@ export default async function ProductPage({ params }: PageProps) {
   const product = await getProductBySlug(slug);
   if (!product) notFound();
 
-  const related = await getRelatedProducts(product.categorySlug, product.slug);
+  /* Two different rails and they are not interchangeable. `related` is more of
+     the same category, ordered by isDeal and ratingCount — and the ratings are
+     fabricated (ISS-018), so it is a shelf, not a recommendation.
+     `boughtWith` is order co-occurrence: what people actually put in the same
+     basket. It is empty until there are orders, and renders nothing when it
+     is. */
+  const [related, boughtWith] = await Promise.all([
+    getRelatedProducts(product.categorySlug, product.slug),
+    boughtWithProduct(product.slug),
+  ]);
 
   return (
     <ProductSwitcher
       product={product}
       related={related}
+      boughtWith={boughtWith}
     />
   );
 }

@@ -28,9 +28,11 @@ import { MobileProductView } from "@/components/mobile/product/mobile-product-vi
 interface ProductSwitcherProps {
   product: ProductDetail;
   related: CatalogItem[];
+  /** Order co-occurrence, not category. Empty until orders exist. */
+  boughtWith: CatalogItem[];
 }
 
-export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
+export function ProductSwitcher({ product, related, boughtWith }: ProductSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -39,7 +41,7 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
   }
 
   if (isMobile) {
-    return <MobileProductView product={product} related={related} />;
+    return <MobileProductView product={product} related={related} boughtWith={boughtWith} />;
   }
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
@@ -128,7 +130,10 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
               <PdpActions product={product} />
             </div>
 
-            <PdpPromises speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
+            <PdpPromises
+          speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+          categorySlug={product.categorySlug}
+        />
 
             <div className="mt-6">
               <PincodeCheck defaultPincode="190001" />
@@ -162,6 +167,17 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
             )}
           </div>
         </div>
+
+        {/* Bought with this comes first: what somebody else needed alongside
+            this is a better answer than more of the same shelf. */}
+        {boughtWith.length > 0 && (
+          <section aria-label="Bought with this" className="mt-16">
+            <h2 className="mb-6 text-xl font-extrabold tracking-tight sm:text-2xl">
+              Bought with this
+            </h2>
+            <CatalogGrid items={boughtWith} />
+          </section>
+        )}
 
         {related.length > 0 && (
           <section aria-label="Related products" className="mt-16">

@@ -919,3 +919,104 @@ export async function closestInStock(
 
   return { items, matchedOn };
 }
+
+/**
+ * What people actually bought alongside this product — the PDP's "Bought with
+ * this" rail.
+ *
+ * NOT THE SAME THING AS `getRelatedProducts`
+ *
+ * That one returns more of the same category, ordered by `isDeal` and
+ * `ratingCount`. The ratings are fabricated (ISS-018), so its ordering is
+ * driven by a number nobody measured, and "more cement" is not an answer to
+ * "what else do I need for this pour".
+ *
+ * This is order co-occurrence and nothing else: products that appeared in the
+ * same real orders as this one, counted. A trowel next to a bag of cement is
+ * useful because somebody buying cement bought a trowel, not because a seed
+ * file said they were related.
+ *
+ * Cancelled and refunded orders are excluded — a basket that came back is not
+ * evidence of what goes together.
+ *
+ * Returns empty until orders exist, and the rail renders nothing when it does.
+ * An empty heading is worse than no heading, and filling it with whatever was
+ * seeded first is precisely the habit this replaces.
+ */
+/**
+ * Exported only so lib/services/__tests__/bought-with.test.ts can drive it
+ * against a real database. `unstable_cache` needs a Next request context and
+ * throws outside one, so the wrapped export below is untestable directly — and
+ * the logic worth testing (what counts as evidence) is all in here.
+ */
+export async function boughtWithProductRaw(slug: string, take = 6): Promise<CatalogItem[]> {
+  const product = await db.product.findUnique({ where: { slug }, select: { id: true } });
+  if (!product) return [];
+
+  /* Orders containing this product, then everything else in them. Two queries
+     rather than a join so the counting stays legible; the order set is small
+     because it is bounded by one product's sales. */
+  const orderIds = (
+    await db.orderItem.findMany({
+      where: {
+        variant: { productId: product.id },
+        order: { status: { notIn: ["cancelled", "refunded"] } },
+      },
+      select: { orderId: true },
+      distinct: ["orderId"],
+      take: 500,
+    })
+  ).map((r) => r.orderId);
+
+  if (orderIds.length === 0) return [];
+
+  const companions = await db.orderItem.findMany({
+    where: {
+      orderId: { in: orderIds },
+      variant: { productId: { not: product.id } },
+    },
+    select: { variant: { select: { productId: true } } },
+  });
+
+  const counts = new Map<string, number>();
+  for (const c of companions) {
+    const id = c.variant.productId;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  if (counts.size === 0) return [];
+
+  const topIds = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, take)
+    .map(([id]) => id);
+
+  const rows = await db.product.findMany({
+    where: { id: { in: topIds }, status: "published" },
+    include: {
+      brand: true,
+      category: { select: { slug: true, isBulk: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: {
+          bulkTiers: { select: { id: true }, take: 1 },
+          inventory: { select: { qtyOnHand: true, qtyReserved: true } },
+        },
+      },
+    },
+  });
+
+  /* Restore the co-occurrence order the database query discarded — the whole
+     point is that the most-often-bought-with product comes first. */
+  return topIds
+    .map((id) => rows.find((r) => r.id === id))
+    .filter((r): r is NonNullable<typeof r> => Boolean(r))
+    .map(toItem)
+    .filter((x): x is CatalogItem => x !== null);
+}
+
+export const boughtWithProduct = unstable_cache(
+  async (slug: string, take = 6) => boughtWithProductRaw(slug, take),
+  ["catalog-bought-with"],
+  { revalidate: 300, tags: ["catalog"] }
+);

@@ -32,9 +32,11 @@ import { speedClassFor } from "@/components/ui/speed-chip";
 interface MobileProductViewProps {
   product: ProductDetail;
   related: CatalogItem[];
+  /** Order co-occurrence, not category. Empty until orders exist. */
+  boughtWith: CatalogItem[];
 }
 
-export function MobileProductView({ product, related }: MobileProductViewProps) {
+export function MobileProductView({ product, related, boughtWith }: MobileProductViewProps) {
   const router = useRouter();
 
   // Cart & Wishlist hooks
@@ -389,7 +391,10 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           Shared with the web PDP, which is the point: one promise, one wording,
           on both surfaces.
         */}
-        <PdpPromises speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
+        <PdpPromises
+          speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+          categorySlug={product.categorySlug}
+        />
 
         {/* Accordions */}
         <div className="space-y-2">
@@ -435,6 +440,26 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           )}
         </div>
       </div>
+
+      {/* "Also bought with this" — the app artboard's rail. Order co-occurrence,
+          so it answers "what else did this pour need" rather than "what else is
+          on this shelf". Placed above the category rail because it is the
+          better answer when it exists, and it renders nothing when it does
+          not. */}
+      {boughtWith.length > 0 && (
+        <div className="py-4 border-t border-mist/10">
+          <h3 className="px-4 text-xs font-extrabold text-ink uppercase tracking-wider mb-3">
+            Also bought with this
+          </h3>
+          <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory">
+            {boughtWith.map((item) => (
+              <div key={item.id} className="snap-center shrink-0 w-[148px]">
+                <MobileProductCard item={item} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Related Products Scroller */}
       {related.length > 0 && (
