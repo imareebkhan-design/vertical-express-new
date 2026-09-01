@@ -802,3 +802,34 @@ export async function mostOrderedInCategory(
     .filter((x): x is CatalogItem => x !== null)
     .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
+
+/**
+ * The brands a category actually stocks, most-stocked first.
+ *
+ * "Brands we stock" on the subcategory artboard. Trade buyers shop by brand
+ * more than by anything else — a contractor who has always used one cement is
+ * not browsing, they are looking for it — so this is a shortcut past the grid
+ * rather than a decoration.
+ *
+ * Only brands with a published product in this category, so the strip never
+ * offers a filter that returns nothing.
+ */
+export async function brandsInCategory(categorySlug: string) {
+  const rows = await db.brand.findMany({
+    where: {
+      isActive: true,
+      products: { some: { status: "published", category: { slug: categorySlug } } },
+    },
+    select: {
+      slug: true,
+      name: true,
+      _count: {
+        select: { products: { where: { status: "published", category: { slug: categorySlug } } } },
+      },
+    },
+  });
+
+  return rows
+    .map((b) => ({ slug: b.slug, name: b.name, count: b._count.products }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+}

@@ -5,6 +5,8 @@ import {
   listCategorySlugs,
   listProducts,
   type CatalogSort,
+  mostOrderedInCategory,
+  brandsInCategory,
 } from "@/lib/services/catalog";
 import { rupeesToPaise } from "@/lib/money";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
@@ -71,6 +73,15 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     sort: (one(sp.sort) as CatalogSort) ?? "popular",
     page: one(sp.page) ? parseInt(one(sp.page)!, 10) || 1 : 1,
   });
+  /* The two artboard sections that need their own reads: what this category has
+     actually sold, and which brands it stocks. Both return empty naturally —
+     "most ordered" before any orders exist, brands for a category with none —
+     and the components hide themselves rather than showing a bare heading. */
+  const [mostOrdered, brands] = await Promise.all([
+    mostOrderedInCategory(slug, 6),
+    brandsInCategory(slug),
+  ]);
+
   const activeFilterCount =
     brandSlugs.length + Object.keys(attrs).length + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
 
@@ -79,6 +90,8 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       category={category}
       slug={slug}
       result={result}
+      mostOrdered={mostOrdered}
+      brands={brands}
       activeFilterCount={activeFilterCount}
     />
   );

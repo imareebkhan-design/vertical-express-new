@@ -13,14 +13,26 @@ import { rupeesToPaise } from "@/lib/money";
 import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
 import { listingLayoutFor } from "@/lib/catalog-presentation";
 import { CatalogRow } from "@/components/shop/catalog-row";
+import { BrandStrip } from "@/components/shop/brand-strip";
+import { MostOrdered } from "@/components/shop/most-ordered";
 
 interface MobileCategoryViewProps {
+  /** Ranked by units actually ordered — empty until something has been. */
+  mostOrdered: CatalogItem[];
+  /** Brands with a published product here, most-stocked first. */
+  brands: { slug: string; name: string; count: number }[];
   category: Category;
   slug: string;
   initialResult: CatalogResult;
 }
 
-export function MobileCategoryView({ category, slug, initialResult }: MobileCategoryViewProps) {
+export function MobileCategoryView({
+  category,
+  slug,
+  initialResult,
+  mostOrdered,
+  brands,
+}: MobileCategoryViewProps) {
   /* One rule, in lib/catalog-presentation.ts — the same one the web listing
      uses, so a category does not change shape between surfaces. */
   const layout = listingLayoutFor(slug);
@@ -265,6 +277,13 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           is the phone catching up, on the surface where the decision is
           actually made. */}
       <MobileAttributeRail facets={initialResult.facets} slug={slug} />
+
+      {/* The artboard's order: narrow by grade, then by brand, then see what
+          other people on site actually buy — each a shorter route to a decision
+          than scrolling the grid. Every one hides itself when it has nothing to
+          say. */}
+      <BrandStrip slug={slug} brands={brands} />
+      <MostOrdered categoryName={category.name} slug={slug} items={mostOrdered} />
 
       {/*
         Rows or grid, by what the category actually is.

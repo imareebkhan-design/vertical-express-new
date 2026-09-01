@@ -17,6 +17,9 @@ import { Pagination } from "@/components/shop/pagination";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
 import { CategoryBanner, ShopByAttribute } from "@/components/shop/category-banner";
+import { BrandStrip } from "@/components/shop/brand-strip";
+import { MostOrdered } from "@/components/shop/most-ordered";
+import type { CatalogItem } from "@/lib/services/catalog";
 import { FilterSheet } from "@/components/shop/filter-sheet";
 import { PageLoader } from "@/components/page-loader";
 import { ChevronRight } from "lucide-react";
@@ -29,10 +32,21 @@ interface CategorySwitcherProps {
   category: Category;
   slug: string;
   result: CatalogResult;
+  /** Ranked by units actually ordered — empty until something has been. */
+  mostOrdered: CatalogItem[];
+  /** Brands with a published product in this category, most-stocked first. */
+  brands: { slug: string; name: string; count: number }[];
   activeFilterCount: number;
 }
 
-export function CategorySwitcher({ category, slug, result, activeFilterCount }: CategorySwitcherProps) {
+export function CategorySwitcher({
+  category,
+  slug,
+  result,
+  mostOrdered,
+  brands,
+  activeFilterCount,
+}: CategorySwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -41,7 +55,15 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
   }
 
   if (isMobile) {
-    return <MobileCategoryView category={category} slug={slug} initialResult={result} />;
+    return (
+      <MobileCategoryView
+        category={category}
+        slug={slug}
+        initialResult={result}
+        mostOrdered={mostOrdered}
+        brands={brands}
+      />
+    );
   }
 
   const breadcrumbJsonLd = {
@@ -81,6 +103,8 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
         />
 
         <ShopByAttribute facets={result.facets} slug={slug} />
+        <BrandStrip slug={slug} brands={brands} />
+        <MostOrdered categoryName={category.name} slug={slug} items={mostOrdered} />
 
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <div className="hidden lg:block">
