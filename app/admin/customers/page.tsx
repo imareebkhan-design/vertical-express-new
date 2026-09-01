@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Users } from "lucide-react";
-import { adminListCustomers } from "@/lib/services/admin/stock";
+import { adminListCustomers, adminCustomerMix } from "@/lib/services/admin/stock";
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
 
@@ -13,7 +13,10 @@ export default async function AdminCustomers({
 }) {
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const c = await adminListCustomers(page, 30, sp.q);
+  const [c, mix] = await Promise.all([
+    adminListCustomers(page, 30, sp.q),
+    adminCustomerMix(),
+  ]);
   const pages = Math.max(1, Math.ceil(c.total / c.perPage));
 
   return (
@@ -39,6 +42,66 @@ export default async function AdminCustomers({
             Search
           </button>
         </form>
+      </div>
+
+      {/*
+        The two figures the artboard leads with.
+
+        Repeat rate is the one that says whether the business works. A
+        construction supplier lives on the same contractor coming back every
+        fortnight, not on acquisition, so this is the number to watch before any
+        revenue chart. Customers who have never ordered are out of the
+        denominator — they have not had a chance to repeat, and including them
+        moves the figure with marketing spend rather than with the product.
+
+        The mix will read mostly "not asked" for a while: the "I'm a…" step is
+        skippable on purpose and nobody who signed up before it existed has
+        answered. That is reported as its own bucket rather than folded into
+        homeowners, so the number is not quietly wrong.
+      */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+            Repeat rate
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight">
+            {mix.repeatRatePct === null ? "—" : `${mix.repeatRatePct}%`}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-ink-500">
+            {mix.repeatCustomers} of {mix.orderingCustomers} who have ordered came back
+          </p>
+        </div>
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+            Contractors
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight">
+            {mix.mix.contractor}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-ink-500">said so at sign-up</p>
+        </div>
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+            Homeowners &amp; designers
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight">
+            {mix.mix.homeowner + mix.mix.designer}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-ink-500">
+            {mix.mix.homeowner} renovating · {mix.mix.designer} designing
+          </p>
+        </div>
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <p className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+            Not asked
+          </p>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight text-ink-500">
+            {mix.mix.unknown}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-ink-500">
+            skipped the question, or signed up before it existed
+          </p>
+        </div>
       </div>
 
       <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">

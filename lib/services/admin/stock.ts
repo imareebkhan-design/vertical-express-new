@@ -240,3 +240,46 @@ export async function adminPaymentHealth() {
     unverifiedCapturedCount: unverifiedToday,
   };
 }
+
+/**
+ * The two customer figures the operations artboard leads with.
+ *
+ * "Contractors" is answerable because onboarding now asks — `Profile.buyerType`
+ * is set by the "I'm a…" step. It will read low for a while: the question is
+ * skippable by design, and nobody who signed up before that step existed has
+ * answered it. `unknown` is reported rather than folded into homeowners, so the
+ * number is not quietly wrong.
+ *
+ * "Repeat rate" is the share of ordering customers who came back. It is the one
+ * number on this screen that says whether the business works — a construction
+ * supplier lives on the same contractor returning every fortnight, not on
+ * acquisition. Customers who have never ordered are excluded from the
+ * denominator; they have not had the chance to repeat, and including them
+ * flatters or deflates the figure depending only on how much marketing ran.
+ */
+export async function adminCustomerMix() {
+  const [byType, orderCounts] = await Promise.all([
+    db.profile.groupBy({ by: ["buyerType"], _count: true }),
+    db.user.findMany({
+      where: { role: "customer" },
+      select: { _count: { select: { orders: { where: { status: { notIn: ["cancelled", "refunded"] } } } } } },
+    }),
+  ]);
+
+  const mix = { contractor: 0, homeowner: 0, designer: 0, unknown: 0 };
+  for (const row of byType) {
+    const key = row.buyerType ?? "unknown";
+    mix[key as keyof typeof mix] = row._count;
+  }
+
+  const ordered = orderCounts.filter((u) => u._count.orders > 0);
+  const repeated = ordered.filter((u) => u._count.orders > 1);
+
+  return {
+    mix,
+    /** Customers who have ordered at all — the honest denominator. */
+    orderingCustomers: ordered.length,
+    repeatCustomers: repeated.length,
+    repeatRatePct: ordered.length === 0 ? null : Math.round((repeated.length / ordered.length) * 100),
+  };
+}
