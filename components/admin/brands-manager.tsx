@@ -24,6 +24,15 @@ export function BrandsManager({
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
+  /* The brand being renamed, by its slug at the time editing started. Held
+     rather than derived because the slug is itself editable, and the update has
+     to target the row as it was, not as it is being retyped. */
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editSlug, setEditSlug] = useState("");
+
+  const [query, setQuery] = useState("");
+
   /* Slug follows the name until somebody edits it themselves — a brand's slug
      is a URL that outlives spelling changes, so it stops tracking once touched. */
   const [slugTouched, setSlugTouched] = useState(false);
@@ -52,6 +61,39 @@ export function BrandsManager({
       await adminSetBrandActive(s, next);
     });
   };
+
+  const beginEdit = (b: { slug: string; name: string }) => {
+    setMessage(null);
+    setEditing(b.slug);
+    setEditName(b.name);
+    setEditSlug(b.slug);
+  };
+
+  const saveEdit = (isActive: boolean) => {
+    setMessage(null);
+    start(async () => {
+      /* originalSlug is what makes this an edit rather than an insert. Without
+         it the action would try to create a second brand. */
+      const res = await adminSaveBrand({
+        name: editName,
+        slug: editSlug,
+        isActive,
+        originalSlug: editing,
+      });
+      if (res.ok) {
+        setEditing(null);
+        setMessage({ ok: true, text: `${editName} saved.` });
+      } else {
+        setMessage({ ok: false, text: res.error.message });
+      }
+    });
+  };
+
+  const shown = query.trim()
+    ? brands.filter((b) =>
+        `${b.name} ${b.slug}`.toLowerCase().includes(query.trim().toLowerCase())
+      )
+    : brands;
 
   const field =
     "h-10 w-full rounded-field bg-chip-soft px-3.5 text-[13px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink";
@@ -110,33 +152,109 @@ export function BrandsManager({
       </div>
 
       <div className="rounded-panel bg-white p-4 shadow-card">
-        <p className="text-[13px] font-bold text-ink">Brands in the catalogue</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-[13px] font-bold text-ink">Brands in the catalogue</p>
+          <span className="flex-1" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter brands"
+            aria-label="Filter brands"
+            className={`${field} w-52`}
+          />
+        </div>
         <ul className="mt-3 divide-y divide-line">
           {brands.length === 0 && (
             <li className="py-4 text-[12.5px] font-semibold text-ink-500">
               No brands yet.
             </li>
           )}
-          {brands.map((b) => (
-            <li key={b.slug} className="flex items-center justify-between gap-4 py-3">
-              <div>
-                <p className="text-[13.5px] font-bold text-ink">{b.name}</p>
-                <p className="mt-0.5 text-[11.5px] font-semibold text-ink-500">
-                  {b.slug} · {b.productCount}{" "}
-                  {b.productCount === 1 ? "product" : "products"}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => toggle(b.slug, !b.isActive)}
-                disabled={pending}
-                className={
-                  "h-8 rounded-full px-3.5 text-[12px] font-bold disabled:opacity-50 " +
-                  (b.isActive ? "bg-chip text-ink" : "bg-ops-warn-tint text-ops-warn")
-                }
-              >
-                {b.isActive ? "Active" : "Hidden"}
-              </button>
+          {brands.length > 0 && shown.length === 0 && (
+            <li className="py-4 text-[12.5px] font-semibold text-ink-500">
+              No brand matches “{query}”.
+            </li>
+          )}
+          {shown.map((b) => (
+            <li key={b.slug} className="py-3">
+              {editing === b.slug ? (
+                <div className="flex flex-wrap items-end gap-3">
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+                      Name
+                    </span>
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      aria-label={`Name for ${b.name}`}
+                      className={`${field} w-56`}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+                      Slug
+                    </span>
+                    <input
+                      value={editSlug}
+                      onChange={(e) => setEditSlug(e.target.value)}
+                      aria-label={`Slug for ${b.name}`}
+                      className={`${field} w-56`}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => saveEdit(b.isActive)}
+                    disabled={pending || editName.trim().length < 2 || editSlug.trim().length < 2}
+                    className="h-10 rounded-panel bg-ink px-5 text-[13px] font-bold text-white disabled:opacity-50"
+                  >
+                    {pending ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditing(null)}
+                    className="h-10 rounded-panel bg-chip px-4 text-[13px] font-bold text-ink"
+                  >
+                    Cancel
+                  </button>
+                  {b.productCount > 0 && (
+                    <p className="w-full text-[11.5px] font-medium text-ink-700">
+                      {b.productCount} product{b.productCount === 1 ? "" : "s"} say this
+                      name on their page. Renaming changes what all of them claim to be;
+                      changing the slug breaks any link filtered by this brand.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[13.5px] font-bold text-ink">{b.name}</p>
+                    <p className="mt-0.5 text-[11.5px] font-semibold text-ink-500">
+                      {b.slug} · {b.productCount}{" "}
+                      {b.productCount === 1 ? "product" : "products"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => beginEdit(b)}
+                      disabled={pending}
+                      className="h-8 rounded-full bg-chip px-3.5 text-[12px] font-bold text-ink disabled:opacity-50"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggle(b.slug, !b.isActive)}
+                      disabled={pending}
+                      className={
+                        "h-8 rounded-full px-3.5 text-[12px] font-bold disabled:opacity-50 " +
+                        (b.isActive ? "bg-chip text-ink" : "bg-ops-warn-tint text-ops-warn")
+                      }
+                    >
+                      {b.isActive ? "Active" : "Hidden"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ))}
         </ul>

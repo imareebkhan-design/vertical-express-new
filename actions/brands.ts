@@ -28,6 +28,29 @@ const schema = z.object({
     .max(60)
     .regex(/^[a-z0-9-]+$/, "The slug may use lowercase letters, numbers and hyphens only"),
   isActive: z.boolean(),
+  /**
+   * The slug of the brand being edited, or absent when adding a new one.
+   *
+   * THIS FIELD IS THE WHOLE FIX. The previous version ran
+   * `upsert({ where: { slug } })` for both cases, which meant adding a brand
+   * whose slug collided with an existing one did not fail — it silently
+   * RENAMED the existing brand. Type "UltraTech Cement" with the slug
+   * `ultratech` and the UltraTech every product page already names becomes
+   * something else, on every one of those pages, with a success message.
+   *
+   * The catch below claimed to handle that and could not: an upsert keyed on
+   * slug never raises a slug conflict. Only a name collision threw, so exactly
+   * half the duplicates were caught and the more destructive half was not.
+   *
+   * Create and edit are now separate operations. Create inserts and lets the
+   * unique constraint refuse a duplicate; edit targets a row the caller has
+   * explicitly named.
+   */
+  originalSlug: z
+    .string()
+    .trim()
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
 });
 
 export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>> {
@@ -39,26 +62,53 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
     return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Those details are not valid");
   }
 
-  const { name, slug, isActive } = parsed.data;
+  const { name, slug, isActive, originalSlug } = parsed.data;
 
-  try {
-    await db.brand.upsert({
-      where: { slug },
-      create: { slug, name, isActive },
-      update: { name, isActive },
+  if (originalSlug) {
+    const existing = await db.brand.findUnique({
+      where: { slug: originalSlug },
+      select: { slug: true, name: true },
     });
-  } catch {
-    /* name and slug are both unique. The likely collision is a second brand
-       claiming an existing name, which is worth saying plainly rather than
-       returning a generic failure. */
-    return fail("CONFLICT", "A brand with that name or slug already exists");
-  }
+    if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
 
-  log("INFO", {
-    service: "catalog",
-    event: "brand_saved",
-    metadata: { slug, updatedBy: admin.email },
-  });
+    try {
+      await db.brand.update({
+        where: { slug: originalSlug },
+        data: { name, slug, isActive },
+      });
+    } catch {
+      return fail("CONFLICT", "Another brand already uses that name or slug");
+    }
+
+    /* A slug change breaks every catalogue URL filtered by this brand, and a
+       name change rewrites what every one of its product pages claims to be.
+       Both are worth being able to look up later. */
+    log("INFO", {
+      service: "catalog",
+      event: "brand_edited",
+      metadata: {
+        slugFrom: existing.slug,
+        slugTo: slug,
+        nameFrom: existing.name,
+        nameTo: name,
+        editedBy: admin.email,
+      },
+    });
+  } else {
+    try {
+      await db.brand.create({ data: { slug, name, isActive } });
+    } catch {
+      /* Both name and slug are unique. Either collision means the brand is
+         already here — which is a thing to say, not a thing to overwrite. */
+      return fail("CONFLICT", "A brand with that name or slug already exists");
+    }
+
+    log("INFO", {
+      service: "catalog",
+      event: "brand_created",
+      metadata: { slug, createdBy: admin.email },
+    });
+  }
 
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
