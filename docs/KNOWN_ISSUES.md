@@ -66,7 +66,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-051 | `/api/health` disclosed configuration and raw database errors | MEDIUM | Security | FIXED |
 | ISS-052 | SMS second-factor MFA is enabled project-wide with no client support | MEDIUM | Auth | FIXED |
 | ISS-053 | Production has none of the 12 environment variables Firebase auth needs | **CRITICAL** | Config/Deploy | OPEN |
-| ISS-054 | `SpeedChip` defaults to the unverified 60-minute delivery claim | MEDIUM | Content/Legal | OPEN |
+| ISS-054 | `SpeedChip` defaults to the unverified 60-minute delivery claim | MEDIUM | Content/Legal | FIXED |
 | ISS-055 | Every delivered order paid 5% cashback at a rate nobody set | **CRITICAL** | Money/Policy | FIXED |
 | ISS-056 | Two different fabricated GSTINs shipped as the company's registration | HIGH | Legal/Content | FIXED |
 | ISS-057 | The Slots screen has no backing model — delivery windows do not exist | HIGH | Fulfilment | OPEN |
@@ -2220,7 +2220,7 @@ the real +91 test.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Content / Legal |
-| **Status** | OPEN — blocked on the owner confirming the real window |
+| **Status** | FIXED (1 Sep 2026) |
 
 **Description.** `components/ui/speed-chip.tsx` declares `etaMinutes = 60` as a default
 parameter. Eight call sites render the chip without passing a value, so each of them
@@ -2242,7 +2242,19 @@ the winter delay in `site-setup-view.tsx`.
 the same correction once the real window is known. Matching the canvas here would mean
 shipping the claim.
 
-**Owner input required.** Yes — what is the actual express window for Srinagar?
+**Resolution (1 Sep 2026).** The default is gone. With no window set, the chip reads "Fast"
+and promises no time at all; a figure appears only when one exists — from serviceability
+data, or from the express-window field on `/admin/settings`, which starts empty.
+
+The rule moved to `lib/speed.ts` on the way. It could not be tested where it was: importing
+the chip drags in lucide-react and React context that the server-side runner cannot load,
+so a rule governing a delivery promise had no test. Same reasoning as `link-policy.ts` and
+`shipment-plan.ts` — the decision lives apart from the thing that renders it.
+
+The hardcoded "2–3 days" lead-time label went the same way for the same reason.
+
+**Owner input still wanted, but no longer urgent.** Nothing promises a time until the
+express window is filled in on the settings screen. What is the real figure for Srinagar?
 
 ---
 

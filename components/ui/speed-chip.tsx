@@ -28,29 +28,12 @@ import { cn } from "@/lib/utils";
  * ETA — so naming a delivery window here would be inventing a promise the
  * backend cannot keep. It says how the goods travel, which is true today.
  */
-export type SpeedClass = "express" | "scheduled" | "leadtime" | "seasonal";
-
-/** Derives the speed class from the data the catalogue actually carries. */
-export function speedClassFor(isBulk: boolean): SpeedClass {
-  return isBulk ? "scheduled" : "express";
-}
-
-/**
- * The wording for a speed class, exported so surfaces that cannot use the chip
- * itself still say the same thing. The login hero renders a proportionally
- * scaled chip and would otherwise carry its own copy of these strings — and two
- * surfaces naming the same goods differently is exactly the contradiction this
- * component exists to prevent.
- */
-export function speedLabel(speed: SpeedClass, etaMinutes = 60): string {
-  return speed === "express"
-    ? `${etaMinutes} min`
-    : speed === "scheduled"
-      ? "Heavy — by truck"
-      : speed === "leadtime"
-        ? "2–3 days"
-        : "Seasonal";
-}
+/* The rule itself lives in lib/speed.ts — pure, and testable without dragging
+   React and lucide into a server-side test runner. Re-exported so existing
+   importers keep their path. */
+export { speedClassFor, speedLabel } from "@/lib/speed";
+export type { SpeedClass } from "@/lib/speed";
+import { speedLabel, type SpeedClass } from "@/lib/speed";
 
 const styles: Record<SpeedClass, string> = {
   express: "bg-ink text-white",
@@ -61,14 +44,17 @@ const styles: Record<SpeedClass, string> = {
 
 export interface SpeedChipProps extends React.HTMLAttributes<HTMLSpanElement> {
   speed: SpeedClass;
-  /** Express window in minutes, from ServiceablePincode. */
-  etaMinutes?: number;
+  /**
+   * Express window in minutes, from ServiceablePincode or the console setting.
+   * Omit it and no time is promised — see speedLabel.
+   */
+  etaMinutes?: number | null;
   size?: "sm" | "md";
 }
 
 export function SpeedChip({
   speed,
-  etaMinutes = 60,
+  etaMinutes,
   size = "sm",
   className,
   ...props
