@@ -12,8 +12,23 @@
  */
 export type SpeedClass = "express" | "scheduled" | "leadtime" | "seasonal";
 
-/** Derives the speed class from the data the catalogue actually carries. */
-export function speedClassFor(isBulk: boolean): SpeedClass {
+/**
+ * How fast this product actually moves.
+ *
+ * The category is the rule and the product is the exception. `Category.isBulk`
+ * gets it right for most of the catalogue — every cement heavy, every switch
+ * fast — and breaks at the edges: a 5 kg bag of white cement does not need a
+ * truck, and a 40-piece box of tiles does.
+ *
+ * `override` is `Product.deliverySpeed`, set by whoever listed the product. Null
+ * means "use the category", which is what almost every row should say — an
+ * override is a decision somebody made, not a value that got inherited.
+ */
+export function speedClassFor(
+  isBulk: boolean,
+  override?: "express" | "scheduled" | null
+): SpeedClass {
+  if (override) return override;
   return isBulk ? "scheduled" : "express";
 }
 

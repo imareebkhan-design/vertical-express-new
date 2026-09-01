@@ -51,7 +51,7 @@ export function PdpActions({ product }: { product: ProductDetail }) {
   };
 
   const off = discountPercent(unitPaise, variant.compareAtPaise);
-  const speed = speedClassFor(product.categoryIsBulk);
+  const speed = speedClassFor(product.categoryIsBulk, product.deliverySpeed);
 
   return (
     <div className="flex flex-col gap-4">

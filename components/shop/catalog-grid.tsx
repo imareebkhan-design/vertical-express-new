@@ -49,7 +49,7 @@ export function CatalogGrid({
             unit: item.unitLabel,
             categorySlug: item.categorySlug,
             image: item.imageUrl ?? undefined,
-            speed: speedClassFor(item.categoryIsBulk),
+            speed: speedClassFor(item.categoryIsBulk, item.deliverySpeed),
           }}
         />
       ))}

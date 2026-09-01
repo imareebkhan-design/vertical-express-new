@@ -80,6 +80,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
         brandName: p.brand.name,
         categorySlug: p.category.slug,
         categoryIsBulk: p.category.isBulk,
+        deliverySpeed: p.deliverySpeed ?? null,
         imageUrl: p.images[0]?.url ?? null,
         unitLabel: p.unitLabel,
         variantId: variant.id,

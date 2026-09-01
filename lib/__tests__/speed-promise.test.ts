@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { speedLabel } from "@/lib/speed";
+import { speedLabel, speedClassFor } from "@/lib/speed";
 
 /**
  * A delivery window is a promise, and a promise belongs to the owner.
@@ -45,4 +45,20 @@ test("lead time no longer claims a fixed number of days", () => {
      problem. */
   const label = speedLabel("leadtime");
   assert.ok(!/\d/.test(label), `"${label}" claims a lead time nobody set`);
+});
+
+test("a product's own speed beats its category's", () => {
+  /* The category is the rule and the product is the exception. Category.isBulk
+     is right for most of the catalogue and wrong at the edges — a 5 kg bag of
+     white cement does not need a truck, a 40-piece box of tiles does. */
+  assert.equal(speedClassFor(true), "scheduled", "a bulk category defaults to truck");
+  assert.equal(speedClassFor(true, "express"), "express", "the product overrides it");
+  assert.equal(speedClassFor(false, "scheduled"), "scheduled", "and in the other direction");
+});
+
+test("no override means the category decides", () => {
+  /* Null is the normal case and must never be mistaken for a choice. */
+  assert.equal(speedClassFor(true, null), "scheduled");
+  assert.equal(speedClassFor(false, null), "express");
+  assert.equal(speedClassFor(true, undefined), "scheduled");
 });

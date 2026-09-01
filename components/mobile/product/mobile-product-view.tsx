@@ -389,7 +389,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           Shared with the web PDP, which is the point: one promise, one wording,
           on both surfaces.
         */}
-        <PdpPromises speed={speedClassFor(product.categoryIsBulk)} />
+        <PdpPromises speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
 
         {/* Accordions */}
         <div className="space-y-2">

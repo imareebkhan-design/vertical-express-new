@@ -57,7 +57,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
           {/* On a phone this sits with the spec line; the desktop row has room
               for it in the right-hand column and keeps it there. */}
           <span className="sm:hidden">
-            <SpeedChip speed={speedClassFor(item.categoryIsBulk)} />
+            <SpeedChip speed={speedClassFor(item.categoryIsBulk, item.deliverySpeed)} />
           </span>
         </div>
 
@@ -85,7 +85,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
 
       <div className="flex flex-none flex-col items-end justify-between gap-3 self-stretch py-0.5">
         <span className="hidden sm:block">
-          <SpeedChip speed={speedClassFor(item.categoryIsBulk)} />
+          <SpeedChip speed={speedClassFor(item.categoryIsBulk, item.deliverySpeed)} />
         </span>
         <AddToCartButton variantId={item.variantId} title={item.title} disabled={!item.inStock} />
       </div>

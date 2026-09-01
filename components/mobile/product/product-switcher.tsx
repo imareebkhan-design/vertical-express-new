@@ -128,7 +128,7 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
               <PdpActions product={product} />
             </div>
 
-            <PdpPromises speed={speedClassFor(product.categoryIsBulk)} />
+            <PdpPromises speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
 
             <div className="mt-6">
               <PincodeCheck defaultPincode="190001" />

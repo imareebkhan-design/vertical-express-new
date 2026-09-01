@@ -14,6 +14,8 @@ export interface CatalogItem {
   categorySlug: string;
   /** Heavy material — drives the delivery-speed chip. From Category.isBulk. */
   categoryIsBulk: boolean;
+  /** Product.deliverySpeed — overrides the category. Null means use the category. */
+  deliverySpeed: "express" | "scheduled" | null;
   imageUrl: string | null;
   unitLabel: string;
   variantId: string;
@@ -170,6 +172,7 @@ function toItem(p: ProductWithRefs): CatalogItem | null {
     brandName: p.brand.name,
     categorySlug: p.category.slug,
     categoryIsBulk: p.category.isBulk,
+    deliverySpeed: p.deliverySpeed ?? null,
     imageUrl: p.images[0]?.url ?? null,
     unitLabel: p.unitLabel,
     variantId: variant.id,
@@ -483,6 +486,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
       brandName: row.brand_name,
       categorySlug: row.category_slug,
       categoryIsBulk: p.category.isBulk,
+      deliverySpeed: p.deliverySpeed ?? null,
       imageUrl: p.images[0]?.url ?? null,
       unitLabel: p.unitLabel,
       variantId: variant.id,
@@ -559,6 +563,8 @@ export interface ProductDetail {
   categorySlug: string;
   /** Heavy material — drives the delivery-speed chip. From Category.isBulk. */
   categoryIsBulk: boolean;
+  /** Product.deliverySpeed — overrides the category. Null means use the category. */
+  deliverySpeed: "express" | "scheduled" | null;
   unitLabel: string;
   specs: { label: string; value: string }[];
   ratingAvg: number;
@@ -605,6 +611,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     categoryName: p.category.name,
     categorySlug: p.category.slug,
     categoryIsBulk: p.category.isBulk,
+    deliverySpeed: p.deliverySpeed ?? null,
     unitLabel: p.unitLabel,
     specs,
     ratingAvg: Number(p.ratingAvg),
