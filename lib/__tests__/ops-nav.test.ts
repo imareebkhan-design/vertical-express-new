@@ -61,7 +61,14 @@ test("a screen with no model behind it says so", () => {
   ];
 
   for (const rel of UNBACKED) {
-    const src = readFileSync(join(ROOT, rel), "utf8");
+    /* Comments stripped first. The first version of this check matched the
+       file's doc comment, so a screen could explain itself to the next engineer
+       and say nothing at all to the person using it — and the check passed. The
+       obligation is to the dispatcher looking at an empty table, not to the
+       reader of the source. */
+    const src = readFileSync(join(ROOT, rel), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, " ")
+      .replace(/(^|[^:])\/\/[^\n]*/g, "$1 ");
     const declares =
       src.includes("OpsNotBuilt") ||
       /does not exist|no .*model|nothing records|because nothing/i.test(src);
