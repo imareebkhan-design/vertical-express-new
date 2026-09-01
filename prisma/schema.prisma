@@ -128,6 +128,19 @@ model Brand {
   @@map("brands")
 }
 
+/// How fast a product actually moves, when the category default is wrong.
+///
+/// Speed has been derived from `Category.isBulk` — every cement is heavy, every
+/// switch is fast. That holds for most of the catalogue and breaks at the edges:
+/// a single 5 kg bag of white cement does not need a truck, and a 40-piece box
+/// of tiles does. This lets whoever lists the product say so.
+///
+/// Null means "use the category", which is what almost everything should say.
+enum DeliverySpeed {
+  express
+  scheduled
+}
+
 model Product {
   id             String           @id @default(uuid()) @db.Uuid
   slug           String           @unique
@@ -138,6 +151,9 @@ model Product {
   /// [{ label: string, value: string }]
   specs          Json?
   unitLabel      String           @default("per piece") @map("unit_label")
+  /// Overrides the category's speed for this one product. Null means the
+  /// category decides, which is right for almost everything.
+  deliverySpeed  DeliverySpeed?   @map("delivery_speed")
   status         ProductStatus    @default(published)
   isDeal         Boolean          @default(false) @map("is_deal")
   ratingAvg      Decimal          @default(0) @map("rating_avg") @db.Decimal(2, 1)
@@ -577,6 +593,29 @@ model RoomCategory {
   @@id([roomId, categoryId])
   @@index([roomId, sortOrder])
   @@map("room_categories")
+}
+
+/// Operational settings the console edits, rather than values baked into code.
+///
+/// The cashback rate, the GST registration, the delivery windows and the default
+/// catalogue sort are all business decisions that change without a deploy. Every
+/// one of them was previously a constant in a source file or an environment
+/// variable, which meant changing a cashback percentage required an engineer —
+/// and, in the case of the 5% that was hardcoded, meant nobody noticed it was
+/// paying out at all.
+///
+/// Deliberately a typed key/value table rather than a column per setting: these
+/// are read rarely, edited by hand, and the set of them grows. A column per
+/// setting turns every new toggle into a migration.
+model Setting {
+  key       String   @id
+  value     String
+  /// Free text for the console — what this controls and what changing it does.
+  note      String?
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("settings")
 }
 
 enum BuyerType {

@@ -86,3 +86,48 @@ test("a nonsensical rate is refused rather than guessed at", async () => {
     assert.equal(await balanceOf(userId), 0, `"${bad}" must not credit anything`);
   }
 });
+
+test("a rate set in the console beats the environment variable", async () => {
+  /* The console is where a shopkeeper changes this, so it has to win. The env
+     var stays only so an environment nobody has configured through the UI
+     behaves as it did before. */
+  process.env.WALLET_CASHBACK_PERCENT = "5";
+  await db.setting.upsert({
+    where: { key: "cashback.percent" },
+    create: { key: "cashback.percent", value: "2" },
+    update: { value: "2" },
+  });
+
+  const userId = await makeUser();
+  await creditCashbackForOrder({
+    userId,
+    orderId: randomUUID(),
+    orderNo: `CB-${Date.now()}-SET`,
+    orderTotalPaise: 5_000_000, // ₹50,000
+  });
+
+  assert.equal(await balanceOf(userId), 100_000, "2% from the console, not 5% from the env");
+  await db.setting.deleteMany({ where: { key: "cashback.percent" } });
+});
+
+test("a malformed console value falls back rather than paying something odd", async () => {
+  process.env.WALLET_CASHBACK_PERCENT = "5";
+  await db.setting.upsert({
+    where: { key: "cashback.percent" },
+    create: { key: "cashback.percent", value: "banana" },
+    update: { value: "banana" },
+  });
+
+  const userId = await makeUser();
+  await creditCashbackForOrder({
+    userId,
+    orderId: randomUUID(),
+    orderNo: `CB-${Date.now()}-BAD`,
+    orderTotalPaise: 5_000_000,
+  });
+
+  /* Unparseable is treated as unset, so the env fallback applies. What must
+     never happen is a number invented from nonsense. */
+  assert.equal(await balanceOf(userId), 250_000, "falls back to the env's 5%, not to a guess");
+  await db.setting.deleteMany({ where: { key: "cashback.percent" } });
+});

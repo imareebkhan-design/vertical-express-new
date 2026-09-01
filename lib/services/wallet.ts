@@ -2,11 +2,17 @@ import "server-only";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { log } from "@/lib/observability";
+import { SETTING_KEYS, readSetting, parsePercent } from "@/lib/services/settings";
 
 /**
  * The cashback rate, as a percentage of the order total.
  *
  * THIS USED TO BE A HARDCODED 5% AND IT PAID OUT.
+ *
+ * It now comes from the settings table, edited in the console, because the
+ * person who owns this number is a shopkeeper rather than an engineer. A value
+ * on a screen gets questioned; a constant in a file paid out for weeks without
+ * anybody noticing.
  *
  * `creditCashbackForOrder` runs whenever an order is marked delivered, so every
  * completed order was crediting five percent of its value to the customer's
@@ -22,20 +28,28 @@ import { log } from "@/lib/observability";
  * Deliberately not a silent fallback to a plausible number: a payout that
  * pretends to be policy is worse than no payout.
  */
-function cashbackPercent(): number {
+async function cashbackPercent(): Promise<number> {
+  /* The console is the source of truth. WALLET_CASHBACK_PERCENT remains as a
+     fallback so an environment that has not been configured through the UI
+     behaves as before — but the setting wins, because the person who owns this
+     number should not need a deploy to change it. */
+  const fromSettings = parsePercent(await readSetting(SETTING_KEYS.cashbackPercent));
+  if (fromSettings !== null) return fromSettings;
+
   const raw = process.env.WALLET_CASHBACK_PERCENT;
   if (!raw) return 0;
-  const pct = Number(raw);
-  if (!Number.isFinite(pct) || pct < 0 || pct > 100) {
+  const pct = parsePercent(raw);
+  if (pct === null) {
     log("ERROR", {
       service: "wallet-service",
       event: "invalid_cashback_percent",
-      metadata: { raw },
+      metadata: { source: "env" },
     });
     return 0;
   }
   return pct;
 }
+
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({
@@ -62,7 +76,7 @@ export async function creditCashbackForOrder(params: {
 }) {
   const { userId, orderId, orderNo, orderTotalPaise } = params;
 
-  const pct = cashbackPercent();
+  const pct = await cashbackPercent();
   if (pct === 0) return;
 
   /* Integer paise throughout — the order total is already paise, and rounding
