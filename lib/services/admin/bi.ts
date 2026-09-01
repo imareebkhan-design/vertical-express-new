@@ -2,6 +2,16 @@ import "server-only";
 import { db } from "@/lib/db";
 import { Prisma, PaymentMethod, OrderStatus } from "@prisma/client";
 import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/settings";
+import { orderNeedsTruck } from "@/lib/speed";
+
+/** ISO week label, e.g. "W31". The artboard's x-axis. */
+function isoWeek(d: Date): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  /* Thursday of this week decides the year's week number (ISO 8601). */
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `W${String(Math.ceil(((t.getTime() - jan1.getTime()) / 86400000 + 1) / 7)).padStart(2, "0")}`;
+}
 
 export interface BiFilters {
   startDate?: Date;
@@ -100,6 +110,15 @@ export interface BiDashboardData {
   };
   operations: {
     warehousePerf: { name: string; count: number; valuePaise: number }[];
+    /**
+     * Orders per week split by how they travel. The artboard's third chart —
+     * the one that shows the heavy share rising as winter lead times start.
+     *
+     * There is no `seasonal` series because no seasonal rule is stored or
+     * applied anywhere (see Serviceability). A band drawn for it would be a
+     * band for a rule that is not in force.
+     */
+    ordersBySpeed: { week: string; express: number; heavy: number }[];
     avgFulfillmentMinutes: number;
     /**
      * Null when the SLA cannot be computed — either nobody has set the target
@@ -583,6 +602,33 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     }
   }
 
+  /**
+   * How each order travelled, by week.
+   *
+   * An order that mixes a bag of cement with a box of screws goes on the
+   * truck, so a mixed order counts as heavy: the vehicle is decided by the
+   * heaviest thing in it, not by the majority of lines. Counting it as express
+   * would understate the truck load, which is the number this chart exists to
+   * show rising.
+   */
+  const speedByWeek = new Map<string, { express: number; heavy: number }>();
+  for (const o of filteredOrders) {
+    const heavy = orderNeedsTruck(
+      o.items.map((i) => ({
+        isBulk: i.variant.product.category.isBulk,
+        override: i.variant.product.deliverySpeed,
+      }))
+    );
+    const week = isoWeek(o.placedAt);
+    const row = speedByWeek.get(week) ?? { express: 0, heavy: 0 };
+    if (heavy) row.heavy++;
+    else row.express++;
+    speedByWeek.set(week, row);
+  }
+  const ordersBySpeed = [...speedByWeek.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, v]) => ({ week, ...v }));
+
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = [9, 12, 15, 18, 21];
   const hourlyActivity: { day: string; hour: number; value: number }[] = [];
@@ -701,6 +747,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     },
     operations: {
       warehousePerf,
+      ordersBySpeed,
       avgFulfillmentMinutes: fulfillCount > 0 ? Math.round(totalFulfillMin / fulfillCount) : 0,
       packingSlaPct,
       deliverySlaPct,

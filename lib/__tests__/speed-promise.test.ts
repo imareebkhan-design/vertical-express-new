@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { speedLabel, speedClassFor } from "@/lib/speed";
+import { speedLabel, speedClassFor, orderNeedsTruck } from "@/lib/speed";
 
 /**
  * A delivery window is a promise, and a promise belongs to the owner.
@@ -61,4 +61,52 @@ test("no override means the category decides", () => {
   assert.equal(speedClassFor(true, null), "scheduled");
   assert.equal(speedClassFor(false, null), "express");
   assert.equal(speedClassFor(true, undefined), "scheduled");
+});
+
+/**
+ * Which vehicle an order needs.
+ *
+ * The mixed order is the whole case, and it is the one seeded data does not
+ * reliably contain — a suite that only checks totals against the test database
+ * passes whether this is right or wrong, because there may be no mixed order in
+ * it to get wrong. So it is asserted directly.
+ */
+test("one heavy line puts the whole order on a truck", () => {
+  assert.equal(
+    orderNeedsTruck([
+      { isBulk: false },
+      { isBulk: false },
+      { isBulk: true },
+      { isBulk: false },
+    ]),
+    true,
+    "nine light lines and one heavy one still needs a truck"
+  );
+});
+
+test("an all-light order does not", () => {
+  assert.equal(orderNeedsTruck([{ isBulk: false }, { isBulk: false }]), false);
+});
+
+test("an empty order needs nothing", () => {
+  assert.equal(orderNeedsTruck([]), false);
+});
+
+test("a per-product override decides its own line, either way", () => {
+  /* A 5 kg bag of white cement sits in a bulk category and goes out fast; a
+     40-piece box of tiles sits in a light one and does not. Both directions
+     have to work, or the override is decoration. */
+  assert.equal(orderNeedsTruck([{ isBulk: true, override: "express" }]), false);
+  assert.equal(orderNeedsTruck([{ isBulk: false, override: "scheduled" }]), true);
+});
+
+test("one overridden-heavy line beats several overridden-light ones", () => {
+  assert.equal(
+    orderNeedsTruck([
+      { isBulk: true, override: "express" },
+      { isBulk: true, override: "express" },
+      { isBulk: false, override: "scheduled" },
+    ]),
+    true
+  );
 });

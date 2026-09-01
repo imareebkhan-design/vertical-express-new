@@ -56,3 +56,21 @@ export function speedLabel(speed: SpeedClass, etaMinutes?: number | null): strin
 
   return `${etaMinutes} min`;
 }
+
+/**
+ * Whether an order needs a truck.
+ *
+ * The vehicle is decided by the heaviest thing in the order, not by the
+ * majority of its lines: one bag of cement among nine boxes of screws still
+ * needs a truck. Counting that order as fast would understate the truck load,
+ * which is the number the reporting chart exists to show rising through winter.
+ *
+ * Pure and separate from the reporting query because the failure it prevents —
+ * a mixed order counted on both sides, or on the wrong one — cannot be shown
+ * from seeded data that happens to contain no mixed orders.
+ */
+export function orderNeedsTruck(
+  lines: { isBulk: boolean; override?: "express" | "scheduled" | null }[]
+): boolean {
+  return lines.some((l) => speedClassFor(l.isBulk, l.override) === "scheduled");
+}

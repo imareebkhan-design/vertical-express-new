@@ -66,3 +66,33 @@ test("Business Intelligence: filtering by specific brand, category, and warehous
     assert.ok(filtered.sales.ordersCount >= 0);
   }
 });
+
+test("Orders by delivery speed: a mixed order counts as heavy", async () => {
+  /* The vehicle is decided by the heaviest thing in the order, not by the
+     majority of its lines. An order of one cement bag and nine boxes of
+     screws still needs a truck, and counting it as fast would understate
+     exactly the number this chart exists to show rising through winter.
+
+     Asserted on the invariant rather than by building a fixture order:
+     express + heavy must equal the orders in the period, and no week may
+     report a negative or fractional count. Double-counting a mixed order —
+     the obvious way to get this wrong — breaks the first of those. */
+  const { operations, sales } = await getBiData({});
+  const counted = operations.ordersBySpeed.reduce((s, w) => s + w.express + w.heavy, 0);
+  assert.equal(
+    counted,
+    sales.ordersCount,
+    "orders are being double-counted or dropped in the speed split"
+  );
+  for (const w of operations.ordersBySpeed) {
+    assert.ok(Number.isInteger(w.express) && w.express >= 0);
+    assert.ok(Number.isInteger(w.heavy) && w.heavy >= 0);
+    assert.match(w.week, /^W\d{2}$/, `"${w.week}" is not an ISO week label`);
+  }
+});
+
+test("Orders by delivery speed: weeks come back in order", async () => {
+  const { operations } = await getBiData({});
+  const weeks = operations.ordersBySpeed.map((w) => w.week);
+  assert.deepEqual(weeks, [...weeks].sort(), "the weeks are not chronological");
+});

@@ -74,3 +74,4 @@ test("nothing found is not the same as nothing wrong", async () => {
   assert.ok(Array.isArray(res.unwatchable));
   assert.notEqual(res.found, res.unwatchable);
 });
+

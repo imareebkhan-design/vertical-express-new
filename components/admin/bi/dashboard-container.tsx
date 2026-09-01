@@ -609,6 +609,50 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Orders by delivery speed — the artboard's third chart. Mixed
+                  orders count as heavy: the vehicle is decided by the heaviest
+                  thing in the order, and counting them express would understate
+                  exactly the number this chart exists to show rising. There is
+                  no seasonal series because no seasonal rule is in force. */}
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-neutral-800 mb-1">Orders by delivery speed</h3>
+                <p className="mb-4 text-xs font-medium text-neutral-500">
+                  Orders per week. Heavy is any order carrying something that needs a
+                  truck. No seasonal band — no seasonal rule is stored or applied.
+                </p>
+                {initialData.operations.ordersBySpeed.length === 0 ? (
+                  <p className="py-8 text-center text-sm font-semibold text-neutral-500">
+                    No orders in this period.
+                  </p>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">
+                        <th className="pb-2">Week</th>
+                        <th className="pb-2 text-right">Fast</th>
+                        <th className="pb-2 text-right">Heavy</th>
+                        <th className="pb-2 text-right">Heavy share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {initialData.operations.ordersBySpeed.map((w) => {
+                        const total = w.express + w.heavy;
+                        return (
+                          <tr key={w.week} className="border-t border-neutral-100">
+                            <td className="py-2 text-xs font-bold text-neutral-800">{w.week}</td>
+                            <td className="py-2 text-right text-xs font-semibold tabular-nums">{w.express}</td>
+                            <td className="py-2 text-right text-xs font-semibold tabular-nums">{w.heavy}</td>
+                            <td className="py-2 text-right text-xs font-extrabold tabular-nums">
+                              {total === 0 ? "—" : `${Math.round((w.heavy / total) * 100)}%`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Warehouse Order Volume</h3>
                 <BarChart data={initialData.operations.warehousePerf.map(w => ({ label: w.name, value: w.count }))} />
