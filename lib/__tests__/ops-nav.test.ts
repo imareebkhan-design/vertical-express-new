@@ -43,10 +43,32 @@ test("every destination resolves to a real page", () => {
   );
 });
 
-test("an unbuilt screen says so rather than looking finished", () => {
-  /* The failure this prevents is subtler than a 404: a screen that renders
-     empty tables reads as "no returns today" rather than "returns do not
-     exist", and somebody makes a decision on it. */
-  const notBuilt = readFileSync(join(ROOT, "app/admin/returns/page.tsx"), "utf8");
-  assert.ok(notBuilt.includes("OpsNotBuilt"), "an unbuilt ops screen must declare itself");
+test("a screen with no model behind it says so", () => {
+  /* The failure this prevents is subtler than a 404: a screen that renders an
+     empty table reads as "no returns today" rather than "returns are not
+     recorded", and somebody makes a decision on it.
+   *
+   * Asserted on the intent rather than on one component. These screens started
+   * as an OpsNotBuilt card and became full artboard layouts with honest empty
+   * states — the wording changed, the obligation did not. What matters is that
+   * each names the thing that is missing.
+   */
+  const UNBACKED = [
+    "app/admin/returns/page.tsx",
+    "app/admin/stock-ledger/page.tsx",
+    "app/admin/suppliers/page.tsx",
+    "app/admin/support/page.tsx",
+  ];
+
+  for (const rel of UNBACKED) {
+    const src = readFileSync(join(ROOT, rel), "utf8");
+    const declares =
+      src.includes("OpsNotBuilt") ||
+      /does not exist|no .*model|nothing records|because nothing/i.test(src);
+    assert.ok(
+      declares,
+      `${rel} renders a screen with no data behind it and never says so. ` +
+        `An empty table reads as "nothing happened today".`
+    );
+  }
 });
