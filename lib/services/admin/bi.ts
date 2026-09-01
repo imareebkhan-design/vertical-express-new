@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma, PaymentMethod, OrderStatus } from "@prisma/client";
+import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/settings";
 
 export interface BiFilters {
   startDate?: Date;
@@ -80,8 +81,10 @@ export interface BiDashboardData {
   };
   marketing: {
     coupons: { code: string; count: number; discountPaise: number }[];
-    conversionRate: number;
-    checkoutDropoffCount: number;
+    /** Null: nothing records a checkout start, so this cannot be computed. */
+    conversionRate: number | null;
+    checkoutDropoffCount: number | null;
+    /** Items currently sitting in carts. Not abandonment — some are in use. */
     cartAbandonmentCount: number;
     topSearches: { term: string; count: number }[];
     noResultSearches: { term: string; count: number }[];
@@ -98,8 +101,16 @@ export interface BiDashboardData {
   operations: {
     warehousePerf: { name: string; count: number; valuePaise: number }[];
     avgFulfillmentMinutes: number;
-    packingSlaPct: number;
-    deliverySlaPct: number;
+    /**
+     * Null when the SLA cannot be computed — either nobody has set the target
+     * (Settings → Operations), or no order in the period reached that stage.
+     * Never a number that means "we do not know".
+     */
+    packingSlaPct: number | null;
+    deliverySlaPct: number | null;
+    /** The targets these were measured against, for the screen to show. */
+    packSlaMinutes: number | null;
+    deliverySlaMinutes: number | null;
     hourlyActivity: { day: string; hour: number; value: number }[];
   };
 }
@@ -115,12 +126,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   const prevStartDate = new Date(startDate.getTime() - durationMs);
   const prevEndDate = new Date(startDate.getTime() - 1);
 
-  // 2. Fetch dimension filters
-  const [warehouses, brands, categories, products] = await Promise.all([
+  // 2. Fetch dimension filters, and the targets performance is measured against
+  const [warehouses, brands, categories, products, settings] = await Promise.all([
     db.warehouse.findMany({ select: { id: true, name: true } }),
     db.brand.findMany({ select: { id: true, name: true } }),
     db.category.findMany({ select: { id: true, slug: true } }),
     db.product.findMany({ select: { id: true, title: true }, take: 100 }),
+    readSettings(),
   ]);
 
   // 3. Build main order query where condition
@@ -497,26 +509,28 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     discountPaise: val.discount,
   })).sort((a, b) => b.count - a.count);
 
-  // Mock marketing metrics for checkout funnel & search analytics
-  const checkoutDropoffCount = Math.round(orderCount * 0.15);
+  /**
+   * Checkout funnel and search demand — ISS-065.
+   *
+   * These were invented. `checkoutDropoffCount` was `orderCount * 0.15`, so
+   * the conversion rate on the Marketing tab was always about 87% no matter
+   * what happened, computed from a constant somebody typed. The nine search
+   * terms below it were a hardcoded list: "solar tiles, 18" read as demand for
+   * a product we do not stock, and a purchasing decision made on it would have
+   * been made on nothing.
+   *
+   * There is no analytics event for a checkout start and no search log, so
+   * neither can be computed. Null and empty, and the screen says why.
+   *
+   * Cart items are real, and are the one honest figure here — but they are
+   * every item in every cart, including carts somebody is filling right now.
+   * Not abandonment.
+   */
+  const checkoutDropoffCount = null;
   const cartAbandonmentCount = await db.cartItem.count();
-  const checkoutStarted = orderCount + checkoutDropoffCount;
-  const conversionRate = checkoutStarted > 0 ? Math.round((orderCount / checkoutStarted) * 100) : 100;
-
-  // Mock popular searches
-  const topSearches = [
-    { term: "cement", count: 320 },
-    { term: "paint", count: 245 },
-    { term: "tmt bars", count: 180 },
-    { term: "bricks", count: 140 },
-    { term: "sealant", count: 95 },
-  ];
-  const noResultSearches = [
-    { term: "drill machine", count: 35 },
-    { term: "solar tiles", count: 18 },
-    { term: "wooden logs", count: 12 },
-    { term: "excavator lease", count: 5 },
-  ];
+  const conversionRate = null;
+  const topSearches: { term: string; count: number }[] = [];
+  const noResultSearches: { term: string; count: number }[] = [];
 
   // 12. Operations Performance
   const warehousePerfMap = new Map<string, { count: number; value: number }>();
@@ -536,9 +550,20 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     valuePaise: val.value,
   }));
 
-  // Fulfillment SLA percentage (packed under 120 minutes / 2 hours)
-  const packingSlaLimit = 120;
-  const deliverySlaLimit = 240; // 4 hours
+  /**
+   * On-time performance, measured against targets the owner sets.
+   *
+   * These were `120` and `240` — two minute-counts written into this file that
+   * nobody agreed to, reported on the console as compliance percentages. A
+   * dispatcher reading "89% on time" was reading performance against a number
+   * an engineer invented (ISS-064). Worse, an empty period returned 100: zero
+   * deliveries is not perfect delivery, and that is the reading a quiet week
+   * would have produced.
+   *
+   * Unset now means not computable. The screen says so.
+   */
+  const packingSlaLimit = parseMinutes(settings[SETTING_KEYS.packSlaMinutes]);
+  const deliverySlaLimit = parseMinutes(settings[SETTING_KEYS.deliverySlaMinutes]);
 
   let packingSlaCount = 0;
   let deliverySlaCount = 0;
@@ -548,11 +573,11 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     const packedEv = events.find(e => e.toStatus === "packed");
     const deliveredEv = events.find(e => e.toStatus === "delivered");
 
-    if (packedEv) {
+    if (packedEv && packingSlaLimit !== null) {
       const elapsed = (packedEv.createdAt.getTime() - o.placedAt.getTime()) / (1000 * 60);
       if (elapsed <= packingSlaLimit) packingSlaCount++;
     }
-    if (packedEv && deliveredEv) {
+    if (packedEv && deliveredEv && deliverySlaLimit !== null) {
       const elapsed = (deliveredEv.createdAt.getTime() - packedEv.createdAt.getTime()) / (1000 * 60);
       if (elapsed <= deliverySlaLimit) deliverySlaCount++;
     }
@@ -579,8 +604,14 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     if (cell) cell.value++;
   }
 
-  const packingSlaPct = fulfillCount > 0 ? Math.round((packingSlaCount / fulfillCount) * 100) : 100;
-  const deliverySlaPct = deliveryCount > 0 ? Math.round((deliverySlaCount / deliveryCount) * 100) : 100;
+  const packingSlaPct =
+    packingSlaLimit !== null && fulfillCount > 0
+      ? Math.round((packingSlaCount / fulfillCount) * 100)
+      : null;
+  const deliverySlaPct =
+    deliverySlaLimit !== null && deliveryCount > 0
+      ? Math.round((deliverySlaCount / deliveryCount) * 100)
+      : null;
 
   // 13. Finance Cash Flows
   const walletUsagePaise = filteredOrders.reduce((sum, o) => {
@@ -673,6 +704,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       avgFulfillmentMinutes: fulfillCount > 0 ? Math.round(totalFulfillMin / fulfillCount) : 0,
       packingSlaPct,
       deliverySlaPct,
+      packSlaMinutes: packingSlaLimit,
+      deliverySlaMinutes: deliverySlaLimit,
       hourlyActivity,
     },
   };

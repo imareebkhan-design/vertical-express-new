@@ -30,6 +30,8 @@ export default async function AdminSettings() {
           cashbackPercent: s[SETTING_KEYS.cashbackPercent] ?? "",
           gstin: s[SETTING_KEYS.gstin] ?? "",
           expressMinutes: s[SETTING_KEYS.expressMinutes] ?? "",
+          packSlaMinutes: s[SETTING_KEYS.packSlaMinutes] ?? "",
+          deliverySlaMinutes: s[SETTING_KEYS.deliverySlaMinutes] ?? "",
           codEnabled: s[SETTING_KEYS.codEnabled] === "true" ? "true" : "false",
           defaultSort: s[SETTING_KEYS.defaultSort] === "most_ordered" ? "most_ordered" : "newest",
         }}

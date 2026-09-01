@@ -76,6 +76,8 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-061 | reCAPTCHA's callback was blocked by our own CSP, breaking phone sign-in | **HIGH** | Auth/Security | FIXED |
 | ISS-062 | Nothing records what a product cost, so stock cannot be valued | HIGH | Catalog/Finance | OPEN |
 | ISS-063 | Cash on delivery offered with no cash-handling operation behind it | HIGH | Fulfilment/Money | FIXED |
+| ISS-064 | On-time performance reported against SLA targets nobody set | HIGH | Reporting | FIXED |
+| ISS-065 | Marketing funnel and search demand were fabricated in the reporting service | HIGH | Reporting | FIXED |
 
 ---
 
@@ -2591,3 +2593,65 @@ pincode does not override the switch, turning it on works, and `"yes"`, `"1"`, `
 
 **Owner input required.** To turn it back on: the float process, the handover record, the
 reconciliation, and a per-shipment ceiling.
+
+---
+
+## ISS-064 — On-time performance reported against SLA targets nobody set
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Reporting |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** `lib/services/admin/bi.ts` carried `const packingSlaLimit = 120` and
+`const deliverySlaLimit = 240`. Every order was measured against those two numbers and
+the result was rendered on the console as "Packing SLA Pass 94%" and "Delivery SLA Pass
+89%" — figures a dispatcher, and eventually the owner, would read as performance against
+an agreed standard. No such standard exists. `CLAUDE.md` lists delivery SLA display among
+the things blocked on owner input, and the 60-minute claim as unverified.
+
+The quieter half: both percentages fell back to `100` when the denominator was zero. A
+period with no deliveries reported **100% on-time**. In a business whose own operating
+manual describes January and February as near-dormant, that is the reading a normal
+winter would have produced.
+
+**Resolution.** Both targets moved to `Setting` (`ops.pack_sla_minutes`,
+`ops.delivery_sla_minutes`), editable at `/admin/settings`, defaulting to unset. Unset
+means the percentage is `null` — not measured — and both the Executive and Operations
+tabs say so, naming Settings as where to fix it. The zero-denominator fallback is gone.
+Guarded by `lib/__tests__/sla-targets.test.ts`.
+
+---
+
+## ISS-065 — Marketing funnel and search demand were fabricated
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Reporting |
+| **Status** | FIXED (1 Sep 2026) |
+
+**Description.** The Marketing tab of `/admin/bi` reported four figures, three of which
+were invented in the source:
+
+- `checkoutDropoffCount = Math.round(orderCount * 0.15)` — a constant. The checkout
+  conversion rate derived from it was therefore always ≈87%, and no amount of real
+  trading could move it.
+- `topSearches` — five hardcoded terms with counts ("cement, 320").
+- `noResultSearches` — four hardcoded terms ("solar tiles, 18", "excavator lease, 5").
+
+The no-result list is the dangerous one. What customers searched for and did not find is
+a catalogue gap list, and it is exactly the sort of screen someone buys stock against.
+Four invented terms with plausible counts would have sent a purchasing decision at a
+product nobody had asked for.
+
+**Resolution.** No analytics event records a checkout start and nothing logs searches, so
+none of the three can be computed. They now return `null` and empty, and the panels
+explain what is missing rather than showing a number. `cartAbandonmentCount` is real —
+it is `cartItem.count()` — but it counts items in carts people are still filling, so it
+is relabelled "Items in carts" rather than abandonment. Guarded by
+`lib/__tests__/sla-targets.test.ts`.
+
+**Still open.** If checkout funnel and search demand are wanted, they need events
+recorded — a search log and a checkout-started event. That is a separate piece of work.

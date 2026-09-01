@@ -41,6 +41,17 @@ export const SETTING_KEYS = {
   expressMinutes: "delivery.express_minutes",
   /** Default catalogue sort. */
   defaultSort: "catalog.default_sort",
+  /**
+   * Minutes allowed between an order being placed and packed, and between
+   * packed and delivered, for it to count as on time.
+   *
+   * Both default to absent, and absent means the SLA percentages are *not
+   * computable* — not that everything passed. They were hardcoded at 120 and
+   * 240 minutes, numbers nobody set, and the console reported compliance
+   * against them as fact (ISS-064).
+   */
+  packSlaMinutes: "ops.pack_sla_minutes",
+  deliverySlaMinutes: "ops.delivery_sla_minutes",
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];
@@ -97,4 +108,12 @@ export function parsePaise(raw: string | null | undefined): number | null {
 /** An explicit yes. Anything else — missing, malformed, "maybe" — is no. */
 export function parseFlag(raw: string | null | undefined): boolean {
   return raw === "true";
+}
+
+/** A positive whole number of minutes, or null. */
+export function parseMinutes(raw: string | null | undefined): number | null {
+  if (raw === null || raw === undefined || raw.trim() === "") return null;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n <= 0) return null;
+  return n;
 }

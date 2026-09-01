@@ -19,6 +19,16 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
  * has to stay distinguishable from "set to nothing". The read path treats a
  * missing value as the safe default; an empty string would parse as a value.
  */
+/** A blank-or-whole-minutes field, capped at a day. */
+function minutesField(message: string) {
+  return z
+    .string()
+    .trim()
+    .refine((v) => v === "" || (Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) <= 1440), {
+      message,
+    });
+}
+
 const schema = z.object({
   /* 0 is meaningful and different from unset: it means "we run a cashback
      programme and it currently pays nothing", which somebody might want. */
@@ -46,6 +56,13 @@ const schema = z.object({
       message: "Express delivery must be a whole number of minutes",
     }),
 
+  /* Both are targets to measure against, not promises to a customer, so they
+     are looser than the express window — but still whole minutes, and still
+     blank-means-unset. Blank is what stops the console reporting compliance
+     against a number nobody chose (ISS-064). */
+  packSlaMinutes: minutesField("The packing target must be a whole number of minutes"),
+  deliverySlaMinutes: minutesField("The delivery target must be a whole number of minutes"),
+
   codEnabled: z.enum(["true", "false"]),
 
   defaultSort: z.enum(["newest", "most_ordered"]),
@@ -65,6 +82,8 @@ export async function adminSaveSettings(input: unknown): Promise<ActionResult<nu
     writeSetting(SETTING_KEYS.cashbackPercent, d.cashbackPercent, admin.email),
     writeSetting(SETTING_KEYS.gstin, d.gstin, admin.email),
     writeSetting(SETTING_KEYS.expressMinutes, d.expressMinutes, admin.email),
+    writeSetting(SETTING_KEYS.packSlaMinutes, d.packSlaMinutes, admin.email),
+    writeSetting(SETTING_KEYS.deliverySlaMinutes, d.deliverySlaMinutes, admin.email),
     writeSetting(SETTING_KEYS.codEnabled, d.codEnabled, admin.email),
     writeSetting(SETTING_KEYS.defaultSort, d.defaultSort, admin.email),
   ]);

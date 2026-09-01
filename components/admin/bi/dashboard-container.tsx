@@ -311,7 +311,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {/* --- EXECUTIVE TAB --- */}
         {activeTab === "executive" && (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <KpiCard
                 label="Gross Sales"
                 value={formatPaise(initialData.sales.grossSalesPaise)}
@@ -337,6 +337,38 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
                 subValue={`${initialData.inventory.outOfStockCount} Out of stock`}
                 color="rose"
               />
+              {/*
+                The artboard leads with fill rate and on-time delivery. Neither
+                could be shown until now, and one of them still cannot be.
+
+                Fill rate needs to know when a picker sent nine of the ten bags
+                ordered, or swapped a brand. Nothing records that — an order is
+                packed or it is not — so the tile says what is missing rather
+                than dividing two numbers that do not mean it.
+
+                On-time delivery is real, but only once somebody says what "on
+                time" is. It used to be measured against 240 minutes written
+                into bi.ts, and an empty week reported 100%.
+              */}
+              <KpiCard
+                label="Fill rate"
+                value="Not measured"
+                subValue="short picks and substitutions are not recorded"
+              />
+              <KpiCard
+                label="On-time delivery"
+                value={
+                  initialData.operations.deliverySlaPct === null
+                    ? "Not measured"
+                    : `${initialData.operations.deliverySlaPct}%`
+                }
+                subValue={
+                  initialData.operations.deliverySlaMinutes === null
+                    ? "set a delivery target in Settings"
+                    : `within ${initialData.operations.deliverySlaMinutes} min of packing`
+                }
+                color="violet"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -346,13 +378,23 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               </div>
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Fulfillment SLA Status</h3>
-                <DonutChart
-                  data={[
-                    { label: "SLA Compliant", value: initialData.operations.packingSlaPct },
-                    { label: "SLA Breaches", value: 100 - initialData.operations.packingSlaPct },
-                  ]}
-                  prefix="%"
-                />
+                {initialData.operations.packingSlaPct === null ? (
+                  /* A donut of nothing still draws a ring, and a full ring reads
+                     as compliance. Say the target is unset instead. */
+                  <p className="py-10 text-center text-sm font-semibold text-neutral-500">
+                    No packing target set, so nothing here is on or off it.
+                    <br />
+                    Settings → Operations.
+                  </p>
+                ) : (
+                  <DonutChart
+                    data={[
+                      { label: "SLA Compliant", value: initialData.operations.packingSlaPct },
+                      { label: "SLA Breaches", value: 100 - initialData.operations.packingSlaPct },
+                    ]}
+                    prefix="%"
+                  />
+                )}
               </div>
             </div>
 
@@ -480,15 +522,40 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {activeTab === "marketing" && (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <KpiCard label="Checkout Conversion" value={`${initialData.marketing.conversionRate}%`} color="emerald" />
-              <KpiCard label="Checkout Dropoffs" value={initialData.marketing.checkoutDropoffCount} color="rose" />
-              <KpiCard label="Cart Abandonments" value={initialData.marketing.cartAbandonmentCount} color="amber" />
+              {/* Conversion and dropoff were derived from a hardcoded 15%, so the
+                  rate never moved and never meant anything (ISS-065). Nothing
+                  records a checkout start, so there is nothing to divide. */}
+              <KpiCard
+                label="Checkout Conversion"
+                value={initialData.marketing.conversionRate === null ? "Not tracked" : `${initialData.marketing.conversionRate}%`}
+                subValue="no event records a checkout start"
+                color="emerald"
+              />
+              <KpiCard
+                label="Checkout Dropoffs"
+                value={initialData.marketing.checkoutDropoffCount === null ? "Not tracked" : initialData.marketing.checkoutDropoffCount}
+                subValue="needs checkout analytics"
+                color="rose"
+              />
+              <KpiCard
+                label="Items in carts"
+                value={initialData.marketing.cartAbandonmentCount}
+                subValue="including carts being filled right now — not abandonment"
+                color="amber"
+              />
               <KpiCard label="Coupon Usage Rate" value={initialData.customers.couponUsageCount} color="violet" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Searches</h3>
+                {initialData.marketing.topSearches.length === 0 && (
+                  <p className="text-sm font-semibold leading-relaxed text-neutral-500">
+                    Searches are not logged. This panel used to list five terms with
+                    counts beside them; they were written into the source, and they
+                    looked exactly like demand.
+                  </p>
+                )}
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.topSearches.map((s, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
@@ -500,6 +567,14 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               </div>
               <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">No-Result Searches</h3>
+                {initialData.marketing.noResultSearches.length === 0 && (
+                  <p className="text-sm font-semibold leading-relaxed text-neutral-500">
+                    Not logged either — and this is the panel worth having. What
+                    customers looked for and did not find is the catalogue&apos;s gap
+                    list, and buying stock against a fabricated one would be buying
+                    stock against nothing.
+                  </p>
+                )}
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.noResultSearches.map((s, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
@@ -518,8 +593,18 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <KpiCard label="Avg Fulfillment Time" value={`${initialData.operations.avgFulfillmentMinutes} mins`} color="blue" />
-              <KpiCard label="Packing SLA Pass" value={`${initialData.operations.packingSlaPct}%`} color="emerald" />
-              <KpiCard label="Delivery SLA Pass" value={`${initialData.operations.deliverySlaPct}%`} color="violet" />
+              <KpiCard
+                label="Packing SLA Pass"
+                value={initialData.operations.packingSlaPct === null ? "Not measured" : `${initialData.operations.packingSlaPct}%`}
+                subValue={initialData.operations.packSlaMinutes === null ? "no target set" : `target ${initialData.operations.packSlaMinutes} min`}
+                color="emerald"
+              />
+              <KpiCard
+                label="Delivery SLA Pass"
+                value={initialData.operations.deliverySlaPct === null ? "Not measured" : `${initialData.operations.deliverySlaPct}%`}
+                subValue={initialData.operations.deliverySlaMinutes === null ? "no target set" : `target ${initialData.operations.deliverySlaMinutes} min`}
+                color="violet"
+              />
               <KpiCard label="Cancelled Orders" value={initialData.orders.cancelled} color="rose" />
             </div>
 

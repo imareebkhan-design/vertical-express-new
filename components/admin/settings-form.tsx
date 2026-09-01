@@ -21,6 +21,8 @@ export function SettingsForm({
     cashbackPercent: string;
     gstin: string;
     expressMinutes: string;
+    packSlaMinutes: string;
+    deliverySlaMinutes: string;
     codEnabled: string;
     defaultSort: string;
   };
@@ -90,6 +92,40 @@ export function SettingsForm({
             inputMode="numeric"
             placeholder="no promise"
             aria-label="Express delivery minutes"
+            className={field}
+          />
+          <span className="text-[13px] font-bold text-ink-500">min</span>
+        </div>
+      </Row>
+
+      <Row
+        label="Packing target"
+        hint="Minutes from an order being placed to it being packed. Used only to measure ourselves — it is never shown to a customer. Leave blank and Reports says on-time performance is not measured, which is the truth until somebody picks a number."
+      >
+        <div className="flex items-center gap-2">
+          <input
+            value={values.packSlaMinutes}
+            onChange={(e) => set("packSlaMinutes")(e.target.value)}
+            inputMode="numeric"
+            placeholder="not measured"
+            aria-label="Packing target minutes"
+            className={field}
+          />
+          <span className="text-[13px] font-bold text-ink-500">min</span>
+        </div>
+      </Row>
+
+      <Row
+        label="Delivery target"
+        hint="Minutes from packed to delivered. Same rule: internal, and blank until it is chosen. These two were 120 and 240 inside the reporting code, and the console reported compliance against them as though somebody had agreed to them."
+      >
+        <div className="flex items-center gap-2">
+          <input
+            value={values.deliverySlaMinutes}
+            onChange={(e) => set("deliverySlaMinutes")(e.target.value)}
+            inputMode="numeric"
+            placeholder="not measured"
+            aria-label="Delivery target minutes"
             className={field}
           />
           <span className="text-[13px] font-bold text-ink-500">min</span>

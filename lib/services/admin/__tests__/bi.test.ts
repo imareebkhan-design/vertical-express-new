@@ -40,9 +40,14 @@ test("Business Intelligence: returns expected metrics and filters successfully",
   assert.ok(inv.lowStockCount >= 0);
   assert.ok(inv.utilizationPct >= 0 && inv.utilizationPct <= 100);
 
-  // 6. Verify operations Packing SLA complies
+  /* 6. On-time performance is null until somebody sets the target.
+     It used to be hardcoded at 120/240 minutes and reported as compliance;
+     worse, an empty period returned 100 — zero deliveries read as perfect
+     delivery. Null now means "not measured", and the screen says so. */
   const op = biData.operations;
-  assert.ok(op.packingSlaPct >= 0 && op.packingSlaPct <= 100);
+  assert.equal(op.packSlaMinutes, null, "no packing target is configured in the test database");
+  assert.equal(op.packingSlaPct, null, "an unset target must not produce a percentage");
+  assert.equal(op.deliverySlaPct, null);
 });
 
 test("Business Intelligence: filtering by specific brand, category, and warehouse works", async () => {
