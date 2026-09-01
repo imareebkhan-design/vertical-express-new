@@ -23,6 +23,7 @@ import {
   Wallet,
   Receipt,
   UserCog,
+  SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -87,6 +88,7 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
       { href: "/admin/serviceability", label: "Serviceability", icon: MapPin },
       { href: "/admin/coupons", label: "Coupons", icon: Tag },
       { href: "/admin/staff", label: "Staff & roles", icon: UserCog },
+      { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
       { href: "/admin/bi", label: "Reports", icon: PieChart },
     ],
   },
