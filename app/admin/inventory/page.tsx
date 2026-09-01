@@ -31,7 +31,22 @@ export default async function AdminInventory({
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <div className="flex items-center gap-2">
+            <span className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+              SKUs in stock
+            </span>
+            <span className="flex-1" />
+            <Box className="size-4 text-ink-500" aria-hidden />
+          </div>
+          <p className="mt-2 text-2xl font-extrabold tabular-nums tracking-tight">
+            {s.skusInStock}
+          </p>
+          <p className="mt-1 text-[11px] font-semibold text-ink-500">
+            distinct lines holding units
+          </p>
+        </div>
         <div className="rounded-panel bg-white p-4 shadow-card">
           <div className="flex items-center gap-2">
             <span className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -69,6 +84,30 @@ export default async function AdminInventory({
           </p>
           <p className="mt-1 text-[11px] font-semibold text-ink-500">blocking any order that wants them</p>
         </div>
+      </div>
+
+      {/*
+        "Stock value" from the artboard, and the reason it is a sentence rather
+        than a number.
+
+        Valuing inventory means quantity times cost, and the schema has no cost
+        price anywhere — ProductVariant carries what we sell for, not what we
+        paid. Multiplying by the selling price would overstate the figure by the
+        entire margin, and it is exactly the number somebody would put in front
+        of a bank or an accountant.
+
+        This is the same gap the Suppliers and Purchasing screens name: without
+        cost prices there is no purchasing, no margin and no valuation.
+      */}
+      <div className="rounded-panel bg-white p-4 shadow-card">
+        <span className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
+          Stock value
+        </span>
+        <p className="mt-2 text-[13px] font-semibold leading-[18px] text-ink-700">
+          Not calculable. Nothing in the catalogue records what we paid for a
+          unit, and valuing stock at the selling price would overstate it by the
+          whole margin.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">

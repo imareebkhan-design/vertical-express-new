@@ -74,6 +74,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-059 | `--color-danger` red is used for promotions and favourites, not just errors | MEDIUM | Design | PARTIAL |
 | ISS-060 | Search has no query log, so "Searched most" and item requests cannot exist | LOW | Search | OPEN |
 | ISS-061 | reCAPTCHA's callback was blocked by our own CSP, breaking phone sign-in | **HIGH** | Auth/Security | FIXED |
+| ISS-062 | Nothing records what a product cost, so stock cannot be valued | HIGH | Catalog/Finance | OPEN |
 
 ---
 
@@ -2504,3 +2505,37 @@ made.
 
 **Owner input required.** No. But this class of bug is invisible until somebody opens a
 browser console, which is an argument for keeping a real sign-in in the smoke path.
+
+---
+
+## ISS-062 — Nothing records what a product cost
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Catalog / Finance |
+| **Status** | OPEN — needs a schema field and supplier data |
+
+**Description.** `ProductVariant` carries `pricePaise` and `compareAtPaise` — what the
+customer pays. There is no cost price anywhere in the schema. The consequence shows up in
+three places at once:
+
+- **Stock cannot be valued.** Inventory × cost is the number a bank, an accountant or an
+  insurer asks for. Multiplying by the selling price overstates it by the entire margin,
+  and it is precisely the figure somebody would quote in good faith.
+- **Margin cannot be computed.** No report can say whether a category earns anything. The
+  Reports artboard asks for revenue by category, which is answerable; profit is not.
+- **Purchasing cannot exist.** A purchase order is placed at a cost, and goods receipt
+  reconciles against it. Both the Purchasing and Suppliers screens name this as their
+  blocker.
+
+**Why it surfaced now.** The Inventory artboard asks for a "Stock value" tile. It is the
+kind of number that looks trivially computable and is not, and the honest version is a
+sentence rather than a figure.
+
+**What it needs.** A cost field on `ProductVariant` (or on a supplier–product link, if the
+same item is bought from more than one supplier at different prices), and the discipline
+to keep it current. The second part is the harder one.
+
+**Owner input required.** Yes — do you want landed cost per unit, or supplier list price?
+They differ by freight, and for cement arriving in Srinagar that difference is not small.

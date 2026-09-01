@@ -37,7 +37,7 @@ export async function adminListStock(filter: StockFilter = "all", page = 1, perP
         ? { qtyOnHand: { lte: LOW_STOCK_THRESHOLD } }
         : {};
 
-  const [rows, total, lowCount, outCount, totalUnits] = await Promise.all([
+  const [rows, total, lowCount, outCount, totalUnits, skusInStock] = await Promise.all([
     db.inventory.findMany({
       where,
       orderBy: [{ qtyOnHand: "asc" }],
@@ -63,6 +63,10 @@ export async function adminListStock(filter: StockFilter = "all", page = 1, perP
     db.inventory.count({ where: { qtyOnHand: { lte: LOW_STOCK_THRESHOLD, gt: 0 } } }),
     db.inventory.count({ where: { qtyOnHand: { lte: 0 } } }),
     db.inventory.aggregate({ _sum: { qtyOnHand: true } }),
+    /* Distinct SKUs actually holding units — a different question from total
+       units. Forty bags of one cement is not the same shop as one bag each of
+       forty things, and a buyer needs both numbers to read the shelf. */
+    db.inventory.count({ where: { qtyOnHand: { gt: 0 } } }),
   ]);
 
   return {
@@ -88,6 +92,7 @@ export async function adminListStock(filter: StockFilter = "all", page = 1, perP
     outCount,
     totalUnits: totalUnits._sum.qtyOnHand ?? 0,
     threshold: LOW_STOCK_THRESHOLD,
+    skusInStock,
   };
 }
 
