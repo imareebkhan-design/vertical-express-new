@@ -32,6 +32,20 @@ export default function Page() {
           emptyTitle="No cash movements are recorded."
           emptyNote="A ledger per driver per day is the only thing that makes a shortfall visible while the driver is still in the building. It needs a Driver model and a deposit record — the same Driver model that blocks dispatch assignment and delivery."
         />
+
+        {/*
+          Deposits — the last step of the trail, and the one that closes it.
+          Cash is only accounted for once it reaches a bank line with a
+          reference somebody can look up. Without this the ledger above stops
+          at "the driver handed it in", which is exactly where money goes
+          missing without anyone being able to say when.
+        */}
+        <OpsTable
+          columns={["Deposit", "By", "Bank", "Reference", "Amount", "Status"]}
+          rows={[]}
+          emptyTitle="No deposits are recorded."
+          emptyNote="The trail runs customer → driver → office → bank, and this is its last step: an amount, a branch or CDM, and a reference that can be matched against a statement. Without it the ledger stops at 'handed in', which is precisely where cash goes missing with nobody able to say when."
+        />
       </div>
     </OpsScreen>
   );

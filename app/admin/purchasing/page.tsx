@@ -32,6 +32,38 @@ export default function Page() {
           emptyTitle="No purchase orders."
           emptyNote="Until a purchase order exists, the difference between what was ordered and what turned up lives in somebody's memory. That difference is where a supplier dispute starts."
         />
+
+        {/*
+          Goods receipt — the artboard's second panel, and the single most
+          load-bearing screen in the whole console that does not exist.
+
+          It is where a batch number, a packing date and a photograph enter the
+          system, and everything the customer is later shown about genuineness
+          is copied from here. A line without those three cannot be accepted
+          into stock. Today stock is adjusted by hand and none of the three is
+          captured at all, which means the genuineness promise has no source.
+        */}
+        <div className="rounded-panel bg-white p-4 shadow-card">
+          <h2 className="text-[15px] font-bold tracking-tight">Goods receipt</h2>
+          <p className="mt-1 max-w-[680px] text-[12px] font-medium leading-[17px] text-ink-700">
+            Receiving a delivery against a purchase order, line by line: how many were
+            ordered, how many turned up, the batch or lot, the packing date and a
+            photograph. A line short by two is a supplier conversation; a line with no
+            batch cannot post to stock at all.
+          </p>
+          <div className="mt-3 rounded-field bg-ops-warn-tint p-3.5">
+            <p className="text-[12.5px] font-bold text-ops-warn">
+              No receiving step exists. Stock is adjusted by hand.
+            </p>
+            <p className="mt-1 text-[12px] font-medium leading-[17px] text-ops-warn">
+              This is the only point at which genuineness data would enter the system —
+              batch, packing date, photograph — and everything a customer is later shown
+              about a bag being fresh and being ours is copied from it. Nothing captures
+              any of the three, so that claim currently has no source. Cement does go off,
+              which is why this matters more here than it would in most catalogues.
+            </p>
+          </div>
+        </div>
       </div>
     </OpsScreen>
   );

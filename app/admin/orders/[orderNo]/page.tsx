@@ -66,6 +66,10 @@ export default async function AdminOrderDetail({
   const sgst = order.items.reduce((s, i) => s + (i.sgstPaise ?? 0), 0);
   const igst = order.items.reduce((s, i) => s + (i.igstPaise ?? 0), 0);
   const taxable = order.items.reduce((s, i) => s + (i.taxableValuePaise ?? 0), 0);
+  /* Read off what was actually charged rather than re-deriving it from the
+     address: the split was decided at order time and is the snapshot that has
+     to hold. An order with no IGST on any line was billed intra-state. */
+  const intraState = igst === 0;
 
   return (
     <div className="flex flex-col gap-5">
@@ -300,6 +304,40 @@ export default async function AdminOrderDetail({
                 )}
               </>
             )}
+          </Panel>
+
+          {/*
+            The invoice panel from the artboard. Everything on it that is a
+            number is real — the tax breakup is a per-line snapshot taken at
+            order time, and place of supply follows from the delivery state.
+
+            What is not real is the invoice itself. Nothing issues one: there
+            is no invoice number, no sequence, no PDF and no credit note. So
+            this says that, rather than showing a number in the shape of
+            VE/26-27/00418 which somebody would then quote to their accountant.
+          */}
+          <Panel title="Invoice">
+            <Row
+              label="Status"
+              value={<StatusChip tone="warn">Not issued</StatusChip>}
+            />
+            <Row label="Number" value="—" />
+            <Row
+              label="Place of supply"
+              value={
+                intraState
+                  ? "Jammu & Kashmir (01) — intra-state"
+                  : `${str("state") || "Outside J&K"} — inter-state`
+              }
+            />
+            <p className="mt-1.5 text-[11px] font-semibold leading-[16px] text-ink-500">
+              {intraState
+                ? "Intra-state supply, so the tax splits CGST + SGST."
+                : "Inter-state supply, so the tax is IGST."}{" "}
+              No invoice is generated: there is no numbering sequence, no PDF and no
+              credit note. Until a GSTIN is set in Settings, a document produced here
+              would not be a tax invoice anyway.
+            </p>
           </Panel>
 
           <Panel title="Bill">
