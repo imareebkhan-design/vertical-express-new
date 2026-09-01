@@ -32,6 +32,9 @@ interface MobileAccountViewProps {
   email: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentOrders: any[];
+  /** The customer's saved delivery addresses, shown as sites. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sites: any[];
 }
 
 export function MobileAccountView({
@@ -40,6 +43,7 @@ export function MobileAccountView({
   wishlistCount,
   email,
   recentOrders,
+  sites,
 }: MobileAccountViewProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -265,6 +269,69 @@ export function MobileAccountView({
             }}
           />
         </div>
+
+        {/*
+          "Your sites" — the account artboard.
+
+          A contractor is not shipping to a home; they are shipping to a plot
+          with a gate a truck may or may not fit through. The addresses were
+          already loaded on this screen and reduced to a number, which meant the
+          one line that decides whether a delivery is possible — "narrow lane,
+          small vehicle only" — existed in the database and was shown nowhere
+          the customer could check it.
+
+          Nothing new is stored. This is the same address list the addresses
+          screen edits, read as sites.
+        */}
+        {sites.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
+                Your sites
+              </h3>
+              <button
+                onClick={() => {
+                  triggerHaptic("light");
+                  router.push("/account/addresses");
+                }}
+                className="text-[10px] font-bold text-ink/50"
+              >
+                Manage
+              </button>
+            </div>
+            <div className="space-y-2">
+              {sites.slice(0, 3).map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    triggerHaptic("light");
+                    router.push("/account/addresses");
+                  }}
+                  className="w-full rounded-2xl border border-mist/25 bg-surface p-3 text-left active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-3.5 shrink-0 text-ink/40" />
+                    <p className="truncate text-xs font-extrabold text-ink">{a.name}</p>
+                    {a.isDefault && (
+                      <span className="rounded-full bg-chip px-2 py-0.5 text-[9px] font-bold text-ink">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-[10px] font-semibold text-ink/50">
+                    {[a.line1, a.city, a.pincode].filter(Boolean).join(" · ")}
+                  </p>
+                  {/* The line that decides whether a truck can reach the gate. */}
+                  {a.accessNote && (
+                    <p className="mt-1 text-[10px] font-bold leading-[14px] text-ink/70">
+                      {a.accessNote}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Activity block */}
         <div className="rounded-2xl border border-mist/15 bg-white shadow-2xs divide-y divide-mist/10 overflow-hidden">

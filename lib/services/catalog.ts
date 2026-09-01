@@ -833,3 +833,89 @@ export async function brandsInCategory(categorySlug: string) {
     .map((b) => ({ slug: b.slug, name: b.name, count: b._count.products }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
+
+/**
+ * Every brand worth offering as a shortcut, for the search screen's entry
+ * state — artboard 15b's "Jump to a brand".
+ *
+ * Only active brands that actually have something published behind them. A
+ * brand chip that leads to an empty results page is worse than no chip: the
+ * customer reads it as "you stock this" and finds out you do not.
+ *
+ * Ordered by how much of that brand there is to buy, because the useful
+ * shortcut is the one that lands somewhere substantial.
+ */
+export async function brandsForSearchEntry(
+  limit = 12
+): Promise<{ slug: string; name: string; count: number }[]> {
+  const brands = await db.brand.findMany({
+    where: {
+      isActive: true,
+      products: { some: { status: "published" } },
+    },
+    select: {
+      slug: true,
+      name: true,
+      _count: { select: { products: { where: { status: "published" } } } },
+    },
+  });
+
+  return brands
+    .map((b) => ({ slug: b.slug, name: b.name, count: b._count.products }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, limit);
+}
+
+/**
+ * What to show when a search returns nothing — artboard 15c's "Closest things
+ * we do stock".
+ *
+ * WHAT "CLOSEST" IS ALLOWED TO MEAN
+ *
+ * Not "popular products". Showing an unrelated best-seller to somebody who
+ * searched for a angle grinder is not an answer to their question, and dressing
+ * it as one ("closest things we stock") is a small lie that wastes their time.
+ *
+ * So closeness here is literal: the query is split into words and each is tried
+ * on its own. "waterproof cement paint" finds nothing as a phrase but "cement"
+ * and "paint" both find real shelves, and those results genuinely relate to
+ * what was typed. A query whose every word is a miss returns nothing, and the
+ * screen says so rather than filling the space.
+ *
+ * Words shorter than three characters are dropped — "of", "mm", "20" match
+ * everything and would turn a miss into a random assortment.
+ */
+export async function closestInStock(
+  query: string,
+  limit = 6
+): Promise<{ items: CatalogItem[]; matchedOn: string[] }> {
+  const words = [
+    ...new Set(
+      query
+        .toLowerCase()
+        .split(/[^a-z0-9]+/i)
+        .filter((w) => w.length >= 3)
+    ),
+  ].slice(0, 4);
+
+  if (words.length === 0) return { items: [], matchedOn: [] };
+
+  const seen = new Set<string>();
+  const items: CatalogItem[] = [];
+  const matchedOn: string[] = [];
+
+  for (const word of words) {
+    if (items.length >= limit) break;
+    const result = await listProducts({ search: word, perPage: limit, sort: "popular" });
+    if (result.items.length === 0) continue;
+    matchedOn.push(word);
+    for (const item of result.items) {
+      if (items.length >= limit) break;
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      items.push(item);
+    }
+  }
+
+  return { items, matchedOn };
+}

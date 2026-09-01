@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
-import { listProducts, type CatalogSort } from "@/lib/services/catalog";
+import {
+  listProducts,
+  brandsForSearchEntry,
+  closestInStock,
+  type CatalogSort,
+} from "@/lib/services/catalog";
 import { rupeesToPaise } from "@/lib/money";
 import { SearchSwitcher } from "@/components/mobile/search/search-switcher";
 
@@ -36,11 +41,24 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const activeFilterCount =
     brandParams.length + (sp.minPrice ? 1 : 0) + (sp.maxPrice ? 1 : 0);
 
+  /* Both are resolved on the server so the client view never has to fetch to
+     fill its own empty states. "Closest" is only computed when there is
+     actually nothing to show — it costs a query per word, and running it
+     behind a full results page would be work nobody sees. */
+  const [brands, closest] = await Promise.all([
+    brandsForSearchEntry(),
+    query && result.items.length === 0
+      ? closestInStock(query)
+      : Promise.resolve({ items: [], matchedOn: [] }),
+  ]);
+
   return (
     <SearchSwitcher
       query={query}
       result={result}
       activeFilterCount={activeFilterCount}
+      brands={brands}
+      closest={closest}
     />
   );
 }

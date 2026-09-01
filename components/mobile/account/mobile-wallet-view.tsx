@@ -106,15 +106,32 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
           <span className="mt-2 block text-[28px] font-extrabold leading-8 tracking-[-0.025em] text-ink">
             {formatPaise(balancePaise)}
           </span>
+          {/*
+            "Add money" stays disabled, and this says why rather than leaving a
+            dead button on the screen.
+
+            Three things have to be true before a customer can put money in, and
+            none of them is: there is no top-up transaction type (the wallet
+            records cashback, order spend, refunds and expiry — nothing for
+            money paid in), the wallet is not wired into checkout so a balance
+            could not be spent once it existed, and the live gateway is the
+            dummy one, which would take no money while reporting that it had.
+
+            That last is ISS-002 and it is why this is not a button waiting on a
+            afternoon's work. Crediting a wallet against a payment that never
+            happened is the same defect as confirming an order against one.
+          */}
           <button
             type="button"
             disabled
+            aria-describedby="topup-blocked"
             className="mt-4 h-11 w-full rounded-full bg-chip text-[14px] font-bold text-ink-500"
           >
             Add money
           </button>
-          <p className="mt-2 text-center text-[11px] font-medium text-ink-500">
-            Top-up isn&apos;t available yet.
+          <p id="topup-blocked" className="mt-2 text-[11px] font-medium leading-[15px] text-ink-500">
+            Not available yet. Money added here could not be spent — the wallet is not
+            connected to checkout — and no live payment gateway is configured to take it.
           </p>
         </div>
 
@@ -145,6 +162,11 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-ink truncate leading-tight">
+                          {/* The artboard's row label is "Money added to wallet".
+                              No transaction can carry it: there is no top-up
+                              type, so every credit here is cashback or a refund.
+                              Saying "credited" describes what actually
+                              happened. */}
                           {t.description || (isCredit ? "Credited to wallet" : "Used on an order")}
                         </p>
                         <span className="text-[8px] text-ink/35 font-semibold mt-1 block">

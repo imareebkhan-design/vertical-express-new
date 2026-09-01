@@ -48,6 +48,7 @@ export function AccountSwitcher({
       <MobileAccountView
         ordersCount={totalOrders}
         addressesCount={addresses.length}
+        sites={addresses}
         wishlistCount={wishlistIds.length}
         email={email}
         recentOrders={orders}

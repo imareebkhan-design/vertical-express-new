@@ -11,7 +11,6 @@ import {
   Scan,
   X,
   History,
-  Sparkles,
   SlidersHorizontal,
   Loader2,
   AlertCircle,
@@ -30,11 +29,18 @@ import { formatPaise } from "@/lib/money";
 interface MobileSearchViewProps {
   initialQuery: string;
   initialResult: CatalogResult;
+  /** Active brands that have something published behind them. */
+  brands: { slug: string; name: string; count: number }[];
+  /** Products matching part of the query, when the query itself found nothing. */
+  closest: { items: CatalogResult["items"]; matchedOn: string[] };
 }
 
-const POPULAR_SEARCHES = ["Cement", "Adhesives", "Waterproofing", "Tools", "Paint"];
-
-export function MobileSearchView({ initialQuery, initialResult }: MobileSearchViewProps) {
+export function MobileSearchView({
+  initialQuery,
+  initialResult,
+  brands,
+  closest,
+}: MobileSearchViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -516,27 +522,46 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                   </div>
                 )}
 
-                {/* popular searches */}
-                <div>
-                  <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-3">
-                    Popular Searches
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {POPULAR_SEARCHES.map((term) => (
-                      <button
-                        key={term}
-                        onClick={() => {
-                          setQuery(term);
-                          handleSearchSubmit(term);
-                        }}
-                        className="flex items-center gap-1.5 rounded-full border border-mist/35 bg-surface px-4 py-2 text-xs font-bold text-ink hover:border-brand-deep active:scale-95"
-                      >
-                        <Sparkles className="size-3 text-brand-deep" />
-                        {term}
-                      </button>
-                    ))}
+                {/*
+                  "Jump to a brand" — artboard 15b.
+
+                  This replaced a hardcoded list of five terms under the heading
+                  "Popular Searches". Nothing logs a search (ISS-060), so that
+                  heading was a claim about customer behaviour nobody had
+                  measured — the same fabrication as the invented search terms
+                  that were on the reporting screen, pointed at customers
+                  instead of at us.
+
+                  Brands are real, and a better shortcut anyway: a contractor
+                  looking for Havells wire knows the brand before the category.
+                  Only brands with something published behind them are offered,
+                  because a chip that lands on an empty results page reads as
+                  "you stock this" and then proves otherwise.
+
+                  What is still missing is the artboard's "Searched most in
+                  Srinagar". That needs the query log. It is absent rather than
+                  approximated.
+                */}
+                {brands.length > 0 && (
+                  <div>
+                    <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-3">
+                      Jump to a brand
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {brands.map((b) => (
+                        <Link
+                          key={b.slug}
+                          href={`/search?brand=${encodeURIComponent(b.slug)}`}
+                          onClick={() => triggerHaptic("light")}
+                          className="flex items-center gap-1.5 rounded-full border border-mist/35 bg-surface px-4 py-2 text-xs font-bold text-ink no-underline hover:border-brand-deep active:scale-95"
+                        >
+                          {b.name}
+                          <span className="text-[10px] font-semibold text-ink/40">{b.count}</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
@@ -568,12 +593,65 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                     ))}
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white">
-                    <AlertCircle className="size-10 text-ink/30 mb-3" />
-                    <h3 className="text-sm font-extrabold text-ink">No Results Found</h3>
-                    <p className="mt-1 text-xs text-ink/50 max-w-xs leading-relaxed">
-                      We couldn&apos;t find any matches for &apos;{initialQuery}&apos;. Check for typos or try another search.
-                    </p>
+                  /*
+                    "Closest things we do stock" — artboard 15c.
+
+                    Closeness is literal, not a euphemism for popular. The query
+                    is split into words and each tried on its own, so
+                    "waterproof cement paint" finds nothing as a phrase but
+                    "cement" and "paint" both land on real shelves. The heading
+                    names the word that matched, so the customer can see why
+                    these are being offered rather than wondering what the shop
+                    thinks they asked for.
+
+                    When every word misses, nothing is shown. Filling the space
+                    with an unrelated best-seller under the words "closest
+                    things we stock" would be a small lie that wastes the time
+                    of somebody standing on a site.
+                  */
+                  <div className="flex-1 bg-white p-6">
+                    <div className="text-center">
+                      <AlertCircle className="mx-auto size-10 text-ink/30 mb-3" />
+                      <h3 className="text-sm font-extrabold text-ink">
+                        Nothing matches &ldquo;{initialQuery}&rdquo;
+                      </h3>
+                      <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink/50">
+                        We stock a fixed range in Srinagar. Check the spelling, or try a
+                        broader word.
+                      </p>
+                    </div>
+
+                    {closest.items.length > 0 ? (
+                      <div className="mt-7">
+                        <h4 className="mb-3 text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
+                          Closest things we do stock
+                          {closest.matchedOn.length > 0 && (
+                            <span className="ml-1.5 normal-case tracking-normal text-ink/30">
+                              matched on {closest.matchedOn.map((w) => `“${w}”`).join(", ")}
+                            </span>
+                          )}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {closest.items.map((item) => (
+                            <MobileProductCard key={item.id} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-7 text-center">
+                        <p className="mx-auto max-w-[280px] text-[12px] font-medium leading-[17px] text-ink-700">
+                          Nothing close either — no part of that matches anything we
+                          carry.
+                        </p>
+                        <Link
+                          href="/categories"
+                          onClick={() => triggerHaptic("light")}
+                          className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-[13px] font-bold text-white no-underline"
+                        >
+                          Browse what we stock
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

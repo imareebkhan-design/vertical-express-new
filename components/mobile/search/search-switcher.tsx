@@ -26,9 +26,19 @@ interface SearchSwitcherProps {
   query: string;
   result: CatalogResult;
   activeFilterCount: number;
+  /** Active brands with published products, for the entry state's shortcuts. */
+  brands: { slug: string; name: string; count: number }[];
+  /** Only populated when the search found nothing. */
+  closest: { items: CatalogResult["items"]; matchedOn: string[] };
 }
 
-export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitcherProps) {
+export function SearchSwitcher({
+  query,
+  result,
+  activeFilterCount,
+  brands,
+  closest,
+}: SearchSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -37,7 +47,14 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
   }
 
   if (isMobile) {
-    return <MobileSearchView initialQuery={query} initialResult={result} />;
+    return (
+      <MobileSearchView
+        initialQuery={query}
+        initialResult={result}
+        brands={brands}
+        closest={closest}
+      />
+    );
   }
 
   return (
