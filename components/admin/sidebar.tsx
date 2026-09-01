@@ -60,6 +60,7 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
     heading: "Catalog & stock",
     items: [
       { href: "/admin/products", label: "Products", icon: Box },
+      { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/inventory", label: "Inventory", icon: Warehouse },
       { href: "/admin/stock-ledger", label: "Stock ledger", icon: ListOrdered },
       { href: "/admin/purchasing", label: "Purchasing", icon: FileText },

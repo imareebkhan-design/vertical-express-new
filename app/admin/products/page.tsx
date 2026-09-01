@@ -1,12 +1,24 @@
 import Link from "next/link";
 import { adminListProducts } from "@/lib/services/admin/manage";
+import { db } from "@/lib/db";
+import { ProductBrandSelect } from "@/components/admin/product-brand-select";
 import { formatPaise } from "@/lib/money";
 import { ProductStatusChip, StatusChip } from "@/components/admin/status-chip";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProducts() {
-  const { products, total } = await adminListProducts();
+  const [{ products, total }, brands] = await Promise.all([
+    adminListProducts(),
+    /* Only active brands are offered — an inactive one is retired, and
+       assigning a product to it would hide the product from the storefront by
+       a side door. */
+    db.brand.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+  ]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -45,7 +57,13 @@ export default async function AdminProducts() {
                       {variant?.sku ?? "no default variant"}
                     </p>
                   </td>
-                  <td className="px-3 py-3 text-[12px] font-semibold">{p.brand.name}</td>
+                  <td className="px-3 py-3">
+                    <ProductBrandSelect
+                      productId={p.id}
+                      currentBrandId={p.brand.id}
+                      brands={brands}
+                    />
+                  </td>
                   <td className="px-3 py-3 text-[12px] font-semibold text-ink-500">
                     {p.category.name}
                   </td>

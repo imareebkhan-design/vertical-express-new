@@ -155,7 +155,7 @@ export async function adminListProducts(page = 1, perPage = 30) {
       skip: (page - 1) * perPage,
       take: perPage,
       include: {
-        brand: { select: { name: true } },
+        brand: { select: { id: true, name: true } },
         category: { select: { name: true } },
         variants: { where: { isDefault: true }, take: 1, include: { inventory: true } },
       },
