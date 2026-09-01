@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, Box, Clock, PackageCheck, ShoppingBag, Truck, Wallet } from "lucide-react";
 import { getOpsToday, type QueueKind } from "@/lib/services/admin/today";
+import { getOpsExceptions } from "@/lib/services/admin/exceptions";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, StatusChip, type StatusTone } from "@/components/admin/status-chip";
 
@@ -57,7 +58,7 @@ function Stat({
 }
 
 export default async function AdminToday() {
-  const t = await getOpsToday();
+  const [t, exceptions] = await Promise.all([getOpsToday(), getOpsExceptions()]);
   const needsAction =
     (t.queueCounts.payment_stalled ?? 0) +
     (t.queueCounts.awaiting_pack ?? 0) +
@@ -136,6 +137,97 @@ export default async function AdminToday() {
           Not built. Delivery slots, vehicles and drivers do not exist yet
           (ISS-057), so there is no capacity to show — and a board with invented
           numbers would get a window closed for selling.
+        </p>
+      </section>
+
+      {/*
+        Exceptions — the panel that says what is broken, as opposed to how much
+        work there is. Every row is computed. The artboard draws five plausible
+        ones, and five plausible rows on a screen get acted on, so the checks
+        nothing can run are listed separately as what this panel is *not*
+        watching. Silence from a check that was never made is the failure mode.
+      */}
+      <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="exceptions-heading">
+        <h2 id="exceptions-heading" className="text-[15px] font-bold tracking-tight">
+          Exceptions
+        </h2>
+        {exceptions.found.length === 0 ? (
+          <p className="mt-3 text-[12.5px] font-semibold text-ink-700">
+            Nothing flagged by the checks that can run. See below for the ones that
+            cannot.
+          </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {exceptions.found.map((e) => (
+              <li
+                key={e.title}
+                className={
+                  "rounded-field p-3 " +
+                  (e.severity === "bad" ? "bg-ops-bad-tint" : "bg-ops-warn-tint")
+                }
+              >
+                <div className="flex flex-wrap items-baseline gap-2">
+                  <p
+                    className={
+                      "text-[12.5px] font-bold " +
+                      (e.severity === "bad" ? "text-ops-bad" : "text-ops-warn")
+                    }
+                  >
+                    {e.title}
+                  </p>
+                  {e.href && (
+                    <Link
+                      href={e.href}
+                      className="text-[11px] font-bold text-ink no-underline hover:underline"
+                    >
+                      Open
+                    </Link>
+                  )}
+                </div>
+                <p
+                  className={
+                    "mt-0.5 text-[12px] font-medium leading-[17px] " +
+                    (e.severity === "bad" ? "text-ops-bad" : "text-ops-warn")
+                  }
+                >
+                  {e.detail}
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-3 border-t border-line pt-3">
+          <p className="text-[11px] font-extrabold uppercase tracking-[0.08em] text-ink-500">
+            Not watched
+          </p>
+          <ul className="mt-1.5 flex flex-col gap-1">
+            {exceptions.unwatchable.map((u) => (
+              <li key={u.title} className="text-[12px] font-medium leading-[17px] text-ink-700">
+                <span className="font-bold text-ink">{u.title}</span> — needs {u.needs}.
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/*
+        Cash position — which driver is holding how much, and what has been
+        banked. It is the panel that closes the day, and it needs three things
+        this system does not have: a driver, a record of cash handed over at a
+        gate, and a deposit. COD is switched off for exactly that reason, so
+        there is currently no cash to be in a position about.
+      */}
+      <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="cash-heading">
+        <h2 id="cash-heading" className="text-[15px] font-bold tracking-tight">
+          Cash position today
+        </h2>
+        <p className="mt-3 rounded-field bg-ops-info-tint p-3.5 text-[12px] font-medium leading-[17px] text-ops-info">
+          <span className="font-bold">No cash is being collected.</span> COD is off, and
+          it is off because none of the pieces behind this panel exist — there is no
+          driver to hold a float, nothing records what was handed over at the gate, and
+          no deposit is reconciled against a bank line. A board showing two drivers
+          holding a lakh and a half between them would be the point at which somebody
+          starts trusting it.
         </p>
       </section>
 
