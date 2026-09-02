@@ -63,8 +63,24 @@ export function PincodeCheck({ defaultPincode = "" }: { defaultPincode?: string 
           {result.serviceable ? (
             <>
               <PackageCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              {/*
+                The time is only shown when there is one.
+
+                `etaMinutes` is 0 when an operator has deliberately set "no
+                promise" for a pincode — a state the serviceability editor
+                offers precisely because no delivery window is confirmed. This
+                rendered it unguarded as "Delivering in ~0 min", which reads as
+                instant delivery rather than as no commitment. The checkout
+                view already guards the same value with a truthiness check; this
+                one did not.
+
+                Absent means absent, the same way the speed chip treats a
+                missing window (lib/speed.ts) — it says "Fast", not "0 min".
+              */}
               <span className="text-neutral-700">
-                Delivering in ~{result.etaMinutes} min ·{" "}
+                {result.etaMinutes && result.etaMinutes > 0
+                  ? `Delivering in ~${result.etaMinutes} min · `
+                  : "We deliver here · "}
                 {result.deliveryFeePaise === 0
                   ? "Free delivery"
                   : `${formatPaise(result.deliveryFeePaise ?? 0)} delivery`}
