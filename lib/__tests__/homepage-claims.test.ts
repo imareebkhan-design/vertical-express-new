@@ -99,3 +99,48 @@ test("no COD ceiling is advertised", () => {
     "the hero advertises a COD ceiling that nobody set"
   );
 });
+
+/**
+ * The downloads strip on the home page must not offer a document that does not
+ * exist.
+ *
+ * It carried three rows with a Download icon, a validity window ("valid 1–30
+ * Sep 2026") and an edition year — and no link, no file, and no PDF anywhere in
+ * public/. /downloads had already been fixed properly: every control there is
+ * an inert "Not published" beside a note that the figures are stand-ins. The
+ * entry point had not, so an honest page sat behind a strip implying the
+ * documents were ready.
+ *
+ * Brand names are not the issue and are not checked here — the owner has
+ * confirmed the brand agreements are signed and the names may be used.
+ */
+const strip = readFileSync(join(ROOT, "components/sections/downloads-strip.tsx"), "utf8")
+  .replace(/\{\/\*[\s\S]*?\*\/\}/g, " ")
+  .replace(/\/\*[\s\S]*?\*\//g, " ");
+
+test("the downloads strip still renders", () => {
+  assert.match(strip, /Price lists/, "the strip has gone");
+});
+
+test("the strip offers no document that does not exist", () => {
+  /* A Download affordance with nothing behind it. Every row is inert and says
+     so, matching /downloads. */
+  assert.ok(
+    !/<Download\b/.test(strip),
+    "the strip shows a download control, but no PDF exists in public/"
+  );
+  assert.match(strip, /Not published/, "the rows no longer say they are unpublished");
+});
+
+test("the strip dates nothing it cannot honour", () => {
+  /* "valid 1–30 Sep 2026" on a trade price list is the worst version of this:
+     a contractor prices a job against a validity window. */
+  assert.ok(
+    !/valid\s+\d/i.test(strip),
+    "the strip states a validity window for a price list that does not exist"
+  );
+  assert.ok(
+    !/\d{4}\s+edition/i.test(strip),
+    "the strip states an edition year for a catalogue that does not exist"
+  );
+});

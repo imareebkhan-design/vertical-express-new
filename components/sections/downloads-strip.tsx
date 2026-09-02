@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Download, FileText, Smartphone } from "lucide-react";
+import { FileText, Smartphone } from "lucide-react";
 
 export function DownloadsStrip() {
   return (
@@ -38,6 +38,24 @@ export function DownloadsStrip() {
 
           {/* Card 2: Price lists & catalogues */}
           <div className="rounded-[26px] bg-paper p-6.5 shadow-card border border-line">
+            {/*
+              These three rows used to carry a Download icon, a validity window
+              ("valid 1–30 Sep 2026") and an edition year — and no link, no
+              file, and no PDF anywhere in public/. They looked downloadable,
+              did nothing when clicked, and dated themselves.
+
+              /downloads had already solved this: every control there is an
+              inert "Not published" with a note that the figures are stand-ins.
+              The entry point on the home page had not been given the same
+              treatment, so the honest page sat behind a strip that implied the
+              documents existed. A contractor prices a job off a trade price
+              list; a fabricated validity window on one is the worst version of
+              this mistake.
+
+              Brand names stay — the owner has confirmed the brand agreements
+              are signed and the names may be used. What was wrong here was
+              never the names; it was offering a document that does not exist.
+            */}
             <div className="flex items-center justify-between">
               <h3 className="text-[18px] font-bold text-ink">Price lists &amp; catalogues</h3>
               <Link href="/downloads" className="text-[12px] font-bold text-ink hover:underline">
@@ -53,9 +71,13 @@ export function DownloadsStrip() {
                   <p className="truncate text-[13.5px] font-bold text-ink">
                     Cement &amp; civil — trade price list
                   </p>
-                  <p className="text-[11px] font-medium text-ink-500">PDF · valid 1–30 Sep 2026</p>
                 </div>
-                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <span
+                  aria-disabled="true"
+                  className="inline-flex h-7 shrink-0 cursor-not-allowed items-center rounded-full bg-chip-soft px-2.5 text-[11px] font-semibold text-ink-500 opacity-60"
+                >
+                  Not published
+                </span>
               </div>
 
               <div className="h-px bg-line" />
@@ -67,9 +89,13 @@ export function DownloadsStrip() {
                   <p className="truncate text-[13.5px] font-bold text-ink">
                     Electrical — Havells &amp; Finolex catalogue
                   </p>
-                  <p className="text-[11px] font-medium text-ink-500">PDF · 2026 edition</p>
                 </div>
-                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <span
+                  aria-disabled="true"
+                  className="inline-flex h-7 shrink-0 cursor-not-allowed items-center rounded-full bg-chip-soft px-2.5 text-[11px] font-semibold text-ink-500 opacity-60"
+                >
+                  Not published
+                </span>
               </div>
 
               <div className="h-px bg-line" />
@@ -81,9 +107,13 @@ export function DownloadsStrip() {
                   <p className="truncate text-[13.5px] font-bold text-ink">
                     Sanitary &amp; bath — Jaquar, Hindware
                   </p>
-                  <p className="text-[11px] font-medium text-ink-500">PDF · 2026 edition</p>
                 </div>
-                <Download className="size-4.5 text-ink-500 shrink-0" aria-hidden />
+                <span
+                  aria-disabled="true"
+                  className="inline-flex h-7 shrink-0 cursor-not-allowed items-center rounded-full bg-chip-soft px-2.5 text-[11px] font-semibold text-ink-500 opacity-60"
+                >
+                  Not published
+                </span>
               </div>
             </div>
           </div>
