@@ -831,6 +831,15 @@ added, with `recordAudit(tx, entry)` taking the transaction client so the audit 
 the mutation's fate. An audit written after the fact goes missing exactly when something
 has gone wrong; this cannot.
 
+**Update (2 Sep 2026).** Serviceability joins the audited paths. `savePincode` and
+`bulkSavePincodes` write an `AuditLog` row inside the same transaction as the change, and
+`/admin/serviceability` shows the recent history on the screen — editing that table changes
+what a customer is promised, and "who put the delivery fee up" now has an answer without
+opening a log aggregator. Only the fields that actually moved are recorded; a whole-row
+diff buries the one number that changed among the ones that did not. Inventory adjustment
+(`StockMovement`) and coupon changes are covered too. Still uncovered: refunds and staff
+role changes.
+
 Wired today: order status changes, inventory release on admin cancellation, booking status
 changes. Five tests cover one-row-per-mutation, correct before/after, no row on a refused
 transition, and — the load-bearing one — that a row does not survive a rolled-back

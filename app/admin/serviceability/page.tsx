@@ -1,12 +1,18 @@
 import { adminListServiceability } from "@/lib/services/admin/stock";
-import { formatPaise } from "@/lib/money";
+import { listServiceabilityAudit } from "@/lib/services/admin/serviceability-write";
+import { ServiceabilityEditor } from "@/components/admin/serviceability-editor";
+import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
 import { StatusChip } from "@/components/admin/status-chip";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminServiceability() {
-  const { pincodes, warehouses } = await adminListServiceability();
+  const [{ pincodes, warehouses }, settings, history] = await Promise.all([
+    adminListServiceability(),
+    readSettings(),
+    listServiceabilityAudit(15),
+  ]);
   const active = pincodes.filter((p) => p.isActive).length;
 
   return (
@@ -38,53 +44,65 @@ export default async function AdminServiceability() {
         </ul>
       </section>
 
-      <section className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
-        <h2 className="mb-3 text-[15px] font-bold tracking-tight">Pincodes</h2>
-        <table className="w-full min-w-[680px]">
-          <thead>
-            <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
-              <th className="px-3 pb-2.5">Pincode</th>
-              <th className="px-3 pb-2.5">Warehouse</th>
-              <th className="px-3 pb-2.5 text-right">Express window</th>
-              <th className="px-3 pb-2.5 text-right">Delivery fee</th>
-              <th className="px-3 pb-2.5">COD</th>
-              <th className="px-3 pb-2.5">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pincodes.map((p) => (
-              <tr key={p.id} className="border-t border-line">
-                <td className="px-3 py-3 text-[12.5px] font-bold tabular-nums">{p.pincode}</td>
-                <td className="px-3 py-3 text-[12px] font-semibold">
-                  {p.warehouse.name}
-                  <span className="block text-[11px] font-semibold text-ink-500">
-                    {p.warehouse.city}
-                  </span>
-                </td>
-                <td className="px-3 py-3 text-right text-[12.5px] font-semibold tabular-nums">
-                  {p.etaMinutes} min
-                </td>
-                <td className="px-3 py-3 text-right text-[12.5px] font-bold tabular-nums">
-                  {p.deliveryFeePaise === 0 ? "Free" : formatPaise(p.deliveryFeePaise)}
-                </td>
-                <td className="px-3 py-3">
-                  <StatusChip tone={p.codAllowed ? "ok" : "neutral"}>
-                    {p.codAllowed ? "Allowed" : "Off"}
-                  </StatusChip>
-                </td>
-                <td className="px-3 py-3">
-                  <StatusChip tone={p.isActive ? "ok" : "neutral"}>
-                    {p.isActive ? "Serving" : "Paused"}
-                  </StatusChip>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {pincodes.length === 0 && (
-          <p className="py-10 text-center text-[13px] font-semibold text-ink-500">
-            No serviceable pincodes configured. Checkout will reject every address.
+      <ServiceabilityEditor
+        pincodes={pincodes.map((p) => ({
+          pincode: p.pincode,
+          warehouseId: p.warehouseId,
+          warehouseName: p.warehouse.name,
+          etaMinutes: p.etaMinutes,
+          deliveryFeePaise: p.deliveryFeePaise,
+          codAllowed: p.codAllowed,
+          isActive: p.isActive,
+        }))}
+        warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
+        codGloballyOff={!parseFlag(settings[SETTING_KEYS.codEnabled])}
+      />
+
+      {/*
+        Recent changes. Editing this table changes what a customer is promised,
+        so the question "who put the fee up, and when" has to be answerable from
+        the screen rather than from a log aggregator. Each row records only the
+        fields that actually moved.
+      */}
+      <section className="rounded-panel bg-white p-4 shadow-card">
+        <h2 className="text-[15px] font-bold tracking-tight">Recent changes</h2>
+        {history.length === 0 ? (
+          <p className="mt-3 text-[12.5px] font-semibold text-ink-500">
+            No changes recorded yet.
           </p>
+        ) : (
+          <ul className="mt-3 flex flex-col gap-2">
+            {history.map((h) => {
+              const after = (h.after ?? {}) as Record<string, unknown>;
+              const before = (h.before ?? {}) as Record<string, unknown>;
+              const fields = Object.keys(after).filter((k) => k !== "pincode");
+              return (
+                <li key={h.id} className="rounded-field bg-chip-soft p-3">
+                  <p className="text-[12.5px] font-bold text-ink">
+                    {String(after.pincode ?? "—")}{" "}
+                    <span className="font-semibold text-ink-500">
+                      {h.action.replace("serviceability.", "").replace("_", " ")}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-[11.5px] font-medium leading-[16px] text-ink-700">
+                    {fields.length === 0
+                      ? "added"
+                      : fields
+                          .map((k) => `${k}: ${String(before[k] ?? "—")} → ${String(after[k])}`)
+                          .join(" · ")}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
+                    {h.createdAt.toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
 
@@ -165,10 +183,9 @@ export default async function AdminServiceability() {
       </section>
 
       <p className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
-        Read-only for now. This table is what the storefront uses to decide whether it can
-        take an order, what it charges for delivery and whether COD is offered — editing it
-        changes what customers are promised, so it needs an audit trail before it becomes
-        writable (ISS-015).
+        This table is what the storefront uses to decide whether it can take an order, what
+        it charges for delivery and whether cash is offered. Every change is recorded with
+        who made it — that audit trail is what it was waiting on (ISS-015).
       </p>
     </div>
   );
