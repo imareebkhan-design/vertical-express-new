@@ -100,18 +100,25 @@ See `docs/CURRENT_SYSTEM_AUDIT.md` for the full assessment.
 | Framework | Next.js 15.5.20 App Router, React 19.1, TypeScript strict, Turbopack |
 | Styling | Tailwind CSS v4 + `class-variance-authority` (no shadcn/Radix) |
 | Database | PostgreSQL via Supabase (`ap-south-1`), pooled 6543 / direct 5432 |
-| ORM | Prisma 6.19 — 25 models, 11 enums, 6 migrations |
-| Auth | Supabase Auth OTP — **currently email channel**, provider-abstracted |
-| API | Server Actions primary (`actions/*.ts`) + 3 route handlers (`app/api/*`) |
+| ORM | Prisma **7.9** — 37 models, 17 enums, 15 migrations. Client is generated to `prisma/generated/client`; import from `@/prisma/generated/client/client`, never `@prisma/client`. Datasource URL lives in `prisma.config.ts`, not the schema |
+| Auth | **Firebase Auth** — phone OTP and Google, session cookies verified server-side. `lib/auth/current-user.ts` is the only identity reader; `lib/auth/link-policy.ts` holds the account-linking rules |
+| API | Server Actions primary (`actions/*.ts`) + 6 route handlers (`app/api/*`) |
 | Domain logic | `lib/services/*.ts`, all `import "server-only"` |
 | Validation | Zod 4 (`lib/validators/index.ts`) |
-| Payments | Razorpay fully implemented; **`dummy` gateway active by default** |
+| Payments | Razorpay fully implemented; **`dummy` gateway active by default** — production refuses to boot on anything but `razorpay-live` |
 | Mobile | Capacitor 8 scaffolded (`capacitor.config.ts`, `mobile-shell/`) — not built |
 | Hosting | Vercel, `bom1` edge |
-| Tests | 67 tests, 11 files (`lib/**/*.test.ts`) — run against a local Postgres, `npm test` |
+| Tests | **328 tests, 60 files** (`lib/**/*.test.ts`) — run against a local Postgres behind `test-support/db-guard.mjs`, `npm test` |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — typecheck, lint, test on every push |
 
-Scale: 133 TS/TSX files, ~10,500 LOC, 60 components, 17 domain services.
+Scale: ~346 TS/TSX files, 23 domain services.
+
+> **This table drifts.** It claimed Supabase email OTP, 6 migrations and no tests
+> long after all three were wrong, and a manual that "wins over everything else"
+> being wrong about the auth system is worse than having no manual. Check it
+> against the code before relying on it, and correct it when you find it stale —
+> the Source of Truth Hierarchy below says the repository beats this file, and
+> that rule exists because of this table.
 
 **What is already correct and must be preserved:**
 money as integer paise throughout · cart stores no price (server resolves on read) ·

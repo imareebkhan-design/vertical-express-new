@@ -26,14 +26,14 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | IN PROGRESS |
 | ISS-010 | COD collection and reconciliation missing | HIGH | Operations/Finance | OPEN |
 | ISS-011 | Coupon engine is unreachable dead code | HIGH | Pricing | FIXED |
-| ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | OPEN |
+| ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | PARTIAL |
 | ISS-013 | Zero test coverage on commerce-critical logic | HIGH | Testing | FIXED |
 | ISS-014 | Order status transitions unvalidated | MEDIUM | Orders | PARTIAL |
 | ISS-015 | No audit log on money/stock/price actions | HIGH | Security/Ops | PARTIAL |
 | ISS-016 | Cart accepts quantities exceeding stock | MEDIUM | Cart | FIXED |
 | ISS-017 | Legal pages missing; all footer links dead | HIGH | Legal | IN PROGRESS |
 | ISS-018 | Canonical URLs and sitemap emit wrong host | MEDIUM | SEO/Config | PARTIAL |
-| ISS-019 | Admin product management is read-only | HIGH | Admin | OPEN |
+| ISS-019 | Admin product management is read-only | HIGH | Admin | FIXED |
 | ISS-020 | Search has no typo tolerance | MEDIUM | Search | OPEN |
 | ISS-021 | Rate limiter fails open | MEDIUM | Security | FIXED |
 | ISS-022 | No security headers or CSP | MEDIUM | Security | FIXED |
@@ -540,9 +540,28 @@ packing slip, no delivery OTP, and no proof of delivery. An admin can manually c
 order through `confirmed → packed → out_for_delivery → delivered`, but no operational
 system sits behind those clicks.
 
-**Evidence.** `prisma/schema.prisma` — no shipment, driver, or POD entity exists.
-`app/admin/orders/page.tsx` + `components/admin/status-control.tsx` provide only a
-status dropdown. Audit §10.2 traces the chain and marks where it terminates.
+**Evidence (corrected 3 Sep 2026).** The original line here read "no shipment, driver,
+or POD entity exists", and it stayed after `Shipment` landed — the Progress note above
+was added, the Evidence below it was not. That is the kind of drift that makes a register
+worse than no register, so what follows is what the code actually says today.
+
+`Shipment` and `ShipmentItem` have existed since `20260826095435_add_shipments`, along
+with `ShipmentStatus` and `SpeedClass`. Shipments are created inside the checkout
+transaction by `lib/services/shipments.ts:createShipmentsForOrder()` and read by
+`getDispatchBoard()` and `lib/services/admin/today.ts`.
+
+**But the write path is one-way.** A repo-wide search finds no `shipment.update` or
+`shipment.updateMany` outside tests, and no shipment action in `actions/`. Every shipment
+is created at `pending` and can never leave it, so the dispatch board accumulates rows
+forever. `deliveryCode` is a column that is never written and `promisedAt` is always null.
+
+Still absent entirely: `Driver`, any vehicle model, any delivery-slot or capacity model
+(ISS-057), and any proof of delivery. `app/admin/orders/page.tsx` +
+`components/admin/status-control.tsx` still provide only an order-level status dropdown,
+which is decoupled from shipment state by design during the expand phase.
+
+So the accurate summary is: the data model for shipments exists and is populated; the
+operational loop around it does not.
 
 **Likely files.** `prisma/schema.prisma` (new `Shipment`, `Driver` models) ·
 `lib/services/` (new fulfilment service) · `app/admin/orders/dispatch/` (new) ·
@@ -683,7 +702,18 @@ rather than folded in silently.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Observability |
-| **Status** | OPEN |
+| **Status** | PARTIAL (verified 3 Sep 2026) |
+
+**Update.** The wiring exists; the credentials do not. `@sentry/nextjs` and `posthog-js`
+are dependencies, `lib/observability/index.ts` initialises both, and
+`instrumentation.ts` calls `initSentry()` at server boot. Both degrade to no-ops when
+their keys are unset, which is what they are in production today.
+
+So the remaining work is configuration rather than engineering: set `SENTRY_DSN` and the
+PostHog key in Vercel. Uptime checking is still genuinely absent — nothing polls the site
+from outside, so a total outage is still discovered by a customer.
+
+**The evidence below was true when written and is not now.**
 
 **Description.** No Sentry, no uptime monitoring, no logging infrastructure, no GA4, no
 product analytics. The homepage HTML contains zero third-party scripts.
@@ -979,7 +1009,24 @@ use the configured production host.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Admin |
-| **Status** | OPEN |
+| **Status** | FIXED (verified 3 Sep 2026) |
+
+**Resolution.** The catalogue is operable from the console. `actions/listing.ts`
+(`adminListProduct`) creates a product, its first variant and its stock row in one
+transaction, with the opening quantity written to the stock ledger; `/admin/listing` is
+the screen. `actions/products.ts` (`adminSaveProduct`) edits name, slug, status, brand
+and delivery speed. `actions/inventory.ts` (`adminAdjustStock`) adjusts stock behind a
+race-free conditional update, every change carrying a reason and an actor.
+`actions/brands.ts`, `actions/coupons.ts`, `actions/serviceability.ts` and
+`actions/settings.ts` cover the rest. Covered by `product-create.test.ts`,
+`product-editor-authority.test.ts`, `stock-adjust.test.ts` and `coupon-admin.test.ts`.
+
+Two things deliberately remain read-only, and are not part of this issue: **price** is
+server-authoritative and is not editable from a form, and **image upload** needs an
+object store that does not exist — a URL field accepting anything typed into it is how a
+manufacturer's photography reaches the catalogue without a licence (ISS-044).
+
+**The description below is retained as written and is no longer accurate.**
 
 **Description.** `/admin/products` lists products. There is no create, no edit, no image
 upload, no activate/deactivate, no price change, and no stock adjustment. The only way to
