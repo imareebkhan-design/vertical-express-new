@@ -144,3 +144,52 @@ test("the strip dates nothing it cannot honour", () => {
     "the strip states an edition year for a catalogue that does not exist"
   );
 });
+
+/**
+ * The three "how we work" pillars must describe what the shop can do today.
+ *
+ * All three stated, in the present tense, things nothing backs: batch
+ * photography and scanning with no Batch model, delivery "in about an hour" on
+ * "a slot you choose" with neither an express window nor slots, and "pay at the
+ * gate" while COD is switched off shop-wide and checkout refuses it.
+ *
+ * These sit on the home page beside the hero, so a customer reads them before
+ * they reach any screen that would correct them.
+ */
+const pillars = readFileSync(join(ROOT, "components/sections/how-we-work.tsx"), "utf8")
+  .replace(/\{\/\*[\s\S]*?\*\/\}/g, " ")
+  .replace(/\/\*[\s\S]*?\*\//g, " ");
+
+test("the pillars still render", () => {
+  assert.match(pillars, /PILLARS/, "the pillars have gone");
+});
+
+test("no pillar promises a delivery time or a slot", () => {
+  assert.ok(
+    !/in about an hour|within an hour|\b60\s*min/i.test(pillars),
+    "a pillar promises delivery in about an hour; the express window is unset"
+  );
+  assert.ok(
+    !/slot you choose|slot you pick|choose a slot/i.test(pillars),
+    "a pillar says a delivery slot can be chosen; slots do not exist"
+  );
+});
+
+test("no pillar claims batch verification is running", () => {
+  /* The Batch model does not exist. Nothing is photographed at dispatch and
+     nothing is scanned. The product page marks this pending; this page must
+     not assert it. */
+  assert.ok(
+    !/photographed at dispatch|scan the same code|checked against the manufacturer/i.test(pillars),
+    "a pillar states batch verification as running; there is no Batch model"
+  );
+});
+
+test("no pillar offers cash on delivery", () => {
+  /* COD is off in settings and checkout refuses it. Offering it here is a
+     promise broken at the last step. */
+  assert.ok(
+    !/pay at the gate|cash or upi to the driver/i.test(pillars),
+    "a pillar offers cash on delivery while COD is switched off"
+  );
+});

@@ -1,25 +1,50 @@
 import Link from "next/link";
 import { ShieldCheck, Truck, Wallet } from "lucide-react";
 
+/**
+ * Three promises, each rewritten to what the shop can currently do.
+ *
+ * All three stated things no code or table backs, in the present tense:
+ *
+ *   Batch verification — "photographed at dispatch with its batch number
+ *   readable... checked against the manufacturer's record... you can scan the
+ *   same code". There is no Batch model, no photograph at dispatch and no
+ *   scanning. The product page already marks this as pending; this page
+ *   asserted it as fact.
+ *
+ *   "Small items come in about an hour. Heavy material comes on a slot you
+ *   choose." The express window is unverified and unset, and slot selection
+ *   does not exist in any form (ISS-057) — the same two claims already removed
+ *   from the hero.
+ *
+ *   "Pay at the gate if you prefer." Cash on delivery is switched off
+ *   shop-wide; checkout refuses it. Admitting the limits are unconfirmed does
+ *   not rescue offering the method itself.
+ *
+ * What is left is true today. The intent behind each is real and none of it is
+ * abandoned — the batch trail is designed and waiting on a receiving process,
+ * the times return when the owner sets them, and COD returns when there is a
+ * cash operation behind it.
+ */
 const PILLARS = [
   {
     icon: ShieldCheck,
-    title: "Genuine, and you can check",
-    body: "Every bag, coil and box is photographed at dispatch with its batch number readable, and the code is checked against the manufacturer's record. You can scan the same code when it reaches your gate.",
+    title: "You will be able to check what you bought",
+    body: "Cement and adhesives have a batch and a packing date, and knowing them is how you tell fresh stock from stock that has sat. Recording that at goods receipt and showing it on your order is being built — it is not running yet, and no order carries a batch code today.",
     href: "/how-we-work#verification",
-    linkLabel: "How verification works",
+    linkLabel: "How verification will work",
   },
   {
     icon: Truck,
     title: "Two speeds, told upfront",
-    body: "Small items come in about an hour. Heavy material comes on a slot you choose. A mixed order splits into two shipments and the cart says so before you pay — never after.",
+    body: "Small items go out from our Srinagar store. Heavy material travels by truck. A mixed order splits into two shipments and the cart says so before you pay — never after. Delivery times are not published yet.",
     href: "/how-we-work#delivery",
     linkLabel: "How delivery works",
   },
   {
     icon: Wallet,
-    title: "Pay at the gate if you prefer",
-    body: "Cash or UPI to the driver, per shipment. No card on file and no prepayment for heavy loads. COD limits and the refund window are still being confirmed.",
+    title: "Pay online, for now",
+    body: "Cash on delivery is not switched on yet — it needs a driver float and a daily reconciliation behind it, and offering it before that exists is how money goes missing. The refund window is still being confirmed.",
     href: "/how-we-work#payment",
     linkLabel: "Payment and refunds",
   },
