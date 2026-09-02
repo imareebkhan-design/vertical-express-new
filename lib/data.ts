@@ -185,9 +185,19 @@ export const FOOTER_LINKS = {
   ],
 };
 
+/**
+ * Nothing renders this, which is the only reason a third address was not
+ * shipping. The footer said "Lal Chowk, Srinagar, J&K 190001", this said
+ * "Residency Road", and the contact and terms pages both say the registered
+ * address is still to be published.
+ *
+ * The address is removed rather than corrected — there is nothing to correct it
+ * to, and an unused constant holding a plausible one is how it ends up on a
+ * page later. It comes back when the owner confirms the registered address,
+ * along with the business name, GSTIN and CIN that the terms page brackets
+ * beside it.
+ */
 export const CONTACT = {
   email: "hello@verticalexpress.in",
-  address:
-    "Vertical Express Commerce, Residency Road, Lal Chowk, Srinagar, Jammu & Kashmir 190001",
 };
 

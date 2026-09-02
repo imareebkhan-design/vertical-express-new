@@ -63,7 +63,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "contact",
         "heading": "Raising a return",
         "body": [
-          "Message us on WhatsApp or call during opening hours, 8am to 8pm, all days. Have your order number ready."
+          "Message us on WhatsApp or call us — the number is on the contact page. [Opening hours to be confirmed.] Have your order number ready."
         ]
       }
     ]
@@ -279,7 +279,7 @@ export const CONTENT: Record<string, ContentDoc> =
   },
   "contact": {
     "title": "Contact us",
-    "intro": "We are open 8am to 8pm, all days.",
+    "intro": "How to reach us. [Opening hours to be confirmed.]",
     "updated": "25 August 2026",
     "pending": "The values in [square brackets] have not been confirmed by the business yet. This page publishes the structure and everything we can already stand behind, so the footer no longer points at a dead link — but it must be completed and reviewed before it can be relied on.",
     "sections": [

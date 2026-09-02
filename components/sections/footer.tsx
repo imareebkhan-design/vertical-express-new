@@ -109,9 +109,25 @@ export function Footer() {
             <div className="text-[13.5px] font-medium leading-[23px] text-white/70">
               <a href="mailto:hello@verticalexpress.in" className="hover:text-white transition-colors">hello@verticalexpress.in</a>
               <br />
-              <span>Lal Chowk, Srinagar, J&amp;K 190001</span>
-              <br />
-              <span className="text-white/50">Open 8 AM – 8 PM, all days</span>
+              {/*
+                Was "Lal Chowk, Srinagar, J&K 190001" over "Open 8 AM – 8 PM,
+                all days". Neither is settled.
+
+                The contact page already handles this honestly — "[Registered
+                business name and address to be published.] Srinagar, Jammu &
+                Kashmir" — and the terms page lists the registered address among
+                the values still to be confirmed. A second, more specific
+                address in the footer contradicted both, and lib/data.ts carries
+                a third ("Residency Road") which nothing renders.
+
+                The hours were the odder claim: the contact page brackets the
+                phone number as "[number to be published]" and in the same
+                breath told people to call during opening hours. You cannot ring
+                a number that has not been published, and somebody turning up at
+                a Lal Chowk address at 7pm would be the version of this that
+                costs a real journey.
+              */}
+              <span>Srinagar, Jammu &amp; Kashmir</span>
             </div>
 
             <form
