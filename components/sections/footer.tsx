@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Phone, Share2 } from "lucide-react";
+import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 export function Footer() {
   const [email, setEmail] = useState("");
@@ -60,7 +61,7 @@ export function Footer() {
               <li><Link href="/category/general-hardware-tools" className="text-white/70 hover:text-white transition-colors">Furniture &amp; Hardware</Link></li>
               <li><Link href="/category/wires-mcb-distribution-boards" className="text-white/70 hover:text-white transition-colors">Electrical</Link></li>
               <li><Link href="/category/cpvc-pipes-overhead-tanks" className="text-white/70 hover:text-white transition-colors">Plumbing, Sanitary &amp; Bath</Link></li>
-              <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All 21 categories</Link></li>
+              <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All {TOTAL_CATEGORIES} categories</Link></li>
             </ul>
           </div>
 

@@ -17,6 +17,7 @@ import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
 import { formatINR, cn } from "@/lib/utils";
+import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 const L1_GROUPS = [
   {
@@ -185,7 +186,7 @@ export function Navbar() {
                   )}
                 >
                   <LayoutGrid className="size-3.5" aria-hidden />
-                  <span>All 21 categories</span>
+                  <span>All {TOTAL_CATEGORIES} categories</span>
                 </Link>
 
                 {/* 4 L1 Groups with Dropdowns */}

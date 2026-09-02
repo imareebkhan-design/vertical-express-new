@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 interface CategoryTile {
   name: string;
@@ -185,7 +186,7 @@ export function Categories() {
               Shop by category
             </h2>
             <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-              Four groups, 21 categories. Everything we hold in Srinagar.
+              Four groups, {TOTAL_CATEGORIES} categories. Everything we hold in Srinagar.
             </p>
           </div>
 
@@ -193,7 +194,7 @@ export function Categories() {
             href="/categories"
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors shrink-0"
           >
-            <span>All 21 categories</span>
+            <span>All {TOTAL_CATEGORIES} categories</span>
             <ChevronRight className="size-3.5" />
           </Link>
         </div>

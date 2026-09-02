@@ -205,8 +205,7 @@ const CATEGORY: Record<string, { tint: string; glyph: GlyphName }> = {
   "conduits-gi-boxes": { tint: "var(--color-tint-electrical)", glyph: "conduit" },
   lighting: { tint: "var(--color-tint-electrical)", glyph: "bulb" },
   "ceiling-fans-exhaust": { tint: "var(--color-tint-electrical)", glyph: "fan" },
-  "appliances-power-backup": { tint: "var(--color-tint-electrical)", glyph: "appliance" },
-  "power-tools-accessories": { tint: "var(--color-tint-electrical)", glyph: "drill" },
+  "home-appliances-power-backup": { tint: "var(--color-tint-electrical)", glyph: "appliance" },
 
   // Plumbing, Sanitary & Bath — pale stone
   "cpvc-pipes-overhead-tanks": { tint: "var(--color-tint-plumbing)", glyph: "pipe" },
@@ -258,8 +257,16 @@ export const CATEGORY_GROUPS: {
       { name: "Conduits & GI Boxes", slug: "conduits-gi-boxes" },
       { name: "Lighting", slug: "lighting" },
       { name: "Ceiling Fans & Exhaust", slug: "ceiling-fans-exhaust" },
-      { name: "Appliances & Power Backup", slug: "appliances-power-backup" },
-      { name: "Power Tools & Accessories", slug: "power-tools-accessories" },
+      /* Was "appliances-power-backup", which 404s — the category exists but
+         its slug is home-appliances-power-backup. A category listed in the
+         main navigation that dead-ends is worse than one that is missing:
+         somebody clicks it looking for an inverter and concludes the shop is
+         broken.
+
+         "Power Tools & Accessories" sat here too and has no category behind it
+         at all, in any environment. Removed rather than invented — a category
+         is a shelf, and there is nothing on this one. */
+      { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup" },
     ],
   },
   {

@@ -16,6 +16,7 @@ import { PageLoader } from "@/components/page-loader";
 
 // Mobile Components
 import { MobileCategoriesView } from "@/components/mobile/categories/mobile-categories-view";
+import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 interface CategoriesSwitcherProps {
   categories: Category[];
@@ -347,7 +348,7 @@ export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitch
               in Srinagar.
             </h1>
             <p className="mt-3 text-[14.5px] font-medium text-ink-700">
-              21 categories in four groups. This is the complete list — the home page only shows a shortcut.
+              {TOTAL_CATEGORIES} categories in four groups. This is the complete list — the home page only shows a shortcut.
             </p>
           </div>
 

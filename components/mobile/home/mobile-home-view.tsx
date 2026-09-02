@@ -10,6 +10,7 @@ import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
 import { QuantityHelpers } from "@/components/mobile/home/quantity-helpers";
 import { CategoryGlyph, type GlyphName } from "./category-glyph";
 import { formatPaise } from "@/lib/money";
+import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 /**
  * The app home screen, built to the `HomeFirstRun` artboard.
@@ -200,7 +201,7 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
             href="/categories"
             className="text-[11px] font-bold leading-[14px] text-ink no-underline"
           >
-            All 21
+            All {TOTAL_CATEGORIES}
           </Link>
         </div>
         <div className="mt-3 grid grid-cols-4 gap-2">
