@@ -85,8 +85,27 @@ export default function RootLayout({
           </CartProvider>
         </SmoothScrollProvider>
 
-        <script type="module" async src="https://static.rocket.new/rocket-web.js?_cfg=https%3A%2F%2Fverticale2637back.builtwithrocket.new&_be=https%3A%2F%2Fappanalytics.rocket.new&_v=0.1.20" />
-        <script type="module" defer src="https://static.rocket.new/rocket-shot.js?v=0.0.2" /></body>
+        {/*
+          Nothing third-party goes here.
+
+          Two <script> tags used to sit at this spot — static.rocket.new's
+          rocket-web.js and rocket-shot.js — injected by a scaffolding tool and
+          carried in on the merge with main (f897094). They pointed at
+          appanalytics.rocket.new and loaded on every page, checkout included.
+
+          Our CSP blocked them, which is why nobody noticed. That is the wrong
+          thing to rely on: the policy already carries a deliberate wildcard for
+          Razorpay, and the next person to widen script-src turns them back on.
+          A script in the checkout DOM can read the delivery address, the phone
+          number, the basket and the totals — card entry is inside Razorpay's
+          iframe, but everything around it is ours. None of that appears in the
+          privacy page's list of what we collect, because nobody chose to send
+          it anywhere.
+
+          Analytics belongs behind PostHog, which is configured, consented to
+          and named in the privacy policy.
+        */}
+      </body>
     </html>
   );
 }
