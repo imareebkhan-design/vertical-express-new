@@ -76,20 +76,35 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
       <main className="mx-auto max-w-3xl rounded-card border border-hairline-border bg-white p-8 shadow-card print:border-none print:shadow-none print:p-0">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-neutral-200 pb-6">
+          {/*
+            This document used to badge itself TAX INVOICE, number itself
+            INV-<order no>, and print "Vertical Express Pvt Ltd, Commercial Hub,
+            Lal Chowk, Srinagar" as a registered entity.
+
+            None of that was true. A GST tax invoice must carry the supplier's
+            GSTIN, an HSN code per line and the place of supply, and this
+            carries none of them — /admin/invoices says so plainly, and the FAQ
+            in lib/content.ts already tells customers "we are not issuing a GST
+            invoice". The company name and address appeared nowhere else in the
+            codebase; they were invented here, and the terms page lists exactly
+            those fields as "[to be confirmed]".
+
+            So a customer was being handed a fabricated legal entity on a
+            document claiming a statutory status it does not have, and could
+            reasonably have filed it. It is an order summary, and says so.
+          */}
           <div>
             <Logo variant="horizontal" className="h-10" />
             <p className="mt-2 text-xs font-semibold text-neutral-500">
-              Vertical Express Pvt Ltd<br />
-              Commercial Hub, Lal Chowk, Srinagar, J&K — 190001<br />
-              Support: care@verticalexpress.in
+              Vertical Express — Srinagar, Jammu &amp; Kashmir<br />
+              Support: hello@verticalexpress.in
             </p>
           </div>
           <div className="text-right">
             <span className="inline-block rounded-full bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
-              TAX INVOICE
+              ORDER SUMMARY
             </span>
-            <p className="mt-2 text-xs font-extrabold text-ink">Invoice #: INV-{order.orderNo}</p>
-            <p className="text-xs font-semibold text-neutral-500">Order #: {order.orderNo}</p>
+            <p className="mt-2 text-xs font-extrabold text-ink">Order #: {order.orderNo}</p>
             <p className="text-xs font-semibold text-neutral-500">
               Date: {new Date(order.placedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </p>
@@ -195,7 +210,17 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
 
         {/* Footer Note */}
         <div className="mt-12 border-t border-neutral-200 pt-4 text-center text-[11px] font-semibold text-neutral-400">
-          <p>Thank you for shopping with Vertical Express! This is a computer-generated tax invoice.</p>
+          <p>Thank you for shopping with Vertical Express.</p>
+          {/* Says what the document is not, because the tax breakup above makes
+              it look like something it is not. The figures are real — a
+              per-line snapshot taken at order time — but a GST tax invoice
+              needs a supplier GSTIN, an HSN code per line and the place of
+              supply, and none of those exists yet. */}
+          <p className="mt-1">
+            This is an order summary, not a GST tax invoice. The tax shown is what you
+            were charged. A tax invoice will be issued separately once GST registration
+            is in place.
+          </p>
         </div>
       </main>
     </div>

@@ -102,8 +102,14 @@ class CodPaymentProvider implements PaymentProvider {
     return true;
   }
 
+  /**
+   * There is no gateway to ask. Cash going back to a customer is a physical act
+   * by a person, and returning `true` here would record it as done by software.
+   * Until there is a cash-handling operation to record it against (ISS-010),
+   * this refuses rather than lies.
+   */
   async refundPayment(): Promise<boolean> {
-    return true;
+    throw new Error("COD_REFUND_NOT_AUTOMATABLE");
   }
 
   async healthCheck(): Promise<boolean> {
@@ -165,10 +171,59 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
     return timingSafeEqualHex(expected, signature);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  /**
+   * Refund a captured payment.
+   *
+   * THIS USED TO RETURN `true` WITHOUT CALLING ANYTHING.
+   *
+   * The body was `// Future placeholder` and an unconditional `return true`, so
+   * every caller was told the money had gone back when nothing had been asked
+   * of Razorpay at all. That is the same failure shape as the dummy gateway
+   * confirming orders with no money taken (ISS-002), pointed the other way: a
+   * customer who is owed money is recorded as having been paid.
+   *
+   * A stub that reports success is worse than one that fails loudly, so this
+   * now either performs the refund or throws.
+   *
+   * `speed: "optimum"` lets Razorpay refund instantly where the payment method
+   * allows and fall back to the normal rail otherwise; `normal` is always the
+   * slow rail. Amount is in paise, the same unit as everything else here.
+   * Omitting it would refund the full payment — it is always passed explicitly
+   * so a partial refund cannot silently become a full one.
+   */
   async refundPayment(paymentId: string, amountPaise: number): Promise<boolean> {
-    // Future placeholder
-    return true;
+    const { keyId, keySecret } = this.creds();
+
+    if (!Number.isInteger(amountPaise) || amountPaise <= 0) {
+      throw new Error(`RAZORPAY_REFUND_INVALID_AMOUNT:${amountPaise}`);
+    }
+
+    const res = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
+        },
+        body: JSON.stringify({ amount: amountPaise, speed: "optimum" }),
+      }
+    );
+
+    if (!res.ok) {
+      /* The status is carried so a caller can tell a declined refund from an
+         outage. The body is not — it can echo request detail. */
+      throw new Error(`RAZORPAY_REFUND_FAILED:${res.status}`);
+    }
+
+    const data = (await res.json()) as { id?: string; status?: string };
+
+    /* Razorpay returns `processed` when the money has moved and `pending` when
+       it is queued on the slow rail. Both mean the refund was accepted and is
+       real. Anything else — notably `failed` — must not read as success. */
+    if (data.status === "processed" || data.status === "pending") return true;
+
+    throw new Error(`RAZORPAY_REFUND_NOT_ACCEPTED:${data.status ?? "unknown"}`);
   }
 
   async healthCheck(): Promise<boolean> {
