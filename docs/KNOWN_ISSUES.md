@@ -2700,8 +2700,19 @@ but the overall usage limit is still checked, so a visitor is not offered a coup
 already exhausted. Refusals now carry a specific message. Covered by nine tests in
 `lib/services/__tests__/coupon-limits.test.ts`.
 
-**Still open — the race.** Two orders placed in the same instant can both pass a
-`usageLimit` check, taking a 100-use coupon to 101. Closing that needs a redemption row
-with a unique constraint counted inside the order transaction, the same shape as the
-order-idempotency guarantee. The overshoot is bounded by concurrency; unlimited use was
-not, so this is a large improvement rather than a complete one.
+**Resolution of the race (2 Sep 2026).** Closed. `CouponRedemption` records one row per
+order with two unique constraints, and `Coupon.redeemedCount` carries a denormalised
+counter. The two limits need different mechanisms because they are different shapes:
+
+- `usageLimit` is a count across all customers, which cannot be expressed as uniqueness.
+  It is taken with a conditional increment — `updateMany` with `redeemedCount: { lt: limit }`
+  — the same shape as the race-free stock decrement already used for inventory. A caller
+  that loses the race matches zero rows and knows it.
+- `perUserLimit` is per customer, so it *is* uniqueness: `(couponId, userId, useIndex)`.
+  Two concurrent orders both computing use 2 collide and the database refuses one.
+- `orderId` is unique, so a retried placement cannot spend the same coupon twice.
+
+All of it runs inside the order's transaction, so a redemption cannot exist without its
+order and a failed order returns the use. A refusal fails the order rather than silently
+repricing it: the customer was shown a total including the discount, and charging a
+different one because a counter moved is worse than saying the code ran out.

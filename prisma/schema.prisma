@@ -20,25 +20,26 @@ datasource db {
 
 /// Mirrors Supabase auth.users (id = auth.uid). Populated on first login.
 model User {
-  id          String    @id @db.Uuid
+  id          String             @id @db.Uuid
   /// Clerk's user id. Retained through the expand phase of the move to Firebase
   /// so a rollback does not lose the mapping; drops in a later release once
   /// nothing reads it (expand → migrate → contract).
-  clerkId     String?   @unique @map("clerk_id")
+  clerkId     String?            @unique @map("clerk_id")
   /// Firebase Auth's uid — the current identity mapping. Added alongside the
   /// UUID primary key, never replacing it: Address, Order, Cart and Wallet all
   /// reference `id`, and retyping a primary key under live foreign keys is a
   /// rewrite, not a migration.
-  firebaseUid String?   @unique @map("firebase_uid")
-  phone       String?   @unique
-  email       String?   @unique
-  role        Role      @default(customer)
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  firebaseUid String?            @unique @map("firebase_uid")
+  phone       String?            @unique
+  email       String?            @unique
+  role        Role               @default(customer)
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
   addresses   Address[]
   cart        Cart?
   orders      Order[]
   profile     Profile?
+  redemptions CouponRedemption[]
   wishlist    Wishlist?
   wallet      Wallet?
 
@@ -313,22 +314,67 @@ model WishlistItem {
 }
 
 model Coupon {
-  id               String     @id @default(uuid()) @db.Uuid
-  code             String     @unique
+  id               String             @id @default(uuid()) @db.Uuid
+  code             String             @unique
   type             CouponType
-  value            Int        @default(0)
-  minOrderPaise    Int        @default(0) @map("min_order_paise")
-  maxDiscountPaise Int?       @map("max_discount_paise")
-  usageLimit       Int?       @map("usage_limit")
-  perUserLimit     Int        @default(1) @map("per_user_limit")
-  firstNOrders     Int?       @map("first_n_orders")
-  startsAt         DateTime?  @map("starts_at")
-  endsAt           DateTime?  @map("ends_at")
-  isActive         Boolean    @default(true) @map("is_active")
-  createdAt        DateTime   @default(now()) @map("created_at")
+  value            Int                @default(0)
+  minOrderPaise    Int                @default(0) @map("min_order_paise")
+  maxDiscountPaise Int?               @map("max_discount_paise")
+  usageLimit       Int?               @map("usage_limit")
+  perUserLimit     Int                @default(1) @map("per_user_limit")
+  firstNOrders     Int?               @map("first_n_orders")
+  startsAt         DateTime?          @map("starts_at")
+  endsAt           DateTime?          @map("ends_at")
+  isActive         Boolean            @default(true) @map("is_active")
+  createdAt        DateTime           @default(now()) @map("created_at")
+  /// Redemptions so far. Denormalised on purpose: a conditional increment
+  /// against this column is the only way to enforce `usageLimit` without a
+  /// race, exactly as `qtyOnHand` guards stock. Counting rows at read time
+  /// cannot, because the count and the decision are two statements.
+  redeemedCount    Int                @default(0) @map("redeemed_count")
   carts            Cart[]
+  redemptions      CouponRedemption[]
 
   @@map("coupons")
+}
+
+/// One customer spending one coupon on one order.
+///
+/// `Order.couponCode` records WHICH coupon paid for a discount and is enough to
+/// report on. It is not enough to enforce a limit: two orders placed in the
+/// same instant both count the rows, both see room, and both proceed. That is
+/// the residual race left open by ISS-066.
+///
+/// The two unique constraints close it, and each closes a different limit:
+///
+///   `orderId` — one redemption per order, so a retried placement cannot spend
+///   the same coupon twice.
+///
+///   `(couponId, userId, useIndex)` — the Nth use by a given customer can only
+///   exist once. Two concurrent orders both computing useIndex 2 collide on the
+///   constraint and one is refused, which is what makes `perUserLimit` real.
+///
+/// The overall `usageLimit` is enforced separately, by a conditional increment
+/// of `Coupon.redeemedCount` — a count across all customers cannot be expressed
+/// as uniqueness, and the guard has the same shape as the stock decrement.
+model CouponRedemption {
+  id            String   @id @default(uuid()) @db.Uuid
+  couponId      String   @map("coupon_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  orderId       String   @unique @map("order_id") @db.Uuid
+  /// 1 for this customer's first use of this coupon, 2 for the second.
+  useIndex      Int      @map("use_index")
+  /// What it actually took off, for reporting and for a refund to reverse.
+  discountPaise Int      @map("discount_paise")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([couponId, userId, useIndex])
+  @@index([couponId, createdAt])
+  @@map("coupon_redemptions")
 }
 
 model Order {
@@ -358,6 +404,7 @@ model Order {
   items            OrderItem[]
   shipments        Shipment[]
   statusEvents     OrderStatusEvent[]
+  couponRedemption CouponRedemption?
   user             User               @relation(fields: [userId], references: [id])
   warehouse        Warehouse?         @relation(fields: [warehouseId], references: [id])
   payments         Payment[]

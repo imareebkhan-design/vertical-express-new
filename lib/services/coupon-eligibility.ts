@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { Coupon } from "@prisma/client";
+import type { DbClient } from "@/lib/services/audit";
 
 /**
  * Whether a coupon may be used, and by whom.
@@ -114,4 +115,79 @@ export function refusalMessage(reason: CouponRefusal): string {
     default:
       return "That coupon code is not valid";
   }
+}
+
+/**
+ * Actually spending a coupon, inside the order's transaction.
+ *
+ * `resolveCoupon` above decides whether a coupon *may* be used. That check and
+ * the order that follows it are two separate statements, so two orders placed
+ * in the same instant can both pass it — the residual race ISS-066 left open.
+ * Reading the count more carefully cannot fix that; the count has to be taken
+ * and the decision made in one atomic step.
+ *
+ * Two limits, two mechanisms, because they are different shapes:
+ *
+ *   usageLimit is a count across all customers, which cannot be expressed as
+ *   uniqueness. It is guarded by a conditional increment of
+ *   `Coupon.redeemedCount` — `updateMany` with a `lt` condition, the same shape
+ *   as the stock decrement that already guards inventory here. If the row no
+ *   longer satisfies the condition the update matches nothing and we know we
+ *   lost the race.
+ *
+ *   perUserLimit is per customer, so it IS uniqueness: the Nth use by a given
+ *   customer can exist only once. Two concurrent orders both computing
+ *   useIndex 2 collide on `(couponId, userId, useIndex)` and one is refused by
+ *   the database rather than by a check that can be outrun.
+ *
+ * Must be called with the order's `tx`. Called outside one, a failure would
+ * leave the counter incremented for an order that never existed — a coupon
+ * quietly losing uses to abandoned checkouts.
+ */
+export type RedeemFailure = "exhausted" | "per_user_limit_reached";
+
+export async function redeemCoupon(
+  tx: DbClient,
+  params: { couponId: string; userId: string; orderId: string; discountPaise: number }
+): Promise<{ ok: true } | { ok: false; reason: RedeemFailure }> {
+  const { couponId, userId, orderId, discountPaise } = params;
+
+  const coupon = await tx.coupon.findUnique({
+    where: { id: couponId },
+    select: { usageLimit: true, perUserLimit: true },
+  });
+  if (!coupon) return { ok: false, reason: "exhausted" };
+
+  if (coupon.usageLimit !== null) {
+    const claimed = await tx.coupon.updateMany({
+      where: { id: couponId, redeemedCount: { lt: coupon.usageLimit } },
+      data: { redeemedCount: { increment: 1 } },
+    });
+    /* Nothing matched: somebody else took the last one between our read and
+       our write. */
+    if (claimed.count !== 1) return { ok: false, reason: "exhausted" };
+  } else {
+    await tx.coupon.update({
+      where: { id: couponId },
+      data: { redeemedCount: { increment: 1 } },
+    });
+  }
+
+  const used = await tx.couponRedemption.count({ where: { couponId, userId } });
+  if (coupon.perUserLimit > 0 && used >= coupon.perUserLimit) {
+    return { ok: false, reason: "per_user_limit_reached" };
+  }
+
+  try {
+    await tx.couponRedemption.create({
+      data: { couponId, userId, orderId, useIndex: used + 1, discountPaise },
+    });
+  } catch {
+    /* The unique constraint refused it. Either this customer's Nth use already
+       exists — a concurrent order won — or this order already redeemed. Both
+       mean: do not let this one through. */
+    return { ok: false, reason: "per_user_limit_reached" };
+  }
+
+  return { ok: true };
 }

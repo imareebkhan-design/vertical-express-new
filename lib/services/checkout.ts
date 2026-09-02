@@ -2,7 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
-import { resolveCoupon } from "@/lib/services/coupon-eligibility";
+import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
@@ -336,6 +336,34 @@ export async function placeOrder(params: {
           },
         },
       });
+
+      /* Spend the coupon inside the same transaction as the order.
+       *
+       * resolveCoupon() decided this coupon was usable, but that check and this
+       * write are separate statements — two orders in the same instant both
+       * passed it. This is where the limit is actually taken, atomically, and
+       * where losing the race means the order does not get the discount rather
+       * than the shop giving away one more than it agreed to (ISS-066).
+       *
+       * A refusal fails the order rather than silently repricing it. The
+       * customer was shown a total including this discount; charging them a
+       * different one because a counter moved is worse than telling them the
+       * code ran out. */
+      if (totals.discountPaise > 0 && couponCode) {
+        const spent = await tx.coupon.findFirst({
+          where: { code: couponCode.trim().toUpperCase() },
+          select: { id: true },
+        });
+        if (spent) {
+          const redemption = await redeemCoupon(tx, {
+            couponId: spent.id,
+            userId,
+            orderId: created.id,
+            discountPaise: totals.discountPaise,
+          });
+          if (!redemption.ok) throw new Error(`COUPON_UNAVAILABLE:${redemption.reason}`);
+        }
+      }
 
       // Atomic, race-free stock decrement
       for (const line of cart.lines) {
