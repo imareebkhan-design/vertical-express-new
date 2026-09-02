@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
+import { resolveCoupon, refusalMessage } from "@/lib/services/coupon-eligibility";
 import {
   computeTotals,
   placeOrder as placeOrderService,
@@ -39,7 +40,7 @@ export async function getCheckoutTotals(pincode: string, couponCode?: string): P
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  return succeed(await computeTotals(cart, pincode, null, couponCode));
+  return succeed(await computeTotals(cart, pincode, null, couponCode, userId));
 }
 
 /** Validate a coupon code against current user cart. */
@@ -48,11 +49,20 @@ export async function validateCoupon(code: string, pincode: string): Promise<Act
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to use coupons");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  const totals = await computeTotals(cart, pincode, null, code);
-  if (totals.discountPaise === 0 && totals.deliveryFeePaise !== 0) {
-    return fail("VALIDATION", "Invalid or applicable conditions not met for this coupon");
-  }
-  return succeed(totals);
+  /* Ask the eligibility rules directly rather than inferring failure from a
+     zero discount. The old check — "no discount and delivery still charged" —
+     could not tell a coupon that does not exist from one this customer has
+     already used, so both produced the same shrug. It also misread a valid
+     free-delivery coupon on an order that already had free delivery as a
+     failure. */
+  const decision = await resolveCoupon({
+    code,
+    subtotalPaise: cart.subtotalPaise,
+    userId,
+  });
+  if (!decision.ok) return fail("VALIDATION", refusalMessage(decision.reason));
+
+  return succeed(await computeTotals(cart, pincode, null, code, userId));
 }
 
 interface PlaceOrderData {

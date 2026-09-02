@@ -78,6 +78,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-063 | Cash on delivery offered with no cash-handling operation behind it | HIGH | Fulfilment/Money | FIXED |
 | ISS-064 | On-time performance reported against SLA targets nobody set | HIGH | Reporting | FIXED |
 | ISS-065 | Marketing funnel and search demand were fabricated in the reporting service | HIGH | Reporting | FIXED |
+| ISS-066 | Coupon usage, per-customer and first-N-orders limits were never enforced | HIGH | Money/Promotions | FIXED |
 
 ---
 
@@ -2655,3 +2656,43 @@ is relabelled "Items in carts" rather than abandonment. Guarded by
 
 **Still open.** If checkout funnel and search demand are wanted, they need events
 recorded — a search log and a checkout-started event. That is a separate piece of work.
+
+---
+
+## ISS-066 — Coupon limits were displayed but never enforced
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Money / Promotions |
+| **Status** | FIXED (2 Sep 2026) |
+
+**Description.** `Coupon` has carried `usageLimit`, `perUserLimit` and `firstNOrders` since
+the schema was written, and `/admin/coupons` printed all three on screen. None was ever
+checked. `computeTotals()` looked at `isActive`, the date window and `minOrderPaise` and
+stopped there.
+
+So a coupon marked "one per customer, 100 uses" was unlimited — per person and overall.
+Anybody who learned a code could spend it as often as they liked, while the operations
+console displayed limits that bound nothing. This is margin leaving the business, and the
+displayed numbers made it invisible.
+
+A second, smaller defect sat next to it: `validateCoupon()` inferred failure from "no
+discount and delivery still charged". That could not distinguish a code that does not
+exist from one the customer had already used — both produced the same shrug — and it
+misread a valid free-delivery coupon on an already-free order as a failure.
+
+**Resolution.** `lib/services/coupon-eligibility.ts` holds the rules in one place and is
+called by both the preview and the placement path. Usage is counted from
+`Order.couponCode`, which the order path already writes, so no new table was needed.
+Cancelled orders give their use back; every other status has spent it. Per-customer rules
+need an identity, so a signed-out preview defers them to placement rather than guessing —
+but the overall usage limit is still checked, so a visitor is not offered a coupon that is
+already exhausted. Refusals now carry a specific message. Covered by nine tests in
+`lib/services/__tests__/coupon-limits.test.ts`.
+
+**Still open — the race.** Two orders placed in the same instant can both pass a
+`usageLimit` check, taking a 100-use coupon to 101. Closing that needs a redemption row
+with a unique constraint counted inside the order transaction, the same shape as the
+order-idempotency guarantee. The overshoot is bounded by concurrency; unlimited use was
+not, so this is a large improvement rather than a complete one.

@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
+import { resolveCoupon } from "@/lib/services/coupon-eligibility";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
@@ -26,7 +27,13 @@ export async function computeTotals(
   cart: CartSummary,
   pincode: string,
   deliveryState?: string | null,
-  couponCode?: string | null
+  couponCode?: string | null,
+  /**
+   * Who is buying. Optional because a signed-out preview has no identity, but
+   * the per-customer coupon rules — perUserLimit, firstNOrders — cannot be
+   * checked without it, so placement always passes it.
+   */
+  userId?: string | null
 ): Promise<CheckoutTotals> {
   const svc = await checkServiceability(pincode);
   const qualifiesFree = cart.qualifiesFreeDelivery;
@@ -34,17 +41,18 @@ export async function computeTotals(
   let discountPaise = 0;
 
   if (couponCode) {
-    const now = new Date();
-    const coupon = await db.coupon.findFirst({
-      where: {
-        code: { equals: couponCode.trim().toUpperCase() },
-        isActive: true,
-        OR: [{ startsAt: null }, { startsAt: { lte: now } }],
-        AND: [{ OR: [{ endsAt: null }, { endsAt: { gte: now } }] }],
-      },
+    /* Eligibility moved into resolveCoupon so that usageLimit, perUserLimit
+       and firstNOrders are actually enforced. They had been on the model and
+       on the console screen since the beginning and checked nowhere, which made
+       "one per customer" a decoration. */
+    const decision = await resolveCoupon({
+      code: couponCode,
+      subtotalPaise: cart.subtotalPaise,
+      userId: userId ?? null,
     });
+    const coupon = decision.ok ? decision.coupon : null;
 
-    if (coupon && cart.subtotalPaise >= coupon.minOrderPaise) {
+    if (coupon) {
       if (coupon.type === "flat") {
         discountPaise = coupon.value;
       } else if (coupon.type === "percent") {
@@ -193,7 +201,7 @@ export async function placeOrder(params: {
     throw new Error("CART_EMPTY");
   }
 
-  const totals = await computeTotals(cart, address.pincode, address.state, couponCode);
+  const totals = await computeTotals(cart, address.pincode, address.state, couponCode, userId);
   if (!totals.serviceable) {
     metric.end("place_order_pincode_unserviceable");
     throw new Error("PINCODE_UNSERVICEABLE");
