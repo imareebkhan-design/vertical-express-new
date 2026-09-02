@@ -24,6 +24,7 @@ import {
   Receipt,
   UserCog,
   SlidersHorizontal,
+  PlusSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +60,7 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
   {
     heading: "Catalog & stock",
     items: [
+      { href: "/admin/listing", label: "Listing", icon: PlusSquare },
       { href: "/admin/products", label: "Products", icon: Box },
       { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/inventory", label: "Inventory", icon: Warehouse },
