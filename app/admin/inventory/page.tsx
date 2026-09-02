@@ -3,6 +3,7 @@ import { AlertTriangle, Box, Warehouse } from "lucide-react";
 import { adminListStock, type StockFilter } from "@/lib/services/admin/stock";
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
+import { StockAdjuster } from "@/components/admin/stock-adjuster";
 
 export const dynamic = "force-dynamic";
 
@@ -137,6 +138,7 @@ export default async function AdminInventory({
               <th className="px-3 pb-2.5 text-right">Reserved</th>
               <th className="px-3 pb-2.5 text-right">Available</th>
               <th className="px-3 pb-2.5">Status</th>
+              <th className="px-3 pb-2.5">Adjust</th>
             </tr>
           </thead>
           <tbody>
@@ -174,6 +176,17 @@ export default async function AdminInventory({
                   ) : (
                     <StatusChip tone="ok">Healthy</StatusChip>
                   )}
+                </td>
+                {/* The most-used warehouse operation, and until now the one
+                    thing this screen could not do — a recount meant somebody
+                    opening a database client. */}
+                <td className="px-3 py-3">
+                  <StockAdjuster
+                    variantId={r.variantId}
+                    warehouseId={r.warehouseId}
+                    sku={r.sku}
+                    onHand={r.qtyOnHand}
+                  />
                 </td>
               </tr>
             ))}

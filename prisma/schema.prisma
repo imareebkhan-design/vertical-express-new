@@ -202,6 +202,7 @@ model ProductVariant {
   bulkTiers      BulkPriceTier[]
   cartItems      CartItem[]
   inventory      Inventory[]
+  movements      StockMovement[]
   orderItems     OrderItem[]
   product        Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -228,6 +229,7 @@ model Warehouse {
   isActive  Boolean              @default(true) @map("is_active")
   createdAt DateTime             @default(now()) @map("created_at")
   inventory Inventory[]
+  movements StockMovement[]
   orders    Order[]
   shipments Shipment[]
   pincodes  ServiceablePincode[]
@@ -810,4 +812,62 @@ enum AuditActor {
   system
 
   @@map("audit_actor")
+}
+
+/// Why a stock level changed. Every movement carries one — a count that
+/// disagrees with the shelf is settled by reading the reasons, and "adjusted"
+/// with no reason is the row that starts an argument nobody can finish.
+enum StockMovementReason {
+  /// Physical recount against the shelf.
+  recount
+  /// Arrived from a supplier. Becomes a goods-receipt link when POs exist.
+  received
+  /// Broken, wet, or otherwise unsellable.
+  damaged
+  /// Counted before, cannot be found now.
+  lost
+  /// Moved to another warehouse.
+  transfer
+  /// Taken by an order. Written by the checkout path, not by a person.
+  sold
+  /// Came back from a customer.
+  returned
+  /// A correction to an earlier movement.
+  correction
+}
+
+/// One change to one variant's stock at one warehouse.
+///
+/// The decrement at checkout was already race-free and transactional, but it
+/// left no trace: stock went from 240 to 206 and nothing said why or who. That
+/// is fine until the shelf disagrees with the screen, at which point there is
+/// nothing to read and the argument is unwinnable.
+///
+/// Append-only by convention — a mistake is corrected with another row carrying
+/// `correction`, never by editing history. `qtyAfter` is stored rather than
+/// derived so a ledger page can be read without replaying every prior row, and
+/// so a divergence between the two is itself detectable.
+model StockMovement {
+  id          String              @id @default(uuid()) @db.Uuid
+  variantId   String              @map("variant_id") @db.Uuid
+  warehouseId String              @map("warehouse_id") @db.Uuid
+  /// Signed. Negative removes stock.
+  qtyDelta    Int                 @map("qty_delta")
+  /// On-hand immediately after this movement was applied.
+  qtyAfter    Int                 @map("qty_after")
+  reason      StockMovementReason
+  /// Free text from the person making the change. Required for a recount.
+  note        String?
+  /// Who did it. Null for movements the system makes, such as a sale.
+  actorEmail  String?             @map("actor_email")
+  /// The order that caused it, when a sale or a return did.
+  orderId     String?             @map("order_id") @db.Uuid
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@index([variantId, warehouseId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@map("stock_movements")
 }

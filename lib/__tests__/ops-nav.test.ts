@@ -53,9 +53,12 @@ test("a screen with no model behind it says so", () => {
    * states — the wording changed, the obligation did not. What matters is that
    * each names the thing that is missing.
    */
+  /* stock-ledger left this list when StockMovement landed — the guard failed
+     the moment it stopped needing to declare itself, which is the list working
+     rather than the list being wrong. Remove a screen from here when it gains
+     a model, not when its wording changes. */
   const UNBACKED = [
     "app/admin/returns/page.tsx",
-    "app/admin/stock-ledger/page.tsx",
     "app/admin/suppliers/page.tsx",
     "app/admin/support/page.tsx",
     "app/admin/purchasing/page.tsx",
