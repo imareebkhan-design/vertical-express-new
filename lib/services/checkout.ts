@@ -1,5 +1,5 @@
 import "server-only";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";

@@ -26,7 +26,7 @@
  * Everything it writes is prefixed DEMO- or ends @demo.invalid, so it can be
  * found and removed. Re-running replaces its own rows and touches nothing else.
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { randomUUID } from "node:crypto";
 
 const url = process.env.DATABASE_URL ?? "";

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus } from "@/prisma/generated/client/client";
 import { adminListOrders } from "@/lib/services/admin/manage";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";

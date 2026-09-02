@@ -16,6 +16,7 @@ export function AccountNav({ active }: { active: string }) {
     <nav aria-label="Account" className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-1">
       {ITEMS.map(({ href, label, icon: Icon }) => {
         const isActive = active === href;
+        const IconComponent = Icon as React.ElementType;
         return (
           <Link
             key={href}
@@ -25,7 +26,7 @@ export function AccountNav({ active }: { active: string }) {
               isActive ? "bg-brand-deep text-white" : "text-neutral-600 hover:bg-surface hover:text-ink"
             }`}
           >
-            <Icon className="size-4" aria-hidden />
+            <IconComponent className="size-4" aria-hidden />
             {label}
           </Link>
         );

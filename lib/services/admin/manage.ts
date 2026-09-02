@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { OrderStatus, BookingStatus } from "@prisma/client";
+import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { releaseOrderInventory } from "@/lib/services/orders";

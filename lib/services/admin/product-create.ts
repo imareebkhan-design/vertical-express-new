@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
-import type { DeliverySpeed, ProductStatus } from "@prisma/client";
+import type { DeliverySpeed, ProductStatus } from "@/prisma/generated/client/client";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 
 /**

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { OrderStatus } from "@prisma/client";
+import type { OrderStatus } from "@/prisma/generated/client/client";
 
 /**
  * The dispatcher's screen.

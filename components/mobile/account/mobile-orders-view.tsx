@@ -95,8 +95,7 @@ export function MobileOrdersView({ initialOrders, initialPage, totalPages }: Mob
             className={cn(
               "flex-1 py-3 text-xs font-extrabold text-center border-b-2 transition-all capitalize leading-none",
               activeTab === tab
-                ? "border-brand-deep text-brand-deep"
-                : "border-transparent text-ink/45 hover:text-ink/65"
+                ? "border-brand-deep text-brand-deep" :"border-transparent text-ink/45 hover:text-ink/65"
             )}
           >
             {tab}

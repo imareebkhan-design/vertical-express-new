@@ -1,5 +1,5 @@
 import * as React from "react";
-import type { OrderStatus, PaymentStatus, ProductStatus } from "@prisma/client";
+import type { OrderStatus, PaymentStatus, ProductStatus } from "@/prisma/generated/client/client";
 import { cn } from "@/lib/utils";
 
 /**

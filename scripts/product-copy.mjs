@@ -19,7 +19,7 @@
  *   node scripts/product-copy.mjs --apply         # writes, after saving a backup
  *   node scripts/product-copy.mjs --restore <f>   # rolls back from a backup file
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 
 // ── The rule. Change this and re-run. ─────────────────────────────────────────

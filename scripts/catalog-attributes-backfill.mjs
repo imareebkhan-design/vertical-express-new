@@ -33,7 +33,7 @@
  *   node --env-file-if-exists=.env scripts/catalog-attributes-backfill.mjs
  *   node --env-file-if-exists=.env scripts/catalog-attributes-backfill.mjs --revert <backup.json>
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 

@@ -24,7 +24,7 @@
  *
  *   node scripts/seed-real-brands.mjs
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 
 const db = new PrismaClient();
 

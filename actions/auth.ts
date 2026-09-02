@@ -37,8 +37,7 @@ export async function sendOtp(rawIdentifier: string): Promise<ActionResult<{ cha
 
       const value = parsed.data;
       const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-      const formattedIdentifier = channel === "phone" 
-        ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+      const formattedIdentifier = channel === "phone" ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
         : value;
 
       // Fails closed (ISS-021, DEC-016): if the limiter is unreachable we refuse
@@ -92,8 +91,7 @@ export async function verifyOtp(
 
       const value = parsed.data;
       const channel = value.includes("@") ? ("email" as const) : ("phone" as const);
-      const formattedIdentifier = channel === "phone" 
-        ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
+      const formattedIdentifier = channel === "phone" ? (value.startsWith("+") ? value : `+91${value.replace(/\D/g, "")}`) 
         : value;
       
       if (!/^[A-Za-z0-9]{6,12}$/.test(token.trim())) {

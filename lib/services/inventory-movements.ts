@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { log } from "@/lib/observability";
-import type { StockMovementReason } from "@prisma/client";
+import type { StockMovementReason } from "@/prisma/generated/client/client";
 
 /**
  * Changing stock, with a reason attached.

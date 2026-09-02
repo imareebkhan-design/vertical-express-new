@@ -297,8 +297,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             onClick={() => setActiveTab(tab.key as "executive" | "sales" | "inventory" | "customers" | "marketing" | "operations")}
             className={`whitespace-nowrap px-4 py-3 text-sm font-extrabold border-b-2 transition-colors -mb-[2px] ${
               activeTab === tab.key
-                ? "border-blue-600 text-blue-600"
-                : "border-transparent text-neutral-500 hover:text-ink"
+                ? "border-blue-600 text-blue-600" :"border-transparent text-neutral-500 hover:text-ink"
             }`}
           >
             {tab.label}

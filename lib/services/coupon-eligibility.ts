@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { Coupon } from "@prisma/client";
+import type { Coupon } from "@/prisma/generated/client/client";
 import type { DbClient } from "@/lib/services/audit";
 
 /**

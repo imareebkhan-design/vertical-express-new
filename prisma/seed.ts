@@ -3,9 +3,12 @@
  * variants/bulk tiers, one warehouse, Srinagar pincodes, and launch coupon.
  * Idempotent: upserts by slug/sku so it can run repeatedly.
  */
-import { PrismaClient, CategoryGroup } from "@prisma/client";
+import "dotenv/config";
+import { PrismaClient, CategoryGroup } from "../prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const db = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const db = new PrismaClient({ adapter });
 
 const CATEGORIES: { slug: string; name: string; group: CategoryGroup; bulk?: boolean }[] = [
   { slug: "cement", name: "Cement", group: "civil_interiors", bulk: true },

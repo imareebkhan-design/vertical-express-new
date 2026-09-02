@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";

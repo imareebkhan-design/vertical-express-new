@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/prisma/generated/client/client";
 import { log } from "@/lib/observability";
 import { SETTING_KEYS, readSetting, parsePercent } from "@/lib/services/settings";
 

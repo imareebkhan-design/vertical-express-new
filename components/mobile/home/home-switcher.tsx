@@ -2,7 +2,7 @@
 
 import React from "react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
 

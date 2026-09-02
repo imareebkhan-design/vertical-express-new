@@ -29,7 +29,7 @@
  *   remain anywhere in ProductImage; every distinct URL in the table resolves
  *   to a file on disk.
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";

@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
 

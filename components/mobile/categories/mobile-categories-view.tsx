@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import type { Category } from "@prisma/client";
+import type { Category } from "@/prisma/generated/client/client";
 import {
   CATEGORY_GROUPS,
   TOTAL_CATEGORIES,

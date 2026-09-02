@@ -1,6 +1,6 @@
 import "server-only";
 import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
-import { Prisma } from "@prisma/client";
+import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
@@ -334,6 +334,23 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
     )
   )`;
   conditions.push(searchCond);
+
+  /* Not a filter. $2 is always a non-empty string, so this is always true — it
+   * exists to tell Postgres the parameter's type.
+   *
+   * Three queries are built from `conditions` and all three are executed with
+   * the same `queryArgs`, but $2 (the prefix-match term) is referenced only by
+   * the scoring expression in selectSql. Prisma's old query engine tolerated a
+   * parameter it never sent; the Prisma 7 driver adapter passes everything
+   * through node-postgres, and Postgres refuses a parameter whose type it
+   * cannot infer from any use site — `42P18: could not determine data type of
+   * parameter $2`. That took out all fourteen search tests on the upgrade.
+   *
+   * Putting it here rather than in one query is deliberate: the count and facet
+   * queries would each need their own copy otherwise, and the next query built
+   * from `conditions` would reintroduce the bug. The alternative — renumbering
+   * placeholders per query — makes the three SQL strings drift apart. */
+  conditions.push("$2::text IS NOT NULL");
 
   if (q.categorySlug) {
     conditions.push(`c.slug = $${argIndex}`);

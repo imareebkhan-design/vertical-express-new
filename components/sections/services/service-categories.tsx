@@ -21,8 +21,8 @@ export function ServiceCategoriesSection() {
           stagger={0.04}
           className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
-          {SERVICE_CATEGORIES.map((service) => (
-            <StaggerItem key={service.slug} className="h-full">
+          {SERVICE_CATEGORIES?.map((service) => (
+            <StaggerItem key={service?.slug} className="h-full">
               <ServiceCard service={service} />
             </StaggerItem>
           ))}

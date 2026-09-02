@@ -10,8 +10,8 @@ export function BiometricToggle() {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    checkBiometrics().then((res) => {
-      setAvailable(res.available);
+    checkBiometrics()?.then((res) => {
+      setAvailable(res?.available);
     });
 
     if (typeof window !== "undefined") {

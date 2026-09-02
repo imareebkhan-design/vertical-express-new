@@ -21,7 +21,7 @@
  * Every --apply writes .seo-backups/<timestamp>.json first, so any run can be
  * undone exactly.
  */
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@/prisma/generated/client/client";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 
 // ── The copy. Change these two functions and re-run. ───────────────────────────

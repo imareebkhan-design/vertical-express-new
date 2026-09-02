@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
+  output   = "../prisma/generated/client"
 }
 
 /// MIGRATIONS TRAVEL OVER directUrl, NOT url.
@@ -13,9 +14,7 @@ generator client {
 ///
 /// Override BOTH, or use `npm run db:migrate:local`.
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 /// Mirrors Supabase auth.users (id = auth.uid). Populated on first login.
