@@ -15,8 +15,14 @@ export function Hero() {
       <div className="mx-auto flex max-w-[1200px] flex-col items-center gap-14 px-6 lg:flex-row">
         {/* Left: Copy & Value Proposition */}
         <div className="flex-1 min-w-0">
+          {/* Was "21 categories · 4,100 products". The catalogue holds 45.
+              A count on the first line a customer reads is a claim about how
+              much of their list we can fill, and being 91x out is the kind of
+              thing they discover at the second search. Categories are real and
+              countable; the product figure is gone rather than replaced with a
+              number that will drift again. */}
           <div className="text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
-            Srinagar · 21 categories · 4,100 products
+            Srinagar · Construction material, delivered
           </div>
 
           <h1 className="mt-3.5 text-4xl font-extrabold tracking-[-0.035em] text-ink sm:text-5xl lg:text-[54px] lg:leading-[58px]">
@@ -25,8 +31,17 @@ export function Hero() {
             on site today.
           </h1>
 
+          {/* The brand list is gone. It named UltraTech, ACC, Asian Paints,
+              Century Ply, Havells, Finolex, Jaquar and Hindware, and the
+              catalogue carries ZERO products under any of them — every one of
+              the 45 sits under an invented brand (ISS-007). Naming eight real
+              manufacturers as your suppliers when you stock none of them is a
+              statement about other people's businesses, not just your own.
+
+              It goes back when products are actually assigned to those brands,
+              which is the owner's call and nobody else's. */}
           <p className="mt-4 max-w-[470px] text-[15px] font-medium leading-[23px] text-ink-700">
-            Cement, tiles, wiring, plywood and fittings from UltraTech, ACC, Asian Paints, Century Ply, Havells, Finolex, Jaquar and Hindware — delivered across the valley.
+            Cement, tiles, wiring, plywood and fittings — delivered across the valley.
           </p>
 
           <div className="mt-[26px] flex flex-wrap items-center gap-3">
@@ -46,26 +61,43 @@ export function Hero() {
             </Link>
           </div>
 
-          {/* Delivery speed value props */}
+          {/* Two delivery promises used to sit here and neither was backed.
+
+              "60 min" is the express window CLAUDE.md lists as unverified and
+              which the settings table deliberately leaves empty — the speed
+              chip on every product card already had it removed for exactly this
+              reason (ISS-054). "Tomorrow, 8 AM · On a slot you pick at
+              checkout" described slot selection, which does not exist in any
+              form: no model, no screen, and nothing in checkout that offers a
+              window (ISS-057).
+
+              What is left is true. Small goods go out from the Srinagar store
+              ahead of the truck; heavy material travels by truck. That is the
+              real distinction and it is what the whole speed-class system
+              already encodes. The times come back when the owner sets them. */}
           <div className="mt-[30px] flex flex-col gap-7 sm:flex-row sm:gap-7">
             <div className="flex items-start gap-2.5">
               <span className="mt-0.5 inline-flex items-center gap-1 rounded-chip bg-brand px-2 py-0.5 text-[11px] font-extrabold text-ink">
                 <Zap className="size-3 fill-ink stroke-none" />
-                60 min
+                Fast
               </span>
               <div>
                 <div className="text-[13.5px] font-bold text-ink">Hardware, electricals, paint</div>
-                <div className="text-[11px] font-semibold text-ink-500">Held in our Srinagar dark store</div>
+                <div className="text-[11px] font-semibold text-ink-500">
+                  Held in our Srinagar store
+                </div>
               </div>
             </div>
 
             <div className="flex items-start gap-2.5">
               <span className="mt-0.5 inline-flex items-center rounded-chip bg-amber-soft px-2 py-0.5 text-[11px] font-extrabold text-ink">
-                Tomorrow, 8 AM
+                By truck
               </span>
               <div>
                 <div className="text-[13.5px] font-bold text-ink">Cement, tiles, tanks</div>
-                <div className="text-[11px] font-semibold text-ink-500">On a slot you pick at checkout</div>
+                <div className="text-[11px] font-semibold text-ink-500">
+                  Heavy material, delivered to site
+                </div>
               </div>
             </div>
           </div>
@@ -155,17 +187,24 @@ export function Hero() {
             </button>
           )}
 
-          <span className="hidden h-[22px] w-[1.5px] rounded bg-line md:block" />
+          {/* Two more claims removed from this strip.
 
-          <div className="text-[13.5px] font-medium text-ink-700">
-            Cash or UPI at the gate · <span className="text-ink-500">up to ₹50,000 per shipment</span>
-          </div>
+              "Cash or UPI at the gate · up to ₹50,000 per shipment" offered
+              cash on delivery with a ceiling. COD is switched off shop-wide in
+              settings — checkout does not offer it — and ₹50,000 is a limit
+              nobody set; CLAIMS like it are exactly what CLAUDE.md means by a
+              COD value limit with no policy behind it. Advertising a payment
+              method the checkout refuses is a promise broken at the last step.
 
-          <div className="hidden flex-1 lg:block" />
+              "Winter lead times shift — seasonal items show 5–7 days" described
+              a seasonal rule. There is none: no window, no affected categories,
+              no lead time, and nothing applies one (the Serviceability screen
+              says so in as many words). Srinagar winters genuinely do disrupt
+              delivery, which is why this needs last winter's real data rather
+              than a number that reads well.
 
-          <div className="text-[13.5px] font-medium text-ink-700">
-            Winter lead times shift — <span className="text-ink-500">seasonal items show 5–7 days</span>
-          </div>
+              Both come back when the owner sets them. Until then the strip
+              carries only what is true: where we deliver. */}
         </div>
       </div>
     </section>
