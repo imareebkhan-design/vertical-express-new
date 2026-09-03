@@ -287,7 +287,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "reach",
         "heading": "How to reach us",
         "body": [
-          "Phone and WhatsApp: [number to be published]. Email: [address to be published].",
+          "Email: info@verticalexpress.in. Phone and WhatsApp: [number to be published].",
           "For anything about an existing order, have your order number ready — it is on your confirmation and in your account."
         ]
       },
@@ -295,7 +295,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "address",
         "heading": "Registered address",
         "body": [
-          "[Registered business name and address to be published.] Srinagar, Jammu & Kashmir."
+          "[Registered business name and address to be published.] Srinagar, Jammu & Kashmir. For anything about the services side, which runs separately at verticalconstruction.in: info@verticalconstruction.in."
         ]
       },
       {

@@ -35,19 +35,38 @@ function walk(dir: string): string[] {
   return out;
 }
 
-/** Every `title: "…"` in app/, with the file it came from. */
+/**
+ * Every title in app/, quoted or interpolated, with the file it came from.
+ *
+ * The first version of this matched only `title: "…"`. Every product page built
+ * its title in `generateMetadata` as a template literal —
+ * `` `${product.title} | Vertical Express` `` — so the highest-traffic pages on
+ * the site, and the ones that matter most in search, kept the doubling this
+ * test was written to remove. Backticks are read too now.
+ */
 const TITLES: { rel: string; title: string }[] = walk(join(ROOT, "app")).flatMap((abs) => {
   const rel = relative(ROOT, abs);
-  return [...readFileSync(abs, "utf8").matchAll(/title:\s*"([^"]*)"/g)].map((m) => ({
-    rel,
-    title: m[1],
-  }));
+  const src = readFileSync(abs, "utf8");
+  return [
+    ...[...src.matchAll(/title:\s*"([^"]*)"/g)].map((m) => m[1]),
+    ...[...src.matchAll(/title:\s*`([^`]*)`/g)].map((m) => m[1]),
+  ].map((title) => ({ rel, title }));
 });
+
+/**
+ * `title: { absolute: … }` opts out of the template, so a brand inside one is
+ * correct rather than doubled — /category/[slug] does exactly that.
+ */
+const ABSOLUTE_TITLE = /title:\s*\{\s*absolute:/;
 
 test("page titles are still being found", () => {
   /* Non-vacuity: if the walk breaks or metadata moves, the assertion below
      passes by inspecting nothing. */
-  assert.ok(TITLES.length >= 25, `only ${TITLES.length} titles found under app/`);
+  assert.ok(TITLES.length >= 27, `only ${TITLES.length} titles found under app/`);
+  assert.ok(
+    TITLES.some((t) => t.rel.includes("product/[slug]")),
+    "the product page's generated title is no longer being read"
+  );
   assert.ok(
     TITLES.some((t) => t.rel === "app/layout.tsx"),
     "the root layout's metadata is no longer being read"
@@ -70,8 +89,9 @@ test("no page title repeats the brand the template adds", () => {
      through the template, so they legitimately carry the brand. */
   for (const { rel, title } of TITLES) {
     if (rel === "app/layout.tsx") continue;
-    assert.ok(
-      !title.includes(BRAND),
+    if (!title.includes(BRAND)) continue;
+    if (ABSOLUTE_TITLE.test(readFileSync(join(ROOT, rel), "utf8"))) continue;
+    assert.fail(
       `${rel} sets the title "${title}", which renders as "${title} | ${BRAND}"`
     );
   }

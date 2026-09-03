@@ -102,7 +102,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
             <Logo variant="horizontal" className="h-10" />
             <p className="mt-2 text-xs font-semibold text-neutral-500">
               Vertical Express — Srinagar, Jammu &amp; Kashmir<br />
-              Support: hello@verticalexpress.in
+              Support: info@verticalexpress.in
             </p>
           </div>
           <div className="text-right">

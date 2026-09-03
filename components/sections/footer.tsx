@@ -107,7 +107,7 @@ export function Footer() {
               Get in touch
             </p>
             <div className="text-[13.5px] font-medium leading-[23px] text-white/70">
-              <a href="mailto:hello@verticalexpress.in" className="hover:text-white transition-colors">hello@verticalexpress.in</a>
+              <a href="mailto:info@verticalexpress.in" className="hover:text-white transition-colors">info@verticalexpress.in</a>
               <br />
               {/*
                 Was "Lal Chowk, Srinagar, J&K 190001" over "Open 8 AM – 8 PM,

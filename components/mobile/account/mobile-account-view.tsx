@@ -635,7 +635,7 @@ export function MobileAccountView({
             </div>
             <div>
               <span className="text-[9px] font-extrabold uppercase text-ink/40">Support Email</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">support@verticalexpress.com</p>
+              <p className="text-xs font-extrabold text-ink mt-0.5">info@verticalexpress.in</p>
             </div>
             <div>
               <span className="text-[9px] font-extrabold uppercase text-ink/40">Warehouse Location</span>

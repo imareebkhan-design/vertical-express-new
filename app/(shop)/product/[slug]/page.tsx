@@ -24,7 +24,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const product = await getProductBySlug(slug);
   if (!product) return { title: "Product not found" };
   return {
-    title: `${product.title} | Vertical Express`,
+    /* The layout's title template appends "| Vertical Express" already, so
+       adding it here rendered every product page as "…| Vertical Express |
+       Vertical Express" — the doubling fixed in 5d36431 across the static
+       titles, surviving here because this one is built at request time.
+       /category/[slug] does the same thing correctly, with `absolute`, which
+       bypasses the template instead of feeding it. */
+    title: product.title,
     description:
       product.description ??
       `Buy ${product.title} from ${product.brandName} delivered across Srinagar.`,
