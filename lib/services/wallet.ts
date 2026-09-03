@@ -98,8 +98,27 @@ export async function creditCashbackForOrder(params: {
 
       if (existingTx) return;
 
-      // 30 days expiry
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      /* No expiry date is written, and this is the same decision as the rate
+         above rather than an oversight.
+
+         It used to be `Date.now() + 30 days`. Thirty days is a policy — how
+         long a customer's money stays theirs — and nobody set it; it was a
+         constant in this file, exactly like the 5% was and like the SLA
+         targets were (ISS-064). The desktop wallet prints "Expires: <date>"
+         from this column, so the invented number was shown to the customer as
+         a deadline.
+
+         It is wrong in both directions at once. Nothing anywhere expires a
+         balance — no job writes the `expired` transaction type and no cron
+         exists — so the date passed and the money stayed, which makes the
+         warning false. And if an expiry mechanism is built later, it would
+         start enforcing thirty days against credits issued under no policy at
+         all.
+
+         Absent means no expiry has been agreed, the same way an unset SLA
+         target means the number is not computable rather than met. When the
+         owner sets a window, it belongs in `settings` beside cashback.percent
+         with a job that actually applies it. */
 
       await tx.walletTransaction.create({
         data: {
@@ -108,7 +127,6 @@ export async function creditCashbackForOrder(params: {
           type: "cashback_credit",
           referenceId: orderId,
           description: `Cashback for order #${orderNo}`,
-          expiresAt,
         },
       });
 
