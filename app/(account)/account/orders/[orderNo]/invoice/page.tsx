@@ -6,8 +6,13 @@ import { formatPaise } from "@/lib/money";
 import { Logo } from "@/components/ui/logo";
 import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
 
+/* The body of this page stopped calling itself a tax invoice in 677d08a; the
+   title did not, and the title is the half that gets printed. Browsers put
+   document.title in the header of a printed page, and this page exists to be
+   printed — so a customer pressing Print still got a sheet headed "Tax Invoice"
+   above a paragraph explaining that it is not one. */
 export const metadata: Metadata = {
-  title: "Tax Invoice | Vertical Express",
+  title: "Order Summary | Vertical Express",
   robots: { index: false },
 };
 

@@ -48,6 +48,24 @@ test("the order document does not call itself a tax invoice", () => {
   );
 });
 
+test("the printed page is not headed a tax invoice", () => {
+  /* The body was corrected first and the metadata title was not, which left the
+     claim on the half that actually gets printed: browsers put document.title
+     in the header of a printed page, and this page carries a Print button as
+     its purpose. So Print produced a sheet headed "Tax Invoice" above a
+     paragraph explaining that it is not one.
+
+     Case-insensitive here, unlike the badge check above — a title is title-cased
+     and "Tax Invoice" would slip past a case-sensitive match. */
+  const src = readFileSync(join(ROOT, INVOICE), "utf8");
+  const title = /title:\s*"([^"]*)"/.exec(src);
+  assert.ok(title, "the invoice page has no metadata title");
+  assert.ok(
+    !/tax invoice/i.test(title[1]),
+    `the page title is "${title[1]}", which prints as the header of the document`
+  );
+});
+
 test("the order document invents no registered entity", () => {
   /* "Vertical Express Pvt Ltd, Commercial Hub, Lal Chowk" appeared nowhere else
      in the codebase, and the terms page lists business name, registered address,

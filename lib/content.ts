@@ -55,8 +55,8 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "refunds",
         "heading": "How refunds are paid",
         "body": [
-          "Refunds go back to the method you paid with. Cash-on-delivery orders are refunded to your Vertical Express wallet or by bank transfer, whichever you choose. Expect [refund timeline] from the day we collect the goods.",
-          "Delivery charges are refunded when the fault is ours — a wrong item, damaged goods, a missed slot. They are not refunded when an order is returned because you changed your mind."
+          "Refunds go back to the method you paid with, which today means the card, UPI or net-banking payment you made online. Expect [refund timeline] from the day we collect the goods.",
+          "Delivery charges are refunded when the fault is ours — a wrong item, damaged goods, a delivery we failed to make. They are not refunded when an order is returned because you changed your mind."
         ]
       },
       {
@@ -137,14 +137,14 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "prices",
         "heading": "Prices and taxes",
         "body": [
-          "All prices are in Indian rupees and include GST at the applicable rate for the product's HSN classification. Your invoice shows the tax breakup. If you are buying for a business, add your GSTIN at checkout and it will appear on the invoice."
+          "All prices are in Indian rupees and include GST at the applicable rate for the product's HSN classification. The tax charged is broken out on your order summary. We are not issuing GST invoices yet and we are not collecting a GSTIN at checkout, so an order placed today cannot carry your registration number and cannot be used to claim input credit."
         ]
       },
       {
         "id": "payment",
         "heading": "Payment",
         "body": [
-          "You may pay online before dispatch, or in cash or by UPI to the driver on delivery where cash on delivery is available for your order. [The cash-on-delivery ceiling is to be confirmed and will be shown at checkout.] We do not store card details."
+          "Payment is online, before dispatch. Cash on delivery is switched off and checkout will not accept it, so no order placed today is paid at the gate. [If and when it is offered again, the ceiling per delivery is to be confirmed and will be shown at checkout before it applies.] We do not store card details."
         ]
       },
       {
@@ -342,7 +342,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "group": "Payment",
         "heading": "Do your prices include GST?",
         "body": [
-          "Yes. Prices shown are inclusive, and your invoice shows the tax breakup. Add your GSTIN at checkout and it will appear on every invoice after that."
+          "Yes, prices shown are inclusive and the tax is broken out on your order summary. What we cannot do yet is put your GSTIN on it — see \"Can I get an invoice with my GSTIN?\" below."
         ]
       },
       {
