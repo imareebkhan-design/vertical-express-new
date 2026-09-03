@@ -5,7 +5,7 @@ import { getUserWallet } from "@/lib/services/wallet";
 import { WalletSwitcher } from "@/components/mobile/account/wallet-switcher";
 
 export const metadata: Metadata = {
-  title: "Wallet | Vertical Express",
+  title: "Wallet",
   description: "Your wallet balance and transaction history.",
 };
 

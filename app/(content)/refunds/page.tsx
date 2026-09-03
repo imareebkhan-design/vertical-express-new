@@ -3,7 +3,7 @@ import { ContentPage } from "@/components/sections/content-page";
 import { CONTENT } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Returns and refunds | Vertical Express",
+  title: "Returns and refunds",
   description: "Construction material is not a category where one blanket returns window makes sense. A sealed box of tiles and an opened bag of cement are different produ",
 };
 

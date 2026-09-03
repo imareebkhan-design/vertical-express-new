@@ -9,7 +9,7 @@ import { rupeesToPaise } from "@/lib/money";
 import { SearchSwitcher } from "@/components/mobile/search/search-switcher";
 
 export const metadata: Metadata = {
-  title: "Search | Vertical Express",
+  title: "Search",
   robots: { index: false },
 };
 

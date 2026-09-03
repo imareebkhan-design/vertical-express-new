@@ -4,7 +4,7 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { SiteSetupView } from "@/components/mobile/auth/site-setup-view";
 
 export const metadata: Metadata = {
-  title: "Where are we delivering? | Vertical Express",
+  title: "Where are we delivering?",
   robots: { index: false },
 };
 

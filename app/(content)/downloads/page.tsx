@@ -7,7 +7,7 @@ import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 
 export const metadata: Metadata = {
-  title: "Downloads | Vertical Express",
+  title: "Downloads",
   description: "Price lists, brand catalogues and the app. Every price document is dated and carries the window it is valid for.",
 };
 

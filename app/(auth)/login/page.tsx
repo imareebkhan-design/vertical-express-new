@@ -4,7 +4,7 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { LoginSwitcher } from "@/components/auth/login-switcher";
 
 export const metadata: Metadata = {
-  title: "Sign in | Vertical Express",
+  title: "Sign in",
   description: "Sign in to Vertical Express with a one-time code.",
   robots: { index: false },
 };

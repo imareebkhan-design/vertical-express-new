@@ -7,7 +7,7 @@ import { getWishlistProductIds } from "@/lib/services/wishlist";
 import { AccountSwitcher } from "@/components/mobile/account/account-switcher";
 
 export const metadata: Metadata = {
-  title: "My Account | Vertical Express",
+  title: "My Account",
   robots: { index: false },
 };
 

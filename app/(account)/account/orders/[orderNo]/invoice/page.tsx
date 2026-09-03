@@ -12,7 +12,7 @@ import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
    printed — so a customer pressing Print still got a sheet headed "Tax Invoice"
    above a paragraph explaining that it is not one. */
 export const metadata: Metadata = {
-  title: "Order Summary | Vertical Express",
+  title: "Order Summary",
   robots: { index: false },
 };
 

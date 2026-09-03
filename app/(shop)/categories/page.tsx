@@ -5,7 +5,7 @@ import { CategoriesSwitcher } from "@/components/mobile/categories/categories-sw
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "All Categories | Vertical Express",
+  title: "All Categories",
   description:
     "Browse every construction material category — cement, tiling, electrical, plumbing, hardware and more, delivered across Srinagar.",
   alternates: { canonical: "/categories" },

@@ -6,7 +6,7 @@ import { listAddresses } from "@/lib/services/addresses";
 import type { AddressFormValues } from "@/components/account/address-form";
 
 export const metadata: Metadata = {
-  title: "My Addresses | Vertical Express",
+  title: "My Addresses",
   robots: { index: false },
 };
 

@@ -6,7 +6,7 @@ import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 
 export const metadata: Metadata = {
-  title: "Services | Vertical Express",
+  title: "Services",
   description: "Architects, contractors, electricians, plumbers and carpenters working in Srinagar — plus turnkey home construction managed end to end.",
 };
 

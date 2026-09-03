@@ -3,7 +3,7 @@ import { ContentPage } from "@/components/sections/content-page";
 import { CONTENT } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Privacy policy | Vertical Express",
+  title: "Privacy policy",
   description: "What we collect, why, and what we do not do with it.",
 };
 

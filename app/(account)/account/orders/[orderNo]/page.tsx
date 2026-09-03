@@ -5,7 +5,7 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { getOrderByNo } from "@/lib/services/orders";
 
 export const metadata: Metadata = {
-  title: "Order Details | Vertical Express",
+  title: "Order Details",
   robots: { index: false },
 };
 

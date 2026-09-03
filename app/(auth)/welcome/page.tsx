@@ -4,7 +4,7 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { RoleSelectView } from "@/components/mobile/auth/role-select-view";
 
 export const metadata: Metadata = {
-  title: "Welcome | Vertical Express",
+  title: "Welcome",
   robots: { index: false },
 };
 

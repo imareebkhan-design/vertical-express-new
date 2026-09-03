@@ -5,7 +5,7 @@ import { getOrderByNo } from "@/lib/services/orders";
 import { ConfirmationSwitcher } from "@/components/mobile/checkout/confirmation-switcher";
 
 export const metadata: Metadata = {
-  title: "Order Confirmed | Vertical Express",
+  title: "Order Confirmed",
   robots: { index: false },
 };
 

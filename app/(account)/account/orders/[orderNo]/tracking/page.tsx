@@ -5,7 +5,7 @@ import { getShipmentsForOrder } from "@/lib/services/shipments";
 import { TrackingView } from "@/components/mobile/account/tracking-view";
 
 export const metadata: Metadata = {
-  title: "Tracking | Vertical Express",
+  title: "Tracking",
   robots: { index: false },
 };
 

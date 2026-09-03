@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/shop/empty-state";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import { listMyBookings } from "@/lib/services/bookings";
 
-export const metadata: Metadata = { title: "My Bookings | Vertical Express", robots: { index: false } };
+export const metadata: Metadata = { title: "My Bookings", robots: { index: false } };
 
 const STATUS_LABEL: Record<string, string> = {
   received: "Received",

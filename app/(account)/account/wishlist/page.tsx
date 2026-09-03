@@ -8,7 +8,7 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { getWishlistItems } from "@/lib/services/wishlist";
 
 export const metadata: Metadata = {
-  title: "My Wishlist | Vertical Express",
+  title: "My Wishlist",
   robots: { index: false },
 };
 
