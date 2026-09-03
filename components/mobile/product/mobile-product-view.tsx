@@ -363,7 +363,17 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
               {pinResult.serviceable ? (
                 <>
                   <Check className="size-4 shrink-0" />
-                  <span>Deliverable: ETA {pinResult.etaMinutes || "60"} mins to {pincode}</span>
+                  {/* Was `{pinResult.etaMinutes || "60"}`. `etaMinutes` is 0
+                      when an operator has set "no promise" for a pincode, so
+                      this did not merely misread absence — it substituted a
+                      sixty-minute delivery promise invented in a component.
+                      That is the same "60 min" claim removed from the hero in
+                      d86a85d as unverified, reappearing where nobody looked. */}
+                  <span>
+                    {pinResult.etaMinutes && pinResult.etaMinutes > 0
+                      ? `Deliverable: ETA ${pinResult.etaMinutes} mins to ${pincode}`
+                      : `We deliver to ${pincode}`}
+                  </span>
                 </>
               ) : (
                 <>

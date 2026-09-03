@@ -53,7 +53,10 @@ export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
         {/* ETA & Items Summary boxes */}
         <div className="grid grid-cols-3 gap-3 text-center">
           {[
-            { icon: Clock, label: "ETA", value: order.etaMinutes ? `~${order.etaMinutes} min` : "Soon" },
+            /* "Soon" was the fallback. The guard was right — 0 does not print as a
+               time — but the word is still a commitment, and 0 means an operator
+               set no promise for this pincode. */
+            { icon: Clock, label: "ETA", value: order.etaMinutes ? `~${order.etaMinutes} min` : "Not scheduled yet" },
             { icon: Wallet, label: "Paid", value: isCod ? "On delivery" : formatPaise(order.totalPaise) },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { icon: Package, label: "Items", value: String(order.items.reduce((s: number, i: any) => s + i.qty, 0)) },

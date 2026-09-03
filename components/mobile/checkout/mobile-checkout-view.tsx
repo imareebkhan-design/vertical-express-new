@@ -648,7 +648,14 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   <div className="border-t border-mist/10 pt-3 flex items-center justify-between text-[11px]">
                     <span className="font-extrabold text-ink/40 uppercase">Delivery ETA</span>
                     <span className={cn("font-extrabold", totals.serviceable ? "text-ink" : "text-ink-700")}>
-                      {totals.serviceable ? `ETA ~${totals.etaMinutes} mins` : "Unavailable"}
+                      {/* `serviceable` says we deliver here, not that we
+                          promised a time. etaMinutes is 0 for a pincode with no
+                          promise, which rendered "ETA ~0 mins". */}
+                      {!totals.serviceable
+                        ? "Unavailable"
+                        : totals.etaMinutes && totals.etaMinutes > 0
+                          ? `ETA ~${totals.etaMinutes} mins`
+                          : "Not scheduled yet"}
                     </span>
                   </div>
                 </dl>
