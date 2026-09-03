@@ -173,10 +173,16 @@ export function CartView() {
               <dt className="text-ink-500">Items ({summary.count})</dt>
               <dd className="tabular-nums text-ink">{formatPaise(subtotalPaise)}</dd>
             </div>
-            {/* The artboard bills delivery per shipment (₹49 fast, ₹299 heavy).
-                Both are unconfirmed in the placeholder register, and there is no
-                fee in ServiceablePincode to read, so the cart says where the
-                number gets settled rather than inventing one. */}
+            {/* The artboard bills delivery per shipment (₹49 fast, ₹299 heavy),
+                and both figures are unconfirmed in the placeholder register.
+
+                This comment used to add "and there is no fee in
+                ServiceablePincode to read", which is no longer true —
+                `deliveryFeePaise` is on the table and `computeTotals` charges
+                it. The cart still says where the number gets settled rather
+                than showing one, because the fee depends on the delivery
+                pincode and the cart does not know it: quoting a figure here
+                and a different one at checkout is worse than quoting none. */}
             <div className="flex justify-between">
               <dt className="text-ink-500">
                 Delivery{shipments.length > 1 ? ` · ${shipments.length} shipments` : ""}
@@ -193,7 +199,13 @@ export function CartView() {
           </div>
           <Link href="/checkout" className="mt-5 block no-underline">
             <Button size="lg" className="w-full h-12 rounded-full font-bold">
-              {pending ? <Loader2 className="animate-spin" /> : "Choose delivery slots"}
+              {/* Was "Choose delivery slots". Slot booking does not exist
+                  (ISS-057) — the checkout step for it is rendered behind a
+                  PlaceholderValue saying so — and this is the highest-intent
+                  button on the site, promising the thing the very next screen
+                  withdraws. The mobile cart already said "Checkout"; the two
+                  now agree, and agree with what happens. */}
+              {pending ? <Loader2 className="animate-spin" /> : "Checkout"}
             </Button>
           </Link>
           <Link
