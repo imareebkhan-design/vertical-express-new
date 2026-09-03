@@ -50,6 +50,7 @@ export function CatalogGrid({
             categorySlug: item.categorySlug,
             image: item.imageUrl ?? undefined,
             speed: speedClassFor(item.categoryIsBulk, item.deliverySpeed),
+            inStock: item.inStock,
           }}
         />
       ))}

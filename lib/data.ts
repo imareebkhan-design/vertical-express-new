@@ -38,6 +38,19 @@ export interface Product {
   icon?: LucideIcon;
   /** Product photo under /public/products; icon placeholder shows if missing. */
   image?: string;
+  /**
+   * Free stock across warehouses, from `CatalogItem.inStock`.
+   *
+   * The card and the product page had no stock state at all, so both offered
+   * "Add to cart" on an item with nothing on the shelf. `lib/services/cart.ts`
+   * refuses it server-side and throws OUT_OF_STOCK, which keeps the data
+   * correct — but the customer only found out after choosing a quantity and
+   * pressing the button. Every large catalogue marks it on the tile instead.
+   *
+   * Optional so a caller that genuinely does not know (a static example) is not
+   * forced to claim in stock; undefined renders as available, as before.
+   */
+  inStock?: boolean;
 }
 
 /**
@@ -198,6 +211,6 @@ export const FOOTER_LINKS = {
  * beside it.
  */
 export const CONTACT = {
-  email: "hello@verticalexpress.in",
+  email: "info@verticalexpress.in",
 };
 

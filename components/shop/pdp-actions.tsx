@@ -39,6 +39,15 @@ export function PdpActions({ product }: { product: ProductDetail }) {
 
   if (!variant) return null;
 
+  /* The selected variant's own stock. Per variant rather than per product,
+     because a 50 kg bag being sold out says nothing about the 25 kg one — and
+     the variant is what goes in the cart.
+
+     Nothing here previously knew about stock at all: the page offered "Add to
+     cart" on an empty shelf, and `lib/services/cart.ts` refused it with
+     OUT_OF_STOCK only after the customer pressed the button. */
+  const soldOut = !variant.inStock;
+
   const hasDiscount = variant.compareAtPaise != null && variant.compareAtPaise > variant.pricePaise;
   const lineTotal = unitPaise * qty;
 
@@ -98,7 +107,8 @@ export function PdpActions({ product }: { product: ProductDetail }) {
               onClick={() => setVariantId(v.id)}
               className={cn(
                 "rounded-full px-4 py-2 text-sm font-bold transition-colors duration-200",
-                v.id === variantId ? "bg-ink text-white" : "bg-chip text-ink hover:bg-hush"
+                v.id === variantId ? "bg-ink text-white" : "bg-chip text-ink hover:bg-hush",
+                !v.inStock && "line-through opacity-55"
               )}
             >
               {v.name}
@@ -119,7 +129,8 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-11 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -129,18 +140,26 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           </span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-11 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={soldOut ? undefined : { scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+          disabled={soldOut}
+          className={
+            soldOut
+              ? "flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-chip text-sm font-extrabold uppercase tracking-wider text-neutral-500"
+              : "flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+          }
         >
-          {added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
+          {soldOut
+            ? "Out of stock"
+            : added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
 
@@ -149,7 +168,8 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-10 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-10 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -157,18 +177,24 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           <span className="w-9 text-center text-sm font-extrabold">{qty}</span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-10 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-10 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={soldOut ? undefined : { scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card active:scale-95 transition-all duration-200"
+          disabled={soldOut}
+          className={
+            soldOut
+              ? "flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-chip text-sm font-extrabold uppercase tracking-wider text-neutral-500"
+              : "flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card active:scale-95 transition-all duration-200"
+          }
         >
-          {added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
+          {soldOut ? "Out of stock" : added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
     </div>

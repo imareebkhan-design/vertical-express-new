@@ -30,6 +30,10 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
   // Source of truth: explicit prop (wishlist page) OR hydrated context set.
   const saved = wishlisted || (productId ? wishlistIds.has(productId) : false);
 
+  /* Undefined means the caller did not say, which renders as before. Only an
+     explicit false marks the tile out of stock. */
+  const soldOut = product.inStock === false;
+
   const showImage = !isGenericPlaceholder(product.image) && !imageFailed;
   const hasDiscount = product.compareAt > product.price;
   const discount = hasDiscount
@@ -123,11 +127,22 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           </p>
         )}
 
+        {soldOut && (
+          <p className="mt-2 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">
+            Out of stock
+          </p>
+        )}
+
         <div className="mt-auto flex items-center gap-2 pt-4">
-          <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
+          <div
+            className={`flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40 ${
+              soldOut ? "opacity-40" : ""
+            }`}
+          >
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+              disabled={soldOut}
+              className="grid size-9 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed"
               aria-label={`Decrease quantity of ${product.title}`}
             >
               <Minus className="size-3.5" />
@@ -137,18 +152,27 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             </span>
             <button
               onClick={() => setQty((q) => Math.min(999, q + 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+              disabled={soldOut}
+              className="grid size-9 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed"
               aria-label={`Increase quantity of ${product.title}`}
             >
               <Plus className="size-3.5" />
             </button>
           </div>
+          {/* The cart service already refuses this (OUT_OF_STOCK), so the button
+              never had a way to succeed — it just did not say so until pressed. */}
           <motion.button
-            whileTap={{ scale: 0.95 }}
+            whileTap={soldOut ? undefined : { scale: 0.95 }}
             onClick={handleAdd}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full bg-ink text-xs font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+            disabled={soldOut}
+            aria-label={soldOut ? `${product.title} is out of stock` : undefined}
+            className={
+              soldOut
+                ? "flex h-9 flex-1 cursor-not-allowed items-center justify-center gap-1 rounded-full bg-chip text-xs font-extrabold uppercase tracking-wider text-neutral-500"
+                : "flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full bg-ink text-xs font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+            }
           >
-            {added ? <><Check className="size-3.5" /> Added</> : "Add"}
+            {soldOut ? "Sold out" : added ? <><Check className="size-3.5" /> Added</> : "Add"}
           </motion.button>
         </div>
       </div>
