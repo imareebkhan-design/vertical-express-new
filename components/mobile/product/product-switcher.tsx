@@ -62,12 +62,25 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
           },
         }
       : {}),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "INR",
-      price: paiseToRupees(defaultVariant?.pricePaise ?? 0),
-      availability: "https://schema.org/InStock",
-    },
+    /* `availability` was the string "https://schema.org/InStock", hardcoded, on
+       every product. Structured data is a claim to a search engine that shows
+       up beside the result as "In stock", and this one was independent of the
+       inventory table — it stayed InStock through a sell-out. The PDP had no
+       stock data to state it from, because getProductBySlug never fetched the
+       inventory rows; it does now, so the claim follows the stock.
+
+       An offer with no default variant states no price and no availability
+       rather than ₹0 and in stock. */
+    offers: defaultVariant
+      ? {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: paiseToRupees(defaultVariant.pricePaise),
+          availability: defaultVariant.inStock
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+        }
+      : undefined,
   };
 
   /* Up to four attributes, in the order the record lists them, joined the way
@@ -189,15 +202,22 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
         )}
 
         <RecentlyViewedSection currentSlug={product.slug} />
-        <RecentlyViewedTracker
-          item={{
-            slug: product.slug,
-            title: product.title,
-            imageUrl: product.images[0]?.url ?? null,
-            pricePaise: defaultVariant?.pricePaise ?? 0,
-            brandName: product.brandName,
-          }}
-        />
+        {/* Same `?? 0` as the structured data had, on a surface that persists:
+            the recently-viewed strip stores its item in localStorage and renders
+            formatPaise(pricePaise), so a product with no active variant followed
+            the customer around the site priced at ₹0. A product we cannot price
+            is not recorded rather than recorded at zero. */}
+        {defaultVariant && (
+          <RecentlyViewedTracker
+            item={{
+              slug: product.slug,
+              title: product.title,
+              imageUrl: product.images[0]?.url ?? null,
+              pricePaise: defaultVariant.pricePaise,
+              brandName: product.brandName,
+            }}
+          />
+        )}
         <ServicesBanner />
         <DownloadsStrip />
       </main>

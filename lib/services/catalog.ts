@@ -595,6 +595,9 @@ export interface ProductDetail {
     compareAtPaise: number | null;
     isDefault: boolean;
     bulkTiers: { minQty: number; pricePaise: number }[];
+    /** Free stock across warehouses. The PDP's structured data states
+     *  availability to search engines and had nothing to state it from. */
+    inStock: boolean;
   }[];
 }
 
@@ -608,7 +611,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
       variants: {
         where: { isActive: true },
         orderBy: { isDefault: "desc" },
-        include: { bulkTiers: { orderBy: { minQty: "asc" } } },
+        include: { bulkTiers: { orderBy: { minQty: "asc" } }, inventory: true },
       },
     },
   });
@@ -642,6 +645,8 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
           compareAtPaise: v.compareAtPaise,
       isDefault: v.isDefault,
       bulkTiers: v.bulkTiers.map((t) => ({ minQty: t.minQty, pricePaise: t.pricePaise })),
+      inStock:
+        (v.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0) > 0,
     })),
   };
 }
