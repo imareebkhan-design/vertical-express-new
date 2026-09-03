@@ -102,6 +102,32 @@ const PROFESSIONS = [
   },
 ];
 
+/**
+ * Services is a separate business at verticalconstruction.in — the owner's
+ * decision, already stated on the terms page. This route exists to point people
+ * at it. Four claims on it described a process running on *this* system:
+ *
+ *   "Every professional is verified before they appear here — licence, past
+ *   sites, and a reference we actually called." No professional appears here at
+ *   all: `professionals` is empty, `isVerified` defaults to false, and the table
+ *   carries no licence, site-history or reference column to hold any of it. The
+ *   footnote at the foot of this same page said the verification standard was
+ *   still being confirmed.
+ *
+ *   "we match you to someone who has done the work before" and "up to three
+ *   verified professionals with their availability and a written scope."
+ *   Nothing here produces a match, an availability calendar or a scope
+ *   document, and "three" was a number nobody set.
+ *
+ *   "track the work from the same account you order material on." The false one
+ *   that costs a customer something: the booking is taken on another site with
+ *   another database, so /account/bookings can never show it. Every write path
+ *   into `bookings` — submitBooking, BookingModal, ServiceCard — is unreachable
+ *   from any route.
+ *
+ * What remains describes where the work is arranged rather than claiming this
+ * system arranges it. The trade descriptions are the owner's and are untouched.
+ */
 export default function ServicesPage() {
   return (
     <>
@@ -120,7 +146,7 @@ export default function ServicesPage() {
                 not just the material.
               </h1>
               <p className="mt-3.5 max-w-[600px] text-[14.5px] leading-[22px] font-medium text-ink-700">
-                Architects, contractors, electricians, plumbers and carpenters working in Srinagar — plus turnkey home construction managed end to end. Book a consultation and we match you to someone who has done the work before.
+                Architects, contractors, electricians, plumbers and carpenters working in Srinagar — plus turnkey home construction managed end to end. Consultations, quotes and scheduling are handled on our services site.
               </p>
               <div className="mt-5.5 flex flex-wrap gap-3">
                 <a
@@ -159,7 +185,7 @@ export default function ServicesPage() {
               What you can book
             </h2>
             <p className="mt-1.5 text-[13.5px] font-medium text-ink-500">
-              Every professional is verified before they appear here — licence, past sites, and a reference we actually called.
+              The trades our services side covers. Nothing on this page is priced or booked here — rates and scope are agreed on the services site.
             </p>
           </div>
 
@@ -191,7 +217,7 @@ export default function ServicesPage() {
         <div className="mx-auto max-w-[1200px] px-6 pt-16 pb-16">
           <div className="rounded-[32px] border border-line bg-paper p-8 sm:p-10 shadow-card">
             <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">
-              How a booking works
+              Where a booking happens
             </h2>
             <div className="mt-6 grid grid-cols-1 gap-8 md:grid-cols-3">
               <div>
@@ -200,7 +226,7 @@ export default function ServicesPage() {
                 </span>
                 <h3 className="mt-3.5 text-[15.5px] font-bold text-ink">Tell us the job</h3>
                 <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-                  Room, scope, rough timeline and your site. Two minutes, no account needed.
+                  Room, scope, rough timeline and your site, on the services site.
                 </p>
               </div>
 
@@ -208,9 +234,9 @@ export default function ServicesPage() {
                 <span className="flex size-7.5 items-center justify-center rounded-full bg-ink text-[13.5px] font-extrabold text-white">
                   2
                 </span>
-                <h3 className="mt-3.5 text-[15.5px] font-bold text-ink">We match and quote</h3>
+                <h3 className="mt-3.5 text-[15.5px] font-bold text-ink">They match and quote</h3>
                 <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-                  You get up to three verified professionals with their availability and a written scope.
+                  Matching, quoting and the standard a professional is checked against are run by the services side, not from here.
                 </p>
               </div>
 
@@ -218,9 +244,9 @@ export default function ServicesPage() {
                 <span className="flex size-7.5 items-center justify-center rounded-full bg-ink text-[13.5px] font-extrabold text-white">
                   3
                 </span>
-                <h3 className="mt-3.5 text-[15.5px] font-bold text-ink">Book and track</h3>
+                <h3 className="mt-3.5 text-[15.5px] font-bold text-ink">Kept separate from your orders</h3>
                 <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-                  Agree the scope, book the date, and track the work from the same account you order material on.
+                  A service booking is not linked to this account and will not appear beside your material orders. The two run separately.
                 </p>
               </div>
             </div>

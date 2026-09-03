@@ -36,7 +36,7 @@ export default async function BookingsPage() {
             {bookings.length === 0 ? (
               <EmptyState
                 title="No service bookings yet"
-                caption="Book a professional from our Services page and it'll appear here."
+                caption="Service bookings are arranged on our services site and are not linked to this account, so this list stays empty."
                 actionLabel="Explore services"
                 actionHref="/services"
               />
