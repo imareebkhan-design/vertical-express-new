@@ -7,6 +7,7 @@ import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
+import { isWalletCredit } from "@/lib/wallet-tx";
 
 interface MobileWalletViewProps {
   balancePaise: number;
@@ -148,7 +149,7 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
           ) : (
             <ul className="divide-y divide-mist/10">
               {transactions.map((t) => {
-                const isCredit = t.type === "credit";
+                const isCredit = isWalletCredit(t.type);
                 return (
                   <li key={t.id} className="py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0">
                     <div className="flex items-center gap-3">
@@ -180,8 +181,8 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                     </div>
 
                     <span className={cn("text-xs font-extrabold", isCredit ? "text-ink" : "text-ink-700")}>
-                      {isCredit ? "+" : "-"}
-                      {formatPaise(t.amountPaise)}
+                      {isCredit ? "+" : "\u2212"}
+                      {formatPaise(Math.abs(t.amountPaise))}
                     </span>
                   </li>
                 );

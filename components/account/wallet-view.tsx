@@ -2,6 +2,7 @@
 
 import { Wallet, ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { formatPaise } from "@/lib/money";
+import { isWalletCredit } from "@/lib/wallet-tx";
 
 interface Transaction {
   id: string;
@@ -55,7 +56,7 @@ export function WalletView({ balancePaise, transactions }: WalletViewProps) {
         ) : (
           <ul className="divide-y divide-hairline-border">
             {transactions.map((tx) => {
-              const isCredit = tx.amountPaise > 0;
+              const isCredit = isWalletCredit(tx.type);
               return (
                 <li key={tx.id} className="flex items-center justify-between py-3.5">
                   <div className="flex items-start gap-3">
@@ -96,7 +97,10 @@ export function WalletView({ balancePaise, transactions }: WalletViewProps) {
                       isCredit ? "text-success" : "text-ink"
                     }`}
                   >
-                    {isCredit ? "+" : ""}{formatPaise(tx.amountPaise)}
+                    {/* Sign from the type, magnitude from the amount. No debit
+                        has ever been written, so the stored sign convention is
+                        untested — abs() renders correctly under either. */}
+                    {isCredit ? "+" : "\u2212"}{formatPaise(Math.abs(tx.amountPaise))}
                   </span>
                 </li>
               );
