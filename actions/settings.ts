@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { parseRupeeInput } from "@/lib/money";
 import { SETTING_KEYS, writeSetting } from "@/lib/services/settings";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -56,6 +57,17 @@ const schema = z.object({
       message: "Express delivery must be a whole number of minutes",
     }),
 
+  /* Rupees as typed. Stored as paise, so the boundary parses rather than
+     trusts — parseRupeeInput assembles from matched digits with no float
+     multiply, which is how every other money field here is read. Blank means
+     express is not offered at all, which is why there is no default. */
+  expressFeeRupees: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || (parseRupeeInput(v) !== null && parseRupeeInput(v)! > 0), {
+      message: "The express charge must be a rupee amount above zero",
+    }),
+
   /* Both are targets to measure against, not promises to a customer, so they
      are looser than the express window — but still whole minutes, and still
      blank-means-unset. Blank is what stops the console reporting compliance
@@ -82,6 +94,11 @@ export async function adminSaveSettings(input: unknown): Promise<ActionResult<nu
     writeSetting(SETTING_KEYS.cashbackPercent, d.cashbackPercent, admin.email),
     writeSetting(SETTING_KEYS.gstin, d.gstin, admin.email),
     writeSetting(SETTING_KEYS.expressMinutes, d.expressMinutes, admin.email),
+    writeSetting(
+      SETTING_KEYS.expressFeePaise,
+      d.expressFeeRupees === "" ? "" : String(parseRupeeInput(d.expressFeeRupees)),
+      admin.email
+    ),
     writeSetting(SETTING_KEYS.packSlaMinutes, d.packSlaMinutes, admin.email),
     writeSetting(SETTING_KEYS.deliverySlaMinutes, d.deliverySlaMinutes, admin.email),
     writeSetting(SETTING_KEYS.codEnabled, d.codEnabled, admin.email),

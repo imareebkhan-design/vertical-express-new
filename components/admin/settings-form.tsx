@@ -21,6 +21,7 @@ export function SettingsForm({
     cashbackPercent: string;
     gstin: string;
     expressMinutes: string;
+    expressFeeRupees: string;
     packSlaMinutes: string;
     deliverySlaMinutes: string;
     codEnabled: string;
@@ -95,6 +96,23 @@ export function SettingsForm({
             className={field}
           />
           <span className="text-[13px] font-bold text-ink-500">min</span>
+        </div>
+      </Row>
+
+      <Row
+        label="Express delivery charge"
+        hint="What a customer pays for the 60-minute run, per delivery. Blank means express is not offered at all — not that it is free. A product marked for 60-minute delivery stays on standard until this is set."
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-ink-500">₹</span>
+          <input
+            value={values.expressFeeRupees}
+            onChange={(e) => set("expressFeeRupees")(e.target.value)}
+            inputMode="decimal"
+            placeholder="not offered"
+            aria-label="Express delivery charge in rupees"
+            className={field}
+          />
         </div>
       </Row>
 

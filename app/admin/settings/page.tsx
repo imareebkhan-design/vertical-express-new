@@ -30,6 +30,11 @@ export default async function AdminSettings() {
           cashbackPercent: s[SETTING_KEYS.cashbackPercent] ?? "",
           gstin: s[SETTING_KEYS.gstin] ?? "",
           expressMinutes: s[SETTING_KEYS.expressMinutes] ?? "",
+          /* Stored in paise, shown in rupees. Blank stays blank rather than
+             becoming ₹0, which would read as free express delivery. */
+          expressFeeRupees: s[SETTING_KEYS.expressFeePaise]
+            ? String(Number(s[SETTING_KEYS.expressFeePaise]) / 100)
+            : "",
           packSlaMinutes: s[SETTING_KEYS.packSlaMinutes] ?? "",
           deliverySlaMinutes: s[SETTING_KEYS.deliverySlaMinutes] ?? "",
           codEnabled: s[SETTING_KEYS.codEnabled] === "true" ? "true" : "false",
