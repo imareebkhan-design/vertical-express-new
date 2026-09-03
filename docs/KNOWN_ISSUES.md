@@ -79,6 +79,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-064 | On-time performance reported against SLA targets nobody set | HIGH | Reporting | FIXED |
 | ISS-065 | Marketing funnel and search demand were fabricated in the reporting service | HIGH | Reporting | FIXED |
 | ISS-066 | Coupon usage, per-customer and first-N-orders limits were never enforced | HIGH | Money/Promotions | FIXED |
+| ISS-067 | An unreachable services booking UI still carries free-visit and 24-hour promises | MEDIUM | Services/Dead code | OPEN |
 
 ---
 
@@ -2763,3 +2764,54 @@ All of it runs inside the order's transaction, so a redemption cannot exist with
 order and a failed order returns the use. A refusal fails the order rather than silently
 repricing it: the customer was shown a total including the discount, and charging a
 different one because a counter moved is worse than saying the code ran out.
+
+---
+
+## ISS-067 — An unreachable services UI carrying claims the live page no longer makes
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Services / Dead code |
+| **Status** | OPEN — owner decision (3 Sep 2026) |
+
+**Description.** Eight components form a complete services booking UI that no route
+renders: `components/sections/services/{services-hero,why-choose,how-it-works,
+featured-services,service-categories,services-cta}.tsx`, `components/service-card.tsx`
+and `components/services/booking-modal.tsx`. `/services` imports none of them — it renders
+its own copy and links to verticalconstruction.in.
+
+The write path behind them is equally unreachable: `submitBooking` ← `BookingModal` ←
+`ServiceCard` ← `ServiceCategoriesSection`, and `createBooking` throws `SERVICE_NOT_FOUND`
+against an empty `services` table. Demo database: services 0, professionals 0, bookings 0.
+
+They carry commitments nobody has confirmed, and which the live `/services` page was
+corrected in f7d1280 to stop making:
+
+- "Talk to our experts today — site visits and consultations are free."
+- "Request free consultation" · "Free consultation · No obligation"
+- "Our team will call you within 24 hours to schedule a free consultation."
+- "Quality checked at every stage" · "Every trade, one trusted platform"
+
+None of it reaches a customer today. All of it ships the moment somebody wires one import,
+and it would then contradict the page next to it. A free site visit and a 24-hour callback
+are operational commitments — someone's time, on a promise — and neither has been agreed.
+
+`createBooking` also numbers bookings with `count() + 1`, which two concurrent bookings
+resolve identically; `bookingNo` is unique, so the second crashes rather than corrupting.
+Not worth fixing while the path is unreachable, and not safe to leave if it is revived.
+
+**Why it is open rather than fixed.** Whether services return to this application at all is
+the owner's call, and the register already records the other half of it: "`/admin/bookings`
+still exists but is no longer linked from the sidebar. Services operations leave with
+verticalconstruction.in (owner decision), so that route should be retired with the rest of
+the services split rather than left orphaned."
+
+Two coherent outcomes, and correcting the copy of dead code is neither:
+
+1. **Retire it.** Delete the eight components, `/admin/bookings`, `/account/bookings` and
+   the `Booking`/`Professional`/`Service` models with them. The services business owns its
+   own site and its own data.
+2. **Revive it.** Then the copy needs the same treatment `/services` got, the booking
+   number needs a sequence rather than a count, and the free-visit and 24-hour commitments
+   need the owner to confirm them before they are printed.

@@ -187,7 +187,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "collect",
         "heading": "What we collect",
         "body": [
-          "Your phone number, which is how you sign in. Your name and delivery addresses, including any access notes you add about your site. Your order history. If you give us a GSTIN for invoicing, we store that too.",
+          "Your phone number, which is one of the two ways you sign in. If you sign in with Google instead, we receive and store the email address on that account. Your name and delivery addresses, including any access notes you add about your site. Your order history. If you give us a GSTIN for invoicing, we store that too.",
           "We do not ask for and do not store card numbers. Online payments are handled by our payment gateway."
         ]
       },
@@ -195,7 +195,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "why",
         "heading": "Why we collect it",
         "body": [
-          "To take your order, deliver it, invoice it correctly, and answer you when you contact us. Your phone number is also how our driver reaches you on the day."
+          "To take your order, deliver it, invoice it correctly, and answer you when you contact us. Your phone number is also how our driver reaches you on the day, and your email address is where an order confirmation is sent."
         ]
       },
       {

@@ -72,6 +72,33 @@ test("no policy page promises a GST invoice", () => {
   }
 });
 
+test("the privacy notice names every identifier the app stores", () => {
+  /* "What we collect" listed phone, name, addresses, order history and GSTIN,
+     and not the email address. `User.email` is a unique column, Google sign-in
+     is one of the two methods on the login screen, and six of seven users in
+     the demo database carry one. It is not merely stored: actions/checkout.ts
+     sends an order confirmation to it through Resend, so a third-party
+     processor receives it too.
+
+     A data-protection notice that omits an identifier the system collects,
+     stores and transmits is wrong in the one document whose entire purpose is
+     to be complete. */
+  const privacy = LINES.filter((l) => l.where.startsWith("privacy#"))
+    .map((l) => l.text)
+    .join(" ");
+
+  assert.ok(privacy.length > 200, "the privacy copy has gone");
+  for (const [what, pattern] of [
+    ["the phone number", /phone number/i],
+    ["the email address", /email address/i],
+    ["delivery addresses", /delivery address/i],
+    ["order history", /order history/i],
+    ["the GSTIN", /gstin/i],
+  ] as const) {
+    assert.match(privacy, pattern, `the privacy notice does not mention ${what}`);
+  }
+});
+
 test("no policy page offers cash on delivery as a way to pay", () => {
   /* COD is refused at checkout. Every other surface — how-we-work, two FAQ
      answers — already says so; the terms offered it anyway, with the ceiling in
