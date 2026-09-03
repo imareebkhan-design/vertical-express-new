@@ -50,6 +50,7 @@ function draft(slug: string, sku: string, r: Awaited<ReturnType<typeof refs>>, q
     status: "draft" as const,
     variant: { name: "50 kg bag", sku, pricePaise: 32_000, compareAtPaise: 33_500 },
     openingStock: { warehouseId: r.warehouse.id, qty },
+    express: { eligible: false, pincodes: [] },
   };
 }
 

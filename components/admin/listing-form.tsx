@@ -50,6 +50,8 @@ const BLANK = {
   mrp: "",
   warehouseId: "",
   openingStock: "",
+  expressEligible: false,
+  expressPincodes: "",
 };
 
 const slugify = (s: string) =>
@@ -319,6 +321,78 @@ export function ListingForm({ options }: { options: ListingOptions }) {
               <option value="scheduled">Heavy — by truck</option>
             </select>
           </Field>
+        </div>
+
+        {/*
+          The 60-minute run.
+
+          Separate from "Delivery" above, which is a class — bike or truck — and
+          decides how an order splits into shipments. This is a promise: that
+          this product reaches this pincode within the hour, and that the
+          customer is charged for it. A product can be fast-class and not
+          promised in an hour.
+
+          Two controls because they answer different questions, and because
+          turning the promise off should not lose the pincode list it was set up
+          with. Off means off whatever the list says.
+        */}
+        <div className="mt-5 rounded-[14px] border border-line bg-hush/40 p-4">
+          <label className="flex cursor-pointer items-start gap-2.5">
+            <input
+              type="checkbox"
+              checked={form.expressEligible}
+              onChange={(e) => set("expressEligible", e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 cursor-pointer accent-ink"
+            />
+            <span>
+              <span className="block text-[13.5px] font-bold text-ink">
+                Offer 60-minute delivery for this product
+              </span>
+              <span className="mt-0.5 block text-[12px] font-medium leading-[17px] text-ink-700">
+                Only where you list a pincode below. A customer outside them gets standard
+                delivery, and an order that mixes this with a product without it can be
+                taken together on standard at no extra charge.
+              </span>
+            </span>
+          </label>
+
+          {form.expressEligible && (
+            <div className="mt-3.5">
+              <Field
+                label="Pincodes it covers"
+                hint="Six digits, Srinagar and J&amp;K only. Separate with commas or new lines."
+              >
+                <textarea
+                  value={form.expressPincodes}
+                  onChange={(e) => set("expressPincodes", e.target.value)}
+                  rows={2}
+                  placeholder="190001, 190002, 190014"
+                  aria-label="Express delivery pincodes"
+                  className={field}
+                />
+              </Field>
+              <p className="mt-1.5 text-[12px] font-medium text-ink-700">
+                {(() => {
+                  const pins = form.expressPincodes
+                    .split(/[\s,]+/)
+                    .map((t) => t.trim())
+                    .filter(Boolean);
+                  const good = [...new Set(pins.filter((t) => /^19\d{4}$/.test(t)))];
+                  const bad = pins.filter((t) => !/^19\d{4}$/.test(t));
+                  if (pins.length === 0) return "No pincode yet, so express is offered nowhere.";
+                  if (bad.length > 0) return `Not a pincode: ${bad.slice(0, 3).join(", ")}`;
+                  return `${good.length} pincode${good.length === 1 ? "" : "s"}.`;
+                })()}
+              </p>
+            </div>
+          )}
+
+          {/* The fee is a price, so it is not set here. Express cannot be
+              offered at all until it exists — see lib/services/express-delivery.ts. */}
+          <p className="mt-3 border-t border-line pt-2.5 text-[12px] font-medium leading-[17px] text-ink-500">
+            The express charge is set once for the whole shop in Settings, not per product.
+            Until it is set, no product is offered on the 60-minute run.
+          </p>
         </div>
 
         <p className="text-[12px] font-medium leading-[17px] text-ink-700">

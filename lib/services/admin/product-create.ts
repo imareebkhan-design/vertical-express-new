@@ -46,6 +46,14 @@ export interface NewProduct {
   };
   /** Optional opening stock. Zero is normal — stock usually arrives later. */
   openingStock: { warehouseId: string; qty: number } | null;
+  /**
+   * The 60-minute run: whether this product goes on it, and where.
+   *
+   * Two fields rather than one because they answer different questions. Off
+   * with pincodes listed is still off — the switch wins — so turning express
+   * off for a product does not lose the pincode list it was set up with.
+   */
+  express: { eligible: boolean; pincodes: string[] };
 }
 
 export type CreateResult =
@@ -68,8 +76,20 @@ export async function createProduct(
           unitLabel: input.unitLabel,
           deliverySpeed: input.deliverySpeed,
           status: input.status,
+          expressEligible: input.express.eligible,
         },
       });
+
+      /* Inside the same transaction as the product. An express promise that
+         outlives a failed product creation would offer an hour on a row that
+         does not exist. Duplicates are dropped here rather than by the unique
+         constraint, so a repeated pincode in the form is not an error. */
+      const pincodes = [...new Set(input.express.pincodes)];
+      if (pincodes.length > 0) {
+        await tx.productExpressPincode.createMany({
+          data: pincodes.map((pincode) => ({ productId: product.id, pincode })),
+        });
+      }
 
       const variant = await tx.productVariant.create({
         data: {

@@ -142,35 +142,72 @@ enum DeliverySpeed {
 }
 
 model Product {
-  id             String           @id @default(uuid()) @db.Uuid
-  slug           String           @unique
-  title          String
-  brandId        String           @map("brand_id") @db.Uuid
-  categoryId     String           @map("category_id") @db.Uuid
-  description    String?
+  id              String                  @id @default(uuid()) @db.Uuid
+  slug            String                  @unique
+  title           String
+  brandId         String                  @map("brand_id") @db.Uuid
+  categoryId      String                  @map("category_id") @db.Uuid
+  description     String?
   /// [{ label: string, value: string }]
-  specs          Json?
-  unitLabel      String           @default("per piece") @map("unit_label")
+  specs           Json?
+  unitLabel       String                  @default("per piece") @map("unit_label")
   /// Overrides the category's speed for this one product. Null means the
   /// category decides, which is right for almost everything.
-  deliverySpeed  DeliverySpeed?   @map("delivery_speed")
-  status         ProductStatus    @default(published)
-  isDeal         Boolean          @default(false) @map("is_deal")
-  ratingAvg      Decimal          @default(0) @map("rating_avg") @db.Decimal(2, 1)
-  ratingCount    Int              @default(0) @map("rating_count")
-  seoTitle       String?          @map("seo_title")
-  seoDescription String?          @map("seo_description")
-  createdAt      DateTime         @default(now()) @map("created_at")
-  updatedAt      DateTime         @updatedAt @map("updated_at")
-  images         ProductImage[]
-  variants       ProductVariant[]
-  brand          Brand            @relation(fields: [brandId], references: [id])
-  category       Category         @relation(fields: [categoryId], references: [id])
+  deliverySpeed   DeliverySpeed?          @map("delivery_speed")
+  status          ProductStatus           @default(published)
+  isDeal          Boolean                 @default(false) @map("is_deal")
+  ratingAvg       Decimal                 @default(0) @map("rating_avg") @db.Decimal(2, 1)
+  ratingCount     Int                     @default(0) @map("rating_count")
+  seoTitle        String?                 @map("seo_title")
+  seoDescription  String?                 @map("seo_description")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  updatedAt       DateTime                @updatedAt @map("updated_at")
+  /// Whether this product can go out on the 60-minute run at all.
+  ///
+  /// Off by default and set deliberately when the product is listed. Being
+  /// eligible is necessary but not sufficient — `expressPincodes` says where,
+  /// and an empty list means nowhere. Two switches rather than one because
+  /// "we could deliver this fast" and "we deliver this fast to you" are
+  /// different questions, and only the second belongs at checkout.
+  ///
+  /// Distinct from `deliverySpeed`, which is a *class* (does it go on a bike or
+  /// a truck) and decides how an order splits into shipments. A product can be
+  /// express-class and not express-eligible: a light item we simply do not
+  /// promise in an hour.
+  expressEligible Boolean                 @default(false) @map("express_eligible")
+  images          ProductImage[]
+  variants        ProductVariant[]
+  brand           Brand                   @relation(fields: [brandId], references: [id])
+  category        Category                @relation(fields: [categoryId], references: [id])
+  expressPincodes ProductExpressPincode[]
 
   @@index([categoryId, status])
   @@index([brandId, status])
   @@index([isDeal, status])
   @@map("products")
+}
+
+/// Where a product's 60-minute delivery is actually offered.
+///
+/// Per product and per pincode because that is the shape of the real
+/// constraint: express depends on which store holds the stock and how far the
+/// rider goes, and those differ by product. A single shop-wide express radius
+/// would promise an hour on a tonne of cement.
+///
+/// The pincode is stored rather than a foreign key to ServiceablePincode so
+/// that removing a pincode from the serviceable list does not silently delete
+/// the express intent behind it. Express is offered only where both agree —
+/// resolved at checkout, not by the schema.
+model ProductExpressPincode {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  pincode   String   @db.Char(6)
+  createdAt DateTime @default(now()) @map("created_at")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, pincode])
+  @@index([pincode])
+  @@map("product_express_pincodes")
 }
 
 model ProductImage {

@@ -39,6 +39,15 @@ export const SETTING_KEYS = {
   codCeilingPaise: "cod.ceiling_paise",
   /** Minutes quoted for express delivery. Default: absent, so nothing is promised. */
   expressMinutes: "delivery.express_minutes",
+  /**
+   * What the 60-minute delivery costs, in paise, per delivery.
+   *
+   * Absent means express is not offered at all — not that it is free. A paid
+   * service with no price is how a customer gets charged a number nobody chose,
+   * and a free one is a standing cost nobody agreed to. `resolveExpressOption`
+   * reports `no_price` until this is set.
+   */
+  expressFeePaise: "delivery.express_fee_paise",
   /** Default catalogue sort. */
   defaultSort: "catalog.default_sort",
   /**

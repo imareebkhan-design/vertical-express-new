@@ -48,6 +48,11 @@ const schema = z
 
     warehouseId: z.string().trim(),
     openingStock: z.string().trim(),
+
+    /* The 60-minute run. Comma or newline separated in the form, because an
+       operator setting up a product types a list rather than adding rows. */
+    expressEligible: z.boolean(),
+    expressPincodes: z.string().trim(),
   })
   .superRefine((v, ctx) => {
     const bad = (message: string) => ctx.addIssue({ code: "custom", message });
@@ -69,7 +74,32 @@ const schema = z
       if (!Number.isInteger(n) || n < 0) bad("Opening stock must be a whole number");
       else if (n > 0 && v.warehouseId === "") bad("Pick the warehouse the stock is in");
     }
+
+    const pins = parsePincodeList(v.expressPincodes);
+    if (v.expressEligible && pins.valid.length === 0) {
+      bad("60-minute delivery is on, so list the pincodes it covers");
+    }
+    if (pins.invalid.length > 0) {
+      bad(`Not a pincode: ${pins.invalid.slice(0, 3).join(", ")}`);
+    }
   });
+
+/**
+ * Split a typed pincode list into the ones we can use and the ones we cannot.
+ *
+ * Six digits, and J&K only — the shop delivers in Srinagar and a 110054 typed
+ * by habit is a Delhi pincode that would sit in the table promising an hour to
+ * a city we do not serve. Same rule the serviceability CSV import applies.
+ */
+export function parsePincodeList(raw: string): { valid: string[]; invalid: string[] } {
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  for (const token of raw.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)) {
+    if (/^19\d{4}$/.test(token)) valid.push(token);
+    else invalid.push(token);
+  }
+  return { valid: [...new Set(valid)], invalid };
+}
 
 export async function adminListProduct(
   input: unknown
@@ -93,6 +123,12 @@ export async function adminListProduct(
       categoryId: v.categoryId,
       description: v.description?.trim() || null,
       unitLabel: v.unitLabel,
+      express: {
+        eligible: v.expressEligible,
+        /* Off means off, whatever is in the list — so turning it off does not
+           discard the pincodes it was set up with when it is turned back on. */
+        pincodes: v.expressEligible ? parsePincodeList(v.expressPincodes).valid : [],
+      },
       deliverySpeed: v.deliverySpeed === "" ? null : v.deliverySpeed,
       status: v.status,
       variant: {
