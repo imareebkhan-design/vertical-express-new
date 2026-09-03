@@ -4,10 +4,21 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
+/**
+ * A tile is a name, a slug and an icon. It used to carry its own product count
+ * as a string — "23 products" under Cement, "148 products" under Tiling, "134
+ * products" under Sanitary & bath — 879 across the twelve of them, against a
+ * catalogue that holds 30 in those categories and 45 in total.
+ *
+ * It is the same claim as the "4,100 products" removed from the hero in
+ * d86a85d, one component further down the same page, and it is the reason a
+ * count does not belong in a component: nothing made it wrong, it was written
+ * wrong and had no way of becoming right. The number now comes from the
+ * database with the categories themselves.
+ */
 interface CategoryTile {
   name: string;
   slug: string;
-  count: string;
   theme: "civil" | "elec" | "plumb" | "furn";
   iconSvg: React.ReactNode;
 }
@@ -16,7 +27,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Cement",
     slug: "cement",
-    count: "23 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -28,7 +38,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Tiling",
     slug: "tiling",
-    count: "148 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -42,7 +51,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Painting",
     slug: "painting",
-    count: "96 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -54,7 +62,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Waterproofing",
     slug: "waterproofing",
-    count: "41 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -65,7 +72,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Plywood & MDF",
     slug: "plywood-mdf-hdhmr",
-    count: "62 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -78,7 +84,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Adhesives",
     slug: "fevicol",
-    count: "38 products",
     theme: "civil",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -90,7 +95,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Wires & MCB",
     slug: "wires-mcb-distribution-boards",
-    count: "74 products",
     theme: "elec",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -104,7 +108,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Switches",
     slug: "switches-sockets",
-    count: "55 products",
     theme: "elec",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -116,7 +119,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Lighting",
     slug: "lighting",
-    count: "112 products",
     theme: "elec",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -129,7 +131,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Ceiling fans",
     slug: "ceiling-fans-exhaust",
-    count: "29 products",
     theme: "elec",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -144,7 +145,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "CPVC & tanks",
     slug: "cpvc-pipes-overhead-tanks",
-    count: "67 products",
     theme: "plumb",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -157,7 +157,6 @@ const CATEGORY_TILES: CategoryTile[] = [
   {
     name: "Sanitary & bath",
     slug: "sanitary-bath-fittings",
-    count: "134 products",
     theme: "plumb",
     iconSvg: (
       <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -175,7 +174,10 @@ const THEME_BG = {
   furn: "var(--t-furn)",
 };
 
-export function Categories() {
+/** Published products per category slug, from `listCategories()`. */
+export type CategoryCounts = Record<string, number>;
+
+export function Categories({ counts }: { counts: CategoryCounts }) {
   return (
     <section id="categories" className="pt-16">
       <div className="mx-auto max-w-[1200px] px-6">
@@ -217,7 +219,13 @@ export function Categories() {
                 {cat.name}
               </span>
               <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
-                {cat.count}
+                {/* A category with nothing in it says so rather than "0 products",
+                    which reads as a broken tile rather than an empty shelf. */}
+                {counts[cat.slug] === undefined
+                  ? "\u00a0"
+                  : counts[cat.slug] === 0
+                    ? "Nothing in stock"
+                    : `${counts[cat.slug]} product${counts[cat.slug] === 1 ? "" : "s"}`}
               </span>
             </Link>
           ))}

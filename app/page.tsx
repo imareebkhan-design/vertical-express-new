@@ -19,12 +19,19 @@ export default async function Home() {
     listCategories(),
   ]);
 
+  /* The category tiles advertise how much is in each one. They used to carry
+     the figure as a literal; it comes from the same query as the categories. */
+  const categoryCounts = Object.fromEntries(
+    categories.map((c) => [c.slug, c._count.products])
+  );
+
   return (
     <HomeSwitcher
       deals={deals}
       featured={popularResult.items}
       newArrivals={newestResult.items}
       categories={categories}
+      categoryCounts={categoryCounts}
     />
   );
 }

@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import type { Category } from "@/prisma/generated/client/client";
+import type { CategoryWithCount } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
@@ -19,7 +19,8 @@ import { MobileCategoriesView } from "@/components/mobile/categories/mobile-cate
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 interface CategoriesSwitcherProps {
-  categories: Category[];
+  /** Carries `_count.products`, which the tiles render. */
+  categories: CategoryWithCount[];
 }
 
 interface GroupDefinition {
@@ -29,7 +30,6 @@ interface GroupDefinition {
   categories: {
     name: string;
     slug: string;
-    count: string;
     iconSvg: React.ReactNode;
   }[];
 }
@@ -43,7 +43,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Cement",
         slug: "cement",
-        count: "23 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M6 3h12l2 6v12H4V9z" />
@@ -54,7 +53,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Tiling",
         slug: "tiling",
-        count: "148 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="3" y="3" width="8" height="8" rx="1" />
@@ -67,7 +65,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Painting",
         slug: "painting",
-        count: "96 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7" />
@@ -78,7 +75,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Waterproofing",
         slug: "waterproofing",
-        count: "41 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
@@ -88,7 +84,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Plywood, MDF & HDHMR",
         slug: "plywood-mdf-hdhmr",
-        count: "62 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M3 7l9-4 9 4-9 4-9-4z" />
@@ -100,7 +95,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Adhesives & Sealants",
         slug: "fevicol",
-        count: "38 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M10 2v4h4V2" />
@@ -118,7 +112,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Hinges, Channels & Handles",
         slug: "hinges-channels-handles",
-        count: "88 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -130,7 +123,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Kitchen Systems",
         slug: "kitchen-systems-accessories",
-        count: "54 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M3 6h18v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -141,7 +133,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Wardrobe & Bed Fittings",
         slug: "wardrobe-bed-fittings",
-        count: "37 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="4" y="3" width="16" height="18" rx="2" />
@@ -152,7 +143,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Door Locks & Hardware",
         slug: "door-locks-hardware",
-        count: "61 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -163,7 +153,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "General Hardware & Tools",
         slug: "general-hardware-tools",
-        count: "203 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
@@ -180,7 +169,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Wires, MCB & Distribution",
         slug: "wires-mcb-distribution-boards",
-        count: "74 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="16" rx="2" />
@@ -191,7 +179,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Switches & Sockets",
         slug: "switches-sockets",
-        count: "55 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="5" y="3" width="14" height="18" rx="3" />
@@ -202,7 +189,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Conduits & GI Boxes",
         slug: "conduits-gi-boxes",
-        count: "32 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="3" y="6" width="18" height="12" rx="2" />
@@ -214,7 +200,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Lighting",
         slug: "lighting",
-        count: "112 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M9 18h6" />
@@ -226,7 +211,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Ceiling Fans & Exhaust",
         slug: "ceiling-fans-exhaust",
-        count: "29 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="3" />
@@ -238,25 +222,18 @@ const GROUPS: GroupDefinition[] = [
         ),
       },
       {
-        name: "Appliances & Power Backup",
-        slug: "appliances-power-backup",
-        count: "44 products",
+        /* The category this page was missing. "appliances-power-backup" sat
+           here and 404'd — a slug typo for this one, which exists and holds two
+           published products. 9386b36 corrected the typo in the navigation and
+           did not look at the category index, so the real category stayed
+           unreachable from the page whose entire job is to list them. */
+        name: "Home Appliances & Power Backup",
+        slug: "home-appliances-power-backup",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="4" y="4" width="16" height="16" rx="2" />
             <path d="M9 12h6" />
             <path d="M12 9v6" />
-          </svg>
-        ),
-      },
-      {
-        name: "Power Tools & Accessories",
-        slug: "power-tools-accessories",
-        count: "71 products",
-        iconSvg: (
-          <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-            <path d="M14 6l3 3-7 7H7v-3l7-7z" />
-            <path d="M18 10l-4-4" />
           </svg>
         ),
       },
@@ -270,7 +247,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "CPVC Pipes & Overhead Tanks",
         slug: "cpvc-pipes-overhead-tanks",
-        count: "67 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M4 6h16v12H4z" />
@@ -282,7 +258,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Sanitary & Bath Fittings",
         slug: "sanitary-bath-fittings",
-        count: "134 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <path d="M4 12h16a1 1 0 0 1 1 1v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-2a1 1 0 0 1 1-1z" />
@@ -293,7 +268,6 @@ const GROUPS: GroupDefinition[] = [
       {
         name: "Kitchen Sinks & Faucets",
         slug: "kitchen-sinks-faucets",
-        count: "49 products",
         iconSvg: (
           <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
             <rect x="3" y="5" width="18" height="14" rx="2" />
@@ -305,11 +279,22 @@ const GROUPS: GroupDefinition[] = [
   },
 ];
 
-export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitcherProps) {
+export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  /* The page has always fetched the real categories and this component has
+     always discarded them — the prop was named `_categories` to say so — while
+     rendering a hardcoded list beside a hardcoded count. That is how two slugs
+     the database does not have (appliances-power-backup, power-tools-accessories)
+     survived here after being removed from the nav in 9386b36: both rendered a
+     404 page from a tile on the category index. */
+  const countBySlug = useMemo(
+    () => Object.fromEntries(categories.map((c) => [c.slug, c._count.products])),
+    [categories]
+  );
 
   const filteredGroups = useMemo(() => {
     return GROUPS.map((group) => {
@@ -332,7 +317,7 @@ export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitch
   }
 
   if (isMobile) {
-    return <MobileCategoriesView categories={_categories} />;
+    return <MobileCategoriesView categories={categories} />;
   }
 
   return (
@@ -436,7 +421,16 @@ export function CategoriesSwitcher({ categories: _categories }: CategoriesSwitch
                       {cat.name}
                     </span>
                     <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
-                      {cat.count}
+                      {/* Was a literal per tile — "203 products" under Lighting,
+                          "134 products" under Sanitary & bath, 1,565 across the
+                          twenty-one of them against a catalogue of 45. Same
+                          defect as the home-page tiles and the hero's "4,100
+                          products" before them. */}
+                      {countBySlug[cat.slug] === undefined
+                        ? "\u00a0"
+                        : countBySlug[cat.slug] === 0
+                          ? "Nothing in stock"
+                          : `${countBySlug[cat.slug]} product${countBySlug[cat.slug] === 1 ? "" : "s"}`}
                     </span>
                   </Link>
                 ))}

@@ -8,7 +8,7 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
-import { Categories } from "@/components/sections/categories";
+import { Categories, type CategoryCounts } from "@/components/sections/categories";
 import { Deals } from "@/components/sections/deals";
 import { HowWeWork } from "@/components/sections/how-we-work";
 import { OrderedMost } from "@/components/sections/ordered-most";
@@ -25,9 +25,11 @@ interface HomeSwitcherProps {
   featured: CatalogItem[];
   newArrivals: CatalogItem[];
   categories: Category[];
+  /** Published products per category slug. The tiles used to hardcode these. */
+  categoryCounts: CategoryCounts;
 }
 
-export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeSwitcherProps) {
+export function HomeSwitcher({ deals, featured, newArrivals, categories, categoryCounts }: HomeSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -51,7 +53,7 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeS
       <Navbar />
       <main id="main-content">
         <Hero />
-        <Categories />
+        <Categories counts={categoryCounts} />
         <Deals items={deals} />
         <HowWeWork />
         <OrderedMost items={featured} />

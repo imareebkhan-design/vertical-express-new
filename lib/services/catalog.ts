@@ -726,12 +726,25 @@ export async function getCategoryBySlug(slug: string) {
   return db.category.findFirst({ where: { slug, isActive: true } });
 }
 
+/**
+ * Categories, each carrying how many published products it actually holds.
+ *
+ * The count is here because the home page advertised one. `components/sections/
+ * categories.tsx` shipped a hardcoded figure per tile — "148 products" under
+ * Tiling, "134 products" under Sanitary & bath — totalling 879 across twelve
+ * categories that hold 30 between them. It is the same claim as the "4,100
+ * products" removed from the hero above it, one component further down.
+ */
 async function listCategoriesRaw() {
   return db.category.findMany({
     where: { isActive: true },
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }],
+    include: { _count: { select: { products: { where: { status: "published" } } } } },
   });
 }
+
+/** A category plus how many published products it holds. */
+export type CategoryWithCount = Awaited<ReturnType<typeof listCategoriesRaw>>[number];
 
 export const listCategories = unstable_cache(
   async () => listCategoriesRaw(),
