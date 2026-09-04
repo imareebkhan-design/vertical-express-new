@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { parseRupeeInput } from "@/lib/money";
-import { SETTING_KEYS, writeSetting } from "@/lib/services/settings";
+import { SETTING_KEYS, writeSetting, readSettings, type SettingKey } from "@/lib/services/settings";
+import { recordAudit } from "@/lib/services/audit";
+import { db } from "@/lib/db";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -90,20 +92,63 @@ export async function adminSaveSettings(input: unknown): Promise<ActionResult<nu
   }
 
   const d = parsed.data;
-  await Promise.all([
-    writeSetting(SETTING_KEYS.cashbackPercent, d.cashbackPercent, admin.email),
-    writeSetting(SETTING_KEYS.gstin, d.gstin, admin.email),
-    writeSetting(SETTING_KEYS.expressMinutes, d.expressMinutes, admin.email),
-    writeSetting(
+
+  /* These are the numbers that decide what a customer is charged and what the
+     business pays out: the cashback rate, the express fee, the COD switch, the
+     GSTIN printed on a document. Two things were wrong with saving them.
+
+     They were eight independent upserts under Promise.all, so a failure part
+     way through left some changed and some not, with nothing to say which —
+     cashback on and its fee unset is a worse state than either.
+
+     And the only record of the change was a stdout log line. `Setting.updatedBy`
+     holds the last actor and nothing else: change the cashback rate three times
+     and the two earlier values, and who set them, are gone. With no Sentry DSN
+     configured (ISS-012) the log lines are Vercel runtime logs, which age out.
+     For money, "who set this to 5% and when" has to survive. */
+  const desired: [SettingKey, string][] = [
+    [SETTING_KEYS.cashbackPercent, d.cashbackPercent],
+    [SETTING_KEYS.gstin, d.gstin],
+    [SETTING_KEYS.expressMinutes, d.expressMinutes],
+    [
       SETTING_KEYS.expressFeePaise,
       d.expressFeeRupees === "" ? "" : String(parseRupeeInput(d.expressFeeRupees)),
-      admin.email
-    ),
-    writeSetting(SETTING_KEYS.packSlaMinutes, d.packSlaMinutes, admin.email),
-    writeSetting(SETTING_KEYS.deliverySlaMinutes, d.deliverySlaMinutes, admin.email),
-    writeSetting(SETTING_KEYS.codEnabled, d.codEnabled, admin.email),
-    writeSetting(SETTING_KEYS.defaultSort, d.defaultSort, admin.email),
-  ]);
+    ],
+    [SETTING_KEYS.packSlaMinutes, d.packSlaMinutes],
+    [SETTING_KEYS.deliverySlaMinutes, d.deliverySlaMinutes],
+    [SETTING_KEYS.codEnabled, d.codEnabled],
+    [SETTING_KEYS.defaultSort, d.defaultSort],
+  ];
+
+  const current = await readSettings();
+  const changed = desired.filter(([key, value]) => (current[key] ?? "") !== value);
+
+  if (changed.length === 0) {
+    /* Nothing moved. No write, and no audit row saying a change happened. */
+    revalidatePath("/admin/settings");
+    revalidatePath("/", "layout");
+    return succeed(null);
+  }
+
+  await db.$transaction(async (tx) => {
+    for (const [key, value] of changed) {
+      await writeSetting(key, value, admin.email, tx);
+    }
+
+    /* Only what moved, both sides. The GSTIN's value is recorded here on
+       purpose: it is the number printed on a customer's document, and "who
+       changed it to what" is precisely the question an accountant asks. That
+       is different from scattering it through log aggregation. */
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: admin.id,
+      action: "settings.changed",
+      entityType: "settings",
+      entityId: "global",
+      before: Object.fromEntries(changed.map(([key]) => [key, current[key] ?? null])),
+      after: Object.fromEntries(changed),
+    });
+  });
 
   /* Settings reach the storefront, not just the console. */
   revalidatePath("/admin/settings");

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import type { DbClient } from "@/lib/services/audit";
 import { log } from "@/lib/observability";
 
 /**
@@ -76,8 +77,20 @@ export async function readSetting(key: SettingKey): Promise<string | null> {
   return row?.value ?? null;
 }
 
-export async function writeSetting(key: SettingKey, value: string, updatedBy: string) {
-  await db.setting.upsert({
+/**
+ * Write one setting.
+ *
+ * Takes an optional transaction client so a group of settings can be saved
+ * atomically alongside the audit row describing the change — see
+ * `adminSaveSettings`. Passing nothing keeps the old standalone behaviour.
+ */
+export async function writeSetting(
+  key: SettingKey,
+  value: string,
+  updatedBy: string,
+  tx: DbClient = db
+) {
+  await tx.setting.upsert({
     where: { key },
     create: { key, value, updatedBy },
     update: { value, updatedBy },

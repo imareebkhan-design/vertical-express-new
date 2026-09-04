@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { recordAudit } from "@/lib/services/audit";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { log } from "@/lib/observability";
 import { parseRupeeInput } from "@/lib/money";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -119,35 +119,62 @@ export async function adminSaveCoupon(input: unknown): Promise<ActionResult<null
     isActive: v.isActive,
   };
 
+  /* A coupon is money leaving the business, and its terms are exactly what an
+     argument three months later is about: what the discount was, what the cap
+     was, how many times it could be used, and who set it there.
+
+     The row itself is not that record — an edit overwrites it, so the terms an
+     order was placed under are gone the moment somebody changes them. The only
+     trace was a stdout log line, and with no Sentry DSN configured (ISS-012)
+     those are Vercel runtime logs that age out.
+
+     The audit row goes in the same transaction as the write, so a coupon whose
+     terms changed without a record is not a state this can reach. */
   try {
-    if (v.originalCode) {
-      const existing = await db.coupon.findUnique({
-        where: { code: v.originalCode },
-        select: { code: true },
-      });
-      if (!existing) return fail("NOT_FOUND", "That coupon no longer exists");
-      await db.coupon.update({ where: { code: v.originalCode }, data });
-    } else {
-      await db.coupon.create({ data });
+    await db.$transaction(async (tx) => {
+      if (v.originalCode) {
+        const existing = await tx.coupon.findUnique({
+          where: { code: v.originalCode },
+        });
+        if (!existing) throw new Error("COUPON_GONE");
+        await tx.coupon.update({ where: { code: v.originalCode }, data });
+        await recordAudit(tx, {
+          actorType: "admin",
+          actorId: admin.id,
+          action: "coupon.edited",
+          entityType: "coupon",
+          entityId: v.code,
+          before: {
+            code: existing.code,
+            type: existing.type,
+            value: existing.value,
+            minOrderPaise: existing.minOrderPaise,
+            maxDiscountPaise: existing.maxDiscountPaise,
+            usageLimit: existing.usageLimit,
+            perUserLimit: existing.perUserLimit,
+            firstNOrders: existing.firstNOrders,
+            isActive: existing.isActive,
+          },
+          after: { ...data, startsAt: null, endsAt: null },
+        });
+      } else {
+        await tx.coupon.create({ data });
+        await recordAudit(tx, {
+          actorType: "admin",
+          actorId: admin.id,
+          action: "coupon.created",
+          entityType: "coupon",
+          entityId: v.code,
+          after: { ...data, startsAt: null, endsAt: null },
+        });
+      }
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "COUPON_GONE") {
+      return fail("NOT_FOUND", "That coupon no longer exists");
     }
-  } catch {
     return fail("CONFLICT", "A coupon with that code already exists");
   }
-
-  /* Who changed the terms of a discount, and when. The values are not logged —
-     the screen shows them and the row is the record; what a log adds is the
-     actor and the moment. */
-  log("INFO", {
-    service: "promotions",
-    event: v.originalCode ? "coupon_edited" : "coupon_created",
-    metadata: {
-      code: v.code,
-      previousCode: v.originalCode ?? null,
-      type: v.type,
-      active: v.isActive,
-      by: admin.email,
-    },
-  });
 
   revalidatePath("/admin/coupons");
   return succeed(null);
@@ -165,14 +192,34 @@ export async function adminSetCouponActive(
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
 
-  const updated = await db.coupon.updateMany({ where: { code }, data: { isActive } });
-  if (updated.count === 0) return fail("NOT_FOUND", "That coupon no longer exists");
-
-  log("INFO", {
-    service: "promotions",
-    event: isActive ? "coupon_resumed" : "coupon_paused",
-    metadata: { code, by: admin.email },
+  /* Same transaction as the pause. "Nobody knows who turned the discount back
+     on" is the question this exists to answer. The updateMany guard on
+     isActive makes the write idempotent: a second click changes no rows and
+     writes no audit row, so the trail records changes rather than clicks. */
+  const changed = await db.$transaction(async (tx) => {
+    const updated = await tx.coupon.updateMany({
+      where: { code, isActive: !isActive },
+      data: { isActive },
+    });
+    if (updated.count === 0) return false;
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: admin.id,
+      action: isActive ? "coupon.resumed" : "coupon.paused",
+      entityType: "coupon",
+      entityId: code,
+      before: { isActive: !isActive },
+      after: { isActive },
+    });
+    return true;
   });
+
+  if (!changed) {
+    /* Either the coupon is gone or it was already in that state. Distinguish
+       them so a missing coupon is not reported as a successful no-op. */
+    const exists = await db.coupon.findUnique({ where: { code }, select: { code: true } });
+    if (!exists) return fail("NOT_FOUND", "That coupon no longer exists");
+  }
 
   revalidatePath("/admin/coupons");
   return succeed(null);
