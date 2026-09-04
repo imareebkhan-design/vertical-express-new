@@ -1376,6 +1376,36 @@ re-authentication for sensitive actions — despite a `Role` enum (`customer`, `
 **Evidence.** `lib/services/admin/authz.ts` · `prisma/schema.prisma:Role` — declared,
 never referenced in authorization.
 
+**Verified 5 Sep 2026 — the mechanism is sound; the policy is what is thin.**
+Checked all three ways into the console rather than assuming:
+
+- **Pages.** `app/admin/layout.tsx` calls `adminGate()` and redirects. A layout wraps every
+  route beneath it, so the twenty-six pages correctly do *not* repeat the check. A sweep
+  that flags each page as "ungated" is reading the wrong thing.
+- **Server actions.** All thirteen `admin*` actions call `getAdminUser()` before doing any
+  work and return FORBIDDEN. A layout cannot cover these — an action is reachable by POST
+  with no page rendered.
+- **Route handlers.** There are no admin ones. The four public handlers are public by
+  design; the two privileged ones carry a shared secret or a verified signature.
+
+`getAdminUser()` also refuses an unverified email, which is load-bearing under Firebase in
+a way it was not under Supabase: email/password sign-up sets `email` on the token before
+anyone proves they can read that inbox, so allowlisting an unverified address would let
+anybody sign up as an address in `ADMIN_EMAILS` and walk in. The empty allowlist fails
+closed.
+
+**The gap a test now covers:** a new route handler under `app/api` touching admin data
+would be protected by nothing, and nothing would have said so.
+`lib/__tests__/admin-authorization.test.ts` fails if one appears — verified by adding one.
+
+**The trade-off, which is the owner's and is why `User.role` stays unused.** Moving admin
+membership into the database removes the redeploy needed to add an operator. It also means
+anybody who can write the database can make themselves an operator, which an environment
+variable does not allow — that needs deploy access. With one operator the env var is
+arguably the safer of the two. The question is worth asking again the day there is a second
+person, and granular roles (operations, warehouse, catalog, finance) describe a team that
+does not exist yet; inventing that taxonomy now would be building the wrong thing.
+
 **Likely files.** `lib/services/admin/authz.ts` · `app/admin/layout.tsx` ·
 `prisma/schema.prisma`
 
