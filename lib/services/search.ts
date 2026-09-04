@@ -54,7 +54,9 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
         { category: { name: { contains: term, mode: "insensitive" } } },
       ]),
     },
-    orderBy: [{ isDeal: "desc" }, { ratingCount: "desc" }],
+    /* `ratingCount` is always zero (ISS-034), so this ranked nothing. Deals
+       first, then newest — the order it actually produced. */
+    orderBy: [{ isDeal: "desc" }, { createdAt: "desc" }],
     take: 12, // Take extra to allow for deduplication
     include: {
       brand: { select: { name: true } },

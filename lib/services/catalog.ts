@@ -131,7 +131,17 @@ function orderBy(sort: CatalogSort | undefined): Prisma.ProductOrderByWithRelati
       return [{ createdAt: "desc" }];
     case "popular":
     default:
-      return [{ ratingCount: "desc" }, { createdAt: "desc" }];
+      /* `ratingCount` is zero on every product and nothing writes it — there is
+         no Review model (ISS-034). As a first sort key it was inert, so every
+         listing silently fell through to the second key and came out
+         newest-first while the control above it said "Popular".
+
+         The dead key is gone rather than kept as decoration. This is not a
+         choice between the three ranking options ISS-058 leaves open — it is
+         the same order the code already produced, named correctly. Ranking by
+         real order volume, or a curated merchandising order, remains the
+         owner's decision. */
+      return [{ createdAt: "desc" }];
     // price/discount sorts happen in JS after fetch of the page window —
     // acceptable at current catalog size; moves to SQL with the search engine.
   }
@@ -663,7 +673,9 @@ async function getRelatedProductsRaw(
       category: { slug: categorySlug },
       slug: { not: excludeSlug },
     },
-    orderBy: [{ isDeal: "desc" }, { ratingCount: "desc" }],
+    /* Second key was `ratingCount`, which is always zero — see orderBy above.
+       Deals first, then newest, which is what it already did. */
+    orderBy: [{ isDeal: "desc" }, { createdAt: "desc" }],
     take,
     include: {
       brand: true,
