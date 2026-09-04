@@ -33,10 +33,44 @@ Retained deliberately and tracked as follow-up, **not** cleared for use:
 
 - **10 category images** carrying manufacturer marks — `cement`, `cpvc-pipes-overhead-tanks`,
   `fevicol`, `general-hardware-tools`, `home-appliances-power-backup`, `lighting`,
-  `painting`, `tiling`, `waterproofing`, `wires-mcb-distribution-boards`. Still rendered
-  as category tiles via `Category.imageUrl`.
+  `painting`, `tiling`, `waterproofing`, `wires-mcb-distribution-boards`.
+
+  **They are not rendered anywhere.** This entry said "still rendered as category tiles via
+  `Category.imageUrl`", and that is not true and appears never to have been: no service
+  selects `Category.imageUrl`, and `components/category-card.tsx` — the only file that
+  builds a `/categories/<slug>.webp` path — is imported by nothing. `/categories` draws
+  inline SVG icons on a tinted ground and requests no image at all (verified in the
+  browser: zero `<img>` elements on the page).
+
+  **What is still true, and is the actual exposure:** they sit in `public/`, so Next.js
+  serves every one of them as a static asset to anyone who requests the URL.
+  `/categories/cement.webp` returns 200 today. That is publishing a third party's mark at
+  a guessable address — smaller than presenting it beside a price and a buy button, and
+  not nothing.
+
+  Correcting both halves matters: the first overstated where they appear, which invites
+  an urgent fix to a page that does not exist; the second understated that they are
+  reachable at all, which invites leaving them.
 - **`public/products/ss-kitchen-sink.webp`** and three category images with minor marks
   (`kitchen-sinks-faucets`, `conduits-gi-boxes`, `plywood-mdf-hdhmr`).
+
+- **Six more category composites of unverified origin** — `door-locks-hardware`,
+  `hinges-channels-handles`, `kitchen-systems-accessories`, `sanitary-bath-fittings`,
+  `switches-sockets`, `wardrobe-bed-fittings`.
+
+  Added 5 Sep 2026, after opening each one. They had no provenance entry and were not on
+  any tracked list, which read as "fine" and was only ever "unexamined" — `categories` was
+  not among the directories this registry was enforced over.
+
+  They are the same house style as the thirteen above: product-photography composites on a
+  tinted ground, of a kind a manufacturer or a marketplace produces. None carries a
+  *prominent* legible mark, which is presumably why they were never flagged. Several carry
+  small text too low-resolution to read, and `kitchen-systems-accessories` includes
+  third-party consumer-goods labels on the bottles in the pull-out.
+
+  **Not cleared.** "No visible logo" is not a licence, and nothing here records where any
+  of them came from. Treat all nineteen category composites as one question rather than
+  two: whoever can answer it can answer it once.
 
 ## Adding an asset
 

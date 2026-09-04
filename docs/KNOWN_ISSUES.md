@@ -1844,8 +1844,31 @@ The most probable cause is that `prisma db seed` was run against the production 
 
 This phase achieves one thing: no page carrying a price, a brand name and a buy button presents a third party's product photography as Vertical Express own imagery. The following remain live in production:
 
-- **10 branded category tiles (Phase 3):** Category composite images carrying manufacturer marks (UltraTech, Polycab, Havells, Philips, Dr. Fixit, Asian Paints, Fevicol, and others) remain in `public/categories/` and are served via `Category.imageUrl` on the category listing and product pages. These are not product-level images, but they carry third-party marks without documented authorisation. Phase 3 will address them.
-- **ceiling-fans-exhaust category tile still broken:** The 2 `ProductImage` rows for ceiling-fan products are now at the placeholder (correct), but `Category.imageUrl` for the ceiling-fans-exhaust category still points at `/categories/ceiling-fans-exhaust.webp`, a file that does not exist on disk. F5 (the ceiling-fans defect) is narrowed — the product rows are fixed — but the category tile remains broken. A separate fix is required.
+- **10 branded category files (Phase 3):** Category composite images carrying manufacturer
+  marks (UltraTech, Polycab, Havells, Philips, Dr. Fixit, Asian Paints, Fevicol, and others)
+  remain in `public/categories/`.
+
+  **Corrected 5 Sep 2026.** This entry said they "are served via `Category.imageUrl` on the
+  category listing and product pages". That is false, and appears never to have been true.
+  No service selects `Category.imageUrl`; `components/category-card.tsx` is the only file
+  that builds a `/categories/<slug>.webp` path and **nothing imports it**; `/categories`
+  renders inline SVG icons and requests no image (verified in the browser — zero `<img>`
+  elements on the page).
+
+  The real exposure is narrower and still real: the files sit in `public/`, so they are
+  served as static assets to any request. `/categories/cement.webp` returns 200 today.
+  Publishing a mark at a guessable URL is a smaller thing than presenting it beside a price
+  and a buy button, and it is not nothing.
+
+  **Owner input required.** Brand *names* are authorised by signed agreement. Photography is
+  a separate question and these carry no documented licence. Deleting them costs nothing —
+  nothing renders them — but they are not mine to delete if a licence exists.
+- **ceiling-fans-exhaust:** `Category.imageUrl` points at `/categories/ceiling-fans-exhaust.webp`,
+  which does not exist on disk — the URL 404s, confirmed. **No tile is broken by it**,
+  because no surface reads `Category.imageUrl` or renders a category photograph at all. The
+  dangling value is a data inconsistency waiting for whoever next wires that column up, not
+  a defect a customer can see. `scripts/check-assets.mjs` already exempts the path in
+  `KNOWN_MISSING`, which is why the guard stays green.
 - **6 F3 minor-mark products retained:** `/products/ss-kitchen-sink.webp` and 5 category images (`kitchen-sinks-faucets`, `conduits-gi-boxes`, `plywood-mdf-hdhmr`, and 2 others) are retained by owner decision. Documented in `docs/ASSET_PROVENANCE.md`. Replacement scheduled for a later phase.
 - **33 branded files remain in the repository:** The 10 blocked category composites plus the F3 minor-mark assets remain in `public/categories/` and `public/products/`. They are not referenced by any product-surface image, but they exist in the repository and should be removed or replaced in Phase 3.
 

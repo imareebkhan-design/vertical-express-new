@@ -81,8 +81,59 @@ const BRANDED_TRACKED = new Set([
  */
 const KNOWN_MISSING = new Set(["/categories/ceiling-fans-exhaust.webp"]);
 
-/** Directories whose contents must each have a provenance entry. */
-const PROVENANCE_REQUIRED = ["products", "hero"];
+/**
+ * Directories whose contents must each have a provenance entry.
+ *
+ * `categories` was not on this list, which is exactly where the ten files
+ * carrying manufacturer marks live — the guard was strictest about the
+ * directory that had already been cleaned and silent about the one that had
+ * not. Every category file is served by Next as a static asset at a guessable
+ * URL (`/categories/cement.webp` returns 200), so "nothing renders it" is not
+ * the same as "nobody can fetch it".
+ *
+ * The ten are exempted below by name, the same way the tracked product images
+ * are: their status is recorded in ASSET_PROVENANCE.md as known-problematic and
+ * awaiting an owner decision, which is documentation, not clearance. What this
+ * now catches is a *new* category image arriving with no provenance at all.
+ */
+const PROVENANCE_REQUIRED = ["products", "hero", "categories"];
+
+/**
+ * The ten category composites carrying prominent manufacturer marks, plus the
+ * three with minor ones. Documented in ASSET_PROVENANCE.md under "Known
+ * third-party imagery still present" and awaiting the owner's decision on
+ * whether a licence covers them. Nothing renders them; everything can fetch
+ * them. Remove an entry when the file is replaced or deleted.
+ */
+const CATEGORY_MARKS_TRACKED = new Set(
+  [
+    "cement",
+    "cpvc-pipes-overhead-tanks",
+    "fevicol",
+    "general-hardware-tools",
+    "home-appliances-power-backup",
+    "lighting",
+    "painting",
+    "tiling",
+    "waterproofing",
+    "wires-mcb-distribution-boards",
+    "kitchen-sinks-faucets",
+    "conduits-gi-boxes",
+    "plywood-mdf-hdhmr",
+
+    /* Six more, added after opening each one (5 Sep 2026). No prominent mark,
+       which is why they were never flagged — and no recorded origin either,
+       which is why "no visible logo" was doing more work than it can bear. Same
+       house style as the thirteen above. Documented in ASSET_PROVENANCE.md as
+       origin unverified. */
+    "door-locks-hardware",
+    "hinges-channels-handles",
+    "kitchen-systems-accessories",
+    "sanitary-bath-fittings",
+    "switches-sockets",
+    "wardrobe-bed-fittings",
+  ].map((slug) => `/categories/${slug}.webp`)
+);
 const PROVENANCE_FILE = join(ROOT, "docs", "ASSET_PROVENANCE.md");
 
 const failures = [];
@@ -179,6 +230,7 @@ if (!provenance) {
       if (!/\.(webp|png|jpe?g|avif)$/.test(f)) continue;
       const ref = `/${dirName}/${f}`;
       if (BRANDED_TRACKED.has(ref)) continue; // acknowledged, documented as known-problematic
+      if (CATEGORY_MARKS_TRACKED.has(ref)) continue; // ditto, awaiting the owner on licensing
       const entry = provMap.get(ref);
       if (!entry) {
         note(
