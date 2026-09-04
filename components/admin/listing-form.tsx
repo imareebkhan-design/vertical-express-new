@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { adminListProduct } from "@/actions/listing";
+import { parsePincodeList } from "@/lib/pincode";
 
 /**
  * Listing a product.
@@ -373,15 +374,14 @@ export function ListingForm({ options }: { options: ListingOptions }) {
               </Field>
               <p className="mt-1.5 text-[12px] font-medium text-ink-700">
                 {(() => {
-                  const pins = form.expressPincodes
-                    .split(/[\s,]+/)
-                    .map((t) => t.trim())
-                    .filter(Boolean);
-                  const good = [...new Set(pins.filter((t) => /^19\d{4}$/.test(t)))];
-                  const bad = pins.filter((t) => !/^19\d{4}$/.test(t));
-                  if (pins.length === 0) return "No pincode yet, so express is offered nowhere.";
-                  if (bad.length > 0) return `Not a pincode: ${bad.slice(0, 3).join(", ")}`;
-                  return `${good.length} pincode${good.length === 1 ? "" : "s"}.`;
+                  /* The same parser the action validates with, rather than a
+                     second copy of the rule that can drift from it. */
+                  const { valid, invalid } = parsePincodeList(form.expressPincodes);
+                  if (valid.length === 0 && invalid.length === 0) {
+                    return "No pincode yet, so express is offered nowhere.";
+                  }
+                  if (invalid.length > 0) return `Not a pincode: ${invalid.slice(0, 3).join(", ")}`;
+                  return `${valid.length} pincode${valid.length === 1 ? "" : "s"}.`;
                 })()}
               </p>
             </div>

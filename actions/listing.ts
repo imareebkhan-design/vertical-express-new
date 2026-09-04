@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { parsePincodeList } from "@/lib/pincode";
 import { parseRupeeInput } from "@/lib/money";
 import { createProduct } from "@/lib/services/admin/product-create";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
@@ -84,22 +85,7 @@ const schema = z
     }
   });
 
-/**
- * Split a typed pincode list into the ones we can use and the ones we cannot.
- *
- * Six digits, and J&K only — the shop delivers in Srinagar and a 110054 typed
- * by habit is a Delhi pincode that would sit in the table promising an hour to
- * a city we do not serve. Same rule the serviceability CSV import applies.
- */
-export function parsePincodeList(raw: string): { valid: string[]; invalid: string[] } {
-  const valid: string[] = [];
-  const invalid: string[] = [];
-  for (const token of raw.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)) {
-    if (/^19\d{4}$/.test(token)) valid.push(token);
-    else invalid.push(token);
-  }
-  return { valid: [...new Set(valid)], invalid };
-}
+
 
 export async function adminListProduct(
   input: unknown
