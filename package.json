@@ -5,6 +5,7 @@
   "scripts": {
     "predev": "node scripts/dev-db-guard.mjs",
     "dev": "next dev --turbopack",
+    "prebuild": "node scripts/build-guard.mjs",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
