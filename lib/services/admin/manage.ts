@@ -5,22 +5,13 @@ import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { releaseOrderInventory } from "@/lib/services/orders";
 import { recordAudit } from "@/lib/services/audit";
+import { canTransitionOrder } from "@/lib/order-flow";
 
-// Allowed forward transitions for the order fulfilment state machine.
-const ORDER_FLOW: Record<string, OrderStatus[]> = {
-  pending_payment: ["confirmed", "cancelled"],
-  confirmed: ["packed", "cancelled"],
-  packed: ["out_for_delivery"],
-  out_for_delivery: ["delivered"],
-  delivered: [],
-  cancelled: [],
-  refund_initiated: ["refunded"],
-  refunded: [],
-};
-
-export function nextOrderStatuses(current: OrderStatus): OrderStatus[] {
-  return ORDER_FLOW[current] ?? [];
-}
+/* The map moved to lib/order-flow.ts so the three other paths that write an
+   order status can share it instead of each restating the rule. Re-exported
+   here because callers and the admin screens already import it from this
+   module. */
+export { nextOrderStatuses } from "@/lib/order-flow";
 
 export async function adminListOrders(page = 1, perPage = 20, status?: OrderStatus) {
   const where = status ? { status } : {};
@@ -47,7 +38,7 @@ export async function advanceOrderStatus(
 ) {
   const order = await db.order.findUnique({ where: { id: orderId } });
   if (!order) throw new Error("NOT_FOUND");
-  if (!nextOrderStatuses(order.status).includes(to)) throw new Error("INVALID_TRANSITION");
+  if (!canTransitionOrder(order.status, to)) throw new Error("INVALID_TRANSITION");
 
   await db.$transaction(async (tx) => {
     await tx.order.update({

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { isCancellable } from "@/lib/order-flow";
 import type { Prisma } from "@/prisma/generated/client/client";
 
 export interface OrderAddressSnapshot {
@@ -73,7 +74,10 @@ export async function cancelOrder(userId: string, orderNo: string, reason: strin
     include: { items: true },
   });
   if (!order) throw new Error("NOT_FOUND");
-  if (!["pending_payment", "confirmed"].includes(order.status)) {
+  /* Was its own list of statuses, which happened to agree with ORDER_FLOW and
+     was free to drift from it. Derived from the machine now — see
+     lib/order-flow.ts. */
+  if (!isCancellable(order.status)) {
     throw new Error("NOT_CANCELLABLE");
   }
 
