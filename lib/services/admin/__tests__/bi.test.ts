@@ -33,12 +33,25 @@ test("Business Intelligence: returns expected metrics and filters successfully",
   const statusSum = o.pending + o.confirmed + o.packed + o.outForDelivery + o.delivered + o.cancelled;
   assert.equal(s.ordersCount, statusSum);
 
-  // 5. Verify inventory math
+  /* 5. Inventory. The counts are real; the three money-and-capacity figures are
+     null and must stay null.
+
+     Stock value was `qtyOnHand * pricePaise` — the SELLING price, which
+     overstates stock by the whole margin, on a card labelled "Current Stock
+     Value". That is the figure quoted to a bank or an insurer in good faith,
+     and /admin/inventory already said stock value was a sentence rather than a
+     number. Turnover divided net sales by that same wrong total. Utilisation
+     divided by an invented ten thousand units per warehouse — `Warehouse` has
+     no capacity column at all.
+
+     None is computable without a cost basis (ISS-062) or a real capacity, and
+     an unavailable number must not be a plausible one. */
   const inv = biData.inventory;
-  assert.ok(inv.totalValuePaise >= 0);
+  assert.equal(inv.totalValuePaise, null, "stock cannot be valued without a cost price");
+  assert.equal(inv.turnoverRate, null, "turnover needs cost of goods sold");
+  assert.equal(inv.utilizationPct, null, "Warehouse has no capacity to divide by");
   assert.ok(inv.outOfStockCount >= 0);
   assert.ok(inv.lowStockCount >= 0);
-  assert.ok(inv.utilizationPct >= 0 && inv.utilizationPct <= 100);
 
   /* 6. On-time performance is null until somebody sets the target.
      It used to be hardcoded at 120/240 minutes and reported as compliance;

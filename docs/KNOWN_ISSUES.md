@@ -80,6 +80,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-065 | Marketing funnel and search demand were fabricated in the reporting service | HIGH | Reporting | FIXED |
 | ISS-066 | Coupon usage, per-customer and first-N-orders limits were never enforced | HIGH | Money/Promotions | FIXED |
 | ISS-067 | An unreachable services booking UI still carries free-visit and 24-hour promises | MEDIUM | Services/Dead code | OPEN |
+| ISS-068 | A product's price can be set once and never changed | HIGH | Catalog | OPEN |
 
 ---
 
@@ -2815,3 +2816,43 @@ Two coherent outcomes, and correcting the copy of dead code is neither:
 2. **Revive it.** Then the copy needs the same treatment `/services` got, the booking
    number needs a sequence rather than a count, and the free-visit and 24-hour commitments
    need the owner to confirm them before they are printed.
+
+---
+
+## ISS-068 — A product's price can be set once and never changed
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Catalog / Operations |
+| **Status** | OPEN |
+
+**Description.** `ProductVariant.pricePaise` is written in exactly one place —
+`lib/services/admin/product-create.ts`, when the product is first listed. No admin path
+updates it. `actions/products.ts` (`adminSaveProduct`) edits title, slug, brand, status and
+delivery speed, and touches neither the price nor the MRP.
+
+**Evidence.** `grep -rn "pricePaise:" actions lib/services` returns one write outside
+reads and type declarations: the create path. The product editor's own screen says it is
+deliberately limited (ISS-019), but for HSN and GST rate rather than for price.
+
+**Why it surfaced now.** Found while auditing which money-moving paths write an audit row
+(ISS-015). The answer for prices turned out to be "none of them, because none of them
+exists" — a stronger statement than the one being checked for.
+
+**Business impact.** Cement moves on a quoted rate that changes with the season and with
+the Jammu road. A shop that cannot change a price has to delete the product and list it
+again, which loses its slug, its order history and every saved link to it. In practice
+somebody will edit the database by hand, which is the outcome an audit trail exists to
+prevent.
+
+**Why it is not simply built.** A price change is the single most consequential edit in the
+catalogue and needs three things this repository does not yet have together: the edit
+itself, an audit row in the same transaction (ISS-015 established the pattern), and a
+decision about whether a change applies to carts already holding the item. `CartItem`
+stores no price and resolves on read — deliberately — so a price change silently reprices
+every open cart. That is defensible, and it is the owner's call to make knowingly rather
+than discover.
+
+**Owner input required.** Yes — should a price change apply to carts that already hold the
+item, or only to carts created afterwards?

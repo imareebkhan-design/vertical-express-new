@@ -185,8 +185,20 @@ test("the reporting suite runs end to end", async () => {
     aov: bi.sales.aovPaise,
     orders: bi.sales.ordersCount,
     ltv: bi.customers.ltvAvgPaise,
-    stockValue: bi.inventory.totalValuePaise,
   })) {
     assert.ok(Number.isFinite(v), `${name} is not a finite number (${v})`);
   }
+
+  /* Stock value used to be in that list, and being a finite number was the
+     whole problem: it was qtyOnHand times the SELLING price, which overstates
+     stock by the entire margin on a card a bank or an insurer would be shown.
+     There is no cost price in the schema (ISS-062), so the honest value is
+     absent. Turnover and warehouse utilisation are absent for the same kind of
+     reason — no cost of goods sold, and no capacity column on Warehouse.
+
+     Null rather than zero, and the cards say what is missing. Zero would be a
+     measurement; this is the absence of one. */
+  assert.equal(bi.inventory.totalValuePaise, null, "stock cannot be valued without a cost price");
+  assert.equal(bi.inventory.turnoverRate, null, "turnover needs cost of goods sold");
+  assert.equal(bi.inventory.utilizationPct, null, "Warehouse has no capacity to divide by");
 });

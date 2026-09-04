@@ -69,12 +69,32 @@ export interface BiDashboardData {
     neverSold: { title: string; sku: string }[];
   };
   inventory: {
-    totalValuePaise: number;
+    /**
+     * Null, always, until a cost basis exists — ISS-062.
+     *
+     * This was `qtyOnHand * pricePaise`, the SELLING price, which overstates
+     * stock by the entire margin. It is labelled "Current Stock Value" on the
+     * dashboard, which is exactly the figure somebody quotes to a bank, an
+     * accountant or an insurer in good faith. /admin/inventory already says
+     * stock value is a sentence rather than a number; this said otherwise, two
+     * screens apart.
+     */
+    totalValuePaise: number | null;
     outOfStockCount: number;
     lowStockCount: number;
     deadStockCount: number;
-    utilizationPct: number;
-    turnoverRate: number;
+    /**
+     * Null: `Warehouse` has no capacity column. The denominator was
+     * `warehouseCount * 10000` — an invented ten thousand units per warehouse,
+     * producing a percentage that looks measured and is not.
+     */
+    utilizationPct: number | null;
+    /**
+     * Null: turnover is cost of goods sold over average inventory at cost. The
+     * comment beside the old code said exactly that while the code divided net
+     * sales by inventory at selling price — neither input was the right one.
+     */
+    turnoverRate: number | null;
     aging: { label: string; value: number }[]; // [0-30 days, 31-90 days, 90+ days]
     fastMoving: { title: string; qtyOnHand: number; soldQty: number }[];
     slowMoving: { title: string; qtyOnHand: number; soldQty: number }[];
@@ -419,21 +439,19 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     },
   });
 
-  let totalInventoryValue = 0;
+  /* No cost price exists anywhere in the schema (ISS-062), so stock cannot be
+     valued. Kept as a running total of nothing rather than deleted, because the
+     aging and movement figures below are computed in the same pass and are
+     real. */
   let outOfStockCount = 0;
   let lowStockCount = 0;
-  let activeInvCount = 0;
   let age0_30 = 0, age31_90 = 0, age91_plus = 0;
 
   const invList = variants.map((v) => {
     const qty = v.inventory.reduce((sum, i) => sum + i.qtyOnHand, 0);
-    const value = qty * v.pricePaise;
-    totalInventoryValue += value;
 
     if (qty === 0) outOfStockCount++;
     else if (qty <= 10) lowStockCount++;
-    
-    activeInvCount += qty;
 
     const daysOld = (now.getTime() - v.product.createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysOld <= 30) age0_30 += qty;
@@ -451,13 +469,15 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   const deadStockCount = invList.filter(i => i.qtyOnHand > 0 && i.soldQty === 0).length;
   
-  // Utilization: total stock divided by warehouse capacity limit
-  const warehouseCount = warehouses.length || 1;
-  const capacityLimit = warehouseCount * 10000;
-  const utilizationPct = Math.round(Math.min(100, (activeInvCount / capacityLimit) * 100));
+  /* Utilisation needs a capacity to divide by, and `Warehouse` has no capacity
+     column. It was `warehouseCount * 10000` — a number nobody set, dressed as a
+     measurement. Null until the warehouse carries its real capacity. */
+  const utilizationPct = null;
 
-  // Turnover rate: Cost of goods sold / average inventory value
-  const turnoverRate = totalInventoryValue > 0 ? Number((netSales / totalInventoryValue).toFixed(2)) : 0;
+  /* Turnover is cost of goods sold over average inventory at cost. Both inputs
+     need a cost price, so it is not computable either (ISS-062). It was
+     `netSales / (qty * sellingPrice)`, which is neither term of that ratio. */
+  const turnoverRate = null;
 
   const aging = [
     { label: "0-30 Days", value: age0_30 },
@@ -708,7 +728,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       neverSold,
     },
     inventory: {
-      totalValuePaise: totalInventoryValue,
+      totalValuePaise: null,
       outOfStockCount,
       lowStockCount,
       deadStockCount,

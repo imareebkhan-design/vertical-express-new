@@ -450,10 +450,63 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {activeTab === "inventory" && (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <KpiCard label="Current Stock Value" value={formatPaise(initialData.inventory.totalValuePaise)} color="emerald" />
+              {/* Three of these four were figures nobody could stand behind.
+
+                  "Current Stock Value" was qtyOnHand x the SELLING price,
+                  which overstates stock by the entire margin — and it is the
+                  number somebody quotes to a bank or an insurer in good faith.
+                  /admin/inventory already said stock value was a sentence
+                  rather than a figure; this card said otherwise, two screens
+                  away. Turnover divided net sales by that same wrong total.
+                  Utilisation divided by an invented ten thousand units per
+                  warehouse, and `Warehouse` has no capacity column at all.
+
+                  Each now says what is missing instead of showing a number.
+                  An unavailable figure must not read as a measured one — the
+                  same rule the SLA targets follow (ISS-064). */}
+              <KpiCard
+                label="Current Stock Value"
+                value={
+                  initialData.inventory.totalValuePaise === null
+                    ? "Not computable"
+                    : formatPaise(initialData.inventory.totalValuePaise)
+                }
+                subValue={
+                  initialData.inventory.totalValuePaise === null
+                    ? "No cost price is recorded against stock — ISS-062"
+                    : undefined
+                }
+                color="emerald"
+              />
               <KpiCard label="Dead Inventory Items" value={initialData.inventory.deadStockCount} color="rose" />
-              <KpiCard label="Turnover Rate" value={`${initialData.inventory.turnoverRate}x`} color="blue" />
-              <KpiCard label="Warehouse Utilization" value={`${initialData.inventory.utilizationPct}%`} color="violet" />
+              <KpiCard
+                label="Turnover Rate"
+                value={
+                  initialData.inventory.turnoverRate === null
+                    ? "Not computable"
+                    : `${initialData.inventory.turnoverRate}x`
+                }
+                subValue={
+                  initialData.inventory.turnoverRate === null
+                    ? "Needs cost of goods sold — ISS-062"
+                    : undefined
+                }
+                color="blue"
+              />
+              <KpiCard
+                label="Warehouse Utilization"
+                value={
+                  initialData.inventory.utilizationPct === null
+                    ? "Not measured"
+                    : `${initialData.inventory.utilizationPct}%`
+                }
+                subValue={
+                  initialData.inventory.utilizationPct === null
+                    ? "No capacity is recorded against a warehouse"
+                    : undefined
+                }
+                color="violet"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
