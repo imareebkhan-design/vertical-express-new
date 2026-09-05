@@ -573,11 +573,19 @@ number or only their name.
 | **Area** | Operations |
 | **Status** | **MOSTLY RESOLVED** — the loop runs; slots, order-state derivation and driver cash remain |
 
-**Description.** The order chain runs `cart → checkout → order → confirmed` and stops.
-There is no `Shipment`, no `Driver`, no assignment, no dispatch board, no pick list, no
-packing slip, no delivery OTP, and no proof of delivery. An admin can manually click an
-order through `confirmed → packed → out_for_delivery → delivered`, but no operational
-system sits behind those clicks.
+**Description (as originally written, 6 Aug 2026).** The order chain runs
+`cart → checkout → order → confirmed` and stops. There is no `Shipment`, no `Driver`, no
+assignment, no dispatch board, no pick list, no packing slip, no delivery OTP, and no
+proof of delivery. An admin can manually click an order through
+`confirmed → packed → out_for_delivery → delivered`, but no operational system sits
+behind those clicks.
+
+**What of that is still true (5 Sep 2026).** `Shipment`, `Driver`, `Vehicle`, assignment,
+the dispatch board, the delivery code and proof of delivery all exist — see the progress
+note above. **A pick list and a packing slip do not**, and neither does slot selection.
+The original paragraph is kept rather than rewritten because the shape of the gap it
+describes is why the rest of this entry reads as it does; leaving it unmarked would have
+made it the fourth stale claim found in this register in a week.
 
 **Evidence (corrected 3 Sep 2026).** The original line here read "no shipment, driver,
 or POD entity exists", and it stayed after `Shipment` landed — the Progress note above

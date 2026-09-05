@@ -3,16 +3,21 @@ import type { ShipmentStatus } from "@/prisma/generated/client/client";
 /**
  * The shipment state machine — the only definition of which move is legal.
  *
- * `Shipment` has existed since `20260826095435_add_shipments` and has been
- * write-once for its whole life: rows are created at `pending` inside the
- * checkout transaction and never advance. There is no `shipment.update`
- * anywhere outside tests. Every field the fulfilment loop needs is already on
+ * `Shipment` existed from `20260826095435_add_shipments` and was write-once for
+ * every day of its life until this file: rows were created at `pending` inside
+ * the checkout transaction and never advanced, with no `shipment.update`
+ * anywhere outside a test comment. Every field the loop needs was already on
  * the model — `dispatchedAt`, `deliveredAt`, `deliveryCode`, `warehouseId` —
- * and all of them are permanently null.
+ * and all of them were permanently null.
  *
- * That is ISS-009, and it is why roughly eleven console screens have nothing to
- * show: a dispatch board with nothing to dispatch, a tracking page whose
- * timeline never leaves its first stage.
+ * That was ISS-009, and it was why roughly eleven console screens had nothing
+ * to show: a dispatch board with nothing to dispatch, a tracking page whose
+ * timeline never left its first stage.
+ *
+ * Past tense throughout, deliberately. Written in the present it would have
+ * become false the moment `lib/services/admin/shipments-write.ts` landed
+ * beside it — which is exactly what happened to nine other files that said
+ * drivers did not exist.
  *
  * Separate from `lib/order-flow.ts` on purpose. An order that mixes a coil of
  * wire with a tonne of cement has two shipments that move independently — the

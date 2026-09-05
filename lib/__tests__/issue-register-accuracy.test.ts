@@ -90,15 +90,34 @@ test("ISS-009's evidence does not deny a model that exists", () => {
 });
 
 test("nothing claims the fulfilment loop is complete either", () => {
-  /* The opposite failure, and the more dangerous one: Shipment existing is not
-     the same as fulfilment working. Shipments are created at `pending` and
-     never advanced — there is no shipment.update anywhere outside tests — so
-     ISS-009 must stay open in some form. */
+  /* The opposite failure, and the more dangerous one: a model existing is not
+     the same as the loop working.
+   *
+   * The assertion below has not changed. Its reasoning has, and that is worth
+   * recording: this comment used to say "shipments are created at `pending` and
+   * never advanced — there is no shipment.update anywhere outside tests", and
+   * that stopped being true on 5 Sep. The test kept passing while telling a
+   * reader something false, which is the same drift it exists to catch, one
+   * level up.
+   *
+   * ISS-009 stays open for what actually remains: no Slot model (ISS-057), so
+   * checkout cannot offer a window and `promisedAt` is never written; and
+   * `Order.status` is still not derived from its shipments, which is deliberate
+   * under the expand/migrate/contract rule rather than missing. */
   const status = statusOf("ISS-009");
   assert.notEqual(
     status,
     "FIXED",
-    "ISS-009 is marked fixed, but shipments are still write-once: no shipment " +
-      "status ever advances, and there is no Driver, vehicle, slot or proof of delivery."
+    "ISS-009 is marked fixed. The loop advances now, but there is still no Slot " +
+      "model and Order.status is not derived from shipment state."
+  );
+
+  /* And the reason has to keep being true. If a Slot model appears, this test
+     is the thing that should force ISS-009 to be looked at again. */
+  const schema = readFileSync(join(ROOT, "prisma/schema.prisma"), "utf8");
+  assert.ok(
+    !/^model (Slot|DeliverySlot) /m.test(schema),
+    "a Slot model now exists — ISS-009 and ISS-057 both need revisiting, and this " +
+      "test's stated reason for keeping ISS-009 open is no longer the real one"
   );
 });

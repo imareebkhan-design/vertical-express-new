@@ -129,3 +129,63 @@ test("the handover code is shown once and never persisted to the screen", () => 
     "the handover code is being persisted in the browser"
   );
 });
+
+test("no file claims a shipment can never be advanced", () => {
+  /* The second wave of this. Nine files said drivers did not exist; three more
+     said shipments never move — including, and this is the one that stings, the
+     doc comment at the top of the state machine that makes them move, and the
+     reasoning inside the test whose whole job is catching register drift. Both
+     passed while telling a reader something false.
+
+     Present tense is the tell. A file may say a shipment *was* write-once; it
+     may not say one *is*. */
+  const WRITES_EXIST = /shipment\.updateMany\(|shipment\.update\(/.test(
+    readFileSync(join(ROOT, "lib/services/admin/shipments-write.ts"), "utf8")
+  );
+  assert.ok(WRITES_EXIST, "the shipment write path has gone — this test's premise is wrong");
+
+  const PRESENT_TENSE_DENIALS = [
+    /there is no `?shipment\.update`? anywhere/i,
+    /shipments are (still )?write-once/i,
+    /shipments are created at `?pending`? and never advanced/i,
+    /no shipment status ever advances/i,
+    /a shipment cannot be advanced/i,
+  ];
+
+  for (const rel of SOURCES) {
+    if (rel === SELF) continue;
+    const src = readFileSync(join(ROOT, rel), "utf8");
+    for (const denial of PRESENT_TENSE_DENIALS) {
+      const m = denial.exec(src);
+      assert.equal(
+        m,
+        null,
+        `${rel} says "${m?.[0]}" in the present tense. Shipments advance now — ` +
+          `lib/services/admin/shipments-write.ts writes them. Past tense is fine; ` +
+          `a live claim is not.`
+      );
+    }
+  }
+});
+
+test("proof of delivery is not described as missing", () => {
+  /* The delivery code was issued and never checked for the whole life of the
+     project, and several screens said so correctly. `confirmDelivery` changed
+     that. */
+  const POD_EXISTS = /export async function confirmDelivery/.test(
+    readFileSync(join(ROOT, "lib/services/admin/shipments-write.ts"), "utf8")
+  );
+  assert.ok(POD_EXISTS, "confirmDelivery has gone — this test's premise is wrong");
+
+  for (const rel of SOURCES) {
+    if (rel === SELF) continue;
+    const src = readFileSync(join(ROOT, rel), "utf8");
+    const m = /(there is )?no proof of delivery/i.exec(src);
+    assert.equal(
+      m,
+      null,
+      `${rel} says "${m?.[0]}" — the customer reads a six-digit code back and ` +
+        `confirmDelivery checks it.`
+    );
+  }
+});
