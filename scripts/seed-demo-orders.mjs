@@ -23,8 +23,16 @@
  *
  *   npm run db:demo
  *
- * Everything it writes is prefixed DEMO- or ends @demo.invalid, so it can be
- * found and removed. Re-running replaces its own rows and touches nothing else.
+ * Everything it *creates* is prefixed DEMO- or ends @demo.invalid, so it can be
+ * found and removed, and re-running replaces those rows rather than duplicating
+ * them.
+ *
+ * One exception, and it is deliberate: express eligibility is set by clearing
+ * `expressEligible` on every product and every `ProductExpressPincode` row
+ * before writing its own. Those are catalogue columns with no DEMO- marker to
+ * scope by, so this script does not "touch nothing else" — it owns that flag
+ * outright in whatever database it runs against. That is safe only because of
+ * the fence below, and it is written down here rather than left as a surprise.
  *
  * IT ALSO SEEDS THE FULFILMENT SIDE, AND HERE IS WHY
  *
@@ -245,6 +253,57 @@ async function main() {
     });
     users.push({ ...p, id });
   }
+
+  /* EXPRESS ELIGIBILITY, AND WHY IT IS SET HERE RATHER THAN IN THE CATALOGUE SEED
+   *
+   * Which products go on the 60-minute run, and to which pincodes, is the
+   * owner's decision, made per product in the listing screen. `prisma/seed.ts`
+   * runs anywhere, so it must not make that decision. This script is fenced to a
+   * localhost database explicitly marked disposable, and its catalogue is 45
+   * invented products, so what it marks here is a demonstration and not a
+   * policy.
+   *
+   * The demo rule is the obvious one and is derived from data that already
+   * exists rather than invented: bulk categories are not express. Nobody puts
+   * thirty bags of cement on a bike. Six of the serviceable pincodes get it and
+   * the rest do not, so "we deliver here, but not in an hour" is visible too —
+   * that is a real state and the checkout has to say it.
+   *
+   * None of this makes express appear yet. The fee is a price and so is the
+   * owner's; `resolveExpressOption` returns available:false with reason
+   * "no_price" until `delivery.express_fee_paise` is set in Settings, on
+   * purpose. What this does is make that the *only* thing standing in the way,
+   * so the moment the price is entered the feature is visible end to end.
+   */
+  const expressPincodes = (
+    await db.serviceablePincode.findMany({
+      where: { isActive: true },
+      select: { pincode: true },
+      orderBy: { pincode: "asc" },
+      take: 6,
+    })
+  ).map((p) => p.pincode);
+
+  await db.productExpressPincode.deleteMany({});
+  await db.product.updateMany({ data: { expressEligible: false } });
+
+  const expressProducts = await db.product.findMany({
+    where: { status: "published", category: { isBulk: false } },
+    select: { id: true },
+  });
+  await db.product.updateMany({
+    where: { id: { in: expressProducts.map((p) => p.id) } },
+    data: { expressEligible: true },
+  });
+  await db.productExpressPincode.createMany({
+    data: expressProducts.flatMap((p) =>
+      expressPincodes.map((pincode) => ({ productId: p.id, pincode }))
+    ),
+    skipDuplicates: true,
+  });
+  console.log(
+    `marked ${expressProducts.length} non-bulk products express-eligible in ${expressPincodes.length} pincodes`
+  );
 
   /* The roster, before the orders, because a dispatched shipment needs a driver
      to point at. */
