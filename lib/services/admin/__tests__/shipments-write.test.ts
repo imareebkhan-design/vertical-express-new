@@ -79,8 +79,17 @@ async function withDriver(shipmentId: string): Promise<string> {
 }
 
 async function cleanup() {
+  /* Scoped to the scratch shipments' own ids. This used to delete every audit
+     row of type "shipment", which would take real shipments' trail with it the
+     moment the demo seed has any. */
+  const scratch = await db.shipment.findMany({
+    where: { order: { orderNo: { startsWith: "zzz-ship-" } } },
+    select: { id: true },
+  });
+  await db.auditLog.deleteMany({
+    where: { entityType: "shipment", entityId: { in: scratch.map((s) => s.id) } },
+  });
   await db.order.deleteMany({ where: { orderNo: { startsWith: "zzz-ship-" } } });
-  await db.auditLog.deleteMany({ where: { entityType: "shipment" } });
   await db.driver.deleteMany({ where: { name: "Scratch Rider" } });
   await db.vehicle.deleteMany({ where: { registration: { startsWith: "ZZZ-" } } });
 }

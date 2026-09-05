@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
+import type { OrderAddressSnapshot } from "@/lib/services/orders";
 
 /**
  * Splitting an order into physically separate deliveries.
@@ -355,3 +356,83 @@ export async function getPickList() {
 
 export type PickList = Awaited<ReturnType<typeof getPickList>>;
 export type PickLine = PickList[number];
+
+/**
+ * The document that travels with the goods.
+ *
+ * Different job from the pick list, and worth keeping straight: the pick list
+ * is what to collect and is aggregated across shipments; this is one shipment,
+ * and it is what the customer checks the load against at the gate.
+ *
+ * **The delivery code is deliberately absent.** It is the one thing that must
+ * not be printed and put in the box: anybody holding the parcel would then hold
+ * the proof that they are the right person to receive it, which defeats the
+ * entire handover check. The code goes to the dispatcher's screen once and is
+ * read to the driver.
+ *
+ * "Shipment 1 of 2" is on it because a customer receiving half an order and no
+ * word about the rest assumes something is lost. The count comes from the order
+ * rather than being passed in, so it cannot disagree with reality.
+ */
+export async function getPackingSlip(shipmentId: string) {
+  const shipment = await db.shipment.findUnique({
+    where: { id: shipmentId },
+    select: {
+      id: true,
+      sequence: true,
+      speedClass: true,
+      status: true,
+      createdAt: true,
+      warehouse: { select: { name: true } },
+      driver: { select: { name: true } },
+      items: {
+        select: {
+          qty: true,
+          orderItem: {
+            select: {
+              title: true,
+              variantName: true,
+              variant: { select: { sku: true } },
+            },
+          },
+        },
+      },
+      order: {
+        select: {
+          orderNo: true,
+          address: true,
+          placedAt: true,
+          paymentMethod: true,
+          _count: { select: { shipments: true } },
+        },
+      },
+    },
+  });
+  if (!shipment) return null;
+
+  const addr = shipment.order.address as unknown as OrderAddressSnapshot | null;
+
+  return {
+    shipmentId: shipment.id,
+    ref: `${shipment.order.orderNo}-${shipment.sequence}`,
+    orderNo: shipment.order.orderNo,
+    sequence: shipment.sequence,
+    ofShipments: shipment.order._count.shipments,
+    speedClass: shipment.speedClass,
+    status: shipment.status,
+    placedAt: shipment.order.placedAt,
+    warehouse: shipment.warehouse?.name ?? null,
+    driver: shipment.driver?.name ?? null,
+    paymentMethod: shipment.order.paymentMethod,
+    address: addr,
+    lines: shipment.items.map((i) => ({
+      title: i.orderItem.title,
+      variantName: i.orderItem.variantName,
+      sku: i.orderItem.variant?.sku ?? null,
+      qty: i.qty,
+    })),
+    totalUnits: shipment.items.reduce((n, i) => n + i.qty, 0),
+  };
+}
+
+export type PackingSlip = NonNullable<Awaited<ReturnType<typeof getPackingSlip>>>;

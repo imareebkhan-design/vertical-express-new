@@ -544,6 +544,15 @@ test comment. What landed:
 - **The pick list.** What to collect from the shelves, aggregated by item rather than
   listed per shipment — four shipments of the same cement is one trip to that aisle, not
   four. It cannot say *where* anything is: `Inventory` records a warehouse, not a bin.
+- **The packing slip.** The document that travels with the goods, and the last
+  piece this entry named as missing. One per shipment, with a tick column so the
+  customer can check the load at the gate, and "Shipment 1 of 2" so somebody
+  receiving half an order is not left assuming the rest is lost. It deliberately
+  omits two things: the **delivery code**, because printing the handover proof and
+  putting it in the box hands it to whoever is carrying the parcel; and the
+  **registered business name and address**, which are still unconfirmed and were
+  removed from the order document for the same reason in `677d08a`. It says on its
+  face that it is not a tax invoice and carries no GSTIN or HSN codes.
 - **Proof of delivery.** The six-digit code is issued once at dispatch,
   compared in constant time, capped at five attempts per shipment per fifteen
   minutes failing closed, and never written to a log, an error or the audit
@@ -551,8 +560,10 @@ test comment. What landed:
   return the same answer.
 
 `dispatchedAt`, `deliveredAt`, `deliveryCode`, `driverId` and `vehicleId` are
-all written now. 30 tests cover it, each guard verified to fail when the defect
-is put back.
+all written now. **55 tests across nine files** cover the loop — the write path (20),
+the roster (8), the dispatch board (4), the pick list (5), the packing slip (5), and
+the shipment read services (13) — and every guard was verified to fail when the defect
+it catches was put back.
 
 **Still missing, and still not faked in the UI:**
 
@@ -562,9 +573,6 @@ is put back.
   `Order.status` remains authoritative and shipments are recorded alongside it,
   per the expand/migrate/contract rule in CLAUDE.md. Contracting is a later
   release.
-- **A packing slip.** The document that travels with the goods. Different from the pick
-  list, which is what to collect: a slip is per shipment and is what the customer checks
-  the load against at the gate.
 - **Cash held per driver.** Needs COD collection and reconciliation (ISS-010).
 
 **Owner input required.** Three rules were built as mechanisms and need a
@@ -577,7 +585,7 @@ number or only their name.
 |---|---|
 | **Severity** | **CRITICAL** |
 | **Area** | Operations |
-| **Status** | **MOSTLY RESOLVED** — the loop runs; slots, order-state derivation and driver cash remain |
+| **Status** | **MOSTLY RESOLVED** — the warehouse-to-doorstep loop runs end to end; slots, order-state derivation and driver cash remain |
 
 **Description (as originally written, 6 Aug 2026).** The order chain runs
 `cart → checkout → order → confirmed` and stops. There is no `Shipment`, no `Driver`, no
@@ -586,9 +594,11 @@ proof of delivery. An admin can manually click an order through
 `confirmed → packed → out_for_delivery → delivered`, but no operational system sits
 behind those clicks.
 
-**What of that is still true (5 Sep 2026).** `Shipment`, `Driver`, `Vehicle`, assignment,
-the dispatch board, the delivery code, proof of delivery and **the pick list** all exist —
-see the progress note above. **A packing slip does not**, and neither does slot selection.
+**What of that is still true (5 Sep 2026).** Almost none of it. `Shipment`, `Driver`,
+`Vehicle`, assignment, the dispatch board, the delivery code, proof of delivery, the pick
+list and **the packing slip** all exist — see the progress note above. Of the eight nouns
+that paragraph says are missing, every one has been built. What remains missing is what
+it does not mention: slot selection (ISS-057), and cash per driver (ISS-010).
 The original paragraph is kept rather than rewritten because the shape of the gap it
 describes is why the rest of this entry reads as it does; leaving it unmarked would have
 made it the fourth stale claim found in this register in a week.

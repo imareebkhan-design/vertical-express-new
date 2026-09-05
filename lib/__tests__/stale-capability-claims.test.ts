@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -187,5 +187,39 @@ test("proof of delivery is not described as missing", () => {
       `${rel} says "${m?.[0]}" — the customer reads a six-digit code back and ` +
         `confirmDelivery checks it.`
     );
+  }
+});
+
+test("no file claims there is no packing slip", () => {
+  /* The third wave, and the reason this list keeps growing: every one of these
+     claims was honest when written and became false in a single commit, with
+     nothing to notice. The packing slip's own page said "ISS-009 has named a
+     packing slip missing since August" — in the present perfect, in the file
+     that stopped it being true. */
+  const SLIP_EXISTS = existsSync(
+    join(ROOT, "app/admin/shipments/[shipmentId]/packing-slip/page.tsx")
+  );
+  assert.ok(SLIP_EXISTS, "the packing slip page has gone — this test's premise is wrong");
+
+  const DENIALS = [
+    /no packing slip/i,
+    /packing slip (?:does not|doesn't) exist/i,
+    /(?:has |have )?named a packing slip missing since/i,
+    /there is nothing to put in the box/i,
+  ];
+
+  for (const rel of SOURCES) {
+    if (rel === SELF) continue;
+    const src = readFileSync(join(ROOT, rel), "utf8");
+    for (const denial of DENIALS) {
+      const m = denial.exec(src);
+      assert.equal(
+        m,
+        null,
+        `${rel} says "${m?.[0]}" — the slip is at ` +
+          `app/admin/shipments/[shipmentId]/packing-slip and getPackingSlip builds it. ` +
+          `Past tense is fine; a live denial is not.`
+      );
+    }
   }
 });

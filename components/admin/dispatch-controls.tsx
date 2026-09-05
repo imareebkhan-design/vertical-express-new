@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   adminAdvanceShipment,
   adminAssignShipment,
@@ -151,6 +152,16 @@ export function DispatchControls({
             Delivered, no code
           </button>
         )}
+
+        {/* The document that goes in the box. Opens for printing; the handover
+            code is deliberately not on it. */}
+        <Link
+          href={`/admin/shipments/${shipment.id}/packing-slip`}
+          target="_blank"
+          className={`${button} inline-flex items-center bg-chip text-ink no-underline hover:bg-hush`}
+        >
+          Packing slip
+        </Link>
 
         <button
           type="button"
