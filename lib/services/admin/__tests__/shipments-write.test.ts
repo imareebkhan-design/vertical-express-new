@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "@/lib/db";
-import { advanceShipment } from "@/lib/services/admin/shipments-write";
+import { advanceShipment, assignShipment } from "@/lib/services/admin/shipments-write";
 import {
   canTransitionShipment,
   nextShipmentStatuses,
@@ -62,9 +62,27 @@ async function scratchShipment(): Promise<{ shipmentId: string; orderId: string 
   return { shipmentId: shipment.id, orderId: order.id };
 }
 
+/** A driver to hand goods to. Dispatch refuses without one. */
+async function scratchDriver(): Promise<string> {
+  const d = await db.driver.create({
+    data: { name: "Scratch Rider", phone: uniq(), isActive: true },
+  });
+  return d.id;
+}
+
+/** Assign a driver so a dispatch is allowed to proceed. */
+async function withDriver(shipmentId: string): Promise<string> {
+  const driverId = await scratchDriver();
+  const res = await assignShipment({ shipmentId, driverId, actor: ACTOR });
+  assert.equal(res.ok, true, "could not assign a driver to the scratch shipment");
+  return driverId;
+}
+
 async function cleanup() {
   await db.order.deleteMany({ where: { orderNo: { startsWith: "zzz-ship-" } } });
   await db.auditLog.deleteMany({ where: { entityType: "shipment" } });
+  await db.driver.deleteMany({ where: { name: "Scratch Rider" } });
+  await db.vehicle.deleteMany({ where: { registration: { startsWith: "ZZZ-" } } });
 }
 
 test("the whole forward path is legal and each step is refused out of order", () => {
@@ -102,6 +120,7 @@ test("a shipment advances, and the timestamps follow the goods", async (t) => {
   assert.equal(row.dispatchedAt, null, "packing is not dispatching");
   assert.equal(row.deliveryCode, null, "a code must not exist while the goods are in the warehouse");
 
+  await withDriver(shipmentId);
   const out = await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
   assert.equal(out.ok, true);
 
@@ -159,6 +178,7 @@ test("two operators dispatching at the same moment produce one dispatch", async 
   t.after(cleanup);
   const { shipmentId } = await scratchShipment();
   await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+  await withDriver(shipmentId);
 
   const [a, b] = await Promise.all([
     advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR }),
@@ -187,6 +207,10 @@ test("two operators dispatching at the same moment produce one dispatch", async 
     where: { entityId: shipmentId, action: "shipment.status_changed" },
   });
   assert.equal(dispatches, 2, "expected one audit row for packing and one for dispatch");
+  const assignments = await db.auditLog.count({
+    where: { entityId: shipmentId, action: "shipment.assigned" },
+  });
+  assert.equal(assignments, 1, "the driver assignment left no trace");
 });
 
 test("dispatching something already dispatched is refused before it writes", async (t) => {
@@ -196,6 +220,7 @@ test("dispatching something already dispatched is refused before it writes", asy
   t.after(cleanup);
   const { shipmentId } = await scratchShipment();
   await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+  await withDriver(shipmentId);
   const first = await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
   assert.equal(first.ok, true);
   const code = first.ok === true ? first.deliveryCode : null;
@@ -253,6 +278,7 @@ test("the handover code is not written into the audit trail", async (t) => {
   t.after(cleanup);
   const { shipmentId } = await scratchShipment();
   await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+  await withDriver(shipmentId);
   const out = await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
   assert.equal(out.ok, true);
 
@@ -270,4 +296,65 @@ test("the code is uniform over the whole range, including leading zeros", () => 
   assert.equal(generateDeliveryCode(() => 0), "000000");
   assert.equal(generateDeliveryCode(() => 7), "000007");
   assert.equal(generateDeliveryCode(() => 999_999), "999999");
+});
+
+
+test("goods do not leave without a name against them", async (t) => {
+  /* The one rule here that is a decision rather than a mechanism. A dispatch
+     with no driver issues a delivery code that proves nothing, because there is
+     nobody it was given to. */
+  t.after(cleanup);
+  const { shipmentId } = await scratchShipment();
+  await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+
+  const res = await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
+  assert.equal(res.ok, false, "a shipment was dispatched with no driver");
+  assert.equal(res.ok === false && res.reason, "no_driver");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.status, "packed", "the refused dispatch still moved the row");
+  assert.equal(row.deliveryCode, null, "a code was issued for a dispatch that did not happen");
+});
+
+test("a vehicle is optional; a rider on their own bike is a real case", async (t) => {
+  t.after(cleanup);
+  const { shipmentId } = await scratchShipment();
+  const driverId = await scratchDriver();
+
+  const res = await assignShipment({ shipmentId, driverId, actor: ACTOR });
+  assert.equal(res.ok, true, "assignment required a vehicle");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.driverId, driverId);
+  assert.equal(row.vehicleId, null);
+});
+
+test("an inactive driver cannot be assigned", async (t) => {
+  /* Somebody who has left must not still be receiving goods. */
+  t.after(cleanup);
+  const { shipmentId } = await scratchShipment();
+  const driverId = await scratchDriver();
+  await db.driver.update({ where: { id: driverId }, data: { isActive: false } });
+
+  const res = await assignShipment({ shipmentId, driverId, actor: ACTOR });
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.reason, "driver_unavailable");
+});
+
+test("a shipment already on the road cannot have its driver rewritten", async (t) => {
+  /* Reassigning after dispatch rewrites who took the goods, which is the one
+     fact proof of delivery depends on. */
+  t.after(cleanup);
+  const { shipmentId } = await scratchShipment();
+  await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+  const firstDriver = await withDriver(shipmentId);
+  await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
+
+  const other = await scratchDriver();
+  const res = await assignShipment({ shipmentId, driverId: other, actor: ACTOR });
+  assert.equal(res.ok, false, "a dispatched shipment was reassigned");
+  assert.equal(res.ok === false && res.reason, "already_gone");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.driverId, firstDriver, "the driver of record changed after dispatch");
 });

@@ -589,6 +589,50 @@ model Professional {
   @@map("professionals")
 }
 
+/// Somebody who carries goods to a customer's gate.
+///
+/// Deliberately not a `User`. A rider is not necessarily an app account, and
+/// making them one would put an operator's roster behind Firebase sign-up.
+/// `Order.userId` and this are different populations that happen to be people.
+///
+/// No pay rate, no shift pattern, no vehicle ownership — those are employment
+/// terms and none of them is confirmed. This is the minimum needed to answer
+/// "who took it", which is what proof of delivery rests on.
+model Driver {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  /// How dispatch reaches them, and how a customer's call gets routed.
+  phone     String     @unique
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  shipments Shipment[]
+
+  @@index([isActive])
+  @@map("drivers")
+}
+
+/// What the goods travel in.
+///
+/// `kind` exists because a bag of cement and a coil of wire genuinely do not
+/// travel the same way, and the shipment already knows which it is through
+/// `SpeedClass`. Capacity is NOT modelled: a load limit is a number somebody
+/// has to measure and nobody has, and inventing one would produce a dispatch
+/// board that refuses work for a reason that is not real.
+model Vehicle {
+  id           String      @id @default(uuid()) @db.Uuid
+  /// Registration plate, as painted on the vehicle.
+  registration String      @unique
+  kind         VehicleKind
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  shipments    Shipment[]
+
+  @@index([isActive])
+  @@map("vehicles")
+}
+
 /// A physically separate delivery within one order.
 ///
 /// An order that mixes small goods with heavy material cannot have a single
@@ -614,10 +658,17 @@ model Shipment {
   deliveredAt  DateTime?      @map("delivered_at")
   /// Shared with the driver at the gate to confirm handover.
   deliveryCode String?        @map("delivery_code")
+  /// Who is carrying it, and in what. Both null until dispatch — a shipment in
+  /// the warehouse has no driver, and pretending otherwise would make the
+  /// dispatch board show work as already assigned.
+  driverId     String?        @map("driver_id") @db.Uuid
+  vehicleId    String?        @map("vehicle_id") @db.Uuid
   createdAt    DateTime       @default(now()) @map("created_at")
   updatedAt    DateTime       @updatedAt @map("updated_at")
   order        Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   warehouse    Warehouse?     @relation(fields: [warehouseId], references: [id])
+  driver       Driver?        @relation(fields: [driverId], references: [id])
+  vehicle      Vehicle?       @relation(fields: [vehicleId], references: [id])
   items        ShipmentItem[]
 
   @@unique([orderId, sequence])
@@ -847,6 +898,14 @@ model Synonym {
 /// `Category.isBulk`. `leadtime` and `seasonal` are declared because the design
 /// system defines four states and adding them later would cost a migration; they
 /// need a per-variant source of truth that does not exist yet.
+/// How goods travel. Descriptive of the vehicle, not a promise about timing —
+/// the delivery promise lives on ServiceablePincode and the product.
+enum VehicleKind {
+  bike
+  van
+  truck
+}
+
 enum SpeedClass {
   express
   scheduled

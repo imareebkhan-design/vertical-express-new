@@ -37,7 +37,7 @@ import {
 
 export type AdvanceResult =
   | { ok: true; status: ShipmentStatus; deliveryCode: string | null }
-  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" };
+  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" | "no_driver" };
 
 /**
  * Move one shipment to `to`.
@@ -54,11 +54,29 @@ export async function advanceShipment(params: {
 
   const shipment = await db.shipment.findUnique({
     where: { id: shipmentId },
-    select: { id: true, status: true, orderId: true, warehouseId: true, sequence: true },
+    select: {
+      id: true,
+      status: true,
+      orderId: true,
+      warehouseId: true,
+      sequence: true,
+      driverId: true,
+    },
   });
   if (!shipment) return { ok: false, reason: "not_found" };
   if (!canTransitionShipment(shipment.status, to)) {
     return { ok: false, reason: "illegal_transition" };
+  }
+
+  /* Goods do not leave without a name against them.
+   *
+   * This is the one rule here that is a decision rather than a mechanism, so it
+   * is worth stating plainly: dispatching with no driver produces a delivery
+   * code that proves nothing, because there is nobody it was given to. The
+   * whole point of the code is to tie a handover to a person. A vehicle stays
+   * optional — a rider on their own bike is a real case in Srinagar. */
+  if (to === "out_for_delivery" && !shipment.driverId) {
+    return { ok: false, reason: "no_driver" };
   }
 
   const from = shipment.status;
@@ -120,5 +138,81 @@ export async function advanceShipment(params: {
     });
 
     return { ok: true, status: to, deliveryCode } as const;
+  });
+}
+
+export type AssignResult =
+  | { ok: true }
+  | { ok: false; reason: "not_found" | "already_gone" | "driver_unavailable" | "vehicle_unavailable" };
+
+/**
+ * Put a driver and optionally a vehicle against a shipment.
+ *
+ * Separate from advancing it. Assignment happens while the goods are still in
+ * the warehouse and is routinely changed — a rider calls in sick, a van is
+ * blocked in — so binding it to the dispatch action would mean cancelling and
+ * re-dispatching to correct a name.
+ *
+ * Refused once the goods have left. Reassigning a shipment that is already on
+ * the road rewrites who took it, which is the one fact proof of delivery
+ * depends on.
+ *
+ * A vehicle is optional and a driver is not: see `advanceShipment`, which will
+ * not dispatch without one.
+ */
+export async function assignShipment(params: {
+  shipmentId: string;
+  driverId: string;
+  vehicleId?: string | null;
+  actor: { id: string; email: string };
+}): Promise<AssignResult> {
+  const { shipmentId, driverId, vehicleId = null, actor } = params;
+
+  const shipment = await db.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { id: true, status: true, driverId: true, vehicleId: true },
+  });
+  if (!shipment) return { ok: false, reason: "not_found" };
+
+  /* Only while it is still ours to hand over. */
+  if (shipment.status !== "pending" && shipment.status !== "packed") {
+    return { ok: false, reason: "already_gone" };
+  }
+
+  const driver = await db.driver.findUnique({
+    where: { id: driverId },
+    select: { id: true, isActive: true },
+  });
+  if (!driver || !driver.isActive) return { ok: false, reason: "driver_unavailable" };
+
+  if (vehicleId) {
+    const vehicle = await db.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { id: true, isActive: true },
+    });
+    if (!vehicle || !vehicle.isActive) return { ok: false, reason: "vehicle_unavailable" };
+  }
+
+  return db.$transaction(async (tx) => {
+    /* Guarded on the status read, for the same reason the advance is: a
+       shipment that leaves between the check and the write must not have its
+       driver rewritten afterwards. */
+    const updated = await tx.shipment.updateMany({
+      where: { id: shipmentId, status: shipment.status },
+      data: { driverId, vehicleId },
+    });
+    if (updated.count === 0) return { ok: false, reason: "already_gone" } as const;
+
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "shipment.assigned",
+      entityType: "shipment",
+      entityId: shipmentId,
+      before: { driverId: shipment.driverId, vehicleId: shipment.vehicleId },
+      after: { driverId, vehicleId },
+    });
+
+    return { ok: true } as const;
   });
 }
