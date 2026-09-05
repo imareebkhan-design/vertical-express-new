@@ -136,7 +136,7 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
     found,
     unwatchable: [
       { title: "A delivery slot sold to capacity", needs: "delivery slots, which do not exist" },
-      { title: "A slot with no vehicle assigned", needs: "vehicles and drivers, which do not exist" },
+      { title: "A slot with no vehicle assigned", needs: "delivery slots, which do not exist — drivers and vehicles now do" },
       {
         title: "Shipments packed without batch capture",
         needs: "a shipment model and batch capture at goods receipt",

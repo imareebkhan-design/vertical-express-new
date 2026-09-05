@@ -179,6 +179,9 @@ export async function adminGetOrder(orderNo: string) {
         orderBy: { sequence: "asc" },
         include: {
           warehouse: { select: { name: true } },
+          /* Who is carrying it. Null until the dispatch board assigns somebody. */
+          driver: { select: { name: true, phone: true } },
+          vehicle: { select: { registration: true } },
           items: { select: { qty: true, orderItem: { select: { title: true } } } },
         },
       },

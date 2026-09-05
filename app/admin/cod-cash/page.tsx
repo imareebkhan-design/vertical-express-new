@@ -18,7 +18,7 @@ export default function Page() {
         <OpsStats
           stats={[
             { label: "Collected today", note: "No collections — cash on delivery is off." },
-            { label: "With drivers now", note: "No driver records exist, so cash cannot be attributed to anyone." },
+            { label: "With drivers now", note: "Drivers exist and shipments are assigned to them, but no cash is collected — so there is nothing to hold." },
             { label: "Deposited today", note: "No deposit record. Nothing tracks money between the gate and the bank." },
             { label: "Unexplained variance", note: "Cannot be computed without both halves of the trail." },
           ]}

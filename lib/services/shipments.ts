@@ -89,6 +89,10 @@ export async function getShipmentsForOrder(userId: string, orderNo: string) {
           deliveredAt: true,
           deliveryCode: true,
           warehouse: { select: { name: true } },
+          /* Who is bringing it. The customer gets the name and the vehicle —
+             not the phone number, which is the operator's to hold. */
+          driver: { select: { name: true } },
+          vehicle: { select: { registration: true } },
           items: {
             select: {
               qty: true,
@@ -111,9 +115,12 @@ export type TrackedShipment = OrderShipments["shipments"][number];
  *
  * Grouped by the only lane distinction that is real today — express goes out
  * from the store, scheduled goes on a truck. The artboard also draws a lane per
- * two-hour slot with an occupancy count, and that cannot be built: there are no
- * slots (ISS-057), no vehicles and no drivers, so there is nothing to count or
- * assign to.
+ * two-hour slot with an occupancy count, and that still cannot be built:
+ * delivery slots do not exist (ISS-057), so there is nothing to count.
+ *
+ * Drivers and vehicles DO exist now, and this comment said they did not until
+ * `20260905061559_drivers_vehicles` landed. A shipment can be assigned to
+ * somebody, which is what turns this queue into a plan.
  *
  * Ordered oldest first, because on a dispatch board the thing that has been
  * waiting longest is the thing about to become a complaint.
@@ -130,6 +137,8 @@ export async function getDispatchBoard() {
       deliveryCode: true,
       createdAt: true,
       warehouse: { select: { name: true } },
+      driver: { select: { id: true, name: true } },
+      vehicle: { select: { id: true, registration: true } },
       items: { select: { qty: true } },
       order: {
         select: {
@@ -155,6 +164,10 @@ export async function getDispatchBoard() {
       valuePaise: s.order.totalPaise,
       paymentMethod: s.order.paymentMethod,
       warehouse: s.warehouse?.name ?? null,
+      /* Who is taking it, so the card can show an assignment rather than only
+         offer one. Null until a dispatcher assigns. */
+      driver: s.driver,
+      vehicle: s.vehicle,
       waitingSince: s.createdAt,
     };
   };
@@ -167,3 +180,28 @@ export async function getDispatchBoard() {
 
 export type DispatchBoard = Awaited<ReturnType<typeof getDispatchBoard>>;
 export type DispatchShipment = DispatchBoard["express"][number];
+
+/**
+ * Who and what is available to carry something today.
+ *
+ * Only active rows: somebody who has left the job must not still appear in a
+ * dispatcher's dropdown. `assignShipment` refuses an inactive driver anyway —
+ * this keeps the list from offering a choice that will be rejected.
+ */
+export async function getDispatchRoster() {
+  const [drivers, vehicles] = await Promise.all([
+    db.driver.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, phone: true },
+      orderBy: { name: "asc" },
+    }),
+    db.vehicle.findMany({
+      where: { isActive: true },
+      select: { id: true, registration: true, kind: true },
+      orderBy: { registration: "asc" },
+    }),
+  ]);
+  return { drivers, vehicles };
+}
+
+export type DispatchRoster = Awaited<ReturnType<typeof getDispatchRoster>>;

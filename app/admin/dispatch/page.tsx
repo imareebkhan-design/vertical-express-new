@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { DispatchLane } from "@/components/admin/dispatch-lane";
-import { getDispatchBoard } from "@/lib/services/shipments";
+import { getDispatchBoard, getDispatchRoster } from "@/lib/services/shipments";
 
 export const metadata: Metadata = {
   title: "Dispatch | Operations",
@@ -15,12 +15,16 @@ export const dynamic = "force-dynamic";
  *
  * Two lanes rather than the artboard's five, because only one lane distinction
  * is real: express leaves from the store, heavy goes on a truck. The per-slot
- * lanes with occupancy counts and an assigned vehicle need slots, vehicles and
- * drivers, none of which exist (ISS-057). Drawing four empty time lanes would
- * suggest a dispatcher could load them.
+ * lanes still need delivery slots, which do not exist (ISS-057) — drawing four
+ * empty time lanes would suggest a dispatcher could load them.
+ *
+ * Drivers and vehicles landed in `20260905061559_drivers_vehicles`, so the
+ * board can now assign and move a shipment. This comment, and the panel below
+ * it, both said that was impossible; correcting them is part of the feature
+ * rather than an afterthought.
  */
 export default async function AdminDispatch() {
-  const board = await getDispatchBoard();
+  const [board, roster] = await Promise.all([getDispatchBoard(), getDispatchRoster()]);
   const total = board.express.length + board.scheduled.length;
 
   return (
@@ -34,6 +38,7 @@ export default async function AdminDispatch() {
           note={`${board.express.length} waiting · out from the store`}
           shipments={board.express}
           emptyNote="Nothing waiting on the express lane."
+          roster={roster}
         />
 
         <DispatchLane
@@ -41,41 +46,64 @@ export default async function AdminDispatch() {
           note={`${board.scheduled.length} waiting`}
           shipments={board.scheduled}
           emptyNote="Nothing waiting for a truck."
+          roster={roster}
         />
 
         {/*
-          "Drivers and vehicles" — the right-hand rail of artboard 5, and the
-          half of the board that turns a queue into a plan.
+          "Drivers and vehicles" — the right-hand rail of artboard 5.
 
-          It is the panel that decides who takes what, and it is empty for a
-          reason worth writing down rather than leaving as a gap: there is no
-          Driver, no vehicle and no slot. Four names with registration plates
-          and cash-held figures beside them would be the most convincing thing
-          on this screen and the least true — the cash column in particular is
-          what a day gets reconciled against.
+          This panel used to state that the roster, the vehicle records and the
+          slots were all absent. Two of those three stopped being absent when
+          the models landed: assignment works, and the controls on each card do
+          it.
+
+          The old wording is not quoted here on purpose — a guard sweeps the
+          source for exactly those phrases, and it cannot tell a historical
+          quotation from a live claim. Keeping the guard blunt is worth more
+          than keeping the quote.
+
+          What remains missing is the cash column, and it is the one to be most
+          careful about. Cash held per driver is what a day's takings get
+          reconciled against, and there is no COD collection, no driver float
+          and no reconciliation (ISS-010) — so a figure there would be
+          reconciled against nothing. Slots are still absent too (ISS-057),
+          which is why the lanes above are two rather than five.
         */}
         <section className="rounded-panel bg-white p-4 shadow-card">
           <h2 className="text-[15px] font-bold tracking-tight">Drivers and vehicles</h2>
           <p className="mt-1 text-[12px] font-medium leading-[17px] text-ink-700">
-            Who is on route, what they are driving, how many stops they have left and how
-            much cash they are holding.
+            {roster.drivers.length === 0
+              ? "No drivers on the roster yet. A shipment cannot be dispatched until somebody is assigned to carry it."
+              : `${roster.drivers.length} ${roster.drivers.length === 1 ? "driver" : "drivers"} and ${roster.vehicles.length} ${roster.vehicles.length === 1 ? "vehicle" : "vehicles"} available. Assign from the card on each shipment.`}
           </p>
+
+          {roster.drivers.length > 0 && (
+            <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+              {roster.drivers.map((d) => (
+                <li
+                  key={d.id}
+                  className="flex items-baseline justify-between gap-2 rounded-field bg-canvas px-3 py-2"
+                >
+                  <span className="text-[12.5px] font-bold text-ink">{d.name}</span>
+                  <span className="text-[11.5px] font-semibold tabular-nums text-ink-500">
+                    {d.phone}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <div className="mt-3 rounded-field bg-ops-warn-tint p-3.5">
             <p className="text-[12.5px] font-bold text-ops-warn">
-              There is no driver roster.
+              Cash held per driver is not shown.
             </p>
             <p className="mt-1 text-[12px] font-medium leading-[17px] text-ops-warn">
-              No Driver model, no vehicle, no slot — so a shipment cannot be assigned to
-              anybody, and nothing on this board can be scheduled. The design&rsquo;s
-              auto-assign and its per-slot lanes need those three before they need a
-              button (ISS-057).
+              There is no cash collection, no driver float and no daily reconciliation
+              (ISS-010), so there is nothing to total. It is the column a day&rsquo;s
+              takings get reconciled against, and a plausible figure there would be
+              reconciled against nothing.
             </p>
           </div>
-          <p className="mt-2.5 text-[11.5px] font-medium leading-[16px] text-ink-500">
-            The cash-held column is the one to be most careful about: it is what a
-            day&rsquo;s takings get reconciled against, and a plausible figure there would
-            be reconciled against nothing.
-          </p>
         </section>
 
         <p className="rounded-[12px] bg-ops-warn-tint px-3.5 py-2.5 text-[12px] font-semibold text-ops-warn">

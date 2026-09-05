@@ -16,12 +16,19 @@ import type { OrderShipments } from "@/lib/services/shipments";
  *
  * WHAT IS REAL AND WHAT IS NOT
  *
- * The stage timeline, the promised time, the delivery code and the item counts
- * all come from the Shipment row. The artboard also shows a driver — name,
- * initials, vehicle and registration — and a batch code. Neither has a model:
- * there is no Driver table and no Batch table. Those two blocks carry the
- * placeholder marker rather than being faked, because a name and a number plate
- * invented for a screenshot are exactly the kind of thing that gets believed.
+ * The stage timeline, the promised time, the delivery code, the item counts and
+ * now the driver all come from the Shipment row. The driver block carried a
+ * placeholder for the whole life of this screen because there was no table
+ * behind it; there is one now, so it shows the real name and vehicle once a
+ * dispatcher assigns them, and says nobody is assigned yet when they have not.
+ *
+ * The batch code is still a placeholder and still has no model. That half of
+ * this note was correct and stays — a code invented for a screenshot is exactly
+ * the kind of thing that gets believed.
+ *
+ * The customer sees the driver's name and the registration, not their phone
+ * number. Handing every customer a rider's mobile is the operator's decision to
+ * make, not a side effect of showing who is coming.
  *
  * Live position is absent on purpose, not by oversight — GPS tracking is
  * deliberately deferred in DECISIONS.md, and the stage timeline is what the
@@ -207,9 +214,14 @@ export function TrackingView({ order }: { order: OrderShipments }) {
               {itemCount} item{itemCount !== 1 ? "s" : ""} in this shipment
             </p>
             <p className="mt-1 text-[13px] font-medium leading-[18px] text-ink-700">
-              <PlaceholderValue pending="there is no Driver model, so no name or vehicle is assigned yet">
-                Driver details appear here once one is assigned.
-              </PlaceholderValue>
+              {shipment.driver ? (
+                <>
+                  {shipment.driver.name} is bringing it
+                  {shipment.vehicle ? ` · ${shipment.vehicle.registration}` : ""}
+                </>
+              ) : (
+                "Nobody is assigned to this shipment yet."
+              )}
             </p>
           </div>
         </div>

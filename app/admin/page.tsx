@@ -121,10 +121,13 @@ export default async function AdminToday() {
         vehicle is on each, and which window is full and should stop being sold.
 
         It is the half of this screen a dispatcher would actually run the day
-        from, and none of it can be computed: there are no slots (ISS-057), no
-        vehicles and no drivers. Rendering the board with plausible numbers would
-        be the worst possible version of that, because somebody would stop
-        selling a window on the strength of it.
+        from, and it still cannot be computed: there are no delivery slots
+        (ISS-057), so there is no window to have an occupancy. Drivers and
+        vehicles do exist now — that half of the sentence stopped being true in
+        `20260905061559_drivers_vehicles` — but a capacity board needs the
+        windows, not the riders. Rendering it with plausible numbers would be
+        the worst possible version of that, because somebody would stop selling
+        a window on the strength of it.
       */}
       <section className="rounded-panel bg-white p-4 shadow-card" aria-labelledby="capacity-heading">
         <h2 id="capacity-heading" className="text-[15px] font-bold tracking-tight">
@@ -134,9 +137,10 @@ export default async function AdminToday() {
           Slot occupancy, the vehicle on each window, and which window is full.
         </p>
         <p className="mt-3 rounded-[12px] bg-ops-warn-tint px-3.5 py-2.5 text-[12px] font-semibold text-ops-warn">
-          Not built. Delivery slots, vehicles and drivers do not exist yet
-          (ISS-057), so there is no capacity to show — and a board with invented
-          numbers would get a window closed for selling.
+          Not built. Delivery slots do not exist (ISS-057), so there is no
+          window to measure occupancy against — and a board with invented
+          numbers would get a window closed for selling. Drivers and vehicles
+          are assignable from the dispatch board.
         </p>
       </section>
 

@@ -1,6 +1,7 @@
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
-import type { DispatchShipment } from "@/lib/services/shipments";
+import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
+import { DispatchControls } from "@/components/admin/dispatch-controls";
 
 /**
  * One lane of the dispatch board.
@@ -8,8 +9,9 @@ import type { DispatchShipment } from "@/lib/services/shipments";
  * The artboard draws express as a single lane and heavy goods as a lane per
  * two-hour slot, each with an occupancy count and a vehicle. Only the first
  * split is real: express leaves from the store, scheduled goes on a truck.
- * Slots, vehicles and drivers do not exist (ISS-057), so the heavy side is one
- * lane rather than four invented ones.
+ * Delivery slots still do not exist (ISS-057), so the heavy side is one lane
+ * rather than four invented ones. Drivers and vehicles do exist now, which is
+ * what the controls on each card act on.
  *
  * A card carries what a dispatcher needs to decide the next move — where it is
  * going, how much of it there is, what it is worth, and how long it has been
@@ -21,11 +23,13 @@ export function DispatchLane({
   note,
   shipments,
   emptyNote,
+  roster,
 }: {
   title: string;
   note: string;
   shipments: DispatchShipment[];
   emptyNote: string;
+  roster: DispatchRoster;
 }) {
   return (
     <section className="rounded-panel bg-white p-4 shadow-card">
@@ -65,9 +69,13 @@ export function DispatchLane({
                 </span>
               </div>
 
+              {/* Was "no rider assignable yet", which stopped being true when
+                  Driver and Vehicle landed. */}
               <p className="mt-2 border-t border-line pt-2 text-[11px] font-semibold text-ink-500">
-                Waiting {waitedFor(s.waitingSince)} · no rider assignable yet
+                Waiting {waitedFor(s.waitingSince)}
               </p>
+
+              <DispatchControls shipment={s} roster={roster} />
             </li>
           ))}
         </ul>

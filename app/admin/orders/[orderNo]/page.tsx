@@ -204,10 +204,10 @@ export default async function AdminOrderDetail({
             for at the gate; when a customer rings support saying the driver has
             no code, this is where it gets read out.
 
-            Driver, vehicle and the promised slot are the artboard's other three
-            fields and none exists — no Driver model, no vehicles, no slots
-            (ISS-057). They are named rather than blanked, so it is clear the
-            data is absent rather than the shipment unassigned.
+            Driver and vehicle now exist and are assigned from the dispatch
+            board. The promised slot does not — there are no delivery slots
+            (ISS-057) — so that one is named rather than blanked, to make clear
+            the data is absent rather than the shipment unscheduled.
           */}
           <Panel title="Shipments">
             {order.shipments.length === 0 ? (
@@ -267,9 +267,16 @@ export default async function AdminOrderDetail({
                     <Row
                       label="Driver & vehicle"
                       value={
-                        <span className="text-ink-500">
-                          not assignable — no driver or vehicle records exist
-                        </span>
+                        sh.driver ? (
+                          <span className="text-ink">
+                            {sh.driver.name} · {sh.driver.phone}
+                            {sh.vehicle ? ` · ${sh.vehicle.registration}` : " · own vehicle"}
+                          </span>
+                        ) : (
+                          <span className="text-ink-500">
+                            not assigned yet — assign from the dispatch board
+                          </span>
+                        )
                       }
                     />
                   </div>
