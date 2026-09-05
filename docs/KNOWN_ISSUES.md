@@ -23,7 +23,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | BLOCKED (OWNER) |
 | ISS-007 | Entire catalog is fictional | CRITICAL | Data | BLOCKED (OWNER) |
 | ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
-| ISS-009 | Fulfilment loop does not exist | CRITICAL | Operations | IN PROGRESS |
+| ISS-009 | Fulfilment loop — runs end to end; slots and order-state derivation remain | CRITICAL | Operations | PARTIAL |
 | ISS-010 | COD collection and reconciliation missing | HIGH | Operations/Finance | OPEN |
 | ISS-011 | Coupon engine is unreachable dead code | HIGH | Pricing | FIXED |
 | ISS-012 | No error monitoring, uptime or analytics | HIGH | Observability | PARTIAL |
@@ -525,16 +525,53 @@ confirmation).
 `Category.isBulk` rule the storefront shows on every product card — so the split
 a customer is told about is the split that is written.
 
-Still missing, and none of it is faked in the UI: driver and vehicle assignment,
-slot selection, dispatch, proof of delivery, and deriving order state from
-shipment state. `promisedAt`, `dispatchedAt`, `deliveredAt` and `deliveryCode`
-are columns waiting for that work.
+**Progress (5 Sep 2026). The loop now runs end to end.** `Shipment` had been
+write-once for its entire life — created at `pending` in the checkout
+transaction and never advanced, with no `shipment.update` anywhere outside a
+test comment. What landed:
+
+- `lib/shipment-flow.ts` — the state machine. Separate from `lib/order-flow.ts`
+  because an order mixing wire with cement has two shipments that move
+  independently, and one status cannot describe both.
+- `lib/services/admin/shipments-write.ts` — `advanceShipment`, `assignShipment`,
+  `confirmDelivery`. Every write is an `updateMany` guarded on the status that
+  was read, with the audit row in the same transaction, and restocks on cancel.
+- `Driver` and `Vehicle` (migration `20260905061559_drivers_vehicles`), plus
+  `lib/services/admin/roster-write.ts` to create and retire them. Nobody is ever
+  deleted — a driver who carried shipments is referenced by every one of them.
+- The dispatch board assigns, packs, dispatches, cancels and confirms, with a
+  third lane for what is already on the road.
+- **Proof of delivery.** The six-digit code is issued once at dispatch,
+  compared in constant time, capped at five attempts per shipment per fifteen
+  minutes failing closed, and never written to a log, an error or the audit
+  trail. A wrong code, a missing shipment and one not out for delivery all
+  return the same answer.
+
+`dispatchedAt`, `deliveredAt`, `deliveryCode`, `driverId` and `vehicleId` are
+all written now. 30 tests cover it, each guard verified to fail when the defect
+is put back.
+
+**Still missing, and still not faked in the UI:**
+
+- **Slot selection.** No `Slot` model (ISS-057), which is why the board has
+  three lanes rather than the artboard's five and why `promisedAt` stays null.
+- **Deriving order state from shipment state.** Deliberate:
+  `Order.status` remains authoritative and shipments are recorded alongside it,
+  per the expand/migrate/contract rule in CLAUDE.md. Contracting is a later
+  release.
+- **Cash held per driver.** Needs COD collection and reconciliation (ISS-010).
+
+**Owner input required.** Three rules were built as mechanisms and need a
+decision: whether dispatch may ever proceed without a driver assigned; when an
+operator may use "Delivered, no code", which records `proof: "none"` against
+`proof: "delivery_code"`; and whether a customer should see the driver's phone
+number or only their name.
 
 | | |
 |---|---|
 | **Severity** | **CRITICAL** |
 | **Area** | Operations |
-| **Status** | OPEN — schema and admin buildable now; roles need owner input |
+| **Status** | **MOSTLY RESOLVED** — the loop runs; slots, order-state derivation and driver cash remain |
 
 **Description.** The order chain runs `cart → checkout → order → confirmed` and stops.
 There is no `Shipment`, no `Driver`, no assignment, no dispatch board, no pick list, no
