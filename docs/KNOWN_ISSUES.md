@@ -60,7 +60,7 @@ new issue, add it with the same fields and the evidence that supports it.*
 | ISS-045 | `/categories/ceiling-fans-exhaust.webp` referenced but missing | MEDIUM | Content | PARTIAL |
 | ISS-046 | Checkout, booking and admin still authenticate against Supabase after the Firebase migration | **CRITICAL** | Auth/Commerce | FIXED |
 | ISS-047 | OTP abuse protection was lost in the Firebase migration; no App Check | HIGH | Security/Cost | OPEN |
-| ISS-048 | Email/password sign-in has no password reset and no email verification | MEDIUM | Auth | OPEN |
+| ISS-048 | Email/password sign-in has no password reset and no email verification | MEDIUM | Auth | FIXED |
 | ISS-049 | A contested phone/email left a fully-authenticated customer with no account | **CRITICAL** | Auth | FIXED |
 | ISS-050 | `www.verticalexpress.in` is not a Firebase authorized domain | **CRITICAL** | Auth/Config | FIXED |
 | ISS-051 | `/api/health` disclosed configuration and raw database errors | MEDIUM | Security | FIXED |
@@ -2103,10 +2103,24 @@ every customer out of signing in to protect nothing that matters.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Auth |
-| **Status** | OPEN |
+| **Status** | **FIXED** — the method was removed rather than completed (verified 5 Sep 2026) |
 
-**Description.** The sign-in form offers email/password and calls
-`createUserWithEmailAndPassword`, but nothing ever calls `sendEmailVerification` or
+**Resolution.** Email and password no longer exist as a sign-in method. Verified by
+grep across `components`, `lib`, `hooks`, `app` and `actions`:
+`createUserWithEmailAndPassword`, `signInWithEmailAndPassword`, `EmailAuthProvider` and
+`updatePassword` appear nowhere. `hooks/use-firebase-sign-in.ts` exposes exactly two paths,
+`signInWithPhoneNumber` and `signInWithPopup` with Google.
+
+Removing it was the right answer rather than adding the two missing emails: it was a method
+offered in the UI and supported nowhere, and a contractor standing on a slab is not
+inventing a password. It also stopped the project depending on Firebase's per-project
+scrypt signer key, which has no documented rotation path — making that key guard nothing is
+the available remediation.
+
+`lib/__tests__/sign-in-methods.test.ts` fails if any surface offers it again.
+
+**Original description (for the record).** The sign-in form offered email/password and
+called `createUserWithEmailAndPassword`, but nothing ever called `sendEmailVerification` or
 `sendPasswordResetEmail`.
 
 Two consequences, and the second is not obvious:
