@@ -2,7 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { adminAdvanceShipment, adminAssignShipment } from "@/actions/dispatch";
+import {
+  adminAdvanceShipment,
+  adminAssignShipment,
+  adminConfirmDelivery,
+} from "@/actions/dispatch";
 import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
 
 /**
@@ -32,6 +36,7 @@ export function DispatchControls({
   const [code, setCode] = useState<string | null>(null);
   const [driverId, setDriverId] = useState(shipment.driver?.id ?? "");
   const [vehicleId, setVehicleId] = useState(shipment.vehicle?.id ?? "");
+  const [handover, setHandover] = useState("");
 
   const field =
     "h-9 w-full rounded-field border border-line bg-white px-2.5 text-[12.5px] font-semibold text-ink";
@@ -133,6 +138,20 @@ export function DispatchControls({
           </button>
         )}
 
+        {shipment.status === "out_for_delivery" && (
+          /* No code to hand over — the customer was not there to read it. The
+             audit trail records this as unproven, which is the difference that
+             matters later. */
+          <button
+            type="button"
+            onClick={() => advance("delivered")}
+            disabled={pending}
+            className={`${button} bg-chip text-ink hover:bg-hush`}
+          >
+            Delivered, no code
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => advance("cancelled")}
@@ -142,6 +161,53 @@ export function DispatchControls({
           Cancel
         </button>
       </div>
+
+      {shipment.status === "out_for_delivery" && (
+        /* The gate. The customer reads six digits back and the shipment is
+           delivered only if they match — the code was issued at dispatch and,
+           until this existed, nothing ever asked for it, which made the whole
+           handover ceremonial.
+
+           "Delivered without a code" stays available above, because a customer
+           who was not there to read it has to be handled somehow. The audit
+           trail tells the two apart. */
+        <div className="mt-2.5 rounded-field bg-canvas p-2.5">
+          <label
+            htmlFor={`pod-${shipment.id}`}
+            className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500"
+          >
+            Code from the customer
+          </label>
+          <div className="mt-1.5 flex gap-1.5">
+            <input
+              id={`pod-${shipment.id}`}
+              value={handover}
+              onChange={(e) => setHandover(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000000"
+              className="h-9 w-[104px] rounded-field border border-line bg-white px-2.5 text-[13px] font-bold tabular-nums tracking-[0.12em] text-ink"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                run(async () => {
+                  const res = await adminConfirmDelivery({
+                    shipmentId: shipment.id,
+                    code: handover,
+                  });
+                  if (res.ok) setHandover("");
+                  return res;
+                })
+              }
+              disabled={pending || handover.length !== 6}
+              className={`${button} bg-ops-ok-tint text-ops-ok`}
+            >
+              Confirm delivery
+            </button>
+          </div>
+        </div>
+      )}
 
       {code && (
         <div className="mt-2.5 rounded-field bg-ops-ok-tint p-2.5">

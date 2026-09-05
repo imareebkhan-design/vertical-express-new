@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { DispatchLane } from "@/components/admin/dispatch-lane";
-import { getDispatchBoard, getDispatchRoster } from "@/lib/services/shipments";
+import {
+  getDispatchBoard,
+  getDispatchRoster,
+  getShipmentsOnTheRoad,
+} from "@/lib/services/shipments";
 
 export const metadata: Metadata = {
   title: "Dispatch | Operations",
@@ -24,7 +28,11 @@ export const dynamic = "force-dynamic";
  * rather than an afterthought.
  */
 export default async function AdminDispatch() {
-  const [board, roster] = await Promise.all([getDispatchBoard(), getDispatchRoster()]);
+  const [board, roster, onTheRoad] = await Promise.all([
+    getDispatchBoard(),
+    getDispatchRoster(),
+    getShipmentsOnTheRoad(),
+  ]);
   const total = board.express.length + board.scheduled.length;
 
   return (
@@ -46,6 +54,19 @@ export default async function AdminDispatch() {
           note={`${board.scheduled.length} waiting`}
           shipments={board.scheduled}
           emptyNote="Nothing waiting for a truck."
+          roster={roster}
+        />
+
+        {/* Already gone, not yet arrived. Deliberately its own lane rather than
+            a third entry in the two above: those say "still in the warehouse"
+            and the count over them says it too, so a shipment on the road in
+            that list would make the sentence false. This is where the customer's
+            code gets read back. */}
+        <DispatchLane
+          title="On the road"
+          note={`${onTheRoad.length} out for delivery`}
+          shipments={onTheRoad}
+          emptyNote="Nothing out for delivery."
           roster={roster}
         />
 

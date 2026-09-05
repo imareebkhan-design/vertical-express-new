@@ -1,9 +1,10 @@
 import "server-only";
-import { randomInt } from "node:crypto";
+import { randomInt, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import type { ShipmentStatus } from "@/prisma/generated/client/client";
 import { recordAudit } from "@/lib/services/audit";
 import { releaseOrderInventory } from "@/lib/services/orders";
+import { rateLimit } from "@/lib/services/rate-limit";
 import {
   canTransitionShipment,
   CODE_ISSUED_AT,
@@ -134,6 +135,11 @@ export async function advanceShipment(params: {
         orderId: shipment.orderId,
         sequence: shipment.sequence,
         ...(deliveryCode ? { deliveryCodeIssued: true } : {}),
+        /* A delivery marked here has no proof behind it — nobody read a code
+           back. `confirmDelivery` is the path that has proof, and records it.
+           The two must be distinguishable in the trail, because "delivered"
+           with and without a customer confirming it are different claims. */
+        ...(to === "delivered" ? { proof: "none" } : {}),
       },
     });
 
@@ -215,4 +221,124 @@ export async function assignShipment(params: {
 
     return { ok: true } as const;
   });
+}
+
+/**
+ * How many wrong codes before the shipment stops accepting any.
+ *
+ * Six digits is a million values, which a script exhausts in minutes if nothing
+ * stops it. The numbers match the OTP bucket rather than being chosen fresh —
+ * DEC-016 settled five attempts per fifteen minutes for a credential of this
+ * kind, and having two different answers to the same question in one codebase
+ * is how one of them drifts.
+ *
+ * Keyed on the shipment, not the caller. The credential belongs to one
+ * shipment, and an attacker who rotates IP addresses would walk straight past a
+ * per-caller limit.
+ */
+const POD_ATTEMPTS = 5;
+const POD_WINDOW_MS = 15 * 60 * 1000;
+
+export type ConfirmResult =
+  | { ok: true }
+  /* Deliberately coarse. A wrong code, a shipment that does not exist and a
+     shipment that is not out for delivery are all "rejected", because telling
+     them apart tells an attacker which shipment ids are real and which are in
+     the air right now. */
+  | { ok: false; reason: "rejected" | "rate_limited" };
+
+/**
+ * Proof of delivery: the customer reads the code at the gate.
+ *
+ * This is the only path to `delivered` that means anything. `advanceShipment`
+ * can still mark a shipment delivered — a customer who was not there to read
+ * the code has to be handled somehow — but it records `proof: "none"`, so a
+ * delivery nobody confirmed is visibly different in the audit trail from one
+ * somebody did.
+ *
+ * **When an operator may override is a policy question, not a mechanism.** Both
+ * paths exist and are distinguishable; which is permitted, and what has to be
+ * true first, is the owner's to set.
+ *
+ * The code never appears in a log, an audit row or an error. What is recorded
+ * is that a matching code was presented.
+ */
+export async function confirmDelivery(params: {
+  shipmentId: string;
+  code: string;
+  actor: { id: string; email: string };
+}): Promise<ConfirmResult> {
+  const { shipmentId, code, actor } = params;
+
+  /* Fail closed. A limiter outage must not open a million-value brute force on
+     a credential that stands between goods and the wrong person. */
+  const limit = await rateLimit(`pod:${shipmentId}`, POD_ATTEMPTS, POD_WINDOW_MS, {
+    failClosed: true,
+  });
+  if (!limit.allowed) return { ok: false, reason: "rate_limited" };
+
+  const shipment = await db.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { id: true, status: true, deliveryCode: true, orderId: true, sequence: true },
+  });
+
+  /* Every rejection below returns the same thing and does the same comparison
+     work, so a caller cannot tell a missing shipment from a wrong code by what
+     comes back or by how long it took. */
+  const expected = shipment?.deliveryCode ?? null;
+  const matches = constantTimeEquals(code, expected);
+
+  if (!shipment || shipment.status !== "out_for_delivery" || !matches) {
+    return { ok: false, reason: "rejected" };
+  }
+
+  return db.$transaction(async (tx) => {
+    const updated = await tx.shipment.updateMany({
+      where: { id: shipmentId, status: "out_for_delivery" },
+      data: { status: "delivered", deliveredAt: new Date() },
+    });
+    if (updated.count === 0) return { ok: false, reason: "rejected" } as const;
+
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "shipment.status_changed",
+      entityType: "shipment",
+      entityId: shipmentId,
+      before: { status: "out_for_delivery" },
+      /* That a matching code was presented — never the code itself. */
+      after: {
+        status: "delivered",
+        orderId: shipment.orderId,
+        sequence: shipment.sequence,
+        proof: "delivery_code",
+      },
+    });
+
+    return { ok: true } as const;
+  });
+}
+
+/**
+ * Compare two codes without letting the clock describe them.
+ *
+ * `timingSafeEqual` needs equal-length buffers and throws otherwise, so a naive
+ * length check in front of it leaks the expected length through an early
+ * return. Both sides are padded to a fixed width first, and the length
+ * difference is folded into the result rather than short-circuiting it.
+ *
+ * A null expectation — a shipment with no code issued — still does the full
+ * comparison and returns false.
+ */
+function constantTimeEquals(given: string, expected: string | null): boolean {
+  const WIDTH = 32;
+  const a = Buffer.alloc(WIDTH);
+  const b = Buffer.alloc(WIDTH);
+  a.write(given.slice(0, WIDTH));
+  b.write((expected ?? "").slice(0, WIDTH));
+
+  const sameBytes = timingSafeEqual(a, b);
+  const sameLength = given.length === (expected ?? "").length;
+  const haveExpected = expected !== null;
+  return sameBytes && sameLength && haveExpected;
 }

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { db } from "@/lib/db";
-import { advanceShipment, assignShipment } from "@/lib/services/admin/shipments-write";
+import { advanceShipment, assignShipment, confirmDelivery } from "@/lib/services/admin/shipments-write";
 import {
   canTransitionShipment,
   nextShipmentStatuses,
@@ -357,4 +357,144 @@ test("a shipment already on the road cannot have its driver rewritten", async (t
 
   const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
   assert.equal(row.driverId, firstDriver, "the driver of record changed after dispatch");
+});
+
+/* ---- Proof of delivery ---------------------------------------------------
+ *
+ * `advanceShipment` moved a shipment to `delivered` with no check at all — the
+ * six-digit code was issued at dispatch and then nothing ever asked for it.
+ * That made the whole handover ceremonial: a code the customer reads out that
+ * nobody verifies is theatre.
+ */
+
+/** Dispatch a scratch shipment and return its live code. */
+async function dispatched(): Promise<{ shipmentId: string; code: string }> {
+  const { shipmentId } = await scratchShipment();
+  await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+  await withDriver(shipmentId);
+  const out = await advanceShipment({ shipmentId, to: "out_for_delivery", actor: ACTOR });
+  assert.equal(out.ok, true);
+  const code = out.ok === true ? out.deliveryCode : null;
+  assert.match(code ?? "", /^\d{6}$/);
+  return { shipmentId, code: code! };
+}
+
+test("the right code delivers the shipment and records that there was proof", async (t) => {
+  t.after(cleanup);
+  const { shipmentId, code } = await dispatched();
+
+  const res = await confirmDelivery({ shipmentId, code, actor: ACTOR });
+  assert.equal(res.ok, true);
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.status, "delivered");
+  assert.ok(row.deliveredAt);
+
+  const rows = await db.auditLog.findMany({ where: { entityId: shipmentId } });
+  const dumped = JSON.stringify(rows);
+  assert.ok(dumped.includes("delivery_code"), "the delivery was not recorded as proven");
+  assert.ok(!dumped.includes(code), "the code itself reached the audit trail");
+});
+
+test("a wrong code delivers nothing", async (t) => {
+  t.after(cleanup);
+  const { shipmentId, code } = await dispatched();
+  const wrong = code === "000000" ? "111111" : "000000";
+
+  const res = await confirmDelivery({ shipmentId, code: wrong, actor: ACTOR });
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.reason, "rejected");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.status, "out_for_delivery", "a wrong code still delivered the goods");
+  assert.equal(row.deliveredAt, null);
+});
+
+test("a shipment that does not exist is rejected the same way a wrong code is", async (t) => {
+  /* Telling them apart tells an attacker which shipment ids are real and which
+     are in the air right now. */
+  t.after(cleanup);
+  const res = await confirmDelivery({
+    shipmentId: "00000000-0000-0000-0000-000000000000",
+    code: "123456",
+    actor: ACTOR,
+  });
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.reason, "rejected");
+});
+
+test("a shipment still in the warehouse cannot be confirmed delivered", async (t) => {
+  t.after(cleanup);
+  const { shipmentId } = await scratchShipment();
+  await advanceShipment({ shipmentId, to: "packed", actor: ACTOR });
+
+  const res = await confirmDelivery({ shipmentId, code: "123456", actor: ACTOR });
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.reason, "rejected");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.status, "packed");
+});
+
+test("guessing is capped before a million values can be tried", async (t) => {
+  /* Six digits is 10^6, which a script exhausts in minutes. Five attempts per
+     fifteen minutes, matching the OTP bucket (DEC-016) rather than inventing a
+     second answer to the same question. */
+  t.after(cleanup);
+  const { shipmentId, code } = await dispatched();
+  const wrong = code === "000000" ? "111111" : "000000";
+
+  const reasons: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const r = await confirmDelivery({ shipmentId, code: wrong, actor: ACTOR });
+    reasons.push(r.ok ? "ok" : r.reason);
+  }
+
+  assert.ok(
+    reasons.includes("rate_limited"),
+    `seven wrong codes were all accepted for checking: ${reasons.join(", ")}`
+  );
+
+  /* And the real code is refused too once the cap is hit — otherwise the cap
+     only slows an attacker down between windows. */
+  const afterCap = await confirmDelivery({ shipmentId, code, actor: ACTOR });
+  assert.equal(afterCap.ok, false);
+  assert.equal(afterCap.ok === false && afterCap.reason, "rate_limited");
+
+  const row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
+  assert.equal(row.status, "out_for_delivery");
+});
+
+test("marking delivered without a code is possible and is recorded as unproven", async (t) => {
+  /* A customer who was not there to read the code has to be handled somehow.
+     Both paths exist; the trail distinguishes them, because "delivered" with
+     and without somebody confirming it are different claims. WHEN an operator
+     may do this is a policy question and is the owner's. */
+  t.after(cleanup);
+  const { shipmentId } = await dispatched();
+
+  const res = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR });
+  assert.equal(res.ok, true);
+
+  const rows = await db.auditLog.findMany({ where: { entityId: shipmentId } });
+  const dumped = JSON.stringify(rows);
+  assert.ok(dumped.includes('"proof":"none"'), "an unproven delivery was not marked as such");
+  assert.ok(!dumped.includes("delivery_code"), "an unproven delivery claims proof it does not have");
+});
+
+test("the code comparison does not short-circuit on length", () => {
+  /* `timingSafeEqual` throws on unequal lengths, so a length check in front of
+     it leaks the expected length through an early return. */
+  const src = readFileSync(
+    join(ROOT, "lib/services/admin/shipments-write.ts"),
+    "utf8"
+  ).replace(/\/\*[\s\S]*?\*\//g, " ");
+
+  assert.match(src, /timingSafeEqual\(/, "the code is no longer compared in constant time");
+  const fn = /function constantTimeEquals[\s\S]*?\n\}/.exec(src);
+  assert.ok(fn, "the comparison helper has gone");
+  assert.ok(
+    !/if\s*\([^)]*length[^)]*\)\s*return/.test(fn[0]),
+    "the comparison returns early on a length mismatch, which leaks the expected length"
+  );
 });

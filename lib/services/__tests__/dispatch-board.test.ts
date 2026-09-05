@@ -3,7 +3,7 @@ import test from "node:test";
 import { randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db";
-import { getDispatchBoard } from "@/lib/services/shipments";
+import { getDispatchBoard, getShipmentsOnTheRoad } from "@/lib/services/shipments";
 
 /**
  * The dispatch board shows what is still in the warehouse.
@@ -95,4 +95,31 @@ test("the longest wait comes first", async () => {
   const times = board.express.map((s) => new Date(s.waitingSince).getTime());
   const sorted = [...times].sort((a, b) => a - b);
   assert.deepEqual(times, sorted, "the board must be ordered oldest first");
+});
+
+test("what is on the road has its own lane, not a place in the warehouse lanes", async () => {
+  /* The two lanes above say "still in the warehouse" and the count over them
+     says it too. A shipment already gone belongs somewhere a dispatcher can
+     take the customer's code back — and putting it in those lanes would make
+     that sentence false, which is the defect this codebase keeps finding in
+     smaller forms.
+
+     I made exactly that mistake first: adding `out_for_delivery` to the board
+     query broke the test above, correctly. */
+  const beforeRoad = (await getShipmentsOnTheRoad()).length;
+  const beforeBoard = await getDispatchBoard();
+  const beforeWaiting = beforeBoard.express.length + beforeBoard.scheduled.length;
+
+  await shipment("out_for_delivery", "express");
+  await shipment("packed", "scheduled");
+
+  const road = await getShipmentsOnTheRoad();
+  const board = await getDispatchBoard();
+
+  assert.equal(road.length - beforeRoad, 1, "a dispatched shipment is not on the road lane");
+  assert.equal(
+    board.express.length + board.scheduled.length - beforeWaiting,
+    1,
+    "the warehouse lanes counted something that has already left"
+  );
 });

@@ -205,3 +205,58 @@ export async function getDispatchRoster() {
 }
 
 export type DispatchRoster = Awaited<ReturnType<typeof getDispatchRoster>>;
+
+/**
+ * What has left the warehouse and not arrived yet.
+ *
+ * Kept out of the two lanes above on purpose. Those are "waiting to be loaded",
+ * and the count above them says so — putting a shipment already on the road in
+ * them would make that sentence false, which is a smaller version of exactly
+ * the defect this codebase keeps finding.
+ *
+ * It needs its own place because the handover code is issued at dispatch and,
+ * until there was a screen that could take it back, nothing ever asked for it.
+ */
+export async function getShipmentsOnTheRoad() {
+  const shipments = await db.shipment.findMany({
+    where: { status: "out_for_delivery" },
+    orderBy: [{ dispatchedAt: "asc" }],
+    select: {
+      id: true,
+      sequence: true,
+      speedClass: true,
+      status: true,
+      dispatchedAt: true,
+      createdAt: true,
+      warehouse: { select: { name: true } },
+      driver: { select: { id: true, name: true } },
+      vehicle: { select: { id: true, registration: true } },
+      items: { select: { qty: true } },
+      order: {
+        select: { orderNo: true, address: true, totalPaise: true, paymentMethod: true },
+      },
+    },
+  });
+
+  return shipments.map((s) => {
+    const addr = s.order.address as { label?: string; name?: string; city?: string } | null;
+    return {
+      id: s.id,
+      ref: `${s.order.orderNo}-${s.sequence}`,
+      orderNo: s.order.orderNo,
+      status: s.status,
+      destination: addr?.name ?? addr?.label ?? addr?.city ?? "—",
+      itemCount: s.items.reduce((n, i) => n + i.qty, 0),
+      lineCount: s.items.length,
+      valuePaise: s.order.totalPaise,
+      paymentMethod: s.order.paymentMethod,
+      warehouse: s.warehouse?.name ?? null,
+      driver: s.driver,
+      vehicle: s.vehicle,
+      /* "Waiting since" on this lane means since it left, not since it was
+         packed — that is the number a dispatcher chasing a late delivery
+         wants. */
+      waitingSince: s.dispatchedAt ?? s.createdAt,
+    };
+  });
+}
