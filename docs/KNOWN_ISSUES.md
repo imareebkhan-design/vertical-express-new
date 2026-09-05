@@ -560,10 +560,18 @@ test comment. What landed:
   return the same answer.
 
 `dispatchedAt`, `deliveredAt`, `deliveryCode`, `driverId` and `vehicleId` are
-all written now. **55 tests across nine files** cover the loop — the write path (20),
-the roster (8), the dispatch board (4), the pick list (5), the packing slip (5), and
+all written now. **56 tests across nine files** cover the loop — the write path (20),
+the roster (8), the dispatch board (4), the pick list (5), the packing slip (6), and
 the shipment read services (13) — and every guard was verified to fail when the defect
 it catches was put back.
+
+`npm run db:demo` now seeds the fulfilment side too — three drivers, two vehicles
+and fourteen shipments across the demo orders, with one order split in two so
+"Shipment 1 of 2" is visible, three orders left at `confirmed` drawing from a
+narrow set of variants so the pick list has something to aggregate, and the
+handover codes printed at the end so proof of delivery can be tried. Until this,
+the demo database held thirteen orders and **zero** shipments, so every screen
+described above rendered empty to anyone who signed in to look at it.
 
 **Still missing, and still not faked in the UI:**
 

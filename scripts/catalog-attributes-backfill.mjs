@@ -34,10 +34,14 @@
  *   node --env-file-if-exists=.env scripts/catalog-attributes-backfill.mjs --revert <backup.json>
  */
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-const db = new PrismaClient();
+/* Prisma 7 requires an explicit driver adapter; without one the client
+   throws at construction. */
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 const BACKUP_DIR = join(process.cwd(), ".catalog-backups");
 
 /** Attributes for products already in the catalogue, read off their own titles. */

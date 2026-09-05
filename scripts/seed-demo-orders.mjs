@@ -25,8 +25,27 @@
  *
  * Everything it writes is prefixed DEMO- or ends @demo.invalid, so it can be
  * found and removed. Re-running replaces its own rows and touches nothing else.
+ *
+ * IT ALSO SEEDS THE FULFILMENT SIDE, AND HERE IS WHY
+ *
+ * The dispatch board, the roster, the pick list, the packing slip and proof of
+ * delivery were all built in September and every one of them is a view over
+ * `Shipment`. The demo database had thirteen orders and zero shipments, so all
+ * five screens rendered empty and the whole fulfilment loop looked unbuilt to
+ * anyone who signed in to look at it.
+ *
+ * So the orders below now carry shipments, and there are drivers and vehicles to
+ * assign them to. The shipment's state follows its order's — an order that is
+ * `packed` has a shipment waiting for a driver, one that is `out_for_delivery`
+ * has a driver, a vehicle and a handover code. That mirroring is a shape for
+ * demo data, not a business rule: `Order.status` stays authoritative in the real
+ * code and is deliberately not derived from shipments yet (ISS-009).
+ *
+ * One order is split across two shipments, because "Shipment 1 of 2" on the
+ * packing slip is exactly the case that is wrong if nobody ever looks at it.
  */
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { randomUUID } from "node:crypto";
 
 const url = process.env.DATABASE_URL ?? "";
@@ -44,7 +63,10 @@ if (process.env.VE_TEST_DATABASE !== "1" || !localish) {
   process.exit(1);
 }
 
-const db = new PrismaClient();
+/* Prisma 7 requires an explicit driver adapter; without one the client
+   throws at construction. */
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 
 /** Inclusive GST extraction — the same direction as lib/services/tax.ts. */
 function gst(totalPaise, ratePct) {
@@ -75,9 +97,47 @@ const PLAN = [
   ["out_for_delivery",  2, "cod",      true],
   ["packed",            1, "razorpay", true],
   ["confirmed",         1, "razorpay", true],
+  /* Three orders sit at `confirmed`, which is what puts a shipment on the pick
+     list. One would render a single line and demonstrate nothing: the list
+     exists to prove that the same item wanted by several shipments is one walk
+     to that aisle, and that needs several shipments wanting it. */
+  ["confirmed",         0, "cod",      true],
+  ["confirmed",         0, "razorpay", true],
   ["cancelled",         4, "razorpay", false],
   ["pending_payment",   0, "razorpay", false],
 ];
+
+/**
+ * The roster. Two drivers with a vehicle each and one on his own bike — the
+ * vehicle is nullable precisely because that last case is real, and a demo that
+ * never shows it hides the reason.
+ */
+const DRIVERS = [
+  { name: "DEMO Aadil Bhat",    phone: "+919000000201", vehicle: "DEMO-JK01AB1234" },
+  { name: "DEMO Suhail Wani",   phone: "+919000000202", vehicle: "DEMO-JK01CD5678" },
+  { name: "DEMO Nasir Lone",    phone: "+919000000203", vehicle: null },
+];
+
+const VEHICLES = [
+  { registration: "DEMO-JK01AB1234", kind: "van" },
+  { registration: "DEMO-JK01CD5678", kind: "truck" },
+];
+
+/**
+ * Where an order's status leaves its shipment.
+ *
+ * `null` means no shipment at all, which is right for an order that was never
+ * paid for and one that was cancelled before anything was picked.
+ */
+const SHIPMENT_FOR_ORDER = {
+  pending_payment: null,
+  cancelled: null,
+  confirmed: "pending",
+  packed: "packed",
+  out_for_delivery: "out_for_delivery",
+  delivered: "delivered",
+  refunded: "delivered",
+};
 
 const ago = (days, hour) => {
   const d = new Date();
@@ -94,9 +154,33 @@ async function main() {
   });
   if (prior.length) {
     const ids = prior.map((u) => u.id);
+    /* Shipments cascade from the order; their audit rows do not, so they go
+       first and are matched by id rather than by entityType — deleting every
+       row of type "shipment" would take a real one's trail with it. */
+    const priorShipments = await db.shipment.findMany({
+      where: { order: { userId: { in: ids } } },
+      select: { id: true },
+    });
+    if (priorShipments.length) {
+      await db.auditLog.deleteMany({
+        where: { entityType: "shipment", entityId: { in: priorShipments.map((x) => x.id) } },
+      });
+    }
     await db.order.deleteMany({ where: { userId: { in: ids } } });
     await db.user.deleteMany({ where: { id: { in: ids } } });
     console.log(`cleared ${prior.length} demo customers and their orders`);
+  }
+
+  /* The roster is not owned by a demo customer, so it needs clearing by its own
+     marker. Retiring rather than deleting is the rule in the real service —
+     a driver who carried shipments is referenced by every one of them — but
+     these are fixtures whose shipments have just gone with the orders. */
+  const clearedVehicles = await db.vehicle.deleteMany({
+    where: { registration: { startsWith: "DEMO-" } },
+  });
+  const clearedDrivers = await db.driver.deleteMany({ where: { name: { startsWith: "DEMO " } } });
+  if (clearedDrivers.count || clearedVehicles.count) {
+    console.log(`cleared ${clearedDrivers.count} demo drivers and ${clearedVehicles.count} vehicles`);
   }
 
   /* `--clear` removes and stops. Used to take demo rows back out of a database
@@ -162,6 +246,25 @@ async function main() {
     users.push({ ...p, id });
   }
 
+  /* The roster, before the orders, because a dispatched shipment needs a driver
+     to point at. */
+  const vehicles = new Map();
+  for (const v of VEHICLES) {
+    const row = await db.vehicle.create({ data: { registration: v.registration, kind: v.kind } });
+    vehicles.set(v.registration, row.id);
+  }
+  const drivers = [];
+  for (const d of DRIVERS) {
+    const row = await db.driver.create({ data: { name: d.name, phone: d.phone } });
+    drivers.push({ ...row, vehicleId: d.vehicle ? vehicles.get(d.vehicle) : null });
+  }
+
+  /* Handover codes, printed at the end so somebody can actually try confirming a
+     delivery. The real one comes from `generateDeliveryCode` at dispatch; this is
+     the same six-digit shape. */
+  const codes = [];
+  let shipmentCount = 0;
+
   let n = 0;
   for (const [status, days, method, paid] of PLAN) {
     const user = users[n % users.length];
@@ -170,7 +273,13 @@ async function main() {
        some of them mix a heavy line with light ones. */
     const lines = [];
     for (let k = 0; k < 2 + (n % 2); k++) {
-      const v = variants[(n * 3 + k * 5) % variants.length];
+      /* The confirmed orders draw from a deliberately narrow window so they
+         overlap. Everything else walks the whole catalogue so the order list
+         looks varied. */
+      const v =
+        status === "confirmed"
+          ? variants[(n + k) % 3]
+          : variants[(n * 3 + k * 5) % variants.length];
       const qty = v.product.category.isBulk ? 10 + ((n * 3) % 30) : 1 + (k % 3);
       lines.push({ v, qty });
     }
@@ -227,6 +336,8 @@ async function main() {
         deliveredAt: status === "delivered" ? new Date(+placedAt + 5 * 3600_000) : null,
         items: { create: items },
       },
+      /* The lines come back because a shipment has to point at them. */
+      include: { items: { select: { id: true, qty: true } } },
     });
 
     if (paid) {
@@ -269,11 +380,66 @@ async function main() {
       from = to;
     }
 
+    /* The shipment. An order that was never paid for and one that was cancelled
+       before anything was picked get none — which is also what makes the
+       dispatch board's counts mean something. */
+    const shipStatus = SHIPMENT_FOR_ORDER[status];
+    if (shipStatus) {
+      /* One order is split in two so the packing slip's "Shipment 1 of 2" and
+         the board's two rows against one order are both visible. The packed
+         order is the one worth splitting: it is the state a slip gets printed
+         in. */
+      const split = status === "packed" && order.items.length >= 2;
+      const groups = split
+        ? [order.items.slice(0, 1), order.items.slice(1)]
+        : [order.items];
+
+      for (const [g, group] of groups.entries()) {
+        const dispatched = shipStatus === "out_for_delivery" || shipStatus === "delivered";
+        const driver = dispatched ? drivers[n % drivers.length] : null;
+        const code = dispatched
+          ? String((n * 137 + g * 31 + 100_000) % 1_000_000).padStart(6, "0")
+          : null;
+
+        const shipment = await db.shipment.create({
+          data: {
+            orderId: order.id,
+            sequence: g + 1,
+            /* Arbitrary, and only so the pick list's express-first sort has both
+               kinds to sort. The real value comes from what the customer chose
+               at checkout. */
+            speedClass: n % 3 === 0 ? "express" : "scheduled",
+            status: shipStatus,
+            warehouseId: warehouse?.id ?? null,
+            dispatchedAt: dispatched ? new Date(+placedAt + 3 * 3600_000) : null,
+            deliveredAt: shipStatus === "delivered" ? new Date(+placedAt + 5 * 3600_000) : null,
+            deliveryCode: code,
+            driverId: driver?.id ?? null,
+            vehicleId: driver?.vehicleId ?? null,
+            createdAt: placedAt,
+            items: {
+              create: group.map((it) => ({ orderItemId: it.id, qty: it.qty })),
+            },
+          },
+        });
+        shipmentCount++;
+        if (shipStatus === "out_for_delivery") {
+          codes.push(`${order.orderNo}-${g + 1}  ${code}  ${driver?.name ?? "-"}`);
+        }
+        void shipment;
+      }
+    }
+
     n++;
   }
 
   console.log(`seeded ${users.length} demo customers and ${PLAN.length} demo orders`);
+  console.log(`seeded ${drivers.length} drivers, ${VEHICLES.length} vehicles, ${shipmentCount} shipments`);
   console.log("all of them are prefixed DEMO- or end @demo.invalid");
+  if (codes.length) {
+    console.log("\nhandover codes for the shipments on the road, for trying proof of delivery:");
+    for (const c of codes) console.log(`  ${c}`);
+  }
 }
 
 main()

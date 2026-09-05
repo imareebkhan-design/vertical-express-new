@@ -30,6 +30,7 @@
  *   to a file on disk.
  */
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
@@ -191,7 +192,10 @@ export async function runRemediation() {
   const backup = validateBackupStructure();
   console.log(`✓ Backup validated: exactly ${backup.rows.length} unique rows targeted.`);
 
-  const prisma = new PrismaClient();
+  /* Prisma 7 requires an explicit driver adapter; without one the client
+     throws at construction. */
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const prisma = new PrismaClient({ adapter });
 
   try {
     console.log("2. Opening database transaction...");

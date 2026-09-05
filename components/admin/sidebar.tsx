@@ -107,7 +107,7 @@ export function AdminSidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-[246px] flex-none flex-col gap-0.5 bg-white p-3.5 lg:flex">
+    <aside className="hidden w-[246px] flex-none flex-col gap-0.5 bg-white p-3.5 lg:flex print:hidden">
       <Link href="/admin" className="mb-3 flex items-center gap-2.5 px-3 py-1">
         <span className="grid size-8 flex-none place-items-center rounded-chip bg-brand">
           <BarChart3 className="size-4 text-ink" aria-hidden />

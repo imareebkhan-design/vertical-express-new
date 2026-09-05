@@ -160,3 +160,18 @@ test("a shipment that does not exist produces nothing, not a crash", async (t) =
   const slip = await getPackingSlip("00000000-0000-0000-0000-000000000000");
   assert.equal(slip, null);
 });
+
+test("the console's own furniture does not print", () => {
+  /* The slip renders inside `app/admin/layout.tsx`, which is a fixed sidebar and
+     a header with a "View store" link. None of that belongs on a sheet of paper
+     that goes in a box, and on A4 the sidebar takes a quarter of the width the
+     slip needs. The page cannot fix this itself — a child cannot un-render its
+     own layout — so the shell carries the print variants and this is what says
+     they must stay. */
+  const layout = readFileSync(join(ROOT, "app/admin/layout.tsx"), "utf8");
+  assert.match(layout, /<header[^>]*print:hidden/, "the console header would print");
+  assert.match(layout, /<main[^>]*print:p-0/, "the console's page padding would print");
+
+  const sidebar = readFileSync(join(ROOT, "components/admin/sidebar.tsx"), "utf8");
+  assert.match(sidebar, /<aside[^>]*print:hidden/, "the console sidebar would print");
+});

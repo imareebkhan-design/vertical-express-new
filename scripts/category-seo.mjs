@@ -22,6 +22,7 @@
  * undone exactly.
  */
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
 
 // ── The copy. Change these two functions and re-run. ───────────────────────────
@@ -43,7 +44,10 @@ const TEMPLATE = {
 };
 // ──────────────────────────────────────────────────────────────────────────────
 
-const db = new PrismaClient();
+/* Prisma 7 requires an explicit driver adapter; without one the client
+   throws at construction. */
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const restoreIdx = args.indexOf("--restore");

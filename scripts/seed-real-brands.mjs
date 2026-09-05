@@ -25,8 +25,12 @@
  *   node scripts/seed-real-brands.mjs
  */
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const db = new PrismaClient();
+/* Prisma 7 requires an explicit driver adapter; without one the client
+   throws at construction. */
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const db = new PrismaClient({ adapter });
 
 /** As they appear in design-canvas/. Extend in the console, not here. */
 const BRANDS = [

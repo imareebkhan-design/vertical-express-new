@@ -35,11 +35,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-screen bg-canvas">
+    <div className="flex min-h-screen bg-canvas print:block print:min-h-0 print:bg-white">
       <AdminSidebar adminEmail={gate.admin.email} gatewayWarning={gatewayWarning} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7">
+        <header className="flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7 print:hidden">
           <Link href="/admin" className="text-[13px] font-extrabold lg:hidden">
             Operations
           </Link>
@@ -52,7 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           </Link>
         </header>
 
-        <main className="min-w-0 flex-1 px-5 py-6 sm:px-7">{children}</main>
+        <main className="min-w-0 flex-1 px-5 py-6 sm:px-7 print:p-0">{children}</main>
       </div>
     </div>
   );
