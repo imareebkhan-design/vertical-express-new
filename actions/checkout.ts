@@ -35,12 +35,18 @@ async function emailOrderConfirmation(userId: string, orderNo: string, toEmail: 
 }
 
 /** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability, optional coupon). */
-export async function getCheckoutTotals(pincode: string, couponCode?: string): Promise<ActionResult<CheckoutTotals>> {
+export async function getCheckoutTotals(
+  pincode: string,
+  couponCode?: string,
+  /* Requested, not granted — `computeTotals` re-resolves whether express is
+     actually on offer. A browser must not be able to name what it pays. */
+  wantsExpress = false
+): Promise<ActionResult<CheckoutTotals>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  return succeed(await computeTotals(cart, pincode, null, couponCode, userId));
+  return succeed(await computeTotals(cart, pincode, null, couponCode, userId, wantsExpress));
 }
 
 /** Validate a coupon code against current user cart. */
@@ -77,6 +83,8 @@ export async function placeOrder(input: {
   idempotencyKey?: string;
   /** Re-validated server-side; the client's discount figure is never trusted. */
   couponCode?: string | null;
+  /* Requested, not granted — re-resolved server-side. */
+  wantsExpress?: boolean;
 }): Promise<ActionResult<PlaceOrderData>> {
   const user = await getAuthUser();
   if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
@@ -94,6 +102,7 @@ export async function placeOrder(input: {
       notes: input.notes,
       idempotencyKey: input.idempotencyKey,
       couponCode: input.couponCode,
+      wantsExpress: input.wantsExpress,
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");

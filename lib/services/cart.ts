@@ -7,6 +7,8 @@ export interface CartLine {
   itemId: string;
   variantId: string;
   productSlug: string;
+  /** The product, not the variant. Express eligibility is set per product. */
+  productId: string;
   categorySlug: string;
   /** Heavy material — decides which shipment the line travels in. */
   categoryIsBulk: boolean;
@@ -182,6 +184,7 @@ export async function getCartSummary(
       itemId: item.id,
       variantId: v.id,
       productSlug: v.product.slug,
+      productId: v.product.id,
       categorySlug: v.product.category.slug,
       categoryIsBulk: v.product.category.isBulk,
       title: v.product.title,

@@ -30,6 +30,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
+  const [wantsExpress, setWantsExpress] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
@@ -43,13 +44,16 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   useEffect(() => {
     if (!selected) return;
     let active = true;
-    getCheckoutTotals(selected.pincode).then((res) => {
+    getCheckoutTotals(selected.pincode, appliedCoupon ?? undefined, wantsExpress).then((res) => {
       if (active && res.ok) setTotals(res.data);
     });
     return () => {
       active = false;
     };
-  }, [selected]);
+    /* Re-priced whenever the delivery choice changes, because the express fee
+       is part of what is owed. The server decides whether express is actually
+       on offer — this only asks. */
+  }, [selected, wantsExpress, appliedCoupon]);
 
   if (summary.lines.length === 0) {
     return (
@@ -80,6 +84,10 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         // Send the code, not the discount. The server re-resolves the coupon and
         // recomputes the total; a client-supplied figure is never trusted.
         couponCode: appliedCoupon,
+        // Same treatment as the coupon: send the choice, not the price. The
+        // server re-resolves whether express is on offer and charges
+        // accordingly, so the total placed matches the total shown.
+        wantsExpress,
       });
       if (!res.ok) {
         setError(res.error.message);
@@ -243,8 +251,79 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           )}
         </Section>
 
-        {/* Step 2 — one slot per shipment. */}
-        <Section step={2} title="Slot for each shipment">
+        {/* Step 2 — how fast.
+
+            `resolveExpressOption` has been built and tested since 4b34a90 and
+            nothing asked it, so no customer could choose the 60-minute run
+            however eligible their basket was. This is the screen that asks.
+
+            The rule is the owner's: express is charged; a cart mixing an
+            eligible item with one that is not can go standard together at no
+            extra charge; standard is the fallback. Every "why not" the service
+            can return is rendered as itself rather than collapsed into a
+            disabled control with no explanation. */}
+        {totals && (
+          <Section step={2} title="How fast">
+            {totals.express.available ? (
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-[20px] border border-line bg-canvas p-4">
+                  <input
+                    type="radio"
+                    name="delivery-speed"
+                    checked={!wantsExpress}
+                    onChange={() => setWantsExpress(false)}
+                    className="mt-0.5 size-4 shrink-0 accent-ink"
+                  />
+                  <span>
+                    <span className="block text-[13.5px] font-bold text-ink">
+                      Standard · everything together
+                    </span>
+                    <span className="mt-0.5 block text-[12.5px] font-medium leading-[17px] text-ink-700">
+                      No extra charge.
+                      {totals.express.reason === "mixed_cart"
+                        ? " Some of this basket cannot make the hour, so choosing standard keeps the order in one delivery."
+                        : ""}
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex cursor-pointer items-start gap-2.5 rounded-[20px] border border-line bg-canvas p-4">
+                  <input
+                    type="radio"
+                    name="delivery-speed"
+                    checked={wantsExpress}
+                    onChange={() => setWantsExpress(true)}
+                    className="mt-0.5 size-4 shrink-0 accent-ink"
+                  />
+                  <span>
+                    <span className="block text-[13.5px] font-bold text-ink">
+                      60-minute delivery ·{" "}
+                      {totals.express.feePaise !== null
+                        ? formatPaise(totals.express.feePaise)
+                        : "—"}
+                    </span>
+                    <span className="mt-0.5 block text-[12.5px] font-medium leading-[17px] text-ink-700">
+                      {totals.express.reason === "mixed_cart"
+                        ? `${totals.express.eligibleVariantIds.length} of ${summary.lines.length} items can go in the hour. The rest follow on the standard run.`
+                        : "Everything in this basket can go in the hour."}
+                    </span>
+                  </span>
+                </label>
+              </div>
+            ) : (
+              <p className="text-[13px] font-medium leading-[18.5px] text-ink-700">
+                {totals.express.reason === "no_price"
+                  ? "60-minute delivery is not being offered yet — the charge for it has not been set."
+                  : totals.express.reason === "not_serviceable"
+                    ? "We do not deliver to this pincode."
+                    : "Nothing in this basket is set up for 60-minute delivery to this pincode. It goes on the standard run."}
+              </p>
+            )}
+          </Section>
+        )}
+
+        {/* Step 3 — one slot per shipment. */}
+        <Section step={3} title="Slot for each shipment">
           <p className="mb-4 text-[13px] font-medium leading-[18.5px] text-ink-700">
             {shipmentCount > 1
               ? "Two shipments, two arrival times. Nothing waits for the slower one."
@@ -285,8 +364,8 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           </p>
         </Section>
 
-        {/* Step 3 — GSTIN for input credit. */}
-        <Section step={3} title="Business details">
+        {/* Step 4 — GSTIN for input credit. */}
+        <Section step={4} title="Business details">
           <p className="text-[13px] font-medium leading-[18.5px] text-ink-700">
             Buying for a business? A GSTIN on the invoice lets you claim input
             credit.{" "}
@@ -297,8 +376,8 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           </p>
         </Section>
 
-        {/* Step 4 — Payment */}
-        <Section step={4} title="Payment">
+        {/* Step 5 — Payment */}
+        <Section step={5} title="Payment">
           <div className="space-y-3">
             <PayOption
               active={method === "cod"}

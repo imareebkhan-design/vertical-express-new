@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";
 import { checkServiceability } from "@/lib/services/serviceability";
+import {
+  resolveExpressOption,
+  type ExpressOption,
+} from "@/lib/services/express-delivery";
 import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
@@ -13,6 +17,14 @@ import { SETTING_KEYS, readSetting, parseFlag } from "@/lib/services/settings";
 export interface CheckoutTotals {
   subtotalPaise: number;
   deliveryFeePaise: number;
+  /**
+   * What the 60-minute run would cost and whether it is on offer for this cart
+   * and pincode. The service that decides it has existed and been tested since
+   * `4b34a90`; nothing asked it until now, so no customer could ever choose it.
+   */
+  express: ExpressOption;
+  /** Whether express was actually applied — and therefore charged. */
+  expressChosen: boolean;
   discountPaise: number;
   taxPaise: number;
   gst: GstBreakup;
@@ -33,12 +45,37 @@ export async function computeTotals(
    * the per-customer coupon rules — perUserLimit, firstNOrders — cannot be
    * checked without it, so placement always passes it.
    */
-  userId?: string | null
+  userId?: string | null,
+  /**
+   * Whether the customer asked for the 60-minute run.
+   *
+   * Requested, not granted. The option is re-resolved here rather than trusted
+   * from the client for the same reason the price is: a browser must not be
+   * able to name what it pays. Asking for express when it is not on offer
+   * quietly gets standard, at the standard price.
+   */
+  wantsExpress = false
 ): Promise<CheckoutTotals> {
   const svc = await checkServiceability(pincode);
   const qualifiesFree = cart.qualifiesFreeDelivery;
   let deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
   let discountPaise = 0;
+
+  const express = await resolveExpressOption(
+    cart.lines.map((l) => ({ variantId: l.variantId, productId: l.productId })),
+    pincode
+  );
+
+  /* Charged on top, and NOT waived by the free-delivery threshold.
+   *
+   * That threshold zeroes the *standard* fee over ₹500 — a rule nobody chose
+   * and which is already flagged (ISS-030). Express is a paid upgrade the
+   * customer asked for; nothing the owner has said suggests spending over ₹500
+   * makes a sixty-minute delivery free, and inventing that would give away the
+   * one delivery service that costs real money to run. Flagged rather than
+   * assumed either way. */
+  const expressChosen = wantsExpress && express.available && express.feePaise !== null;
+  if (expressChosen) deliveryFeePaise += express.feePaise!;
 
   if (couponCode) {
     /* Eligibility moved into resolveCoupon so that usageLimit, perUserLimit
@@ -101,6 +138,8 @@ export async function computeTotals(
   return {
     subtotalPaise: totalTaxableValuePaise, // exclusive subtotal
     deliveryFeePaise,
+    express,
+    expressChosen,
     discountPaise, // total discount
     taxPaise: totalTaxPaise,
     gst: {
@@ -167,9 +206,20 @@ export async function placeOrder(params: {
    * trusted for a discount. (ISS-011)
    */
   couponCode?: string | null;
+  /**
+   * Whether the customer chose the 60-minute run at checkout.
+   *
+   * Same treatment as the coupon directly above, and for the same reason: the
+   * UI showing an express price and the order being placed without it would
+   * charge one thing and display another. `computeTotals` re-resolves whether
+   * express is genuinely on offer, so asking for it when it is not quietly
+   * gets standard at the standard price.
+   */
+  wantsExpress?: boolean;
 }): Promise<PlaceOrderResult> {
   const metric = new MetricsTracker("checkout-service");
-  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode } = params;
+  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, wantsExpress } =
+    params;
 
   trackEvent("checkout_started", { paymentMethod });
 
@@ -201,7 +251,14 @@ export async function placeOrder(params: {
     throw new Error("CART_EMPTY");
   }
 
-  const totals = await computeTotals(cart, address.pincode, address.state, couponCode, userId);
+  const totals = await computeTotals(
+    cart,
+    address.pincode,
+    address.state,
+    couponCode,
+    userId,
+    wantsExpress
+  );
   if (!totals.serviceable) {
     metric.end("place_order_pincode_unserviceable");
     throw new Error("PINCODE_UNSERVICEABLE");

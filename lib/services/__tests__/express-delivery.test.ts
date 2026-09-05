@@ -207,3 +207,120 @@ test("an empty cart asks for nothing", async (t) => {
   assert.equal(res.available, false);
   assert.equal(res.reason, "no_eligible_items");
 });
+
+/* ---- Reaching it from checkout ------------------------------------------
+ *
+ * `resolveExpressOption` was built and tested and nothing asked it, so no
+ * customer could choose the 60-minute run however eligible their basket was.
+ * These cover the half that was missing: computeTotals charging for it, and
+ * refusing to charge when it is not on offer.
+ */
+
+import { computeTotals } from "@/lib/services/checkout";
+import { getCartSummary } from "@/lib/services/cart";
+
+async function cartFor(variantId: string, userId: string) {
+  await db.cartItem.deleteMany({ where: { cart: { userId } } });
+  const cart = await db.cart.upsert({
+    where: { userId },
+    create: { userId },
+    update: {},
+  });
+  await db.cartItem.create({ data: { cartId: cart.id, variantId, qty: 1 } });
+  return getCartSummary(userId, null);
+}
+
+test("choosing express adds its fee to what is owed", async (t) => {
+  t.after(cleanup);
+  await setFee("4900");
+  const { productId, variantId } = await scratchProduct({
+    eligible: true,
+    pincodes: [PIN_SERVED],
+  });
+  /* Stock, so the cart will hold it. */
+  const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
+  await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 10 } });
+  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+
+  const cart = await cartFor(variantId, user.id);
+  assert.equal(cart.lines.length, 1, "the scratch product did not reach the cart");
+  assert.equal(cart.lines[0].productId, productId, "the cart line carries no productId");
+
+  const standard = await computeTotals(cart, PIN_SERVED, null, null, user.id, false);
+  const express = await computeTotals(cart, PIN_SERVED, null, null, user.id, true);
+
+  assert.equal(standard.expressChosen, false);
+  assert.equal(express.expressChosen, true, "express was asked for and not applied");
+  assert.equal(
+    express.deliveryFeePaise - standard.deliveryFeePaise,
+    4900,
+    "the express fee was not charged"
+  );
+  assert.equal(
+    express.totalPaise - standard.totalPaise,
+    4900,
+    "the express fee did not reach the total"
+  );
+
+  await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });
+});
+
+test("asking for express when it is not on offer is quietly standard", async (t) => {
+  /* The client cannot name what it pays. Asking for a service that is not
+     available must not charge for one. */
+  t.after(cleanup);
+  await setFee(null); // no price set — express is not offered at all
+  const { variantId } = await scratchProduct({ eligible: true, pincodes: [PIN_SERVED] });
+  const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
+  await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 10 } });
+  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+
+  const cart = await cartFor(variantId, user.id);
+  const asked = await computeTotals(cart, PIN_SERVED, null, null, user.id, true);
+
+  assert.equal(asked.express.available, false);
+  assert.equal(asked.express.reason, "no_price");
+  assert.equal(asked.expressChosen, false, "express was charged with no price set");
+
+  const standard = await computeTotals(cart, PIN_SERVED, null, null, user.id, false);
+  assert.equal(
+    asked.deliveryFeePaise,
+    standard.deliveryFeePaise,
+    "asking for an unavailable express changed the price"
+  );
+
+  await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });
+});
+
+test("the express fee survives the free-delivery threshold", async (t) => {
+  /* The threshold zeroes the STANDARD fee over ₹500 — itself a rule nobody
+     chose (ISS-030). Express is a paid upgrade the customer asked for, and
+     nothing the owner has said makes it free above a spend. Flagged rather
+     than assumed either way; this pins the behaviour so the decision is
+     visible if it is ever revisited. */
+  t.after(cleanup);
+  await setFee("4900");
+  const { variantId } = await scratchProduct({ eligible: true, pincodes: [PIN_SERVED] });
+  const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
+  await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 100 } });
+  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+
+  /* Well over the ₹500 threshold: 100 units at ₹100 each. */
+  await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });
+  const cart0 = await db.cart.upsert({ where: { userId: user.id }, create: { userId: user.id }, update: {} });
+  await db.cartItem.create({ data: { cartId: cart0.id, variantId, qty: 100 } });
+  const cart = await getCartSummary(user.id, null);
+  assert.equal(cart.qualifiesFreeDelivery, true, "the cart did not clear the threshold");
+
+  const standard = await computeTotals(cart, PIN_SERVED, null, null, user.id, false);
+  const express = await computeTotals(cart, PIN_SERVED, null, null, user.id, true);
+
+  assert.equal(standard.deliveryFeePaise, 0, "the threshold did not zero the standard fee");
+  assert.equal(
+    express.deliveryFeePaise,
+    4900,
+    "the free-delivery threshold gave away the express upgrade"
+  );
+
+  await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });
+});
