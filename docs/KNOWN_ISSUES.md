@@ -541,6 +541,9 @@ test comment. What landed:
   deleted — a driver who carried shipments is referenced by every one of them.
 - The dispatch board assigns, packs, dispatches, cancels and confirms, with a
   third lane for what is already on the road.
+- **The pick list.** What to collect from the shelves, aggregated by item rather than
+  listed per shipment — four shipments of the same cement is one trip to that aisle, not
+  four. It cannot say *where* anything is: `Inventory` records a warehouse, not a bin.
 - **Proof of delivery.** The six-digit code is issued once at dispatch,
   compared in constant time, capped at five attempts per shipment per fifteen
   minutes failing closed, and never written to a log, an error or the audit
@@ -559,6 +562,9 @@ is put back.
   `Order.status` remains authoritative and shipments are recorded alongside it,
   per the expand/migrate/contract rule in CLAUDE.md. Contracting is a later
   release.
+- **A packing slip.** The document that travels with the goods. Different from the pick
+  list, which is what to collect: a slip is per shipment and is what the customer checks
+  the load against at the gate.
 - **Cash held per driver.** Needs COD collection and reconciliation (ISS-010).
 
 **Owner input required.** Three rules were built as mechanisms and need a
@@ -581,8 +587,8 @@ proof of delivery. An admin can manually click an order through
 behind those clicks.
 
 **What of that is still true (5 Sep 2026).** `Shipment`, `Driver`, `Vehicle`, assignment,
-the dispatch board, the delivery code and proof of delivery all exist — see the progress
-note above. **A pick list and a packing slip do not**, and neither does slot selection.
+the dispatch board, the delivery code, proof of delivery and **the pick list** all exist —
+see the progress note above. **A packing slip does not**, and neither does slot selection.
 The original paragraph is kept rather than rewritten because the shape of the gap it
 describes is why the rest of this entry reads as it does; leaving it unmarked would have
 made it the fourth stale claim found in this register in a week.

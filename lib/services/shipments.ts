@@ -260,3 +260,98 @@ export async function getShipmentsOnTheRoad() {
     };
   });
 }
+
+/**
+ * What to collect from the shelves, for everything waiting to be packed.
+ *
+ * ISS-009 has named a pick list as missing since August and it is the one piece
+ * of the warehouse half that needs nothing from the owner: it is a question
+ * about data that already exists.
+ *
+ * Aggregated by variant rather than listed per shipment, because those are two
+ * different jobs and only one of them is picking. A picker walking the same
+ * aisle four times for four shipments of the same cement is the thing this
+ * exists to stop — collect the total once, then sort into shipments at the
+ * bench. Each line still carries which shipments want it and how many each
+ * needs, so the sort is possible without a second query.
+ *
+ * **It cannot say where anything is.** `Inventory` has no bin, aisle or shelf
+ * column, so this lists what and how many and stops there. Inventing a location
+ * would send somebody to a shelf that does not exist, which is worse than
+ * making them look.
+ *
+ * `pending` only. A packed shipment has already been picked; including it would
+ * have somebody collect the same goods twice.
+ */
+export async function getPickList() {
+  const items = await db.shipmentItem.findMany({
+    where: { shipment: { status: "pending" } },
+    select: {
+      qty: true,
+      shipment: {
+        select: {
+          sequence: true,
+          speedClass: true,
+          warehouse: { select: { name: true } },
+          order: { select: { orderNo: true } },
+        },
+      },
+      orderItem: {
+        select: {
+          title: true,
+          variant: { select: { id: true, sku: true, name: true } },
+        },
+      },
+    },
+  });
+
+  /* One row per variant, with the shipments that want it hanging off it. */
+  const byVariant = new Map<
+    string,
+    {
+      variantId: string;
+      sku: string;
+      title: string;
+      variantName: string;
+      totalQty: number;
+      warehouse: string | null;
+      speedClass: string;
+      forShipments: { ref: string; qty: number }[];
+    }
+  >();
+
+  for (const item of items) {
+    const v = item.orderItem.variant;
+    const ref = `${item.shipment.order.orderNo}-${item.shipment.sequence}`;
+    const existing = byVariant.get(v.id);
+
+    if (existing) {
+      existing.totalQty += item.qty;
+      existing.forShipments.push({ ref, qty: item.qty });
+      /* A variant wanted by both lanes is picked for the express one first —
+         that is the shipment with somebody waiting on it. */
+      if (item.shipment.speedClass === "express") existing.speedClass = "express";
+    } else {
+      byVariant.set(v.id, {
+        variantId: v.id,
+        sku: v.sku,
+        title: item.orderItem.title,
+        variantName: v.name,
+        totalQty: item.qty,
+        warehouse: item.shipment.warehouse?.name ?? null,
+        speedClass: item.shipment.speedClass,
+        forShipments: [{ ref, qty: item.qty }],
+      });
+    }
+  }
+
+  /* Express first, then the biggest quantities — the heaviest trip earns being
+     planned rather than stumbled into. */
+  return [...byVariant.values()].sort((a, b) => {
+    if (a.speedClass !== b.speedClass) return a.speedClass === "express" ? -1 : 1;
+    return b.totalQty - a.totalQty;
+  });
+}
+
+export type PickList = Awaited<ReturnType<typeof getPickList>>;
+export type PickLine = PickList[number];

@@ -5,7 +5,9 @@ import {
   getDispatchBoard,
   getDispatchRoster,
   getShipmentsOnTheRoad,
+  getPickList,
 } from "@/lib/services/shipments";
+import { PickListPanel } from "@/components/admin/pick-list";
 import { listRoster } from "@/lib/services/admin/roster-write";
 import { RosterManager } from "@/components/admin/roster-manager";
 
@@ -30,13 +32,14 @@ export const dynamic = "force-dynamic";
  * rather than an afterthought.
  */
 export default async function AdminDispatch() {
-  const [board, roster, onTheRoad, fullRoster] = await Promise.all([
+  const [board, roster, onTheRoad, fullRoster, pickList] = await Promise.all([
     getDispatchBoard(),
     getDispatchRoster(),
     getShipmentsOnTheRoad(),
     /* Retired rows included — the management panel shows them greyed, the
        dispatch dropdown does not offer them. */
     listRoster(),
+    getPickList(),
   ]);
   const total = board.express.length + board.scheduled.length;
 
@@ -46,6 +49,10 @@ export default async function AdminDispatch() {
       intro={`${total} ${total === 1 ? "shipment" : "shipments"} still in the warehouse. Oldest first — the one that has waited longest is the one about to become a phone call.`}
     >
       <div className="flex flex-col gap-4">
+        {/* First, because picking is what happens before anything on the lanes
+            below can move. */}
+        <PickListPanel lines={pickList} />
+
         <DispatchLane
           title="Express lane"
           note={`${board.express.length} waiting · out from the store`}
