@@ -381,3 +381,25 @@ test("a file where everything is already listed is a no-op, not an error", async
     assert.equal(res.result.skipped, 1);
   }
 });
+
+test("a formula in a looked-up column is refused by the lookup, and never stored", async (t) => {
+  /* The parser guards title, pack, unit_label and description, because those
+     are free text that reaches a row. brand, category and warehouse are not
+     guarded there and do not need to be: they are resolved against real rows,
+     so a value that is not one is refused before anything is written. This is
+     what says so, rather than leaving it as an argument in a comment. */
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+
+  for (const column of ["brand", "category", "warehouse"] as const) {
+    const over: Cell = { [column]: '=cmd|"/c calc"!A1' };
+    if (column === "warehouse") over.stock = "5";
+    const preview = await runPreview(file(row(w.base, over)));
+    assert.ok(preview.issues.length > 0, `a formula in ${column} resolved to something`);
+    assert.equal(preview.toCreate.length, 0, `a formula in ${column} would have been written`);
+  }
+
+  const written = await db.product.count({ where: { title: { startsWith: "ZZZ Import " } } });
+  assert.equal(written, 0, "a preview wrote a row");
+});

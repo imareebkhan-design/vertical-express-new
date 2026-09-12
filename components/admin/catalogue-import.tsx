@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { adminImportCatalogue, adminPreviewCatalogue } from "@/actions/catalogue";
-import { CATALOGUE_CSV_TEMPLATE } from "@/lib/catalogue-csv";
+import { CATALOGUE_CSV_TEMPLATE, type CsvIssue } from "@/lib/catalogue-csv";
 import type { ImportPreview } from "@/lib/services/admin/catalogue-import";
 import { formatPaise } from "@/lib/money";
 
@@ -27,13 +27,33 @@ export function CatalogueImport() {
   const [fileName, setFileName] = useState<string | null>(null);
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [issues, setIssues] = useState<CsvIssue[]>([]);
 
-  /** Drop the file and its preview. The message is separate — after a
-      successful import it is the only thing left saying what happened. */
+  /** Drop the file, its preview and its errors. The message is separate — after
+      a successful import it is the only thing left saying what happened. */
   const clearFile = () => {
     setCsv(null);
     setFileName(null);
     setPreview(null);
+    setIssues([]);
+  };
+
+  /**
+   * The full error list, not the sentence.
+   *
+   * The action puts every issue in `metadata` and also builds a message capped
+   * at twelve for callers that can only show a string. This screen can show all
+   * of them, and must: a 45-row file with twenty mistakes is twenty things to
+   * fix, and hiding eight of them behind "…and 8 more" means a second upload to
+   * discover what they were — which is the round-trip this whole feature exists
+   * to remove.
+   */
+  const readIssues = (metadata: unknown): CsvIssue[] => {
+    if (metadata && typeof metadata === "object" && "issues" in metadata) {
+      const raw = (metadata as { issues: unknown }).issues;
+      if (Array.isArray(raw)) return raw as CsvIssue[];
+    }
+    return [];
   };
 
   const onFile = async (file: File) => {
@@ -46,8 +66,15 @@ export function CatalogueImport() {
     start(async () => {
       const res = await adminPreviewCatalogue(text);
       setReading(false);
-      if (res.ok) setPreview(res.data);
-      else setMessage({ ok: false, text: res.error.message });
+      if (res.ok) {
+        setPreview(res.data);
+      } else {
+        const list = readIssues(res.error.metadata);
+        setIssues(list);
+        /* Only fall back to the sentence when there is no structured list —
+           an auth or size refusal, which is one line and has no row. */
+        if (list.length === 0) setMessage({ ok: false, text: res.error.message });
+      }
     });
   };
 
@@ -67,7 +94,9 @@ export function CatalogueImport() {
         clearFile();
         router.refresh();
       } else {
-        setMessage({ ok: false, text: res.error.message });
+        const list = readIssues(res.error.metadata);
+        setIssues(list);
+        if (list.length === 0) setMessage({ ok: false, text: res.error.message });
       }
     });
   };
@@ -129,6 +158,8 @@ export function CatalogueImport() {
           {message.text}
         </p>
       )}
+
+      {issues.length > 0 && <IssueList issues={issues} />}
 
       {preview && (
         <div className="mt-4 flex flex-col gap-3">
@@ -239,6 +270,60 @@ export function CatalogueImport() {
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Every problem in the file, grouped by the row it is on.
+ *
+ * Grouped rather than listed flat because the unit of work is a row: a person
+ * fixes line 7 once, not three times. The column is named on each line so the
+ * cell can be found without counting commas, and the count at the top is what
+ * says whether this is a typo or the wrong file entirely.
+ */
+function IssueList({ issues }: { issues: CsvIssue[] }) {
+  const byLine = new Map<number, CsvIssue[]>();
+  for (const i of issues) {
+    const list = byLine.get(i.line);
+    if (list) list.push(i);
+    else byLine.set(i.line, [i]);
+  }
+  const lines = [...byLine.entries()].sort((a, b) => a[0] - b[0]);
+  const rowWord = lines.length === 1 ? "row" : "rows";
+
+  return (
+    <div role="status" className="mt-3 rounded-panel bg-ops-bad-tint p-3.5">
+      <p className="text-[12.5px] font-bold text-ops-bad">
+        {issues.length} {issues.length === 1 ? "problem" : "problems"} in {lines.length}{" "}
+        {rowWord}. Nothing has been written.
+      </p>
+      <p className="mt-1 text-[11.5px] font-medium leading-[16px] text-ops-bad">
+        Fix these in your spreadsheet and choose the file again. Line numbers count the
+        header, so they match what the spreadsheet shows.
+      </p>
+
+      <ul className="mt-2.5 flex flex-col gap-1.5">
+        {lines.map(([line, forLine]) => (
+          <li key={line} className="rounded-[12px] bg-white/70 px-3 py-2">
+            <span className="text-[11px] font-extrabold uppercase tracking-[0.07em] text-ops-bad">
+              Line {line}
+            </span>
+            <ul className="mt-1 flex flex-col gap-0.5">
+              {forLine.map((i, n) => (
+                <li key={n} className="text-[12px] font-semibold leading-[17px] text-ink">
+                  {i.column && i.column !== "file" && i.column !== "header" && (
+                    <span className="mr-1.5 rounded-chip bg-chip px-1.5 py-0.5 text-[10.5px] font-bold text-ink-700">
+                      {i.column}
+                    </span>
+                  )}
+                  {i.message}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

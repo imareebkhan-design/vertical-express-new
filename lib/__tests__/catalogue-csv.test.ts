@@ -359,3 +359,72 @@ test("more rows than an import should carry in one go is refused", () => {
   assert.equal(res.ok, false);
   if (!res.ok) assert.match(res.issues[0].message, /at most/);
 });
+
+/* ------------------------------------------------------------------ *
+ * What a spreadsheet actually hands over.
+ *
+ * These were all found by auditing the importer against Excel's real
+ * output rather than against a hand-typed file. Each one failed a whole
+ * column of a 45-product import on formatting the person could not see
+ * in the cell.
+ * ------------------------------------------------------------------ */
+
+test("a price column formatted as Currency still imports", () => {
+  /* Formatting a column of prices as Currency is the obvious thing to do to a
+     column of prices, and Excel then exports ₹385.00. Every row failing on an
+     invisible symbol is 45 errors from one formatting choice. */
+  for (const price of ['"₹385.00"', '"₹ 385"', '"Rs. 385"', '"Rs 385.50"', '"INR 385"']) {
+    const res = parseCatalogueCsv(file(row({ price_rupees: price })));
+    assert.equal(res.ok, true, `${price} was refused`);
+  }
+  const res = parseCatalogueCsv(file(row({ price_rupees: '"₹385.50"' })));
+  assert.equal(res.ok, true);
+  if (res.ok) assert.equal(res.rows[0].pricePaise, 38550, "the symbol changed the amount");
+});
+
+test("stripping the symbol does not loosen the rule behind it", () => {
+  /* Only the symbol is removed. The digits still have to satisfy the money
+     parser exactly, or a currency-formatted junk cell would sail through. */
+  for (const price of ['"₹1e3"', '"₹abc"', '"₹385.555"', '"₹"', '"₹-5"']) {
+    const res = parseCatalogueCsv(file(row({ price_rupees: price })));
+    assert.equal(res.ok, false, `${price} was accepted`);
+  }
+});
+
+test("stock survives a thousands separator and a trailing zero", () => {
+  /* The price column already accepted "1,730" because the money parser strips
+     commas. Stock refusing "1,500" beside it was an inconsistency with no
+     reason behind it. "500.0" is what a numeric cell exports when it is
+     internally a float. */
+  for (const [stock, expected] of [['"1,500"', 1500], ["500.0", 500], ["0", 0]] as const) {
+    const res = parseCatalogueCsv(file(row({ stock, warehouse: "Srinagar Central" })));
+    assert.equal(res.ok, true, `a stock of ${stock} was refused`);
+    if (res.ok) assert.equal(res.rows[0].stock, expected);
+  }
+});
+
+test("half a bag is still not a quantity", () => {
+  /* Rounding it would pick a number nobody chose. */
+  for (const stock of ["500.5", "-5", "abc", "1.2e3"]) {
+    const res = parseCatalogueCsv(file(row({ stock })));
+    assert.equal(res.ok, false, `a stock of ${stock} was accepted`);
+  }
+});
+
+test("a formula is refused in every free-text column that reaches the database", () => {
+  /* title and description were guarded; pack and unit_label were not, and both
+     are free text that is stored and comes back out of an export. brand,
+     category and warehouse need no guard — they are looked up, so a value that
+     is not a real one never reaches a row. */
+  for (const column of ["title", "pack", "unit_label", "description"]) {
+    const res = parseCatalogueCsv(file(row({ [column]: '"=cmd|\'/c calc\'!A1"' })));
+    assert.equal(res.ok, false, `a formula in ${column} was accepted`);
+  }
+});
+
+test("an accent is folded, not dropped", () => {
+  /* "Café" became "caf" — a silently shortened web address, and two products
+     that differ only by an accent would collide. */
+  assert.equal(slugifyTitle("Café Tiles 600mm"), "cafe-tiles-600mm");
+  assert.equal(slugifyTitle("Ångström Wire"), "angstrom-wire");
+});

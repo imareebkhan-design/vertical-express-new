@@ -246,6 +246,49 @@ function readRecords(text: string): CsvRecord[] {
 /* Field rules                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * A rupee amount as a spreadsheet hands it over.
+ *
+ * `parseRupeeInput` is the rule for money and is not changed here — it strips
+ * commas and then matches rather than coerces, which is what stops `""`, `NaN`
+ * and `1e3` becoming prices. What it does not do is expect a currency symbol,
+ * because the form fields it was written for do not have one.
+ *
+ * A spreadsheet does. Formatting the price column as Currency — the obvious
+ * thing to do to a column of prices — makes Excel export `₹385.00`, and every
+ * row of a 45-product file then fails on a symbol the person cannot even see
+ * in the cell. So the symbol is removed before the real rule runs. Only the
+ * symbol: the digits still have to satisfy `parseRupeeInput` exactly.
+ */
+function parseMoney(raw: string): number | null {
+  const withoutSymbol = raw
+    .trim()
+    .replace(/^(?:₹|rs\.?|inr)\s*/i, "")
+    .trim();
+  return parseRupeeInput(withoutSymbol);
+}
+
+/**
+ * A whole number of units, as a spreadsheet hands it over.
+ *
+ * Two things a cell does that a form field does not. A stock column formatted
+ * with a thousands separator exports `1,500`, and a numeric cell that is
+ * internally a float exports `500.0`. Both are unambiguously whole numbers and
+ * both were being refused, while the price column beside them accepted `1,730`
+ * because `parseRupeeInput` strips commas — an inconsistency with no reason
+ * behind it.
+ *
+ * `500.5` is still refused. Half a bag is not a quantity, and quietly rounding
+ * it picks a number nobody chose.
+ */
+function parseQty(raw: string): number | null {
+  const cleaned = raw.trim().replace(/,/g, "");
+  const m = /^(\d+)(?:\.(0+))?$/.exec(cleaned);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isSafeInteger(n) ? n : null;
+}
+
 /** Yes/no in the spellings a spreadsheet actually produces. */
 function parseBool(raw: string): boolean | null {
   const v = raw.trim().toLowerCase();
@@ -269,6 +312,11 @@ const FORMULA_START = /^[=+\-@\t\r]/;
 export function slugifyTitle(title: string): string {
   return title
     .toLowerCase()
+    /* Decompose, then drop the combining marks, so "Café" becomes "cafe" and
+       not "caf". Dropping the letter silently shortens a web address and can
+       make two different products collide. */
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -404,11 +452,19 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
     /* --- pack and unit --- */
     if (packRaw === "") bad("pack", `"${title}" has no pack size`);
     else if (packRaw.length > 60) bad("pack", "That pack size is longer than 60 characters");
+    /* `pack` and `unit_label` are free text that reaches the database and comes
+       back out of any export, so they need the same guard the title has. Brand,
+       category and warehouse do not: they are looked up, and a value that is
+       not a real one is refused before it can be stored. */
+    else if (FORMULA_START.test(packRaw))
+      bad("pack", `"${packRaw}" starts with a character a spreadsheet treats as a formula`);
     if (unitRaw === "") bad("unit_label", `"${title}" has no unit label, such as "per bag"`);
     else if (unitRaw.length > 40) bad("unit_label", "That unit label is longer than 40 characters");
+    else if (FORMULA_START.test(unitRaw))
+      bad("unit_label", `"${unitRaw}" starts with a character a spreadsheet treats as a formula`);
 
     /* --- price. GST-inclusive: this is what the customer pays. --- */
-    const pricePaise = parseRupeeInput(priceRaw);
+    const pricePaise = parseMoney(priceRaw);
     if (pricePaise === null) {
       bad(
         "price_rupees",
@@ -423,7 +479,7 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
     /* --- MRP, optional, and it has to be a real saving --- */
     let compareAtPaise: number | null = null;
     if (mrpRaw !== "") {
-      const mrp = parseRupeeInput(mrpRaw);
+      const mrp = parseMoney(mrpRaw);
       if (mrp === null) {
         bad("mrp_rupees", `"${mrpRaw}" is not a rupee amount`);
       } else if (pricePaise !== null && mrp <= pricePaise) {
@@ -438,8 +494,8 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
     /* --- stock and where it sits --- */
     let stock = 0;
     if (stockRaw !== "") {
-      const n = Number(stockRaw);
-      if (!/^\d+$/.test(stockRaw) || !Number.isSafeInteger(n)) {
+      const n = parseQty(stockRaw);
+      if (n === null) {
         bad("stock", `"${stockRaw}" is not a whole number of units`);
       } else if (n > 1_000_000) {
         bad("stock", `A stock of ${n} looks like a typo`);

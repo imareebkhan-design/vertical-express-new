@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { recordAudit } from "@/lib/services/audit";
+import { recordAudit, type DbClient } from "@/lib/services/audit";
 import type { DeliverySpeed, ProductStatus } from "@/prisma/generated/client/client";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 
@@ -60,8 +60,6 @@ export type CreateResult =
   | { ok: true; slug: string }
   | { ok: false; error: "slug_taken" | "sku_taken" | "unknown" };
 
-/** The transaction client, so one transaction can hold several products. */
-type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 /**
  * The five writes that make a listing, against a caller's transaction.
@@ -74,7 +72,7 @@ type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
  * The caller owns the transaction and therefore owns the rollback.
  */
 export async function writeProduct(
-  tx: Tx,
+  tx: DbClient,
   input: NewProduct,
   actor: { id: string; email: string }
 ): Promise<string> {
