@@ -108,7 +108,7 @@ See `docs/CURRENT_SYSTEM_AUDIT.md` for the full assessment.
 | Payments | Razorpay fully implemented; **`dummy` gateway active by default** — production refuses to boot on anything but `razorpay-live` |
 | Mobile | Capacitor 8 scaffolded (`capacitor.config.ts`, `mobile-shell/`) — not built |
 | Hosting | Vercel, `bom1` edge |
-| Tests | **328 tests, 60 files** (`lib/**/*.test.ts`) — run against a local Postgres behind `test-support/db-guard.mjs`, `npm test` |
+| Tests | **544 tests, 90 files** (`lib/**/*.test.ts`) — run against a local Postgres behind `test-support/db-guard.mjs`, `npm test`. Counted 12 Sep 2026; it said 328/60 for weeks, which is what the warning below is about |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — typecheck, lint, test on every push |
 
 Scale: ~346 TS/TSX files, 23 domain services.

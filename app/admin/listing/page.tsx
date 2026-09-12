@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listingFormOptions } from "@/lib/services/admin/product-create";
 import { ListingForm } from "@/components/admin/listing-form";
+import { CatalogueImport } from "@/components/admin/catalogue-import";
 
 export const metadata: Metadata = {
   title: "List a product | Operations",
@@ -37,7 +38,13 @@ export default async function AdminListing() {
           .
         </p>
       ) : (
-        <ListingForm options={options} />
+        <>
+          {/* Bulk first: entering a real catalogue is the job on the critical
+              path (ISS-007), and a form at a time is days of it. The single
+              product form stays below for the one-off. */}
+          <CatalogueImport />
+          <ListingForm options={options} />
+        </>
       )}
     </div>
   );

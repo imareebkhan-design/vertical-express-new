@@ -60,93 +60,117 @@ export type CreateResult =
   | { ok: true; slug: string }
   | { ok: false; error: "slug_taken" | "sku_taken" | "unknown" };
 
+/** The transaction client, so one transaction can hold several products. */
+type Tx = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
+/**
+ * The five writes that make a listing, against a caller's transaction.
+ *
+ * Split out of `createProduct` so the CSV importer can put a whole file in one
+ * transaction rather than one per product. A second copy of these writes would
+ * be the thing that drifts: the bulk path would keep working while quietly
+ * forgetting the stock movement, or the audit row, and nothing would say so.
+ *
+ * The caller owns the transaction and therefore owns the rollback.
+ */
+export async function writeProduct(
+  tx: Tx,
+  input: NewProduct,
+  actor: { id: string; email: string }
+): Promise<string> {
+  const product = await tx.product.create({
+    data: {
+      title: input.title,
+      slug: input.slug,
+      brandId: input.brandId,
+      categoryId: input.categoryId,
+      description: input.description,
+      unitLabel: input.unitLabel,
+      deliverySpeed: input.deliverySpeed,
+      status: input.status,
+      expressEligible: input.express.eligible,
+    },
+  });
+
+  /* Inside the same transaction as the product. An express promise that
+     outlives a failed product creation would offer an hour on a row that
+     does not exist. Duplicates are dropped here rather than by the unique
+     constraint, so a repeated pincode in the form is not an error. */
+  const pincodes = [...new Set(input.express.pincodes)];
+  if (pincodes.length > 0) {
+    await tx.productExpressPincode.createMany({
+      data: pincodes.map((pincode) => ({ productId: product.id, pincode })),
+    });
+  }
+
+  const variant = await tx.productVariant.create({
+    data: {
+      productId: product.id,
+      name: input.variant.name,
+      sku: input.variant.sku,
+      pricePaise: input.variant.pricePaise,
+      compareAtPaise: input.variant.compareAtPaise,
+      isDefault: true,
+      isActive: true,
+    },
+  });
+
+  if (input.openingStock) {
+    const { warehouseId, qty } = input.openingStock;
+    await tx.inventory.create({
+      data: { variantId: variant.id, warehouseId, qtyOnHand: qty },
+    });
+
+    /* Only when there is something to explain. An inventory row created at
+       zero has no movement behind it, and inventing one would put a
+       "received 0" in the ledger that never happened. */
+    if (qty > 0) {
+      await tx.stockMovement.create({
+        data: {
+          variantId: variant.id,
+          warehouseId,
+          qtyDelta: qty,
+          qtyAfter: qty,
+          reason: "received",
+          note: "Opening stock when the product was listed",
+          actorEmail: actor.email,
+        },
+      });
+    }
+  }
+
+  await recordAudit(tx, {
+    actorType: "admin",
+    actorId: actor.id,
+    action: "catalog.product_listed",
+    entityType: "Product",
+    entityId: product.id,
+    before: null,
+    after: {
+      slug: product.slug,
+      title: product.title,
+      status: product.status,
+      sku: variant.sku,
+      pricePaise: variant.pricePaise,
+      openingStock: input.openingStock?.qty ?? 0,
+    },
+  });
+
+  return product.slug;
+}
+
+/**
+ * List one product.
+ *
+ * Opens a transaction of its own around `writeProduct`, so a single listing is
+ * still all-or-nothing from the caller's side.
+ */
 export async function createProduct(
   input: NewProduct,
   actor: { id: string; email: string }
 ): Promise<CreateResult> {
   try {
-    const slug = await db.$transaction(async (tx) => {
-      const product = await tx.product.create({
-        data: {
-          title: input.title,
-          slug: input.slug,
-          brandId: input.brandId,
-          categoryId: input.categoryId,
-          description: input.description,
-          unitLabel: input.unitLabel,
-          deliverySpeed: input.deliverySpeed,
-          status: input.status,
-          expressEligible: input.express.eligible,
-        },
-      });
-
-      /* Inside the same transaction as the product. An express promise that
-         outlives a failed product creation would offer an hour on a row that
-         does not exist. Duplicates are dropped here rather than by the unique
-         constraint, so a repeated pincode in the form is not an error. */
-      const pincodes = [...new Set(input.express.pincodes)];
-      if (pincodes.length > 0) {
-        await tx.productExpressPincode.createMany({
-          data: pincodes.map((pincode) => ({ productId: product.id, pincode })),
-        });
-      }
-
-      const variant = await tx.productVariant.create({
-        data: {
-          productId: product.id,
-          name: input.variant.name,
-          sku: input.variant.sku,
-          pricePaise: input.variant.pricePaise,
-          compareAtPaise: input.variant.compareAtPaise,
-          isDefault: true,
-          isActive: true,
-        },
-      });
-
-      if (input.openingStock) {
-        const { warehouseId, qty } = input.openingStock;
-        await tx.inventory.create({
-          data: { variantId: variant.id, warehouseId, qtyOnHand: qty },
-        });
-
-        /* Only when there is something to explain. An inventory row created at
-           zero has no movement behind it, and inventing one would put a
-           "received 0" in the ledger that never happened. */
-        if (qty > 0) {
-          await tx.stockMovement.create({
-            data: {
-              variantId: variant.id,
-              warehouseId,
-              qtyDelta: qty,
-              qtyAfter: qty,
-              reason: "received",
-              note: "Opening stock when the product was listed",
-              actorEmail: actor.email,
-            },
-          });
-        }
-      }
-
-      await recordAudit(tx, {
-        actorType: "admin",
-        actorId: actor.id,
-        action: "catalog.product_listed",
-        entityType: "Product",
-        entityId: product.id,
-        before: null,
-        after: {
-          slug: product.slug,
-          title: product.title,
-          status: product.status,
-          sku: variant.sku,
-          pricePaise: variant.pricePaise,
-          openingStock: input.openingStock?.qty ?? 0,
-        },
-      });
-
-      return product.slug;
-    });
-
+    const slug = await db.$transaction((tx) => writeProduct(tx, input, actor));
     return { ok: true, slug };
   } catch (err) {
     /* Both slug and sku are unique, and telling somebody which one collided is

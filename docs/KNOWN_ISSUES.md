@@ -412,6 +412,33 @@ calls MSG91, never logs the OTP, fails loudly when unconfigured. Setup documente
 | **Area** | Data |
 | **Status** | **BLOCKED (OWNER)** |
 
+**Progress, 12 September 2026 — the import path exists; the data is still the owner's.**
+
+`/admin/listing` now takes a spreadsheet. Download a template, fill one row per product,
+upload; the file is checked in full and shown before anything is written, and the write is
+one transaction — all of it or none.
+
+- `lib/catalogue-csv.ts` — pure parser, no database in reach. It carries a real RFC 4180
+  reader rather than reusing `parsePincodeCsv`, because that one splits on a bare comma
+  and most product titles here contain one (*"OPC 53 Grade Cement, 50 kg Bag"*).
+- `lib/services/admin/catalogue-import.ts` — resolves brands, categories, warehouses and
+  serviceable pincodes before the transaction opens, so an unknown one fails the file
+  rather than half of it.
+- `actions/catalogue.ts`, `components/admin/catalogue-import.tsx` — preview, then confirm.
+
+Three deliberate departures from the recommended fix below:
+
+| Recommended | Built | Why |
+|---|---|---|
+| SKU upsert | Existing products are **skipped and reported**, never updated | An import must not be a way to reprice something already in a customer's cart. Whether a price change may touch open carts is ISS-068, still open |
+| Audit record carrying the file hash | One audit row per product created, inside the transaction | The per-product row is what an investigation actually needs; a file hash names a file nobody kept |
+| `hsnCode`, `taxRatePercent` columns on `Product` | Not added | Stale. Tax comes from the category via `CATEGORY_TAX_CONFIGS`, and a per-product column would let a typo contradict owner-confirmed rates |
+
+**This does not unblock the issue.** What the importer will not do is invent anything: it
+creates no brand and no category, so a product can only be listed against something that
+already exists. Which real brand a product belongs to is a fact about what is in the
+warehouse. 44 tests cover the parser and the import.
+
 **Description.** All 10 brands, all 45 products, all prices, all bulk tiers and all stock
 figures in the database are invented. The brands are `BuildPro`, `AquaSeal`, `Voltix`,
 `TimberCraft`, `GripFast`, `LumenX`, `SteelEdge`, `FlowMax`, `HomeCrown`, `PowerCell` —
