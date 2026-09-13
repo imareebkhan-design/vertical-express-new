@@ -32,7 +32,8 @@
     "db:demo": "DATABASE_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} DIRECT_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} VE_TEST_DATABASE=1 npx tsx scripts/seed-demo-orders.mjs",
     "db:demo:setup": "DATABASE_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} DIRECT_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} sh -c 'npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx scripts/seed-real-brands.mjs'",
     "db:migrate:local": "DATABASE_URL=$LOCAL_TEST_DATABASE_URL DIRECT_URL=$LOCAL_TEST_DATABASE_URL prisma migrate deploy",
-    "db:status": "prisma migrate status"
+    "db:status": "prisma migrate status",
+    "preflight": "npx tsx scripts/preflight.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
