@@ -18,6 +18,15 @@
         "dev:local"
       ],
       "port": 3100
+    },
+    {
+      "name": "storefront-production-build",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:smoke"
+      ],
+      "port": 3200
     }
   ]
 }

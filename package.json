@@ -33,7 +33,8 @@
     "db:demo:setup": "DATABASE_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} DIRECT_URL=${DEMO_DATABASE_URL:-postgresql://$USER@localhost:5432/vertical_express_demo?schema=public} sh -c 'npx prisma migrate deploy && npx tsx prisma/seed.ts && npx tsx scripts/seed-real-brands.mjs'",
     "db:migrate:local": "DATABASE_URL=$LOCAL_TEST_DATABASE_URL DIRECT_URL=$LOCAL_TEST_DATABASE_URL prisma migrate deploy",
     "db:status": "prisma migrate status",
-    "preflight": "npx tsx scripts/preflight.mjs"
+    "preflight": "npx tsx scripts/preflight.mjs",
+    "start:smoke": "DATABASE_URL=${DEMO_DATABASE_URL:-postgresql://${USER}@localhost:5432/vertical_express_demo?schema=public} DIRECT_URL=${DEMO_DATABASE_URL:-postgresql://${USER}@localhost:5432/vertical_express_demo?schema=public} PAYMENT_GATEWAY=razorpay-live RAZORPAY_KEY_ID=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY RAZORPAY_KEY_SECRET=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY RAZORPAY_WEBHOOK_SECRET=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY next start --port 3200"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",
