@@ -7,6 +7,21 @@ export interface OrderAddressSnapshot {
   label: string;
   name: string;
   phone: string;
+  /**
+   * Where to send updates about *this order*. Optional, and not an identity.
+   *
+   * The market signs in by phone, and a phone sign-in carries no email — so
+   * `emailOrderConfirmation` returned early and the customer most likely to
+   * order was the one who heard nothing back. Checkout now offers a field.
+   *
+   * It lives on the order rather than on `User` for two reasons. `User.email`
+   * is `@unique`, so writing a typed address there can collide with somebody
+   * else's account; and an unverified address attached to an identity is
+   * exactly the hazard `getAdminUser`'s `email_verified` check exists to stop.
+   * "Where to send this receipt" is a different claim from "who this is", and
+   * only the first one is being made here.
+   */
+  email?: string | null;
   line1: string;
   line2: string | null;
   landmark: string | null;

@@ -207,6 +207,13 @@ export async function placeOrder(params: {
    */
   couponCode?: string | null;
   /**
+   * Where to send this order's confirmation, when the account has no email.
+   *
+   * Trimmed and shape-checked by the caller. Stored on the order's address
+   * snapshot, never on the user — see OrderAddressSnapshot for why.
+   */
+  contactEmail?: string | null;
+  /**
    * Whether the customer chose the 60-minute run at checkout.
    *
    * Same treatment as the coupon directly above, and for the same reason: the
@@ -218,7 +225,7 @@ export async function placeOrder(params: {
   wantsExpress?: boolean;
 }): Promise<PlaceOrderResult> {
   const metric = new MetricsTracker("checkout-service");
-  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, wantsExpress } =
+  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, contactEmail, wantsExpress } =
     params;
 
   trackEvent("checkout_started", { paymentMethod });
@@ -351,6 +358,9 @@ export async function placeOrder(params: {
             label: address.label,
             name: address.name,
             phone: address.phone,
+            /* Only when one was given. An absent key reads exactly as it did
+               before for the accounts that carry an email of their own. */
+            ...(contactEmail ? { email: contactEmail } : {}),
             line1: address.line1,
             line2: address.line2,
             landmark: address.landmark,

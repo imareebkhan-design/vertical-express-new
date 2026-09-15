@@ -15,12 +15,34 @@ import { getOrderByNo } from "@/lib/services/orders";
 import { sendOrderConfirmationEmail } from "@/lib/services/email";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
-/** Fire the order-confirmation email for a freshly-confirmed order (P1-1). */
-async function emailOrderConfirmation(userId: string, orderNo: string, toEmail: string | null) {
-  if (!toEmail) return;
+/**
+ * A contact address, or null when there is nothing usable.
+ *
+ * Deliberately conservative rather than clever: no attempt to correct a typo,
+ * because guessing that "gmial" meant "gmail" sends somebody's receipt to a
+ * stranger. Blank is not an error — the field is optional.
+ */
+function normaliseContactEmail(raw: string | null | undefined): string | null {
+  if (typeof raw !== "string") return null;
+  const value = raw.trim().toLowerCase();
+  if (value === "" || value.length > 254) return null;
+  return /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(value) ? value : null;
+}
+
+/**
+ * Fire the order-confirmation email for a freshly-confirmed order (P1-1).
+ *
+ * The account's email is the fallback, not the source. A phone sign-in carries
+ * none — and phone is this market's default identity — so the address the
+ * customer typed at checkout is read first. It lives on the order, and it is
+ * the only thing that reaches somebody who signed in with a phone number.
+ */
+async function emailOrderConfirmation(userId: string, orderNo: string, accountEmail: string | null) {
   const order = await getOrderByNo(userId, orderNo);
   if (!order || order.status === "pending_payment") return;
-  const addr = order.address as { name?: string } | null;
+  const addr = order.address as { name?: string; email?: string | null } | null;
+  const toEmail = addr?.email ?? accountEmail;
+  if (!toEmail) return;
   await sendOrderConfirmationEmail(toEmail, {
     orderNo: order.orderNo,
     paymentMethod: order.paymentMethod,
@@ -83,6 +105,11 @@ export async function placeOrder(input: {
   idempotencyKey?: string;
   /** Re-validated server-side; the client's discount figure is never trusted. */
   couponCode?: string | null;
+  /**
+   * Where to send the receipt, offered at checkout when the account has no
+   * email of its own. Never written to the user record.
+   */
+  contactEmail?: string | null;
   /* Requested, not granted — re-resolved server-side. */
   wantsExpress?: boolean;
 }): Promise<ActionResult<PlaceOrderData>> {
@@ -94,6 +121,14 @@ export async function placeOrder(input: {
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
 
+  /* Shape-checked, not merely trimmed. This string is handed to an email
+     provider and stored on the order, so a value that is not an address is
+     refused rather than kept and silently never delivered to. */
+  const contactEmail = normaliseContactEmail(input.contactEmail);
+  if (input.contactEmail && contactEmail === null) {
+    return fail("VALIDATION", "That email address does not look right", "contactEmail");
+  }
+
   try {
     const result = await placeOrderService({
       userId,
@@ -102,6 +137,7 @@ export async function placeOrder(input: {
       notes: input.notes,
       idempotencyKey: input.idempotencyKey,
       couponCode: input.couponCode,
+      contactEmail,
       wantsExpress: input.wantsExpress,
     });
     revalidatePath("/cart");

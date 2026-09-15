@@ -95,6 +95,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   const [addressFormError, setAddressFormError] = useState<string | null>(null);
   const [savingAddress, startSavingAddress] = useTransition();
 
+  /* Asked for only when the account has none — a phone sign-in carries no
+     email, and the confirmation has nowhere to go without one. */
+  const [contactEmail, setContactEmail] = useState("");
+
   // Coupons states
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
@@ -215,6 +219,16 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         addressId: selectedAddressId,
         paymentMethod,
         idempotencyKey: idempotencyKey.current,
+        /* This screen applies a coupon and shows the discounted total, and
+           then placed the order without it — so the customer saw one price
+           and was charged another. That is ISS-011, which was fixed on the
+           desktop view and left here, on the surface this market actually
+           uses. The server re-validates the code; the client is still never
+           trusted for the discount itself. */
+        couponCode: appliedCoupon,
+        /* Nothing reaches a phone-only customer otherwise: no account email,
+           and no SMS channel yet. */
+        contactEmail: email ? null : contactEmail.trim() || null,
       });
 
       if (!res.ok) {
@@ -376,6 +390,34 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           <div className="flex items-center gap-2 rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             <AlertCircle className="size-4.5 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Without this a phone-only customer places an order and hears nothing
+            back: the account has no email, and there is no SMS channel yet.
+            Optional — an order must never be blocked on it. */}
+        {!email && (
+          <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
+            <label
+              htmlFor="m-contact-email"
+              className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40"
+            >
+              Email for your receipt <span className="text-ink/30">(optional)</span>
+            </label>
+            <input
+              id="m-contact-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-mist/30 bg-white px-3 text-sm font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink"
+            />
+            <p className="mt-2 text-[10px] font-semibold leading-[14px] text-ink/45">
+              We do not send SMS yet. Leave it blank and your order is still placed — you will
+              find it under My Orders.
+            </p>
           </div>
         )}
 

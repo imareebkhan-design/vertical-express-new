@@ -21,6 +21,10 @@ type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
 
 export function CheckoutView({ addresses, email }: { addresses: Address[]; email: string | null }) {
+  /* Only asked for when the account has none. A phone sign-in carries no
+     email, which is the market's default, and without one the order
+     confirmation has nowhere to go. */
+  const [contactEmail, setContactEmail] = useState("");
   const router = useRouter();
   const { summary, refresh } = useCart();
   const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");
@@ -88,6 +92,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         // server re-resolves whether express is on offer and charges
         // accordingly, so the total placed matches the total shown.
         wantsExpress,
+        contactEmail: email ? null : contactEmail.trim() || null,
       });
       if (!res.ok) {
         setError(res.error.message);
@@ -193,8 +198,38 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
             buying for a place, and the address is the thing that changes. */}
         <Section step={1} title="Delivery site">
           <p className="mb-3 text-xs font-bold text-neutral-500">
-            Signed in as <span className="text-ink">{email ?? "your account"}</span>
+            Signed in as <span className="text-ink">{email ?? "your phone number"}</span>
           </p>
+
+          {/* Without this the order is placed and nothing ever reaches the
+              customer — the confirmation email has no address to go to, and
+              there is no SMS channel yet. Optional, because an order must not
+              be blocked on it. */}
+          {!email && (
+            <div className="mb-4 rounded-card border border-hairline-border bg-surface-2 p-3.5">
+              <label htmlFor="contact-email" className="block text-xs font-bold text-ink">
+                Email for your receipt <span className="font-semibold text-neutral-500">(optional)</span>
+              </label>
+              <input
+                id="contact-email"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="mt-2 h-11 w-full rounded-field border border-hairline-border bg-white px-3.5 text-sm font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink"
+              />
+              <p className="mt-2 text-[11px] font-medium leading-[15px] text-neutral-500">
+                We do not send SMS yet. Leave this blank and your order is still placed — you
+                will find it under{" "}
+                <Link href="/account/orders" className="font-bold text-ink">
+                  My orders
+                </Link>
+                .
+              </p>
+            </div>
+          )}
           {addresses.length === 0 ? (
             <Link href="/account/addresses">
               <Button variant="outline">
