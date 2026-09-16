@@ -22,7 +22,26 @@ import { log } from "@/lib/observability";
 export async function getAuthUserId(): Promise<string | null> {
   const token = await readSession();
   if (!token) return null;
+  return resolveUserFromToken(token);
+}
 
+/**
+ * The local user id for an already-verified Firebase token.
+ *
+ * Split out of `getAuthUserId` so that a second *transport* does not become a
+ * second *answer*. The web carries identity in an httpOnly session cookie; the
+ * native app cannot — React Native has no cookie jar — so `/api/v1` carries a
+ * Firebase ID token in an Authorization header instead. Those are two ways to
+ * obtain a `DecodedIdToken`. What happens *after* verification must stay one
+ * way, because that is the part deciding which customer's orders, addresses
+ * and cart the caller gets. `lib/__tests__/single-identity-reader.test.ts`
+ * exists because this application once had two answers to that question and
+ * signed real customers out.
+ *
+ * So: two readers of the transport, one resolver of the identity, and this is
+ * it.
+ */
+export async function resolveUserFromToken(token: DecodedIdToken): Promise<string | null> {
   const existing = await db.user.findUnique({
     where: { firebaseUid: token.uid },
     select: { id: true },

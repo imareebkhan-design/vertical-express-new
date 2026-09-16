@@ -90,6 +90,26 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/webhooks/razorpay/route.ts",
   ]);
 
+  /**
+   * A fourth kind, added with /api/v1: authenticated as a CUSTOMER.
+   *
+   * These carry a Firebase ID token in an Authorization header, because the
+   * native app has no cookie jar and cannot resend the httpOnly session cookie
+   * the web uses. So they hold no admin check, no shared secret and no
+   * signature, and would have failed the assertion below — but they are not
+   * public either, and listing one as "public by design" would be a false
+   * statement that removes it from every future sweep.
+   *
+   * The requirement is therefore stated rather than waived: each route names
+   * the module that holds its authentication, and that module must resolve an
+   * identity. The route files themselves are deliberately thin — a handler is
+   * kept in lib/ so it can be driven by a test with a stubbed verifier — so
+   * checking the route source alone would prove nothing.
+   */
+  const CUSTOMER_AUTHENTICATED: Record<string, string> = {
+    "app/api/v1/cart/items/route.ts": "lib/api/cart-items.ts",
+  };
+
   const handlers = walk(join(ROOT, "app/api"))
     .filter((f) => f.endsWith("route.ts"))
     .map((f) => relative(ROOT, f));
@@ -98,6 +118,18 @@ test("no route handler reads admin data without gating itself", () => {
 
   for (const rel of handlers) {
     if (PUBLIC_BY_DESIGN.has(rel) || SECRET_OR_SIGNATURE.has(rel)) continue;
+
+    const authModule = CUSTOMER_AUTHENTICATED[rel];
+    if (authModule) {
+      assert.match(
+        read(authModule),
+        /resolveApiIdentity\(/,
+        `${rel} is listed as customer-authenticated, but ${authModule} no longer ` +
+          `resolves an identity. It is now an open endpoint.`
+      );
+      continue;
+    }
+
     const src = read(rel);
     assert.match(
       src,
