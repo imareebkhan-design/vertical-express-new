@@ -1,0 +1,107 @@
+# Firebase App Hosting — the STAGING / TEST backend ("ve-staging").
+#
+# Serves the existing Next.js app (website + /api/v1) from Google Cloud instead
+# of Vercel. Nothing here is a business rule; it is where the app runs and what
+# it is told about its environment.
+#
+# THIS FILE IS THE TEST BACKEND. It runs Razorpay in TEST mode with explicit
+# opt-in (see ALLOW_TEST_GATEWAY in lib/services/payments.ts). A production
+# backend must be a separate backend with its own config that sets
+# PAYMENT_GATEWAY=razorpay-live and does NOT set ALLOW_TEST_GATEWAY. Do not point
+# a production backend at this file.
+#
+# SECRETS are never written here: `secret:` names an entry in Cloud Secret
+# Manager, created with `scripts/apphosting-secrets.sh`. PUBLIC values (the
+# Firebase web config, the Razorpay *key id*) are browser-visible by design.
+#
+# Not set here on purpose: NEXT_PUBLIC_SITE_URL — it is the backend's own URL,
+# known only after the first rollout. Set it, then roll out again.
+
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+
+env:
+  # --- public Firebase web config (needed at BUILD: inlined into the client bundle)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBz0IZomwSDsVHeP77QeyhTkFlP9IoeX4s"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "vertical-express.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "vertical-express"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "vertical-express.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "202621320146"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:202621320146:web:374d07c2f69069db04e60b"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- Razorpay: TEST mode only. The key id is public; the secret is a secret.
+  - variable: PAYMENT_GATEWAY
+    value: razorpay-test
+    availability:
+      - RUNTIME
+  - variable: ALLOW_TEST_GATEWAY
+    value: "1"
+    availability:
+      - RUNTIME
+  - variable: RAZORPAY_KEY_ID
+    value: "rzp_test_TeHWJN90I0MCs4"
+    availability:
+      - RUNTIME
+  - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
+    value: "rzp_test_TeHWJN90I0MCs4"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: RAZORPAY_KEY_SECRET
+    secret: razorpay-key-secret
+  - variable: RAZORPAY_WEBHOOK_SECRET
+    secret: razorpay-webhook-secret
+
+  # --- database. Needed at BUILD too: `generateStaticParams` queries Prisma, so a
+  # build without it fails. Runtime uses the pooled URL; migrations are applied
+  # by a person (`npm run db:deploy`), never by the build — see docs/DEPLOY_FIREBASE.md.
+  - variable: DATABASE_URL
+    secret: database-url
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- Firebase Admin (verifies the app's ID tokens and the web session cookie).
+  # Named FB_ADMIN_* because App Hosting reserves the FIREBASE_ prefix; lib/auth/firebase-admin.ts reads either.
+  - variable: FB_ADMIN_PROJECT_ID
+    value: "vertical-express"
+    availability:
+      - RUNTIME
+  - variable: FB_ADMIN_CLIENT_EMAIL
+    secret: firebase-client-email
+    availability:
+      - RUNTIME
+  - variable: FB_ADMIN_PRIVATE_KEY
+    secret: firebase-private-key
+    availability:
+      - RUNTIME
+  - variable: CRON_SECRET
+    secret: cron-secret

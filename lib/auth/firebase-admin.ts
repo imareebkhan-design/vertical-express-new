@@ -25,17 +25,21 @@ function adminApp(): App {
     return cached;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  /* `FB_ADMIN_*` first, then the original `FIREBASE_*` names.
+     Firebase App Hosting refuses any environment variable whose name starts with
+     `FIREBASE_` (reserved prefix), so a deployed backend must supply these under
+     another name. Local development and every existing setup keep the old names. */
+  const projectId = process.env.FB_ADMIN_PROJECT_ID ?? process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FB_ADMIN_CLIENT_EMAIL ?? process.env.FIREBASE_CLIENT_EMAIL;
   /* Newlines survive a .env round trip as the two characters \n, so they have
      to be turned back into real newlines or the PEM parse fails with an error
      that says nothing about newlines. */
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = (process.env.FB_ADMIN_PRIVATE_KEY ?? process.env.FIREBASE_PRIVATE_KEY)?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
     throw new Error(
-      "Firebase Admin is not configured. Set FIREBASE_PROJECT_ID, " +
-        "FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY. Refusing to verify " +
+      "Firebase Admin is not configured. Set FB_ADMIN_PROJECT_ID, FB_ADMIN_CLIENT_EMAIL and " +
+        "FB_ADMIN_PRIVATE_KEY (or the legacy FIREBASE_PROJECT_ID / FIREBASE_CLIENT_EMAIL / FIREBASE_PRIVATE_KEY). Refusing to verify " +
         "tokens without credentials."
     );
   }

@@ -58,8 +58,16 @@ and all three Razorpay secrets are present, so every request returns 500.
 Read that carefully, because the intuition runs the wrong way: **not having Razorpay
 credentials is precisely what breaks a production deploy.** The guard exists so the
 site refuses to serve rather than take a customer's money through a dummy gateway
-(ISS-002). Until those credentials are configured in Vercel, push feature branches
-freely and leave `main` alone.
+(ISS-002). Until those credentials are configured in the hosting environment, push feature
+branches freely and leave `main` alone.
+
+**Exception for a STAGING backend (added 2026-09-20).** Managed hosts run every backend
+with `NODE_ENV=production`, so a test deployment that a phone can reach would otherwise
+be impossible. `PAYMENT_GATEWAY=razorpay-test` is therefore accepted in production *only*
+with `ALLOW_TEST_GATEWAY=1` **and** a `rzp_test_` key id (`testGatewayAllowedHere()` in
+`lib/services/payments.ts`). The dummy gateway has no such opt-in. Never set
+`ALLOW_TEST_GATEWAY` on a production backend. Hosting is Firebase App Hosting
+(`docs/DEPLOY_FIREBASE.md`); Vercel is no longer the deploy target.
 
 ---
 

@@ -13,5 +13,22 @@
         "supportEmail": "hello@verticalexpress.in"
       }
     }
+  },
+  "apphosting": {
+    "backendId": "ve-staging",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      ".next",
+      ".vercel",
+      ".vercel-old",
+      "prisma/generated",
+      "mobile-shell",
+      "ios",
+      "android"
+    ]
   }
 }

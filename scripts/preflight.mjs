@@ -167,8 +167,11 @@ must(
     : ""
 );
 
-const ADMIN_VARS = ["FIREBASE_PROJECT_ID", "FIREBASE_CLIENT_EMAIL", "FIREBASE_PRIVATE_KEY"];
-const missingAdmin = ADMIN_VARS.filter((v) => !present(v));
+/* Each credential may be supplied as FB_ADMIN_* (required on Firebase App Hosting,
+   which reserves the FIREBASE_ prefix) or under the original FIREBASE_* name. */
+const ADMIN_VARS = ["PROJECT_ID", "CLIENT_EMAIL", "PRIVATE_KEY"];
+const adminVal = (n) => process.env["FB_ADMIN_" + n] ?? process.env["FIREBASE_" + n];
+const missingAdmin = ADMIN_VARS.filter((n) => !(adminVal(n) && adminVal(n).trim() !== "")).map((n) => "FB_ADMIN_" + n + " (or FIREBASE_" + n + ")");
 must(
   "the 3 server Firebase credentials are set",
   missingAdmin.length === 0,
@@ -182,8 +185,8 @@ must(
    real newlines. Boot is fine, the sign-in form is fine, and every session
    verification then fails at request time with a PEM error that says nothing
    about newlines. */
-if (present("FIREBASE_PRIVATE_KEY")) {
-  const key = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+if (adminVal("PRIVATE_KEY")) {
+  const key = adminVal("PRIVATE_KEY").replace(/\\n/g, "\n");
   const looksLikePem =
     key.includes("-----BEGIN") && key.includes("-----END") && key.split("\n").length > 3;
   must(
