@@ -13,9 +13,9 @@ import {
 import { getCartSummary, updateItemQty, removeItem } from "@/lib/services/cart";
 import { listAddresses, createAddress } from "@/lib/services/addresses";
 import { checkServiceability } from "@/lib/services/serviceability";
-import { computeTotals, placeOrder, confirmOnlinePayment } from "@/lib/services/checkout";
+import { computeTotals, placeOrder, confirmOnlinePayment, LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
 import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
-import { getOrderByNo, listOrders, type OrderWithDetails } from "@/lib/services/orders";
+import { getOrderByNo, getOrderByIdempotencyKey, listOrders, type OrderWithDetails } from "@/lib/services/orders";
 import { classifyPlaceOrderError } from "@/lib/checkout-errors";
 import { addressInputSchema, pincodeSchema } from "@/lib/validators";
 import { z } from "zod";
@@ -33,6 +33,16 @@ import { z } from "zod";
  * Error contract is `lib/api/response.ts`: `{ ok, data }` or `{ ok:false, error }`
  * with the status mapped from the code.
  */
+
+/**
+ * The Razorpay *key id* a device needs to open Checkout. Public by design — it
+ * is the half of the pair Razorpay prints on the checkout page itself. The
+ * secret half never appears in this file. `RAZORPAY_KEY_ID` is the fallback so
+ * the app does not depend on a second, `NEXT_PUBLIC_`-prefixed copy being set.
+ */
+function razorpayKeyId(): string {
+  return process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || "";
+}
 
 /* ------------------------------------------------------------------ catalogue */
 
@@ -237,13 +247,13 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
       });
       return apiOk({
         orderNo: result.orderNo,
-        status: result.requiresPaymentConfirmation ? "pending_payment" : "confirmed",
+        status: result.status,
         razorpay:
           result.requiresPaymentConfirmation && result.gatewayOrderId
             ? {
                 orderId: result.gatewayOrderId,
                 amountPaise: result.amountPaise ?? 0,
-                keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+                keyId: razorpayKeyId(),
               }
             : null,
       });
@@ -251,6 +261,24 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
       captureException(e, { route: "place-order" });
       return apiResult(classifyPlaceOrderError(e));
     }
+  });
+}
+
+const keySchema = z.string().min(8).max(80);
+
+/**
+ * GET /api/v1/checkout/orders?idempotencyKey=…
+ *
+ * "Did my place-order request create an order?" — answered without creating
+ * one. 404 means: for this customer, no order carries that key.
+ */
+export async function handleFindOrderByKey(request: Request, deps: ApiDeps = {}): Promise<NextResponse> {
+  return withApiUser(request, "co-find", deps, async ({ userId }) => {
+    const key = keySchema.safeParse(new URL(request.url).searchParams.get("idempotencyKey"));
+    if (!key.success) return apiFail("VALIDATION", "Invalid idempotency key", { field: "idempotencyKey" });
+    const order = await getOrderByIdempotencyKey(userId, key.data);
+    if (!order) return apiFail("NOT_FOUND", "No order for that attempt");
+    return apiOk(orderDto(order, { detail: true }));
   });
 }
 
@@ -276,6 +304,11 @@ export async function handleConfirmPayment(
     const body = confirmSchema.safeParse(await readJson(request));
     if (!body.success) return apiFail("VALIDATION", "Invalid payment result");
     const res = await confirmOnlinePayment({ userId, orderNo, ...body.data });
+    if (res.reason === "late_payment") {
+      /* The customer paid; the order had already expired. Distinct from a failed
+         verification so the app never tells them to pay again. */
+      return apiFail("CONFLICT", LATE_PAYMENT_MESSAGE, { metadata: { reason: "LATE_PAYMENT" } });
+    }
     if (!res.ok) return apiFail("PAYMENT_FAILED", "Payment could not be verified");
     return apiOk({ orderNo, status: "confirmed" });
   });
@@ -319,7 +352,7 @@ function orderDto(o: OrderWithDetails, opts: { detail: boolean }) {
         ? {
             orderId: payment.gatewayOrderId,
             amountPaise: payment.amountPaise,
-            keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+            keyId: razorpayKeyId(),
           }
         : null,
   };

@@ -45,6 +45,22 @@ export async function getOrderByNo(userId: string, orderNo: string): Promise<Ord
   });
 }
 
+/**
+ * Recover an order from the idempotency key the client sent when placing it.
+ *
+ * Read-only, and scoped to the caller: the key alone identifies nothing, the
+ * pair (customer, key) does — the same pair the unique constraint protects. A
+ * key belonging to somebody else's order is indistinguishable from no order.
+ * This exists so a client that lost the response to `placeOrder` can learn
+ * whether the order was created without submitting a second one.
+ */
+export async function getOrderByIdempotencyKey(userId: string, idempotencyKey: string): Promise<OrderWithDetails | null> {
+  return db.order.findFirst({
+    where: { idempotencyKey, userId },
+    include: orderInclude,
+  });
+}
+
 export async function listOrders(userId: string, page = 1, perPage = 10) {
   const [orders, total] = await Promise.all([
     db.order.findMany({

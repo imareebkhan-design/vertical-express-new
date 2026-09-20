@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/prisma/generated/client/client";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
 import { db } from "@/lib/db";
+import { settleCapturedPayment } from "@/lib/services/checkout";
 import { runWithContext, trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 
 export async function POST(req: NextRequest) {
@@ -93,35 +94,23 @@ export async function POST(req: NextRequest) {
             );
           }
           try {
-            await db.$transaction(async (tx) => {
-              await tx.payment.update({
-                where: { id: existingPayment.id },
-                data: {
-                  status: "captured",
-                  gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
-                  gatewayEventId: eventId || existingPayment.gatewayEventId,
-                  signatureVerified: true,
-                  raw: payload,
-                },
-              });
-
-              if (existingPayment.order.status === "pending_payment") {
-                await tx.order.update({
-                  where: { id: existingPayment.orderId },
-                  data: { status: "confirmed" },
-                });
-
-                await tx.orderStatusEvent.create({
-                  data: {
-                    orderId: existingPayment.orderId,
-                    fromStatus: "pending_payment",
-                    toStatus: "confirmed",
-                    note: `Razorpay webhook event: ${event}`,
-                  },
-                });
-              }
+            const outcome = await settleCapturedPayment({
+              paymentId: existingPayment.id,
+              orderId: existingPayment.orderId,
+              orderNo: existingPayment.order.orderNo,
+              amountPaise: existingPayment.amountPaise,
+              gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+              eventId,
+              raw: payload,
+              source: "webhook",
+              note: `Razorpay webhook event: ${event}`,
             });
-            trackEvent("payment_success", { orderNo: existingPayment.order.orderNo, gatewayPaymentId: razorpayPaymentId });
+            if (outcome === "late_recorded" || outcome === "late_already_recorded") {
+              /* 200, not an error: Razorpay must stop retrying. The capture is
+                 recorded and flagged for a human; see `settleCapturedPayment`. */
+              metric.end("webhook_late_payment", { event, outcome });
+              return NextResponse.json({ status: "late_payment_recorded" });
+            }
           } catch (e) {
             captureException(e, { razorpayOrderId, razorpayPaymentId });
             if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -144,8 +133,11 @@ export async function POST(req: NextRequest) {
 
         if (existingPayment) {
           try {
-            await db.payment.update({
-              where: { id: existingPayment.id },
+            /* A failure report never downgrades money that has already been
+               captured: Razorpay can deliver a failed *attempt's* event after the
+               retry that succeeded. */
+            await db.payment.updateMany({
+              where: { id: existingPayment.id, status: { in: ["created", "authorized", "failed"] } },
               data: {
                 status: "failed",
                 gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,

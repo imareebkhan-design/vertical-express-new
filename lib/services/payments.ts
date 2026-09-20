@@ -48,11 +48,34 @@ function isProduction(): boolean {
   return process.env.NODE_ENV === "production";
 }
 
+/**
+ * May the Razorpay TEST gateway run in this process?
+ *
+ * Outside production, always. In production, only by explicit opt-in AND only
+ * with test keys.
+ *
+ * WHY THERE IS AN OPT-IN AT ALL. Managed hosts (Firebase App Hosting, Cloud
+ * Run, Vercel) run every deployed backend with `NODE_ENV=production`, including
+ * a *staging* backend whose whole purpose is to exercise the real Razorpay test
+ * API from a phone. Refusing the test gateway on `NODE_ENV` alone made a
+ * reachable test deployment impossible.
+ *
+ * WHY IT IS SAFE. The flag must be set deliberately per backend, and it is not
+ * enough on its own: the configured key id must start `rzp_test_`, so a live key
+ * pasted under `razorpay-test` still refuses to boot. The `dummy` gateway —
+ * which confirms orders with no money taken (ISS-002) — has NO such opt-in and
+ * stays forbidden in production.
+ */
+function testGatewayAllowedHere(): boolean {
+  if (!isProduction()) return true;
+  return process.env.ALLOW_TEST_GATEWAY === "1" && (process.env.RAZORPAY_KEY_ID ?? "").startsWith("rzp_test_");
+}
+
 /** Simulated gateway — instant success. Development/test only (see ISS-002). */
 class DummyPaymentProvider implements PaymentProvider {
   readonly id = "dummy" as const;
 
-  async createOrder({ orderId }: CreateOrderParams): Promise<CreateOrderResult> {
+  async createOrder(): Promise<CreateOrderResult> {
     if (isProduction()) {
       throw new PaymentConfigError(
         "DUMMY_GATEWAY_IN_PRODUCTION: the dummy payment provider cannot be used in production."
@@ -60,7 +83,9 @@ class DummyPaymentProvider implements PaymentProvider {
     }
     return {
       settled: true,
-      gatewayOrderId: `dummy_${orderId.slice(0, 8)}`,
+      /* Unique per call: `orderId` is the literal "pending" at this point, and a
+         gateway order id names exactly one payment row (unique in the schema). */
+      gatewayOrderId: `dummy_${crypto.randomUUID()}`,
       gatewayPaymentId: `dummy_pay_${Date.now()}`,
     };
   }
@@ -296,9 +321,10 @@ export function activeGateway(): "dummy" | "razorpay-test" | "razorpay-live" {
     return "dummy";
   }
   if (gateway === "razorpay-test") {
-    if (isProduction()) {
+    if (!testGatewayAllowedHere()) {
       throw new PaymentConfigError(
-        "RAZORPAY_TEST_IN_PRODUCTION: razorpay-test is not allowed in production. Use razorpay-live."
+        "RAZORPAY_TEST_IN_PRODUCTION: razorpay-test is not allowed in production. Use razorpay-live " +
+          "(or, for a staging backend only, set ALLOW_TEST_GATEWAY=1 with rzp_test_ keys)."
       );
     }
     return "razorpay-test";

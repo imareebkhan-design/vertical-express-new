@@ -13,6 +13,7 @@ import {
   handleCheckoutTotals,
   handlePlaceOrder,
   handleConfirmPayment,
+  handleFindOrderByKey,
   handleListOrders,
   handleGetOrder,
   handleListProducts,
@@ -491,8 +492,11 @@ test("payment confirmation: a cancelled order cannot be revived by a valid signa
       { verify }
     )
   );
-  assert.equal(res.status, 402);
-  assert.equal((await db.order.findFirstOrThrow({ where: { orderNo } })).status, "cancelled");
+  assert.equal(res.status, 409, "the customer paid: this is a late payment, not a failed verification");
+  assert.equal(res.body.error.metadata.reason, "LATE_PAYMENT");
+  const after = await db.order.findFirstOrThrow({ where: { orderNo }, include: { payments: true } });
+  assert.equal(after.status, "cancelled", "a cancelled order must not be revived");
+  assert.equal(after.payments[0].status, "captured", "the money that arrived must be recorded");
 });
 
 test("payment confirmation: a nonexistent order is refused the same way as a wrong one", async () => {
@@ -666,4 +670,57 @@ test("products: search finds the published product; a draft is not served", asyn
   } finally {
     await db.product.update({ where: { slug: productSlug }, data: { status: "published" } });
   }
+});
+
+/* -------------------------------------------------- order recovery (Stage 4) */
+
+test("recovery: the same idempotency key returns the same order, with its true current status", async () => {
+  await db.cartItem.deleteMany({ where: { cart: { userId: userA } } });
+  await addItem(userA, null, variantId, 1);
+  const key = `idem-${randomUUID()}`;
+  const first = await json(
+    await handlePlaceOrder(
+      req("POST", "/x", { token: TOKEN_A, body: { addressId, paymentMethod: "cod", idempotencyKey: key } }),
+      { verify }
+    )
+  );
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const orderNo = first.body.data.orderNo as string;
+
+  /* The response was "lost": the client retries with the same key. The cart is
+     now empty, which must not matter — the key resolves to the order first. */
+  const replay = await json(
+    await handlePlaceOrder(
+      req("POST", "/x", { token: TOKEN_A, body: { addressId, paymentMethod: "cod", idempotencyKey: key } }),
+      { verify }
+    )
+  );
+  assert.equal(replay.status, 200);
+  assert.equal(replay.body.data.orderNo, orderNo);
+  assert.equal(await db.order.count({ where: { idempotencyKey: key } }), 1);
+
+  /* Later the order is cancelled. A replay must say so, not claim "confirmed". */
+  await db.order.update({ where: { orderNo }, data: { status: "cancelled" } });
+  const afterCancel = await json(
+    await handlePlaceOrder(
+      req("POST", "/x", { token: TOKEN_A, body: { addressId, paymentMethod: "cod", idempotencyKey: key } }),
+      { verify }
+    )
+  );
+  assert.equal(afterCancel.body.data.status, "cancelled");
+  assert.equal(afterCancel.body.data.razorpay, null);
+
+  /* Recovery lookup: read-only, scoped to the caller. */
+  const find = (token: string | undefined, k: string) =>
+    handleFindOrderByKey(req("GET", `/api/v1/checkout/orders?idempotencyKey=${encodeURIComponent(k)}`, { token }), { verify });
+  const found = await json(await find(TOKEN_A, key));
+  assert.equal(found.status, 200);
+  assert.equal(found.body.data.orderNo, orderNo);
+  assert.equal("userId" in found.body.data, false);
+
+  assert.equal((await find(TOKEN_B, key)).status, 404, "another customer's key is indistinguishable from no order");
+  assert.equal((await find(TOKEN_A, `idem-${randomUUID()}`)).status, 404);
+  assert.equal((await find(TOKEN_A, "short")).status, 400);
+  assert.equal((await find(undefined, key)).status, 401);
+  assert.equal(await db.order.count({ where: { idempotencyKey: key } }), 1, "a lookup never creates an order");
 });

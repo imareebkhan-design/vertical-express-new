@@ -18,6 +18,7 @@ const ENV_KEYS = [
   "RAZORPAY_KEY_SECRET",
   "RAZORPAY_WEBHOOK_SECRET",
   "DATABASE_URL",
+  "ALLOW_TEST_GATEWAY",
 ] as const;
 
 type MutableEnv = Record<string, string | undefined>;
@@ -134,4 +135,43 @@ test("provider selection resolves appropriate classes based on gateway environme
   setEnv("RAZORPAY_KEY_SECRET", "test_secret");
   const testProv = getPaymentProvider("razorpay");
   assert.equal(testProv.id, "razorpay-test");
+});
+
+/* ---- a staging backend on a production runtime (Firebase App Hosting, Cloud Run) ---- */
+
+test("staging opt-in: production + ALLOW_TEST_GATEWAY=1 + rzp_test_ keys runs the test gateway", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("ALLOW_TEST_GATEWAY", "1");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
+  setEnv("RAZORPAY_KEY_SECRET", "secret");
+  assert.equal(activeGateway(), "razorpay-test");
+  assert.doesNotThrow(() => assertPaymentConfig());
+});
+
+test("staging opt-in never admits a LIVE key under the test gateway", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("ALLOW_TEST_GATEWAY", "1");
+  setEnv("RAZORPAY_KEY_ID", "rzp_live_abc123");
+  setEnv("RAZORPAY_KEY_SECRET", "secret");
+  assert.throws(() => activeGateway(), PaymentConfigError);
+});
+
+test("staging opt-in needs the flag: test keys alone are not enough in production", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
+  setEnv("RAZORPAY_KEY_SECRET", "secret");
+  assert.throws(() => activeGateway(), PaymentConfigError);
+  setEnv("ALLOW_TEST_GATEWAY", "true"); // only the exact string "1" counts
+  assert.throws(() => activeGateway(), PaymentConfigError);
+});
+
+test("the opt-in does not touch the dummy gateway, which stays forbidden in production", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "dummy");
+  setEnv("ALLOW_TEST_GATEWAY", "1");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
+  assert.throws(() => activeGateway(), PaymentConfigError);
 });

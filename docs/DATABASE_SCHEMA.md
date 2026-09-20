@@ -76,6 +76,8 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 - `order_id fk`, `gateway enum(razorpay, cod)`, `gateway_order_id`, `gateway_payment_id null`, `gateway_event_id text unique null` (idempotency), `amount_paise`, `status enum(created, authorized, captured, failed, refunded)`, `signature_verified bool`, `raw jsonb`
 - Index: `order_id`, `gateway_payment_id`.
 
+> **Change 2026-09-20** (`20260920120000_payments_gateway_order_unique`): `payments.gateway_order_id` is now **unique** (NULLs allowed, for COD), replacing the plain index. One Razorpay order = one payment row. The migration fails if duplicates exist — see the prerequisite query in its header before deploying to any shared database.
+
 **order_status_events** — `order_id fk`, `from_status`, `to_status`, `actor_user_id null`, `note`. Powers the customer timeline. Index: `(order_id, created_at)`.
 
 **reviews** — `product_id fk`, `user_id fk`, `order_item_id fk null` (verified-purchase), `rating int 1–5`, `title`, `body`, `status enum(pending, published, rejected)`; unique `(product_id, user_id)`. Trigger updates `products.rating_avg/count`.

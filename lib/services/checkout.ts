@@ -11,7 +11,7 @@ import {
 import { getPaymentProvider, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
-import { trackEvent, MetricsTracker, captureException } from "@/lib/observability";
+import { trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 import { SETTING_KEYS, readSetting, parseFlag } from "@/lib/services/settings";
 
 export interface CheckoutTotals {
@@ -182,6 +182,9 @@ function orderNumber(): string {
 
 export interface PlaceOrderResult {
   orderNo: string;
+  /** The order's status when this call returned. On an idempotent replay it is the
+   *  stored order's *current* status, which may have moved on since the first call. */
+  status: string;
   requiresPaymentConfirmation: boolean;
   gatewayOrderId?: string | null;
   amountPaise?: number;
@@ -239,6 +242,7 @@ export async function placeOrder(params: {
       metric.end("place_order_idempotent_duplicate");
       return {
         orderNo: existing.orderNo,
+        status: existing.status,
         requiresPaymentConfirmation: existing.status === "pending_payment",
       };
     }
@@ -492,6 +496,7 @@ export async function placeOrder(params: {
       if (existing) {
         return {
           orderNo: existing.orderNo,
+          status: existing.status,
           requiresPaymentConfirmation: existing.status === "pending_payment",
         };
       }
@@ -501,6 +506,7 @@ export async function placeOrder(params: {
 
   return {
     orderNo: order.orderNo,
+    status: order.status,
     requiresPaymentConfirmation: order.status === "pending_payment",
     gatewayOrderId,
     amountPaise: totals.totalPaise,
@@ -531,6 +537,7 @@ export async function markOrderPaid(params: {
       return { ok: true };
     }
 
+    let expiredMeanwhile = false;
     await db.$transaction(async (tx) => {
       /* Compare-and-set: two concurrent confirmations (callback + webhook, or a
          retry) both read `pending_payment` above; only one may make the move,
@@ -539,7 +546,14 @@ export async function markOrderPaid(params: {
         where: { id: order.id, status: "pending_payment" },
         data: { status: "confirmed" },
       });
-      if (moved.count === 0) return;
+      if (moved.count === 0) {
+        /* Lost the race. If the winner was a *confirmation* this is a benign
+           duplicate; if it was the expiry cron the order is dead and this call
+           must not report it paid. */
+        const now = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
+        expiredMeanwhile = !!now && isDeadOrder(now.status);
+        return;
+      }
       await tx.payment.updateMany({
         where: { orderId: order.id },
         data: { status: "captured", gatewayPaymentId, signatureVerified: true },
@@ -549,6 +563,10 @@ export async function markOrderPaid(params: {
       });
     });
 
+    if (expiredMeanwhile) {
+      metric.end("mark_order_paid_expired_meanwhile");
+      return { ok: false };
+    }
     trackEvent("payment_success", { orderNo, gatewayPaymentId });
     metric.end("mark_order_paid_success");
     return { ok: true };
@@ -581,7 +599,7 @@ export async function confirmOnlinePayment(params: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   signature: string;
-}): Promise<{ ok: boolean }> {
+}): Promise<{ ok: boolean; reason?: "late_payment" }> {
   const { userId, orderNo, razorpayOrderId, razorpayPaymentId, signature } = params;
 
   if (!verifyRazorpaySignature({ razorpayOrderId, razorpayPaymentId, signature })) {
@@ -590,17 +608,154 @@ export async function confirmOnlinePayment(params: {
 
   const payment = await db.payment.findFirst({
     where: { gatewayOrderId: razorpayOrderId, order: { orderNo, userId } },
-    select: { id: true, order: { select: { status: true } } },
+    select: { id: true, orderId: true, amountPaise: true },
   });
   if (!payment) return { ok: false };
 
-  /* An order that was cancelled or refunded (e.g. expired by the cleanup cron)
-     is not paid, however valid the signature. `markOrderPaid` treats every
-     non-pending status as "already done", which is right for a duplicate
-     confirmation and wrong here. */
-  if (["cancelled", "refund_initiated", "refunded"].includes(payment.order.status)) {
-    return { ok: false };
+  const outcome = await settleCapturedPayment({
+    paymentId: payment.id,
+    orderId: payment.orderId,
+    orderNo,
+    amountPaise: payment.amountPaise,
+    gatewayPaymentId: razorpayPaymentId,
+    source: "client",
+  });
+  /* The customer did pay — Razorpay signed it — but the order had already
+     expired. That is not a failure to be retried and not a success to be
+     celebrated: the money is recorded and needs a human. */
+  if (outcome === "late_recorded" || outcome === "late_already_recorded") {
+    return { ok: false, reason: "late_payment" };
   }
+  return { ok: true };
+}
 
-  return markOrderPaid({ orderNo, userId, gatewayPaymentId: razorpayPaymentId });
+/** Order states a payment can no longer confirm. */
+export const DEAD_ORDER_STATES = ["cancelled", "refund_initiated", "refunded"] as const;
+export function isDeadOrder(status: string): boolean {
+  return (DEAD_ORDER_STATES as readonly string[]).includes(status);
+}
+
+/** What the customer is told when their payment lands on an expired order. */
+export const LATE_PAYMENT_MESSAGE =
+  "This order expired before your payment completed. Your payment has been recorded and will be reviewed for a refund. Please do not pay again.";
+
+export type SettleOutcome = "confirmed" | "already_confirmed" | "late_recorded" | "late_already_recorded";
+
+/**
+ * Apply a *verified* Razorpay capture to a payment and its order — the single
+ * place both the client callback and the webhook go through, so the two cannot
+ * disagree about what a capture means.
+ *
+ * The caller has already verified authenticity (HMAC on the callback or on the
+ * webhook body) and, for the webhook, the amount. This function owns state.
+ *
+ *   order pending_payment  -> confirmed, payment captured        ("confirmed")
+ *   order already confirmed+ -> payment marked captured if it was
+ *                               not yet; nothing else moves      ("already_confirmed")
+ *   order cancelled/refund*  -> payment marked captured, order NOT
+ *                               resurrected, an explicit event and
+ *                               an alert are raised              ("late_recorded")
+ *   the same late capture again                                  ("late_already_recorded")
+ *
+ * Every transition is a compare-and-set in one transaction, so a callback, a
+ * webhook and a retry racing each other produce exactly one status event.
+ * Money that arrived is never dropped: the payment row says `captured` even
+ * when the order cannot be fulfilled. That pair (payment captured, order
+ * cancelled) IS the refund-required state; see `listCapturedPaymentsOnDeadOrders`.
+ *
+ * No refund is initiated or claimed here. Refunding is the owner's policy
+ * (ISS-025) and needs Razorpay account decisions.
+ */
+export async function settleCapturedPayment(params: {
+  paymentId: string;
+  orderId: string;
+  orderNo: string;
+  amountPaise: number;
+  gatewayPaymentId: string | null;
+  eventId?: string | null;
+  raw?: Prisma.InputJsonValue;
+  source: "client" | "webhook";
+  note?: string;
+}): Promise<SettleOutcome> {
+  const { paymentId, orderId, orderNo, amountPaise, gatewayPaymentId, eventId, raw, source, note } = params;
+
+  const captured = {
+    status: "captured" as const,
+    ...(gatewayPaymentId ? { gatewayPaymentId } : {}),
+    ...(eventId ? { gatewayEventId: eventId } : {}),
+    signatureVerified: true,
+    ...(raw !== undefined ? { raw } : {}),
+  };
+
+  const outcome = await db.$transaction(async (tx): Promise<SettleOutcome> => {
+    const moved = await tx.order.updateMany({
+      where: { id: orderId, status: "pending_payment" },
+      data: { status: "confirmed" },
+    });
+    if (moved.count === 1) {
+      await tx.payment.updateMany({ where: { id: paymentId }, data: captured });
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId,
+          fromStatus: "pending_payment",
+          toStatus: "confirmed",
+          note: note ?? (source === "webhook" ? "Razorpay webhook: payment captured" : "Payment verified"),
+        },
+      });
+      return "confirmed";
+    }
+
+    const current = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+    /* First writer wins: a payment already `captured` keeps its payment id. */
+    const first = await tx.payment.updateMany({
+      where: { id: paymentId, status: { not: "captured" } },
+      data: captured,
+    });
+
+    if (isDeadOrder(current.status)) {
+      if (first.count === 0) return "late_already_recorded";
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId,
+          fromStatus: current.status,
+          toStatus: current.status,
+          note: "Payment received after this order expired. Under review for refund.",
+        },
+      });
+      return "late_recorded";
+    }
+    return "already_confirmed";
+  });
+
+  if (outcome === "confirmed") {
+    trackEvent("payment_success", { orderNo, gatewayPaymentId, source });
+  } else if (outcome === "late_recorded") {
+    /* Loud on purpose. This is a customer's money against an order we cancelled. */
+    triggerAlert(
+      "late_payment_captured",
+      "Payment captured for an order that was already cancelled — refund/reconciliation required",
+      { orderNo, gatewayPaymentId, amountPaise, source }
+    );
+    trackEvent("late_payment_captured", { orderNo, amountPaise, source });
+  }
+  return outcome;
+}
+
+/**
+ * The refund-required set: money captured, order dead. Read-only; the operator's
+ * worklist until a refund workflow exists.
+ */
+export async function listCapturedPaymentsOnDeadOrders() {
+  return db.payment.findMany({
+    where: { status: "captured", order: { status: { in: [...DEAD_ORDER_STATES] } } },
+    select: {
+      id: true,
+      gatewayOrderId: true,
+      gatewayPaymentId: true,
+      amountPaise: true,
+      updatedAt: true,
+      order: { select: { orderNo: true, status: true, userId: true } },
+    },
+    orderBy: { updatedAt: "desc" },
+  });
 }

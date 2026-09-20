@@ -30,7 +30,8 @@ billing, not this API.)
 | POST | `/api/v1/addresses` | Bearer | address (`addressInputSchema`) | `{id, serviceable}` | 400 (`field`), 401 |
 | POST | `/api/v1/checkout/totals` | Bearer | `{pincode, couponCode?, wantsExpress?}` | `CheckoutTotals` | 400, 401, 409 (empty cart) |
 | POST | `/api/v1/checkout/orders` | Bearer | `{addressId, paymentMethod:"online"\|"cod", idempotencyKey, couponCode?, notes?, wantsExpress?}` | `{orderNo, status, razorpay:{orderId,amountPaise,keyId}\|null}` | 400, 401, 404, 409, 422 |
-| POST | `/api/v1/orders/:orderNo/confirm-payment` | Bearer | `{razorpayOrderId, razorpayPaymentId, signature}` | `{orderNo, status:"confirmed"}` | 400, 401, 402 |
+| GET | `/api/v1/checkout/orders?idempotencyKey=` | Bearer | key (8–80 chars) | order detail for the caller's order created with that key (read-only; recovery after a lost `place-order` response) | 400, 401, 404 |
+| POST | `/api/v1/orders/:orderNo/confirm-payment` | Bearer | `{razorpayOrderId, razorpayPaymentId, signature}` | `{orderNo, status:"confirmed"}` | 400, 401, 402, 409 (`metadata.reason:"LATE_PAYMENT"` — paid after the order expired; recorded, refund under review, do not pay again) |
 | GET | `/api/v1/orders` | Bearer | `?page` | `{orders, total, page, perPage}` | 401 |
 | GET | `/api/v1/orders/:orderNo` | Bearer | — | order detail + `events`; `razorpay` while `pending_payment` | 401, 404 |
 
@@ -48,6 +49,19 @@ order even if the device never calls back.
 A pending order that is not paid is expired by `/api/cron/cleanup-orders`
 (15 min) and its stock released. A device that lost its Razorpay details reads
 them back from `GET /orders/:orderNo`.
+
+## Order recovery and late payment
+
+`place-order` is idempotent on `(customer, idempotencyKey)`. A replay returns the
+existing order with its **current** status (so a later `cancelled` is reported as
+`cancelled`, never `confirmed`) and no Razorpay details; read those from
+`GET /orders/:orderNo` while it is `pending_payment`. A client that does not know
+whether its request landed must first call `GET /checkout/orders?idempotencyKey=`
+(404 = no order for that key) and must not submit under a new key while unsure.
+
+A payment captured after the order was cancelled is recorded, does not revive the
+order, and is flagged for refund review (`KNOWN_ISSUES` ISS-025). `payment.failed`
+never downgrades an already-captured payment.
 
 ## Not in this contract (deferred)
 

@@ -1420,6 +1420,21 @@ failure retries then alerts.
 
 ---
 
+**Update 2026-09-20 — partial (money is no longer silently lost).** A payment that
+Razorpay captures *after* the order was cancelled (typically the 15-minute expiry
+cron) is now recorded explicitly instead of leaving `captured` money against an
+order that looks normal: `settleCapturedPayment` (`lib/services/checkout.ts`)
+marks the payment `captured`, does **not** resurrect the order, writes one order
+event ("Payment received after this order expired. Under review for refund."),
+raises the `late_payment_captured` alert, and the pair *(payment captured, order
+cancelled)* is the refund-required worklist, readable through
+`listCapturedPaymentsOnDeadOrders()`. The client callback answers `409` with
+`metadata.reason = "LATE_PAYMENT"`. **No refund is initiated or claimed.**
+`refund_initiated` / `refunded` remain unreachable (see `lib/order-flow.ts`).
+Still open and the owner's call: refund policy, who authorises, a `Refund` entity,
+an operator screen over the worklist, and whether/when to call `refundPayment`.
+Tests: `lib/services/__tests__/payment-settlement.test.ts`.
+
 ## ISS-026 — No GST invoice generation
 
 | | |
