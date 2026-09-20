@@ -7,10 +7,11 @@ import { resolveCoupon, refusalMessage } from "@/lib/services/coupon-eligibility
 import {
   computeTotals,
   placeOrder as placeOrderService,
-  markOrderPaid,
+  confirmOnlinePayment,
   type CheckoutTotals,
 } from "@/lib/services/checkout";
-import { activeGateway, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
+import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
+import { classifyPlaceOrderError } from "@/lib/checkout-errors";
 import { getOrderByNo } from "@/lib/services/orders";
 import { sendOrderConfirmationEmail } from "@/lib/services/email";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
@@ -162,15 +163,7 @@ export async function placeOrder(input: {
           : null,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not place order";
-    if (msg.startsWith("OUT_OF_STOCK:")) {
-      return fail("OUT_OF_STOCK", `${msg.split(":")[1]} is out of stock`);
-    }
-    if (msg === "PINCODE_UNSERVICEABLE") return fail("PINCODE_UNSERVICEABLE", "This pincode isn't serviceable");
-    if (msg === "COD_UNAVAILABLE") return fail("CONFLICT", "Pay on delivery isn't available here");
-    if (msg === "CART_EMPTY") return fail("CONFLICT", "Your cart is empty");
-    if (msg === "ADDRESS_NOT_FOUND") return fail("NOT_FOUND", "Select a valid delivery address");
-    return fail("PAYMENT_FAILED", "Something went wrong placing your order");
+    return classifyPlaceOrderError<PlaceOrderData>(e);
   }
 }
 
@@ -185,19 +178,14 @@ export async function confirmRazorpayPayment(input: {
   if (!user) return fail("UNAUTHENTICATED", "Please log in");
   const userId = user.id;
 
-  const valid = verifyRazorpaySignature({
+  const res = await confirmOnlinePayment({
+    userId,
+    orderNo: input.orderNo,
     razorpayOrderId: input.razorpayOrderId,
     razorpayPaymentId: input.razorpayPaymentId,
     signature: input.signature,
   });
-  if (!valid) return fail("PAYMENT_FAILED", "Payment could not be verified");
-
-  const res = await markOrderPaid({
-    orderNo: input.orderNo,
-    userId,
-    gatewayPaymentId: input.razorpayPaymentId,
-  });
-  if (!res.ok) return fail("NOT_FOUND", "Order not found");
+  if (!res.ok) return fail("PAYMENT_FAILED", "Payment could not be verified");
   await emailOrderConfirmation(userId, input.orderNo, user.email);
   return succeed({ orderNo: input.orderNo });
 }

@@ -8,7 +8,7 @@ import {
   resolveExpressOption,
   type ExpressOption,
 } from "@/lib/services/express-delivery";
-import { getPaymentProvider, type PaymentMethodId } from "@/lib/services/payments";
+import { getPaymentProvider, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
 import { trackEvent, MetricsTracker, captureException } from "@/lib/observability";
@@ -532,7 +532,14 @@ export async function markOrderPaid(params: {
     }
 
     await db.$transaction(async (tx) => {
-      await tx.order.update({ where: { id: order.id }, data: { status: "confirmed" } });
+      /* Compare-and-set: two concurrent confirmations (callback + webhook, or a
+         retry) both read `pending_payment` above; only one may make the move,
+         and the loser must not write a second status event. */
+      const moved = await tx.order.updateMany({
+        where: { id: order.id, status: "pending_payment" },
+        data: { status: "confirmed" },
+      });
+      if (moved.count === 0) return;
       await tx.payment.updateMany({
         where: { orderId: order.id },
         data: { status: "captured", gatewayPaymentId, signatureVerified: true },
@@ -551,4 +558,49 @@ export async function markOrderPaid(params: {
     metric.end("mark_order_paid_failed");
     return { ok: false };
   }
+}
+
+/**
+ * Confirm an online order from the Razorpay Checkout callback.
+ *
+ * The signature alone is not enough. It proves Razorpay signed
+ * `order_id|payment_id` for *some* order; it says nothing about whether that
+ * order is the one being confirmed. Without binding the two, a customer could
+ * pay for a cheap order, then submit that valid signature against the order
+ * number of an expensive one. So the Razorpay order id in the callback must
+ * equal the one this order's payment row was created with, and the order must
+ * belong to the caller. Both surfaces — the Server Action and the mobile API —
+ * go through here so neither can forget it.
+ *
+ * Every refusal is the same `false`: telling a caller which check failed tells
+ * whoever is guessing which part to fix.
+ */
+export async function confirmOnlinePayment(params: {
+  userId: string;
+  orderNo: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  signature: string;
+}): Promise<{ ok: boolean }> {
+  const { userId, orderNo, razorpayOrderId, razorpayPaymentId, signature } = params;
+
+  if (!verifyRazorpaySignature({ razorpayOrderId, razorpayPaymentId, signature })) {
+    return { ok: false };
+  }
+
+  const payment = await db.payment.findFirst({
+    where: { gatewayOrderId: razorpayOrderId, order: { orderNo, userId } },
+    select: { id: true, order: { select: { status: true } } },
+  });
+  if (!payment) return { ok: false };
+
+  /* An order that was cancelled or refunded (e.g. expired by the cleanup cron)
+     is not paid, however valid the signature. `markOrderPaid` treats every
+     non-pending status as "already done", which is right for a duplicate
+     confirmation and wrong here. */
+  if (["cancelled", "refund_initiated", "refunded"].includes(payment.order.status)) {
+    return { ok: false };
+  }
+
+  return markOrderPaid({ orderNo, userId, gatewayPaymentId: razorpayPaymentId });
 }

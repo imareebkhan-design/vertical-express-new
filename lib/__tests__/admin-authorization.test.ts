@@ -84,6 +84,12 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/health/route.ts",
     "app/api/search/suggest/route.ts",
     "app/api/serviceability/[pincode]/route.ts",
+    /* The public catalogue for the native app: the same reads the storefront
+       serves to a signed-out visitor. Nothing customer-specific, nothing admin. */
+    "app/api/v1/categories/route.ts",
+    "app/api/v1/products/route.ts",
+    "app/api/v1/products/[slug]/route.ts",
+    "app/api/v1/serviceability/[pincode]/route.ts",
   ]);
   const SECRET_OR_SIGNATURE = new Set([
     "app/api/cron/cleanup-orders/route.ts",
@@ -108,6 +114,16 @@ test("no route handler reads admin data without gating itself", () => {
    */
   const CUSTOMER_AUTHENTICATED: Record<string, string> = {
     "app/api/v1/cart/items/route.ts": "lib/api/cart-items.ts",
+    /* Everything else under /api/v1 that acts as a customer goes through
+       `withApiUser`, which is where the token is resolved. */
+    "app/api/v1/cart/route.ts": "lib/api/authed.ts",
+    "app/api/v1/cart/items/[itemId]/route.ts": "lib/api/authed.ts",
+    "app/api/v1/addresses/route.ts": "lib/api/authed.ts",
+    "app/api/v1/checkout/totals/route.ts": "lib/api/authed.ts",
+    "app/api/v1/checkout/orders/route.ts": "lib/api/authed.ts",
+    "app/api/v1/orders/route.ts": "lib/api/authed.ts",
+    "app/api/v1/orders/[orderNo]/route.ts": "lib/api/authed.ts",
+    "app/api/v1/orders/[orderNo]/confirm-payment/route.ts": "lib/api/authed.ts",
   };
 
   const handlers = walk(join(ROOT, "app/api"))
