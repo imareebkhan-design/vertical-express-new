@@ -4,6 +4,7 @@ import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable } from "@/components/admin/ops-table";
 import { StatusChip, type StatusTone } from "@/components/admin/status-chip";
 import { listStockMovements } from "@/lib/services/inventory-movements";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Stock ledger | Operations",
@@ -53,6 +54,9 @@ export default async function AdminStockLedger({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
   const { rows, total, perPage } = await listStockMovements(page);

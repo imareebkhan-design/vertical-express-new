@@ -27,6 +27,19 @@ export interface VerifyPaymentParams {
   signature?: string;
 }
 
+/** A payment the gateway reports as captured against one of its orders. */
+export interface CapturedLookup {
+  gatewayPaymentId: string;
+  amountPaise: number;
+  /**
+   * "authorized": the bank approved it but it is not captured yet — the money
+   * is held, not taken, and will normally be captured automatically. Neither
+   * paid nor unpaid; nothing may be cancelled or settled on it. Absent means
+   * "captured" (the only state the lookup returned before this field existed).
+   */
+  status?: "captured" | "authorized";
+}
+
 export interface PaymentProvider {
   readonly id: string;
   createOrder(params: CreateOrderParams): Promise<CreateOrderResult>;
@@ -34,6 +47,12 @@ export interface PaymentProvider {
   verifyWebhook(rawBody: string, signature: string): boolean;
   refundPayment(paymentId: string, amountPaise: number): Promise<boolean>;
   healthCheck(): Promise<boolean>;
+  /**
+   * The captured payment of a gateway order, or null when none is captured.
+   * Throws when the gateway cannot be asked or its answer cannot be read — a
+   * caller must never treat "could not find out" as "not paid" (ISS-074).
+   */
+  findCapturedPayment(gatewayOrderId: string): Promise<CapturedLookup | null>;
 }
 
 /** Thrown when the payment gateway is misconfigured for the current environment. */
@@ -83,7 +102,7 @@ class DummyPaymentProvider implements PaymentProvider {
     }
     return {
       settled: true,
-      /* Unique per call: `orderId` is the literal "pending" at this point, and a
+      /* Unique per call: `orderId` names an order not yet written, and a
          gateway order id names exactly one payment row (unique in the schema). */
       gatewayOrderId: `dummy_${crypto.randomUUID()}`,
       gatewayPaymentId: `dummy_pay_${Date.now()}`,
@@ -108,6 +127,12 @@ class DummyPaymentProvider implements PaymentProvider {
   async healthCheck(): Promise<boolean> {
     if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
     return true;
+  }
+
+  /** The dummy settles at creation; there is never a capture to find later. */
+  async findCapturedPayment(): Promise<CapturedLookup | null> {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return null;
   }
 }
 
@@ -139,6 +164,11 @@ class CodPaymentProvider implements PaymentProvider {
 
   async healthCheck(): Promise<boolean> {
     return true;
+  }
+
+  /** No gateway: cash is never captured online. */
+  async findCapturedPayment(): Promise<CapturedLookup | null> {
+    return null;
   }
 }
 
@@ -259,6 +289,48 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
       return false;
     }
   }
+
+  /**
+   * Ask Razorpay whether any payment on this order was captured.
+   *
+   * Used by the payment-window expiry before it cancels an order (ISS-074): a
+   * capture whose browser callback was lost and whose webhook has not arrived
+   * yet exists only here. `payment_capture: 1` on order creation means an
+   * authorised payment is captured automatically, so `captured` is the only
+   * state that means the customer's money is taken. An `authorized` payment
+   * (approved, capture pending — including a bank's late authorization) is
+   * returned with `status: "authorized"` so no caller mistakes held money for
+   * no payment. A captured payment wins over an authorized one.
+   *
+   * Any failure throws — the caller must treat "could not find out" as "do not
+   * cancel yet", never as "not paid". The status is carried; the body is not.
+   */
+  async findCapturedPayment(gatewayOrderId: string): Promise<CapturedLookup | null> {
+    const { keyId, keySecret } = this.creds();
+    const res = await fetch(
+      `https://api.razorpay.com/v1/orders/${encodeURIComponent(gatewayOrderId)}/payments`,
+      {
+        headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` },
+        /* The expiry job asks for up to 20 orders per run; one hung request must
+           not stall the rest. An abort is a failed lookup: the order is skipped. */
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
+    const data = (await res.json()) as { items?: { id?: string; status?: string; amount?: number }[] };
+    if (!Array.isArray(data.items)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    const found =
+      data.items.find((p) => p.status === "captured") ?? data.items.find((p) => p.status === "authorized");
+    if (!found) return null;
+    if (typeof found.id !== "string" || !Number.isInteger(found.amount)) {
+      throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    }
+    return {
+      gatewayPaymentId: found.id,
+      amountPaise: found.amount as number,
+      status: found.status === "captured" ? "captured" : "authorized",
+    };
+  }
 }
 
 class RazorpayTestProvider extends RazorpayPaymentProviderBase {
@@ -330,6 +402,14 @@ export function activeGateway(): "dummy" | "razorpay-test" | "razorpay-live" {
     return "razorpay-test";
   }
   if (gateway === "razorpay-live") {
+    /* Live mode on a TEST key would confirm orders against Razorpay's test mode
+       — no money collected (the ISS-002 class). apphosting.yaml carries the
+       staging rzp_test_ key id as a plain value, so a production environment
+       file that switches the gateway but not the key would do exactly this. */
+    const keyId = process.env.RAZORPAY_KEY_ID ?? "";
+    if (keyId && !keyId.startsWith("rzp_live_")) {
+      throw new PaymentConfigError("RAZORPAY_LIVE_WITH_TEST_KEY: razorpay-live requires an rzp_live_ RAZORPAY_KEY_ID.");
+    }
     return "razorpay-live";
   }
   throw new PaymentConfigError(`Invalid PAYMENT_GATEWAY: "${gateway}"`);
@@ -357,6 +437,13 @@ export function assertPaymentConfig(): void {
     }
     if (!process.env.RAZORPAY_WEBHOOK_SECRET) {
       throw new PaymentConfigError("RAZORPAY_WEBHOOK_SECRET is missing in production.");
+    }
+    /* The browser/app is handed NEXT_PUBLIC_RAZORPAY_KEY_ID first (`razorpayKeyId`
+       in lib/api/v1.ts). A leftover staging value there would open checkout under
+       a different account than the server verifies against. */
+    const publicKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    if (publicKeyId && publicKeyId !== process.env.RAZORPAY_KEY_ID) {
+      throw new PaymentConfigError("NEXT_PUBLIC_RAZORPAY_KEY_ID must equal RAZORPAY_KEY_ID in live mode.");
     }
   } else if (gateway === "razorpay-test") {
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {

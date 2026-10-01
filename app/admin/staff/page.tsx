@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable, OpsFilters, OpsStats } from "@/components/admin/ops-table";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Staff & roles | Operations",
@@ -28,7 +29,10 @@ const MATRIX: [string, boolean, boolean, boolean, boolean, boolean][] = [
   ["Manage staff and roles", true, false, false, false, false],
 ];
 
-export default function Page() {
+export default async function Page() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   return (
     <OpsScreen title="Staff & roles" intro="Who can see and change what.">
       <div className="flex flex-col gap-4">

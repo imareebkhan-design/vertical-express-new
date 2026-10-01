@@ -4,10 +4,14 @@ import { ServiceabilityEditor } from "@/components/admin/serviceability-editor";
 import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
 import { StatusChip } from "@/components/admin/status-chip";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminServiceability() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const [{ pincodes, warehouses }, settings, history] = await Promise.all([
     adminListServiceability(),
     readSettings(),

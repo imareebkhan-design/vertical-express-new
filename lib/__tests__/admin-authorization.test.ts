@@ -87,9 +87,24 @@ test("no route handler reads admin data without gating itself", () => {
     /* The public catalogue for the native app: the same reads the storefront
        serves to a signed-out visitor. Nothing customer-specific, nothing admin. */
     "app/api/v1/categories/route.ts",
+    "app/api/v1/brands/route.ts", // stocked catalog brands and aggregate product counts only
     "app/api/v1/products/route.ts",
     "app/api/v1/products/[slug]/route.ts",
     "app/api/v1/serviceability/[pincode]/route.ts",
+    /* Aggregate ranking by order volume and the curated rooms: catalogue
+       reads, no customer identity, nothing per-order. */
+    "app/api/v1/products/popular/route.ts",
+    /* "Closest things we do stock" for a zero-result search — the same
+       catalogue read `closestInStock` already serves the storefront's
+       signed-out `/search` page. */
+    "app/api/v1/search/closest/route.ts",
+    "app/api/v1/rooms/route.ts",
+    /* The category landing the native app opens from a tile. It returns the
+       category, the brands holding published products in it, and an aggregate
+       count of what has been ordered from it — the same catalogue facts the
+       storefront shows a signed-out visitor. No customer identity, no order
+       belonging to anyone. */
+    "app/api/v1/categories/[slug]/route.ts",
   ]);
   const SECRET_OR_SIGNATURE = new Set([
     "app/api/cron/cleanup-orders/route.ts",
@@ -124,6 +139,18 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/v1/orders/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/confirm-payment/route.ts": "lib/api/authed.ts",
+    "app/api/v1/orders/[orderNo]/reorder/route.ts": "lib/api/authed.ts",
+    "app/api/v1/addresses/[id]/route.ts": "lib/api/authed.ts",
+    "app/api/v1/me/route.ts": "lib/api/authed.ts",
+    /* Authenticated because every call spends money on Google's side. */
+    "app/api/v1/location/reverse/route.ts": "lib/api/authed.ts",
+    "app/api/v1/location/places/route.ts": "lib/api/authed.ts",
+    /* A customer's own balance and saved products. */
+    "app/api/v1/wallet/route.ts": "lib/api/authed.ts",
+    "app/api/v1/wishlist/route.ts": "lib/api/authed.ts",
+    "app/api/v1/wishlist/toggle/route.ts": "lib/api/authed.ts",
+    /* Coupon eligibility depends on this customer's own cart and usage history. */
+    "app/api/v1/coupon/validate/route.ts": "lib/api/authed.ts",
   };
 
   const handlers = walk(join(ROOT, "app/api"))

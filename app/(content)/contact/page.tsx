@@ -4,7 +4,8 @@ import { CONTENT } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "Contact us",
-  description: "We are open 8am to 8pm, all days.",
+  /* No hours: the page itself says they are not confirmed yet. */
+  description: "How to reach Vertical Express in Srinagar.",
 };
 
 export default function Page() {

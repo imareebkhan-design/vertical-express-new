@@ -7,20 +7,23 @@ import { motion } from "framer-motion";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
+import { etaShort, orderTotals, paymentLabel } from "@/lib/order-display";
 
 interface MobileConfirmationViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: { speedClass: string }[];
 }
 
-export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
+export function MobileConfirmationView({ order, shipments }: MobileConfirmationViewProps) {
   useEffect(() => {
     // Fire success haptic on load
     triggerHaptic("heavy");
   }, []);
 
   const addr = order.address as unknown as OrderAddressSnapshot;
-  const isCod = order.paymentMethod === "cod";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const totals = orderTotals(order);
 
   return (
     <div className="flex flex-col min-h-screen bg-surface pb-24 overflow-x-hidden">
@@ -46,18 +49,17 @@ export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
             Order <span className="font-extrabold text-ink">{order.orderNo}</span>
           </p>
           <span className="inline-block mt-3 rounded-full bg-brand-deep/10 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wide text-brand-deep leading-none">
-            {isCod ? "Pay on delivery" : "Payment received"}
+            {paymentLabel(payment)}
           </span>
         </div>
 
         {/* ETA & Items Summary boxes */}
         <div className="grid grid-cols-3 gap-3 text-center">
           {[
-            /* "Soon" was the fallback. The guard was right — 0 does not print as a
-               time — but the word is still a commitment, and 0 means an operator
-               set no promise for this pincode. */
-            { icon: Clock, label: "ETA", value: order.etaMinutes ? `~${order.etaMinutes} min` : "Not scheduled yet" },
-            { icon: Wallet, label: "Paid", value: isCod ? "On delivery" : formatPaise(order.totalPaise) },
+            /* The checkout quote belongs to the quick shipment only; a truck
+               shipment has no time to state (etaShort, lib/order-display). */
+            { icon: Clock, label: "ETA", value: etaShort(order, shipments) },
+            { icon: Wallet, label: "Total", value: totals.total },
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             { icon: Package, label: "Items", value: String(order.items.reduce((s: number, i: any) => s + i.qty, 0)) },
           ].map(({ icon: Icon, label, value }) => (
@@ -97,27 +99,18 @@ export function MobileConfirmationView({ order }: MobileConfirmationViewProps) {
           </ul>
 
           <dl className="space-y-1.5 border-t border-mist/10 pt-3 text-xs font-bold text-ink/80">
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Subtotal</dt>
-              <dd>{formatPaise(order.subtotalPaise)}</dd>
-            </div>
-            {order.taxPaise > 0 && (
-              <div className="flex justify-between">
-                <dt className="font-semibold text-ink/50">GST (18% inclusive)</dt>
-                <dd>{formatPaise(order.taxPaise)}</dd>
+            {totals.lines.map((l) => (
+              <div key={l.label} className="flex justify-between">
+                <dt className="font-semibold text-ink/50">{l.label}</dt>
+                <dd className={l.value === "FREE" ? "font-bold text-ink" : ""}>{l.value}</dd>
               </div>
-            )}
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Delivery Charges</dt>
-              <dd className={order.deliveryFeePaise === 0 ? "font-bold text-ink" : ""}>
-                {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
-              </dd>
-            </div>
+            ))}
             <div className="flex justify-between border-t border-mist/10 pt-2.5 text-sm font-extrabold text-ink">
               <dt>Total Amount</dt>
-              <dd className="text-brand-deep">{formatPaise(order.totalPaise)}</dd>
+              <dd className="text-brand-deep">{totals.total}</dd>
             </div>
           </dl>
+          {totals.discountNote && <p className="text-[10px] font-bold text-success">{totals.discountNote}</p>}
         </div>
 
         {/* Address snapshot panel */}

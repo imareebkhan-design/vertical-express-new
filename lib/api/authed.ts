@@ -20,6 +20,8 @@ import { runWithContext } from "@/lib/observability";
  */
 export interface ApiDeps {
   verify?: TokenVerifier;
+  /** Stands in for Google in tests, so no suite needs a key or a network. */
+  geocode?: (lat: number, lng: number) => Promise<import("@/lib/geocode-parse").ParsedGeocode>;
 }
 
 export interface ApiCtx {

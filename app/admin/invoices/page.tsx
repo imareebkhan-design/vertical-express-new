@@ -1,13 +1,17 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable, OpsFilters, OpsStats } from "@/components/admin/ops-table";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Invoices | Operations",
   robots: { index: false },
 };
 
-export default function Page() {
+export default async function Page() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   return (
     <OpsScreen title="Invoices" intro="Tax invoices issued against orders.">
       <div className="flex flex-col gap-4">

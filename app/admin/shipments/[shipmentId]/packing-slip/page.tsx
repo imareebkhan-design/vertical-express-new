@@ -4,6 +4,8 @@ import Link from "next/link";
 import { getPackingSlip } from "@/lib/services/shipments";
 import { Logo } from "@/components/ui/logo";
 import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
+import { hasCustomerPin, navigationUrlFor } from "@/lib/delivery-navigation";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Packing slip | Operations",
@@ -35,11 +37,19 @@ export default async function PackingSlipPage({
 }: {
   params: Promise<{ shipmentId: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const { shipmentId } = await params;
   const slip = await getPackingSlip(shipmentId);
   if (!slip) notFound();
 
   const addr = slip.address;
+  /* The approved Delivery & POD artboard gives the driver a Navigate action.
+     It goes to the customer's confirmed pin when there is one, and to the
+     written address otherwise — see lib/delivery-navigation.ts. */
+  const navigationUrl = navigationUrlFor(addr);
+  const hasPin = hasCustomerPin(addr);
 
   return (
     <div className="min-h-screen bg-neutral-100 px-4 py-8 font-sans print:bg-white print:p-0">
@@ -95,7 +105,24 @@ export default async function PackingSlipPage({
                 <br />
                 <span className="tabular-nums">{addr.phone}</span>
               </address>
-            ) : (
+            ) : null}
+            {addr?.accessNote ? (
+              /* What the customer told us about reaching the gate. It is the
+                 difference between a truck that can unload and one that turns
+                 around, so it prints with the address rather than nowhere. */
+              <p className="mt-2 text-[12px] font-medium leading-[17px] text-ink">
+                <span className="font-bold">Access:</span> {addr.accessNote}
+              </p>
+            ) : null}
+            {navigationUrl ? (
+              <p className="mt-2 text-[11px] font-medium leading-[15px] text-neutral-600 print:hidden">
+                <a href={navigationUrl} target="_blank" rel="noreferrer" className="underline">
+                  Navigate
+                </a>
+                {hasPin ? " — the customer's own dropped pin" : " — from the written address"}
+              </p>
+            ) : null}
+            {addr ? null : (
               <p className="mt-1.5 text-[13px] font-medium text-neutral-500">
                 No address recorded on this order.
               </p>

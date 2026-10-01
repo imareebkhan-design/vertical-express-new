@@ -37,10 +37,8 @@ export function PdpPromises({
       </p>
       <Row
         icon={<ShieldCheck className="size-[18px]" strokeWidth={1.7} aria-hidden />}
-        title="Batch verified before dispatch"
+        title="Batch codes"
       >
-        Every bag is photographed before loading with its batch number and packing date
-        readable.{" "}
         <PlaceholderValue pending="the Batch model is not built, so no code is recorded yet">
           Batch codes are not yet recorded against orders.
         </PlaceholderValue>
@@ -50,15 +48,17 @@ export function PdpPromises({
 
       <Row
         icon={<CalendarDays className="size-[18px]" strokeWidth={1.7} aria-hidden />}
-        title={speed === "scheduled" ? "Delivered on a slot you choose" : "Out from the Srinagar store"}
+        title={speed === "scheduled" ? "Delivered by truck, to your gate" : "Out from the Srinagar store"}
       >
         {speed === "scheduled" ? (
           <>
             Heavy material travels by truck and is unloaded at the gate. Tell us about
             stairs or a narrow lane in your site&rsquo;s access note — it is the line the
             driver reads before setting off.{" "}
+            {/* The heading used to read "Delivered on a slot you choose" over
+                this line — a choice the customer does not have (no Slot model). */}
             <PlaceholderValue pending="slot selection is not built; windows unconfirmed by ops">
-              Slot windows are being finalised.
+              No delivery time is set for truck loads yet.
             </PlaceholderValue>
           </>
         ) : (

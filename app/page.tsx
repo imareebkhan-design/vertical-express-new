@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getDeals, listProducts, listCategories } from "@/lib/services/catalog";
+import { getDeals, listProducts, listCategories, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
 import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 
 export const revalidate = 300;
@@ -12,11 +12,27 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [deals, popularResult, newestResult, categories] = await Promise.all([
+  const [deals, popular, newestResult, categories, rooms] = await Promise.all([
     getDeals(8),
-    listProducts({ sort: "popular", perPage: 12 }),
+    /* Real order volume from the last 7 days, not the catalogue's "popular"
+       sort — that sort orders by `ratingCount` (see catalog.ts), a column
+       nothing writes, so it silently fell back to newest-first. A section
+       headed "Popular in Srinagar this week" was therefore never actually
+       popular; it was decoration. `mostOrderedRecently` is the same evidence
+       source the native app already uses, and it returns nothing rather than
+       a guess when there is no real order history yet — the section below is
+       already conditioned on that. */
+    mostOrderedRecently(7, 12),
     listProducts({ sort: "newest", perPage: 8 }),
     listCategories(),
+    /* Real curated rooms, or []. "Shop by room" previously rendered four
+       hardcoded tiles regardless — three of the four (Bathroom, Living room,
+       Bedroom) linked to a text search that returns zero products every
+       single time against the seeded catalogue, a guaranteed-fail CTA
+       disguised as a working feature. Passed through as data now, so the
+       component can do what the mobile app already correctly does with the
+       same empty table: render nothing until a room is actually curated. */
+    listRooms(),
   ]);
 
   /* The category tiles advertise how much is in each one. They used to carry
@@ -28,10 +44,11 @@ export default async function Home() {
   return (
     <HomeSwitcher
       deals={deals}
-      featured={popularResult.items}
+      featured={popular}
       newArrivals={newestResult.items}
       categories={categories}
       categoryCounts={categoryCounts}
+      rooms={rooms}
     />
   );
 }

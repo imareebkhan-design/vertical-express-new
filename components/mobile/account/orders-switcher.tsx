@@ -12,6 +12,7 @@ import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { EmptyState } from "@/components/shop/empty-state";
 import { PageLoader } from "@/components/page-loader";
 import { formatPaise } from "@/lib/money";
+import { itemCountLabel } from "@/lib/order-display";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
@@ -49,7 +50,7 @@ export function OrdersSwitcher({ orders, page, pages }: OrdersSwitcherProps) {
             {orders.length === 0 ? (
               <EmptyState
                 title="No orders yet"
-                caption="When you place an order it'll show up here with live tracking."
+                caption="When you place an order it'll show up here with its status."
                 actionLabel="Start shopping"
                 actionHref="/categories"
               />
@@ -79,8 +80,7 @@ export function OrdersSwitcher({ orders, page, pages }: OrdersSwitcherProps) {
                         </div>
                         <p className="mt-0.5 text-xs font-semibold text-neutral-500">
                           {new Date(o.placedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} ·{" "}
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {o.items.reduce((s: number, i: any) => s + i.qty, 0)} items · {formatPaise(o.totalPaise)}
+                          {itemCountLabel(o.items)} · {formatPaise(o.totalPaise)}
                         </p>
                       </div>
                       <ChevronRight className="size-5 shrink-0 text-neutral-300" />

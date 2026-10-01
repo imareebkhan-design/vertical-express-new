@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { OrdersSwitcher } from "@/components/mobile/account/orders-switcher";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import { listOrders } from "@/lib/services/orders";
+import { withPlainGstRate } from "@/lib/order-display";
 
 export const metadata: Metadata = {
   title: "My Orders",
@@ -23,6 +24,6 @@ export default async function OrdersPage({
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   return (
-    <OrdersSwitcher orders={orders} page={page} pages={pages} />
+    <OrdersSwitcher orders={orders.map(withPlainGstRate)} page={page} pages={pages} />
   );
 }

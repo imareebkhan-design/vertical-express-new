@@ -1,11 +1,13 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useTransition } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { WifiOff, MapPin, Loader2, Navigation, AlertCircle } from "lucide-react";
 import { getNetworkStatus } from "@/lib/native/network";
 import { getCurrentCoordinates } from "@/lib/native/geolocation";
 import { triggerHaptic } from "@/lib/native/haptics";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
+import { canUseMyLocation, lookUpMyPincode } from "@/actions/location";
 import { OnboardingFlow } from "@/components/mobile/auth/onboarding-flow";
 import { BiometricLock } from "@/components/mobile/auth/biometric-lock";
 import { BottomSheetLayout } from "@/components/mobile/bottom-sheet-layout";
@@ -16,13 +18,17 @@ interface NativeShellContextType {
   isNative: boolean;
   pincode: string;
   cityName: string;
+  /** A pincode this visitor actually confirmed (this session or a saved one) —
+   *  never true for the unconfirmed default, on web or native. */
+  hasChosenLocation: boolean;
   openLocationModal: () => void;
 }
 
 const NativeShellContext = createContext<NativeShellContextType>({
   isNative: false,
-  pincode: "190001",
-  cityName: "Srinagar",
+  pincode: "",
+  cityName: "",
+  hasChosenLocation: false,
   openLocationModal: () => {},
 });
 
@@ -39,13 +45,25 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
 
-  // Pincode and location state
-  const [pincode, setPincode] = useState("190001");
-  const [cityName, setCityName] = useState("Srinagar");
+  /* The delivery location is the storefront's one store (useDeliveryPincode),
+     not a second copy held here. This provider used to keep its own state over
+     the same localStorage keys, so a pincode confirmed in the desktop navbar
+     did not reach phone-web in the same tab until a reload (W-26), and its
+     unchosen state was a "190001 · Srinagar" placeholder. Unchosen is now
+     empty, and only a server-confirmed pincode is ever stored. */
+  const delivery = useDeliveryPincode();
+  const pincode = delivery.pincode ?? "";
+  const cityName = delivery.city ?? "";
+  const hasChosenLocation = delivery.hasChosen;
   const [isLocationOpen, setIsLocationOpen] = useState(false);
   const [pincodeInput, setPincodeInput] = useState("");
   const [locError, setLocError] = useState<string | null>(null);
-  const [isCheckingSvc, startCheckingSvc] = useTransition();
+  /** Non-error guidance, e.g. the pincode a location lookup found. */
+  const [locNote, setLocNote] = useState<string | null>(null);
+  /** The store's own error is shown only for a submit made from this sheet. */
+  const [showStoreError, setShowStoreError] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
+  const isBusy = delivery.checking || isLocating;
 
   // Detect native shell and load settings from local storage
   useEffect(() => {
@@ -66,13 +84,9 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
       // Check biometrics lock state
       const bioEnabled = localStorage.getItem("ve_biometric_enabled") === "true";
       setIsUnlocked(!bioEnabled);
-
-      // Load saved delivery location
-      const savedPincode = localStorage.getItem("ve_pincode");
-      const savedCity = localStorage.getItem("ve_city");
-      if (savedPincode) setPincode(savedPincode);
-      if (savedCity) setCityName(savedCity);
     }
+    // A previously confirmed location is restored by useDeliveryPincode itself,
+    // on web and native alike.
   }, []);
 
   // Listen to Native Platform events (Deep Links, Push, App Lifecycle)
@@ -163,69 +177,87 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
     triggerHaptic("light");
     setPincodeInput(pincode);
     setLocError(null);
+    setLocNote(null);
+    setShowStoreError(false);
     setIsLocationOpen(true);
   };
 
-  const handlePincodeSubmit = (e: React.FormEvent) => {
+  const handlePincodeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocError(null);
+    setLocNote(null);
 
     const cleanPin = pincodeInput.replace(/\D/g, "");
     if (cleanPin.length !== 6) {
+      setShowStoreError(false);
       setLocError("Please enter a valid 6-digit pincode.");
       triggerHaptic("heavy");
       return;
     }
 
     triggerHaptic("medium");
-
-    startCheckingSvc(async () => {
-      try {
-        const res = await fetch(`/api/serviceability/${cleanPin}`);
-        if (!res.ok) {
-          throw new Error("Could not verify serviceability.");
-        }
-        const data = await res.json();
-        if (data.serviceable) {
-          setPincode(cleanPin);
-          // Seed database resolves all serviceable items to Srinagar
-          const city = "Srinagar";
-          setCityName(city);
-          localStorage.setItem("ve_pincode", cleanPin);
-          localStorage.setItem("ve_city", city);
-          setIsLocationOpen(false);
-          triggerHaptic("light");
-        } else {
-          setLocError("We do not deliver here yet. Try central Srinagar (190001 - 190015).");
-          triggerHaptic("heavy");
-        }
-      } catch {
-        setLocError("Network error check. Please try again.");
-      }
-    });
+    /* The store checks ServiceablePincode and stores the pincode only if we
+       deliver there. Its refusal names no range of pincodes: a hardcoded
+       "190001 – 190015" went stale the moment the table changed (W-22). */
+    setShowStoreError(true);
+    if (await delivery.confirm(cleanPin)) {
+      setIsLocationOpen(false);
+      triggerHaptic("light");
+    } else {
+      triggerHaptic("heavy");
+    }
   };
 
+  /**
+   * GPS → pincode through the server, the same lookup the native app uses
+   * (`lookUpLocation`, via `actions/location.ts`). It needs a signed-in
+   * customer, because each lookup is billed; that is asked first, so an
+   * anonymous visitor is not shown a permission prompt that cannot help them.
+   *
+   * The found pincode is put in the field for the customer to confirm, not
+   * saved: it goes through the same serviceability check as a typed one. No
+   * pincode is ever guessed from coordinates — an earlier version assumed
+   * "close to Srinagar's centre → 190001", which quotes a wrong promise.
+   * Every failure leaves the typed path open.
+   */
   const handleUseCurrentLocation = async () => {
     setLocError(null);
+    setLocNote(null);
+    setShowStoreError(false);
     triggerHaptic("medium");
-    const coords = await getCurrentCoordinates();
+    setIsLocating(true);
+    try {
+      if (!(await canUseMyLocation())) {
+        setLocError("Sign in to use your location, or type your pincode.");
+        return;
+      }
 
-    if (!coords) {
-      setLocError("Location permissions denied or unavailable. Please type your pincode.");
-      triggerHaptic("heavy");
-      return;
-    }
+      const coords = await getCurrentCoordinates();
+      if (!coords) {
+        setLocError("Location permission denied or unavailable. Please type your pincode.");
+        triggerHaptic("heavy");
+        return;
+      }
 
-    // Mock reverse lookup: if close to Srinagar coordinates (lat ~34.08, lon ~74.80), set to 190001
-    const latDiff = Math.abs(coords.latitude - 34.08);
-    const lonDiff = Math.abs(coords.longitude - 74.80);
+      const res = await lookUpMyPincode(coords.latitude, coords.longitude);
+      if (!res.ok) {
+        setLocError(res.error.message);
+        triggerHaptic("heavy");
+        return;
+      }
 
-    if (latDiff < 0.2 && lonDiff < 0.2) {
-      setPincodeInput("190001");
-      setLocError(null);
-    } else {
-      setLocError("Your location is outside our service area (Srinagar).");
-      triggerHaptic("heavy");
+      const { pincode: found, locality, serviceable } = res.data;
+      setPincodeInput(found);
+      const place = locality ? `${locality}, ${found}` : found;
+      if (serviceable) {
+        setLocNote(`You're in ${place}. Confirm it to deliver here.`);
+      } else {
+        setLocError(`You're in ${place}. We don't deliver there yet.`);
+      }
+    } catch {
+      setLocError("Couldn't look up your location. Please type your pincode.");
+    } finally {
+      setIsLocating(false);
     }
   };
 
@@ -296,7 +328,7 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
       >
         <form onSubmit={handlePincodeSubmit} className="space-y-4">
           <p className="text-xs text-ink/60">
-            Enter your 6-digit site pincode to check instant delivery availability.
+            Enter your 6-digit site pincode to check whether we deliver there.
           </p>
 
           <div className="flex items-center rounded-2xl border border-mist/40 bg-surface px-4 py-3 focus-within:border-brand-deep">
@@ -308,15 +340,21 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
               onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
               placeholder="e.g. 190001"
               className="w-full bg-transparent text-sm font-bold text-ink outline-none placeholder:text-ink/30"
-              disabled={isCheckingSvc}
+              disabled={isBusy}
               autoFocus
             />
           </div>
 
-          {locError && (
-            <div className="flex items-start gap-1.5 text-xs font-semibold text-danger">
+          {(locError ?? (showStoreError ? delivery.error : null)) && (
+            <div role="alert" className="flex items-start gap-1.5 text-xs font-semibold text-danger">
               <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
-              <span>{locError}</span>
+              <span>{locError ?? delivery.error}</span>
+            </div>
+          )}
+          {locNote && !locError && (
+            <div role="status" className="flex items-start gap-1.5 text-xs font-semibold text-ink/70">
+              <MapPin className="size-3.5 mt-0.5 shrink-0 text-brand-deep" />
+              <span>{locNote}</span>
             </div>
           )}
 
@@ -324,18 +362,22 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={handleUseCurrentLocation}
-              disabled={isCheckingSvc}
+              disabled={isBusy}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-mist/30 bg-surface px-4 py-3.5 text-xs font-bold text-ink shadow-xs active:scale-95 disabled:opacity-50"
             >
-              <Navigation className="size-3.5 text-brand-deep" />
+              {isLocating ? (
+                <Loader2 className="size-3.5 animate-spin text-brand-deep" />
+              ) : (
+                <Navigation className="size-3.5 text-brand-deep" />
+              )}
               GPS Pin
             </button>
             <button
               type="submit"
-              disabled={isCheckingSvc || pincodeInput.length !== 6}
+              disabled={isBusy || pincodeInput.length !== 6}
               className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-brand-deep px-4 py-3.5 text-xs font-bold text-white shadow-md active:scale-95 disabled:opacity-50"
             >
-              {isCheckingSvc ? (
+              {delivery.checking ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
                 "Confirm Pincode"
@@ -348,7 +390,7 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
 
   // 4. Render Main Native Shell Wrapper
   return (
-    <NativeShellContext.Provider value={{ isNative, pincode, cityName, openLocationModal }}>
+    <NativeShellContext.Provider value={{ isNative, pincode, cityName, hasChosenLocation, openLocationModal }}>
       {isNative ? (
         <div className="flex flex-col min-h-screen bg-surface">
           <main className={`flex-1 w-full ${isPrimaryTab ? "pb-24" : "pb-6"}`}>

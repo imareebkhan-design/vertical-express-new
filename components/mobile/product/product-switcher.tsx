@@ -149,7 +149,7 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
         />
 
             <div className="mt-6">
-              <PincodeCheck defaultPincode="190001" />
+              <PincodeCheck speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
             </div>
 
             {product.description && (

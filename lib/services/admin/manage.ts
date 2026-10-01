@@ -4,8 +4,10 @@ import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/clien
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { releaseOrderInventory } from "@/lib/services/orders";
+import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
 import { canTransitionOrder } from "@/lib/order-flow";
+import { triggerAlert } from "@/lib/observability";
 
 /* The map moved to lib/order-flow.ts so the three other paths that write an
    order status can share it instead of each restating the rule. Re-exported
@@ -23,6 +25,10 @@ export async function adminListOrders(page = 1, perPage = 20, status?: OrderStat
       take: perPage,
       include: {
         items: { select: { id: true } },
+        /* The artboard's Shipments column: an order that splits is two
+           vehicles on two schedules, and a row that hides that reads as one
+           job. Status and class only — no promised time exists. */
+        shipments: { select: { status: true, speedClass: true }, orderBy: { sequence: "asc" } },
         payments: { select: { status: true, gateway: true }, orderBy: { createdAt: "desc" }, take: 1 },
       },
     }),
@@ -36,24 +42,52 @@ export async function advanceOrderStatus(
   orderId: string,
   to: OrderStatus
 ) {
-  const order = await db.order.findUnique({ where: { id: orderId } });
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    include: { payments: { select: { status: true } } },
+  });
   if (!order) throw new Error("NOT_FOUND");
   if (!canTransitionOrder(order.status, to)) throw new Error("INVALID_TRANSITION");
 
+  /* Money recorded or held against the order — any attempt, whatever the
+     method label says (the same test as a customer cancel, orders.ts). */
+  const funded = order.payments.some((p) => p.status === "captured" || p.status === "authorized");
+  /* An online order is confirmed by its payment, never by hand: confirming an
+     unpaid one would dispatch goods nobody paid for (architecture principle 7,
+     payment-provider-authoritative). Cash on delivery has no payment yet. */
+  if (order.status === "pending_payment" && to === "confirmed" && order.paymentMethod !== "cod" && !funded) {
+    throw new Error("PAYMENT_REQUIRED");
+  }
+  /* Cancelling a paid order is allowed — operations may have to — but nothing
+     refunds it (ISS-025), so it must not happen quietly. */
+  const refundRequired = to === "cancelled" && funded;
+
   await db.$transaction(async (tx) => {
-    await tx.order.update({
-      where: { id: orderId },
+    /* Compare-and-set on the status read above. A webhook confirming payment,
+       the expiry cron, a customer cancel or a second admin click can all move
+       the order in between; the loser changes nothing — in particular it does
+       not release stock a second time. */
+    const moved = await tx.order.updateMany({
+      where: { id: orderId, status: order.status },
       data: {
         status: to,
         ...(to === "delivered" ? { deliveredAt: new Date() } : {}),
       },
     });
+    if (moved.count !== 1) throw new Error("STATUS_CHANGED");
     await tx.orderStatusEvent.create({
-      data: { orderId, fromStatus: order.status, toStatus: to, actorUserId, note: "Admin update" },
+      data: {
+        orderId,
+        fromStatus: order.status,
+        toStatus: to,
+        actorUserId,
+        note: refundRequired ? "Admin update — cancelled with a captured payment: refund required" : "Admin update",
+      },
     });
     // Restock on admin cancellation.
     if (to === "cancelled") {
       await releaseOrderInventory(tx, orderId, order.warehouseId);
+      await releaseCouponRedemption(tx, orderId);
       // Stock moved. Recorded separately from the status change because it is a
       // different kind of loss to investigate.
       await recordAudit(tx, {
@@ -77,6 +111,15 @@ export async function advanceOrderStatus(
       after: { status: to },
     });
   });
+
+  if (refundRequired) {
+    /* The same alert a late capture raises; the order is now on
+       listCapturedPaymentsOnDeadOrders, the manual refund worklist. */
+    triggerAlert("paid_order_cancelled", "An admin cancelled an order with a captured payment — refund required", {
+      orderNo: order.orderNo,
+      totalPaise: order.totalPaise,
+    });
+  }
 
   if (to === "delivered") {
     await creditCashbackForOrder({

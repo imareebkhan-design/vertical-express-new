@@ -53,10 +53,16 @@ test("the checkout step still marks slots as unbuilt rather than offering them",
   /* The other end of the same claim. If this ever renders a real slot picker,
      the button may say so again — and this test should be the thing that
      changes. */
-  const checkout = readFileSync(join(ROOT, "components/shop/checkout-view.tsx"), "utf8");
+  /* The step moved into a shared component (Batch 3B, W-B1-G1) so the phone
+     checkout shows it too; both checkouts must render it, and it must still
+     declare itself unbuilt. */
+  const review = readFileSync(join(ROOT, "components/shop/checkout/shipment-review.tsx"), "utf8");
   assert.match(
-    checkout,
+    review,
     /PlaceholderValue pending="slot booking is not built/,
     "the checkout slot step no longer declares itself unbuilt"
   );
+  for (const view of ["components/shop/checkout-view.tsx", "components/mobile/checkout/mobile-checkout-view.tsx"]) {
+    assert.match(rendered(view), /<ShipmentReview /, `${view} no longer renders the shipment step`);
+  }
 });

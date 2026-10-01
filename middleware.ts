@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE } from "@/lib/auth/session-cookie";
+import { REQUESTED_PATH_HEADER, SESSION_COOKIE } from "@/lib/auth/session-cookie";
 
 /**
  * Route protection and the request-id header.
@@ -26,6 +26,9 @@ export function middleware(request: NextRequest) {
   requestHeaders.set("x-request-id", requestId);
 
   const { pathname } = request.nextUrl;
+  /* For the protected layouts' early redirect (lib/auth/early-sign-in.ts), which
+     cannot read its own URL. Always overwritten, never taken from the client. */
+  requestHeaders.set(REQUESTED_PATH_HEADER, pathname + request.nextUrl.search);
   if (PROTECTED.some((p) => p.test(pathname)) && !request.cookies.get(SESSION_COOKIE)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

@@ -50,6 +50,9 @@ export const STATUS_FOR_CODE: Record<ActionErrorCode, number> = {
   PAYMENT_FAILED: 402,
   RATE_LIMITED: 429,
   CONFLICT: 409,
+  /* 503: a dependency we do not control (the geocoder) could not answer. The
+     request may succeed unchanged later, and the caller has a manual path. */
+  UNAVAILABLE: 503,
 };
 
 /** A successful response. 200 unless the caller says otherwise. */

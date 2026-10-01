@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { getPickList } from "@/lib/services/shipments";
 
@@ -18,6 +19,7 @@ import { getPickList } from "@/lib/services/shipments";
 
 let seq = 0;
 const uniq = () => `zzz-pick-${Date.now()}-${seq++}`;
+const scratchUsers: string[] = [];
 
 async function scratchOrderWithShipment(opts: {
   status: "pending" | "packed";
@@ -26,7 +28,12 @@ async function scratchOrderWithShipment(opts: {
   qty: number;
   title: string;
 }) {
-  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+  /* The order's customer is the test's own. The seed creates no users, so
+     borrowing "whichever user exists" passed only on a database with
+     leftovers. No phone or email: both are unique, and a colliding fixture is
+     not deterministic. */
+  const user = await db.user.create({ data: { id: randomUUID() }, select: { id: true } });
+  scratchUsers.push(user.id);
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
 
   const order = await db.order.create({
@@ -79,6 +86,8 @@ async function scratchVariant(title: string) {
 async function cleanup() {
   await db.order.deleteMany({ where: { orderNo: { startsWith: "zzz-pick-" } } });
   await db.product.deleteMany({ where: { slug: { startsWith: "zzz-pick-" } } });
+  /* After the orders: an order holds its user (no cascade). */
+  await db.user.deleteMany({ where: { id: { in: scratchUsers.splice(0) } } });
 }
 
 test("the same item across shipments is one line, not four trips", async (t) => {

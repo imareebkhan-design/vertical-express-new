@@ -27,18 +27,21 @@ import { triggerHaptic } from "@/lib/native/haptics";
 const HELPERS = [
   {
     href: "/category/painting",
+    category: "Painting",
     title: "Paint for a room",
     note: "Walls + ceiling, 2 coats",
     Icon: PaintBucket,
   },
   {
     href: "/category/tiling",
+    category: "Tiling",
     title: "Tiles for a floor",
     note: "Boxes, with 10% wastage",
     Icon: Layers,
   },
   {
     href: "/category/cement",
+    category: "Cement",
     title: "Cement for plaster",
     note: null,
     Icon: Package,
@@ -56,16 +59,19 @@ export function QuantityHelpers() {
           How much do I need?
         </h2>
         <p className="mt-[3px] text-[12px] font-semibold text-ink-500">
-          Rough quantities from a room size. Not a quote.
+          {/* "Rough quantities from a room size" described a calculator that
+              does not exist (W-20); the cards open the material. The app's words. */}
+          Quantity estimates are coming. Start with the material.
         </p>
       </div>
 
       {/* Horizontal scroller — the artboard shows the third card clipped. */}
       <div className="mt-[11px] flex gap-[9px] overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {HELPERS.map(({ href, title, note, Icon }) => (
+        {HELPERS.map(({ href, category, title, note, Icon }) => (
           <Link
             key={href}
             href={href}
+            aria-label={`${title}. Opens ${category}.`}
             onClick={() => triggerHaptic("light")}
             className="flex w-[150px] flex-none flex-col gap-[9px] rounded-[20px] bg-amber-soft p-[13px] active:opacity-90"
           >

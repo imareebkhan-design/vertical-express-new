@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable, OpsFilters } from "@/components/admin/ops-table";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Suppliers | Operations",
@@ -15,7 +16,10 @@ export const metadata: Metadata = {
  * schema has the first and none of the second, which is why stock cannot be
  * valued and margin cannot be computed (ISS-062).
  */
-export default function AdminSuppliers() {
+export default async function AdminSuppliers() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   return (
     <OpsScreen
       title="Suppliers"
@@ -31,7 +35,7 @@ export default function AdminSuppliers() {
         <OpsFilters filters={["All", "Active", "Late", "Onboarding"]} active="All" disabled />
 
         <OpsTable
-          columns={["Supplier", "Category", "Location", "Contact", "GSTIN", "Lead time", "On-time", "Outstanding", "Status\","]}
+          columns={["Supplier", "Category", "Location", "Contact", "GSTIN", "Lead time", "On-time", "Outstanding", "Status"]}
           rows={[]}
           emptyTitle="No suppliers are recorded."
           emptyNote="Lead time and on-time percentage are the two columns that earn this screen: in a season where cement arrives late, knowing which supplier is reliably late is what stops a site standing idle."

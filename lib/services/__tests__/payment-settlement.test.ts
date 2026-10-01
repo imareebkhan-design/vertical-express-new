@@ -243,7 +243,14 @@ test("race: expiry and payment at once never lose the money or contradict themse
   for (let i = 0; i < 4; i++) {
     const o = await makeOrder({ old: true });
     const p = pid();
-    const [, res] = await Promise.all([cleanupExpiredPendingOrders(15), confirm(TOKEN_A, o.orderNo, o.gw, p)]);
+    /* The race: the expiry asked Razorpay and heard "nothing captured yet",
+       and the customer's payment lands at the same moment. (Without an answer
+       from Razorpay the expiry no longer cancels a Razorpay order at all, so
+       the lookup's answer is part of the scenario, not a shortcut.) */
+    const [, res] = await Promise.all([
+      cleanupExpiredPendingOrders(15, { findCaptured: async () => null }),
+      confirm(TOKEN_A, o.orderNo, o.gw, p),
+    ]);
     const row = await state(o);
     assert.equal(row.payments[0].status, "captured", "captured money must always be recorded");
     if (row.status === "confirmed") {

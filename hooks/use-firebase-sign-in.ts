@@ -11,6 +11,8 @@ import {
   type UserCredential,
 } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { signInErrorMessage } from "@/lib/auth/sign-in-errors";
+import { announceAuthChanged } from "@/lib/auth/auth-events";
 
 /**
  * Every way into the application, in one place.
@@ -52,29 +54,23 @@ export function useFirebaseSignIn(next: string) {
     return recaptchaRef.current;
   }, []);
 
-  const readable = (e: unknown) => {
-    const code = (e as { code?: string })?.code ?? "";
-    if (code.includes("invalid-phone-number")) return "That phone number doesn't look right.";
-    if (code.includes("invalid-verification-code")) return "That code isn't correct.";
-    if (code.includes("code-expired")) return "That code has expired — request a new one.";
-    if (code.includes("too-many-requests")) return "Too many attempts. Try again in a few minutes.";
-    if (code.includes("popup-closed")) return "Sign-in was cancelled.";
-    /* Configuration, not user error — but the customer is the one looking at
-       it. Firebase matches window.location.hostname against the authorized
-       domain list exactly, so serving on a host that is not on the list (a new
-       subdomain, a preview URL, www vs the apex) breaks every sign-in with this
-       code. See ISS-050. */
-    if (code.includes("unauthorized-domain"))
-      return "Sign-in isn't available on this address yet. Please contact support.";
-    /* Second-factor SMS is enabled on the project. Nobody is enrolled today, so
-       this is unreachable — but if anyone ever enrols, an unhandled code here
-       would surface as a raw Firebase string. Completing the challenge needs
-       getMultiFactorResolver and a second OTP screen, which is not built. */
-    if (code.includes("multi-factor-auth-required"))
-      return "This account needs a second verification step, which isn't supported here yet.";
-    if (code.includes("network-request-failed"))
-      return "We couldn't reach the network. Check your connection and try again.";
-    return e instanceof Error ? e.message : "Something went wrong. Please try again.";
+  /**
+   * After a failed send the widget's token is spent, and reusing it makes
+   * every retry fail with `auth/invalid-app-credential` — the reset Firebase's
+   * docs call for after a `signInWithPhoneNumber` error. The instance itself is
+   * kept (see above); only its challenge is renewed. If the widget cannot be
+   * reset, it is discarded and the next send builds a fresh one.
+   */
+  const resetVerifier = async () => {
+    const v = recaptchaRef.current;
+    if (!v) return;
+    try {
+      const widgetId = await v.render();
+      (window as unknown as { grecaptcha?: { reset: (id: number) => void } }).grecaptcha?.reset(widgetId);
+    } catch {
+      v.clear();
+      recaptchaRef.current = null;
+    }
   };
 
   /** Trades the Firebase credential for the server session, then continues. */
@@ -86,6 +82,8 @@ export function useFirebaseSignIn(next: string) {
       body: JSON.stringify({ idToken }),
     });
     if (!res.ok) throw new Error("Could not start your session. Please try again.");
+    /* The guest cart has just been merged into the account's (E8): re-fetch it. */
+    announceAuthChanged();
     router.push(next);
     router.refresh();
   };
@@ -106,7 +104,7 @@ export function useFirebaseSignIn(next: string) {
       await work();
       if (clearBusyOnSuccess) setBusy(false);
     } catch (e) {
-      setError(readable(e));
+      setError(signInErrorMessage(e));
       setBusy(false);
     }
   };
@@ -124,7 +122,12 @@ export function useFirebaseSignIn(next: string) {
     },
     sendCode: (phone: string) =>
       run(async () => {
-        setConfirmation(await signInWithPhoneNumber(firebaseAuth(), toE164(phone), verifier()));
+        try {
+          setConfirmation(await signInWithPhoneNumber(firebaseAuth(), toE164(phone), verifier()));
+        } catch (e) {
+          await resetVerifier();
+          throw e;
+        }
       }, true),
     verifyCode: (code: string) =>
       run(async () => {

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, ChevronRight, Package, Calendar } from "lucide-react";
 import { formatPaise } from "@/lib/money";
+import { itemCountLabel } from "@/lib/order-display";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { cn } from "@/lib/utils";
@@ -165,8 +166,7 @@ export function MobileOrdersView({ initialOrders, initialPage, totalPages }: Mob
                       </span>
                     </div>
                     <div className="flex items-center gap-1.5 font-bold text-ink">
-                      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                      <span>{order.items.reduce((s: number, i: any) => s + i.qty, 0)} items</span>
+                      <span>{itemCountLabel(order.items)}</span>
                       <span className="size-1 rounded-full bg-mist/30" />
                       <span className="text-brand-deep">{formatPaise(order.totalPaise)}</span>
                       <ChevronRight className="size-4 text-ink/30 ml-0.5" />

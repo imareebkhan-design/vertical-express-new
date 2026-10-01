@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { Coupon } from "@/prisma/generated/client/client";
 import type { DbClient } from "@/lib/services/audit";
+import { refusalMessage, type CouponRefusal } from "@/lib/coupon-refusal";
 
 /**
  * Whether a coupon may be used, and by whom.
@@ -32,12 +33,7 @@ import type { DbClient } from "@/lib/services/audit";
  * schema change and it is written down rather than pretended away. The window
  * is small and the overshoot is bounded by concurrency; unlimited use was not.
  */
-export type CouponRefusal =
-  | "not_found"
-  | "below_minimum"
-  | "usage_limit_reached"
-  | "per_user_limit_reached"
-  | "not_within_first_orders";
+export type { CouponRefusal };
 
 export type CouponDecision =
   | { ok: true; coupon: Coupon }
@@ -99,23 +95,9 @@ export async function resolveCoupon(params: {
   return { ok: true, coupon };
 }
 
-/** What to tell the customer. Deliberately specific — "invalid coupon" when
- *  somebody has simply already used it is the kind of message that generates a
- *  support call. */
-export function refusalMessage(reason: CouponRefusal): string {
-  switch (reason) {
-    case "below_minimum":
-      return "Your order is below this coupon's minimum";
-    case "usage_limit_reached":
-      return "This coupon has been fully claimed";
-    case "per_user_limit_reached":
-      return "You have already used this coupon";
-    case "not_within_first_orders":
-      return "This coupon is for new customers only";
-    default:
-      return "That coupon code is not valid";
-  }
-}
+/* The customer-facing wording now lives in the client-safe `lib/coupon-refusal.ts`
+   so checkout screens and placement errors say the same thing. */
+export { refusalMessage };
 
 /**
  * Actually spending a coupon, inside the order's transaction.
@@ -177,10 +159,15 @@ export async function redeemCoupon(
   if (coupon.perUserLimit > 0 && used >= coupon.perUserLimit) {
     return { ok: false, reason: "per_user_limit_reached" };
   }
+  /* The next index is one past the highest, not count + 1: a use released by a
+     cancellation leaves a gap, and count + 1 would collide with a later use
+     that survived. Two concurrent orders still compute the same index and
+     still collide, which is the guard. */
+  const top = await tx.couponRedemption.aggregate({ where: { couponId, userId }, _max: { useIndex: true } });
 
   try {
     await tx.couponRedemption.create({
-      data: { couponId, userId, orderId, useIndex: used + 1, discountPaise },
+      data: { couponId, userId, orderId, useIndex: (top._max.useIndex ?? 0) + 1, discountPaise },
     });
   } catch {
     /* The unique constraint refused it. Either this customer's Nth use already
@@ -190,4 +177,23 @@ export async function redeemCoupon(
   }
 
   return { ok: true };
+}
+
+/**
+ * Give a cancelled order's coupon use back. Call with the cancelling `tx`.
+ *
+ * `resolveCoupon` already treats a cancelled order as never having consumed
+ * the coupon (CONSUMED above), but placement counted the redemption row and
+ * the global counter, and nothing released either — so after a cancellation
+ * the preview said a coupon was valid and checkout refused it, and abandoned
+ * orders used up a coupon's limit. Every cancel path now releases both.
+ */
+export async function releaseCouponRedemption(tx: DbClient, orderId: string): Promise<void> {
+  const redemption = await tx.couponRedemption.findUnique({ where: { orderId }, select: { id: true, couponId: true } });
+  if (!redemption) return;
+  await tx.couponRedemption.delete({ where: { id: redemption.id } });
+  await tx.coupon.updateMany({
+    where: { id: redemption.couponId, redeemedCount: { gt: 0 } },
+    data: { redeemedCount: { decrement: 1 } },
+  });
 }

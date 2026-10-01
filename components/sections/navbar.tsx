@@ -13,6 +13,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
@@ -69,8 +70,8 @@ export function Navbar() {
   const scrolled = useScrolled(16);
   const { count, summary } = useCart();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const [pincode, setPincode] = useState("190014");
-  const [area] = useState("Hyderpora");
+  const { pincode, city: area, hasChosen, checking, error, confirm } = useDeliveryPincode();
+  const [pincodeInput, setPincodeInput] = useState("");
   const [editingPincode, setEditingPincode] = useState(false);
   const pathname = usePathname();
 
@@ -111,22 +112,30 @@ export function Navbar() {
                 <MapPin className="size-4 text-ink-500" aria-hidden />
                 <input
                   autoFocus
-                  value={pincode}
+                  value={pincodeInput}
                   maxLength={6}
-                  onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-                  onBlur={() => setEditingPincode(false)}
-                  onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
+                  disabled={checking}
+                  onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
+                  onBlur={() => {
+                    if (pincodeInput) void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
+                    else setEditingPincode(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || !pincodeInput) return;
+                    void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
+                  }}
                   className="w-16 border-b border-ink bg-transparent text-[13px] font-bold focus:outline-none"
                   aria-label="Delivery pincode"
                 />
+                {error ? <span className="text-[11px] font-semibold text-danger">{error}</span> : null}
               </div>
             ) : (
               <button
-                onClick={() => setEditingPincode(true)}
+                onClick={() => { setPincodeInput(pincode ?? ""); setEditingPincode(true); }}
                 className="inline-flex h-11 items-center gap-2.5 rounded-full bg-paper px-4 text-[13px] font-bold text-ink shadow-card hover:bg-hush transition-colors cursor-pointer"
               >
                 <MapPin className="size-4 text-ink-500" aria-hidden />
-                <span>{pincode} · {area}</span>
+                <span>{hasChosen ? `${pincode} · ${area}` : "Choose delivery pincode"}</span>
                 <ChevronDown className="size-3.5 text-ink-500" aria-hidden />
               </button>
             )}

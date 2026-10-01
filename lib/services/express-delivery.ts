@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { checkServiceability } from "@/lib/services/serviceability";
 import { SETTING_KEYS, readSetting } from "@/lib/services/settings";
+import { speedClassOf, type ShipmentSpeedClass } from "@/lib/shipment-plan";
 
 /**
  * Whether a cart can be delivered on the 60-minute run, and what that costs.
@@ -54,7 +55,17 @@ export interface ExpressOption {
 export interface ExpressCartLine {
   variantId: string;
   productId: string;
+  /**
+   * How the line travels (`speedClassOf`). A truck line is never on the express
+   * run, whatever its listing says — checkout always passes these. Absent means
+   * the caller did not say, and the listing alone decides (older callers).
+   */
+  categoryIsBulk?: boolean;
+  deliverySpeed?: ShipmentSpeedClass | null;
 }
+
+const travelsByTruck = (l: ExpressCartLine) =>
+  l.categoryIsBulk !== undefined && speedClassOf({ categoryIsBulk: l.categoryIsBulk, deliverySpeed: l.deliverySpeed }) === "scheduled";
 
 /**
  * Which of these products may go express to this pincode.
@@ -119,12 +130,13 @@ export async function resolveExpressOption(
     pincode
   );
 
-  const eligibleVariantIds = lines
-    .filter((l) => eligibleProducts.has(l.productId))
-    .map((l) => l.variantId);
-  const ineligibleVariantIds = lines
-    .filter((l) => !eligibleProducts.has(l.productId))
-    .map((l) => l.variantId);
+  /* E7: the listing's express switch is not enough on its own. Listing lets any
+     product be ticked, and a truck line goes on the truck (`planShipments`) —
+     offering and charging the express run for it would promise a delivery the
+     order is never sent on. */
+  const onRun = (l: ExpressCartLine) => eligibleProducts.has(l.productId) && !travelsByTruck(l);
+  const eligibleVariantIds = lines.filter(onRun).map((l) => l.variantId);
+  const ineligibleVariantIds = lines.filter((l) => !onRun(l)).map((l) => l.variantId);
 
   if (eligibleVariantIds.length === 0) {
     return { ...none("no_eligible_items"), ineligibleVariantIds };

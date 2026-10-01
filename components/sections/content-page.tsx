@@ -4,6 +4,7 @@ import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { ServicesBanner } from "@/components/sections/services-banner";
 import { DownloadsStrip } from "@/components/sections/downloads-strip";
+import { groupSectionRuns } from "@/lib/content-groups";
 
 export interface ContentSection {
   id: string;
@@ -47,14 +48,7 @@ export function ContentPage({
   sections: ContentSection[];
   pending?: string;
 }) {
-  /* Preserves author order and collapses runs of the same group, so the file
-     stays the source of sequence rather than an alphabetical accident. */
-  const grouped: { group?: string; items: ContentSection[] }[] = [];
-  for (const section of sections) {
-    const last = grouped[grouped.length - 1];
-    if (last && last.group === section.group) last.items.push(section);
-    else grouped.push({ group: section.group, items: [section] });
-  }
+  const grouped = groupSectionRuns(sections);
 
   return (
     <>
@@ -91,8 +85,8 @@ export function ContentPage({
                 On this page
               </p>
               <ul>
-                {grouped.map(({ group, items }) => (
-                  <li key={group ?? "_"}>
+                {grouped.map(({ key, group, items }) => (
+                  <li key={key}>
                     {group && (
                       <p className="px-2 pb-1 pt-3 text-[10px] font-extrabold uppercase tracking-[0.09em] text-ink-300 first:pt-0">
                         {group}
@@ -117,8 +111,8 @@ export function ContentPage({
           </nav>
 
           <div className="max-w-3xl">
-            {grouped.map(({ group, items }) => (
-              <div key={group ?? "_"}>
+            {grouped.map(({ key, group, items }) => (
+              <div key={key}>
                 {group && (
                   <h2 className="mb-1 mt-2 text-[11px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
                     {group}
@@ -141,10 +135,13 @@ export function ContentPage({
             ))}
           </div>
         </div>
-
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
+      {/* Page-level bands with their own container and gutter, as on /downloads
+          and /services. Inside the padded <main> the gutters stacked, and the
+          banner's unbreakable "verticalconstruction.in" button held every
+          content page ~21px wider than a 375px phone. */}
+      <ServicesBanner />
+      <DownloadsStrip />
       <Footer />
     </>
   );

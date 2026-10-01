@@ -2,8 +2,10 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { adminListPayments, adminPaymentHealth } from "@/lib/services/admin/stock";
 import { activeGateway } from "@/lib/services/payments";
+import { listCapturedPaymentsOnDeadOrders, listDuplicateCaptures } from "@/lib/services/checkout";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +14,18 @@ export default async function AdminPayments({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const [{ payments, total, perPage }, health] = await Promise.all([
+  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures] = await Promise.all([
     adminListPayments(page),
     adminPaymentHealth(),
+    listCapturedPaymentsOnDeadOrders(),
+    listDuplicateCaptures(),
   ]);
+  const refundRequired = [...onDeadOrders, ...secondCaptures];
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   let gateway = "unknown";
@@ -111,6 +119,42 @@ export default async function AdminPayments({
           </p>
         </div>
       </div>
+
+      {/*
+        Money taken on orders that are cancelled: a capture that arrived after
+        the order expired, or an admin cancellation of a paid order. Also a
+        second capture on an order that was already paid (two checkout windows,
+        or a retry while the first callback was lost). Nothing
+        refunds automatically (ISS-025) — until a refund policy exists this
+        list is the whole of the process, so it sits where the money is read
+        rather than only in alert logs.
+      */}
+      <section
+        aria-labelledby="refund-required"
+        className={"rounded-panel p-4 shadow-card " + (refundRequired.length > 0 ? "bg-ops-bad-tint" : "bg-white")}
+      >
+        <h2 id="refund-required" className="text-[13px] font-extrabold text-ink">
+          Refund required · {refundRequired.length}
+        </h2>
+        {refundRequired.length === 0 ? (
+          <p className="mt-1 text-[12px] font-semibold text-ink-500">
+            No captured payment sits on a cancelled order, and no order was paid twice.
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line">
+            {refundRequired.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 text-[12px] font-semibold">
+                <Link href={`/admin/orders/${p.order.orderNo}`} className="font-extrabold text-ink underline">
+                  {p.order.orderNo}
+                </Link>
+                <OrderStatusChip status={p.order.status} />
+                <span className="tabular-nums">{formatPaise(p.amountPaise)}</span>
+                <span className="text-ink-500">payment {p.gatewayPaymentId ?? "—"}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {gateway === "dummy" && (
         <div className="flex items-start gap-3 rounded-panel bg-ops-bad-tint p-4">

@@ -1,5 +1,6 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import {
   createDriver,
@@ -23,12 +24,24 @@ import { assignShipment } from "@/lib/services/admin/shipments-write";
 let seq = 0;
 const uniq = () => `zzz-roster-${Date.now()}-${seq++}`;
 
+/* The file's own user. The seed creates none; borrowing "whichever user
+   exists" passed only because an earlier test file happened to leave one
+   behind, and failed when this file ran alone on a fresh database. No phone or
+   email, so nothing unique can collide. Deleted after the file's own cleanups. */
+let OWN_USER: string | null = null;
+async function ownUser(): Promise<string> {
+  OWN_USER ??= (await db.user.create({ data: { id: randomUUID() }, select: { id: true } })).id;
+  return OWN_USER;
+}
+after(async () => {
+  if (OWN_USER) await db.user.deleteMany({ where: { id: OWN_USER } });
+});
+
 let ACTOR = { id: "", email: "zzz-roster@demo.invalid" };
 
 async function actor() {
   if (!ACTOR.id) {
-    const u = await db.user.findFirstOrThrow({ select: { id: true } });
-    ACTOR = { ...ACTOR, id: u.id };
+    ACTOR = { ...ACTOR, id: await ownUser() };
   }
   return ACTOR;
 }

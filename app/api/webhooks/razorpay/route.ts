@@ -27,12 +27,27 @@ export async function POST(req: NextRequest) {
 
       const payload = JSON.parse(rawBody);
       const event = payload.event as string;
-      const eventId = payload.event_id as string | undefined;
+      /* Razorpay sends the event id ONLY in the `x-razorpay-event-id` header —
+         its webhook body has no `event_id`. The header is authoritative; the
+         body field is a fallback for callers that put it there. Reading only
+         the body left gatewayEventId NULL for every real delivery and skipped
+         the dedupe fast path (verified against a real delivery, 21 Sep 2026). */
+      const headerEventId = req.headers.get("x-razorpay-event-id")?.trim() || undefined;
+      const bodyEventId = typeof payload.event_id === "string" ? payload.event_id : undefined;
+      const eventId = headerEventId ?? bodyEventId;
       const paymentEntity = payload.payload?.payment?.entity;
       const orderEntity = payload.payload?.order?.entity;
 
       const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
       const razorpayPaymentId = paymentEntity?.id;
+      /* Only the ids the payload actually carries. An undefined field inside
+         an OR is dropped by Prisma, and the empty condition left behind
+         matches every payment — findFirst would then pick an unrelated one.
+         An empty OR matches nothing, which is the right answer here. */
+      const paymentKeys = [
+        ...(razorpayOrderId ? [{ gatewayOrderId: razorpayOrderId }] : []),
+        ...(razorpayPaymentId ? [{ gatewayPaymentId: razorpayPaymentId }] : []),
+      ];
 
       if (!razorpayOrderId) {
         metric.end("webhook_ignored_no_order_id", { event });
@@ -53,10 +68,7 @@ export async function POST(req: NextRequest) {
       if (event === "payment.captured" || event === "order.paid") {
         const existingPayment = await db.payment.findFirst({
           where: {
-            OR: [
-              { gatewayOrderId: razorpayOrderId },
-              { gatewayPaymentId: razorpayPaymentId },
-            ],
+            OR: paymentKeys,
           },
           include: { order: true },
         });
@@ -123,10 +135,7 @@ export async function POST(req: NextRequest) {
       } else if (event === "payment.failed") {
         const existingPayment = await db.payment.findFirst({
           where: {
-            OR: [
-              { gatewayOrderId: razorpayOrderId },
-              { gatewayPaymentId: razorpayPaymentId },
-            ],
+            OR: paymentKeys,
           },
           include: { order: true },
         });
@@ -162,8 +171,8 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       captureException(err);
       metric.end("webhook_error");
-      const message = err instanceof Error ? err.message : "Webhook processing error";
-      return NextResponse.json({ error: message }, { status: 500 });
+      /* Captured above with its detail; the caller gets no internals. */
+      return NextResponse.json({ error: "Webhook processing error" }, { status: 500 });
     }
   });
 }

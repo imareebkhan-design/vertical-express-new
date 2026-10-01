@@ -39,7 +39,7 @@ export function WalletSwitcher({ wallet, transactions }: WalletSwitcherProps) {
     <>
       <Navbar />
       <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
-        <h1 className="mb-6 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Wallet &amp; credit</h1>
+        <h1 className="mb-6 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Wallet</h1>
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <AccountNav active="/account/wallet" />
           <div>

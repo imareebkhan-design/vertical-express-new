@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { safeNextPath } from "../safe-next";
 
 /**
  * The console must never send an already-signed-in person to the sign-in page.
@@ -94,11 +95,35 @@ test("the sign-in page sends a signed-in visitor where they were going", () => {
     "the sign-in page discards `next` for a signed-in visitor and drops them at " +
       "the home page, losing what they were trying to reach."
   );
+  /* Wiring only: the page must route `next` through the shared guard. What the
+     guard accepts is asserted by behaviour below, not by how it is written. */
   assert.ok(
-    /startsWith\("\/"\)/.test(src) && /startsWith\("\/\/"\)/.test(src),
-    "the `next` target is no longer constrained to a same-site path — that is an " +
-      "open redirect"
+    /safeNext\s*=\s*safeNextPath\(\s*next\s*\)/.test(src),
+    "the sign-in page no longer passes `next` through safeNextPath — the redirect " +
+      "target is unconstrained, which is an open redirect"
   );
+});
+
+test("the sign-in redirect target never leaves the site", () => {
+  /* The destinations a phishing link would use. "/\\evil.com" is the one the
+     old inline startsWith("/") && !startsWith("//") rule let through. */
+  for (const hostile of [
+    "//evil.com",
+    "/\\evil.com",
+    "https://evil.com",
+    "evil.com",
+    "javascript:alert(1)",
+    "/\u0000//evil.com",
+  ]) {
+    const target = safeNextPath(hostile);
+    assert.equal(
+      new URL(target, "https://verticalexpress.in").host,
+      "verticalexpress.in",
+      `${JSON.stringify(hostile)} sends a signed-in visitor to ${JSON.stringify(target)}`
+    );
+  }
+  assert.equal(safeNextPath("/account/orders/VE-1"), "/account/orders/VE-1", "a real destination is kept");
+  assert.equal(safeNextPath(undefined), "/", "no destination falls back to the home page");
 });
 
 test("the account screen shows a real identity, never an invented one", () => {

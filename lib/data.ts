@@ -1,11 +1,5 @@
 import {
-  Blocks,
-  CookingPot,
-  Droplets,
   LucideIcon,
-  PaintRoller,
-  Plug,
-  ShowerHead,
 } from "lucide-react";
 
 export interface NavCategory {
@@ -52,18 +46,6 @@ export interface Product {
    */
   inStock?: boolean;
 }
-
-/**
- * Store announcements.
- *
- * Only statements we can stand behind. Removed: a free-delivery threshold that is
- * an unconfirmed guess (ISS-030), and two unverified speed claims. Emoji are not
- * part of the brand.
- */
-export const ANNOUNCEMENTS = [
-  "Open 8am to 8pm, all days",
-  "Delivering across Srinagar",
-];
 
 export const NAV_PRIMARY: NavCategory[] = [
   {
@@ -116,71 +98,6 @@ export const CATEGORIES: Category[] = [
   { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup", href: "/category/home-appliances-power-backup" },
   { name: "General Hardware & Tools", slug: "general-hardware-tools", href: "/category/general-hardware-tools" },
 ];
-
-export const DEALS: Product[] = [
-  {
-    id: "ppc-cement-50kg",
-    image: "/placeholder-product.webp",
-    title: "PPC Cement, 50 kg Bag",
-    brandLine: "Trusted trade brand",
-    price: 320,
-    compareAt: 335,
-    unit: "per bag",
-    speed: "scheduled",
-    icon: Blocks,
-  },
-  {
-    id: "waterproof-primer-20l",
-    image: "/placeholder-product.webp",
-    title: "Interior Waterproofing Primer, 20 L",
-    brandLine: "Advanced damp protection",
-    price: 4899,
-    compareAt: 6799,
-    unit: "per can",
-    icon: ShowerHead,
-  },
-  {
-    id: "distemper-white-20kg",
-    image: "/placeholder-product.webp",
-    title: "Acrylic Distemper Paint, White, 20 kg",
-    brandLine: "Smooth matt finish",
-    price: 1549,
-    compareAt: 2499,
-    unit: "per bucket",
-    icon: PaintRoller,
-  },
-  {
-    id: "gp-sealant-white",
-    image: "/placeholder-product.webp",
-    title: "General Purpose Sealant, White",
-    brandLine: "Multi-surface silicone",
-    price: 199,
-    compareAt: 645,
-    unit: "per tube",
-    icon: Droplets,
-  },
-  {
-    id: "inverter-battery-combo",
-    image: "/placeholder-product.webp",
-    title: "1050 VA Inverter & 180 Ah Battery Combo",
-    brandLine: "Home power backup",
-    price: 24499,
-    compareAt: 25599,
-    unit: "per combo",
-    icon: Plug,
-  },
-  {
-    id: "ss-kitchen-sink",
-    image: "/products/ss-kitchen-sink.webp",
-    title: "Stainless Steel Kitchen Sink, Single Bowl",
-    brandLine: "Satin finish, 24 x 18 in",
-    price: 2899,
-    compareAt: 4299,
-    unit: "per piece",
-    icon: CookingPot,
-  },
-];
-
 
 export const FOOTER_LINKS = {
   company: [

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { categoryForPage } from "./data";
 import {
-  getCategoryBySlug,
   listCategorySlugs,
   listProducts,
   type CatalogSort,
@@ -28,7 +28,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const category = await getCategoryBySlug(slug);
+  const category = await categoryForPage(slug);
   if (!category) return { title: "Category not found" };
   return {
     // `absolute` bypasses the root layout's "%s | Vertical Express" template:
@@ -48,7 +48,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const { slug } = await params;
   const sp = await searchParams;
 
-  const category = await getCategoryBySlug(slug);
+  const category = await categoryForPage(slug);
   if (!category) notFound();
 
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);

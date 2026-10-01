@@ -25,14 +25,18 @@ import { SESSION_COOKIE as COOKIE, SESSION_MAX_AGE_MS as MAX_AGE_MS } from "@/li
  * minutes. Firebase requires this: it means a stolen long-lived ID token cannot
  * be upgraded into a two-week session.
  */
-export async function createSessionCookie(idToken: string): Promise<string | null> {
+export async function createSessionCookie(
+  idToken: string
+): Promise<{ cookie: string; token: DecodedIdToken } | null> {
   const auth = getAuth(adminApp());
   try {
     const decoded = await auth.verifyIdToken(idToken, true);
     const issuedMsAgo = Date.now() - decoded.auth_time * 1000;
     if (issuedMsAgo > 5 * 60 * 1000) return null;
 
-    return await auth.createSessionCookie(idToken, { expiresIn: MAX_AGE_MS });
+    /* The verified identity comes back too: sign-in merges the guest cart into
+       this customer's (E8), and must not re-read an identity it just verified. */
+    return { cookie: await auth.createSessionCookie(idToken, { expiresIn: MAX_AGE_MS }), token: decoded };
   } catch {
     return null;
   }
@@ -50,6 +54,26 @@ export async function readSession(): Promise<DecodedIdToken | null> {
     return await getAuth(adminApp()).verifySessionCookie(value, true);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Whether the session cookie is signed by Firebase and unexpired — checked
+ * locally, WITHOUT the revocation round trip `readSession` makes.
+ *
+ * For one purpose only: sending a visitor whose cookie is plainly dead (expired,
+ * malformed, forged) to sign-in *early*, before a page starts streaming. It may
+ * only ever turn somebody away. It must never be used to let anybody in — a
+ * revoked session passes this and is refused by `readSession` as before.
+ */
+export async function hasPlausibleSession(): Promise<boolean> {
+  const value = (await cookies()).get(COOKIE)?.value;
+  if (!value) return false;
+  try {
+    await getAuth(adminApp()).verifySessionCookie(value, false);
+    return true;
+  } catch {
+    return false;
   }
 }
 

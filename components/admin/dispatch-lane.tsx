@@ -2,6 +2,7 @@ import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
 import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
 import { DispatchControls } from "@/components/admin/dispatch-controls";
+import { ExpressRunBadge } from "@/components/orders/express-selection";
 
 /**
  * One lane of the dispatch board.
@@ -54,6 +55,7 @@ export function DispatchLane({
               </div>
 
               <p className="mt-1.5 text-[12.5px] font-bold text-ink">{s.destination}</p>
+              <ExpressRunBadge expressRun={s.expressRun} />
               <p className="mt-0.5 text-[11.5px] font-semibold text-ink-500">
                 {s.itemCount} {s.itemCount === 1 ? "item" : "items"} · {s.lineCount}{" "}
                 {s.lineCount === 1 ? "line" : "lines"}

@@ -3,6 +3,7 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";
+import type { CouponRefusal } from "@/lib/coupon-refusal";
 import { checkServiceability } from "@/lib/services/serviceability";
 import {
   resolveExpressOption,
@@ -26,6 +27,18 @@ export interface CheckoutTotals {
   /** Whether express was actually applied — and therefore charged. */
   expressChosen: boolean;
   discountPaise: number;
+  /**
+   * Delivery fee a free-delivery coupon took off (0 when none applied, or when
+   * the fee was already 0). Kept apart from `discountPaise`, which is a discount
+   * on the goods and therefore changes their GST; waiving delivery does not.
+   */
+  couponDeliveryWaivedPaise: number;
+  /**
+   * Why a submitted coupon code was not applied (null when no code was given,
+   * or it applied). The totals above are computed without it. The quote says so
+   * instead of silently dropping it, and placement refuses on it (E6).
+   */
+  couponRejection: CouponRefusal | null;
   taxPaise: number;
   gst: GstBreakup;
   totalPaise: number;
@@ -60,9 +73,16 @@ export async function computeTotals(
   const qualifiesFree = cart.qualifiesFreeDelivery;
   let deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
   let discountPaise = 0;
+  let couponDeliveryWaivedPaise = 0;
+  let couponRejection: CouponRefusal | null = null;
 
   const express = await resolveExpressOption(
-    cart.lines.map((l) => ({ variantId: l.variantId, productId: l.productId })),
+    cart.lines.map((l) => ({
+      variantId: l.variantId,
+      productId: l.productId,
+      categoryIsBulk: l.categoryIsBulk,
+      deliverySpeed: l.deliverySpeed,
+    })),
     pincode
   );
 
@@ -77,7 +97,7 @@ export async function computeTotals(
   const expressChosen = wantsExpress && express.available && express.feePaise !== null;
   if (expressChosen) deliveryFeePaise += express.feePaise!;
 
-  if (couponCode) {
+  if (couponCode?.trim()) {
     /* Eligibility moved into resolveCoupon so that usageLimit, perUserLimit
        and firstNOrders are actually enforced. They had been on the model and
        on the console screen since the beginning and checked nowhere, which made
@@ -88,16 +108,24 @@ export async function computeTotals(
       userId: userId ?? null,
     });
     const coupon = decision.ok ? decision.coupon : null;
+    if (!decision.ok) couponRejection = decision.reason;
 
     if (coupon) {
       if (coupon.type === "flat") {
-        discountPaise = coupon.value;
+        /* Never more than the goods: every line clamps at zero below, so a
+           larger figure was never taken off — yet it was recorded on the order
+           and the redemption and shown as "a coupon saving of ₹X". */
+        discountPaise = Math.min(coupon.value, cart.subtotalPaise);
       } else if (coupon.type === "percent") {
         const rawDiscount = Math.round((cart.subtotalPaise * coupon.value) / 100);
         discountPaise = coupon.maxDiscountPaise
           ? Math.min(rawDiscount, coupon.maxDiscountPaise)
           : rawDiscount;
       } else if (coupon.type === "free_delivery") {
+        /* Recorded, so placement can spend the coupon. It used to waive the fee
+           and leave no trace: no couponCode on the order, no redemption — so its
+           usage and per-customer limits never bound anything (E6). */
+        couponDeliveryWaivedPaise = deliveryFeePaise;
         deliveryFeePaise = 0;
       }
     }
@@ -141,6 +169,8 @@ export async function computeTotals(
     express,
     expressChosen,
     discountPaise, // total discount
+    couponDeliveryWaivedPaise,
+    couponRejection,
     taxPaise: totalTaxPaise,
     gst: {
       ratePct: totalTaxableValuePaise > 0 ? Math.round((totalTaxPaise * 100) / totalTaxableValuePaise) : 18,
@@ -190,6 +220,34 @@ export interface PlaceOrderResult {
   amountPaise?: number;
 }
 
+/* What an idempotent replay needs to hand back. */
+const REPLAY_SELECT = {
+  orderNo: true,
+  status: true,
+  totalPaise: true,
+  payments: { orderBy: { createdAt: "desc" }, take: 1, select: { gatewayOrderId: true, amountPaise: true } },
+} satisfies Prisma.OrderSelect;
+
+/**
+ * The same answer the first call gave, for an order found by its idempotency
+ * key. An order still awaiting payment carries its Razorpay order again:
+ * without it the client read the replay as a COD/test order and went to the
+ * confirmation page for an order nobody had paid for (closure-loop review).
+ * `retryOrderPayment` hands back the same thing.
+ */
+function replayResult(existing: Prisma.OrderGetPayload<{ select: typeof REPLAY_SELECT }>): PlaceOrderResult {
+  const awaiting = existing.status === "pending_payment";
+  const payment = existing.payments[0];
+  return {
+    orderNo: existing.orderNo,
+    status: existing.status,
+    requiresPaymentConfirmation: awaiting,
+    ...(awaiting && payment?.gatewayOrderId
+      ? { gatewayOrderId: payment.gatewayOrderId, amountPaise: payment.amountPaise ?? existing.totalPaise }
+      : {}),
+  };
+}
+
 /**
  * Create an order from the user's cart. Validates stock, snapshots prices,
  * reserves/decrements inventory, records payment, clears the cart — all in a
@@ -226,9 +284,21 @@ export async function placeOrder(params: {
    * gets standard at the standard price.
    */
   wantsExpress?: boolean;
+  /**
+   * The total the customer was shown when they pressed "place order" (E8).
+   *
+   * The server prices the cart it holds, and a cart is shared by every tab and
+   * window: a quantity changed in another window, a guest basket merged at
+   * sign-in, a line clamped to stock — any of these after the quote, and the
+   * order used to be placed (for COD, confirmed) at a figure this page never
+   * showed. When given and different from the recomputed total, placement stops
+   * before any gateway order, stock or coupon write; the page re-reads the cart
+   * and re-quotes. Optional: callers that do not send it keep their behaviour.
+   */
+  expectedTotalPaise?: number;
 }): Promise<PlaceOrderResult> {
   const metric = new MetricsTracker("checkout-service");
-  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, contactEmail, wantsExpress } =
+  const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, contactEmail, wantsExpress, expectedTotalPaise } =
     params;
 
   trackEvent("checkout_started", { paymentMethod });
@@ -236,15 +306,11 @@ export async function placeOrder(params: {
   if (idempotencyKey) {
     const existing = await db.order.findFirst({
       where: { idempotencyKey, userId },
-      select: { orderNo: true, status: true },
+      select: REPLAY_SELECT,
     });
     if (existing) {
       metric.end("place_order_idempotent_duplicate");
-      return {
-        orderNo: existing.orderNo,
-        status: existing.status,
-        requiresPaymentConfirmation: existing.status === "pending_payment",
-      };
+      return replayResult(existing);
     }
   }
 
@@ -279,6 +345,24 @@ export async function placeOrder(params: {
     throw new Error("COD_UNAVAILABLE");
   }
 
+  /* E6: a coupon the customer applied no longer qualifies (expired, switched
+     off, claimed out, or the basket changed). It used to be dropped here and the
+     order placed at the higher total — a price the customer had not seen. Stop
+     instead, before any gateway order, stock or coupon write; the client
+     re-quotes without it and the customer decides. A replay of an order already
+     created never reaches this line (the idempotency check above returns it). */
+  if (couponCode?.trim() && totals.couponRejection) {
+    metric.end("place_order_coupon_not_applicable", { reason: totals.couponRejection });
+    throw new Error(`COUPON_NOT_APPLICABLE:${totals.couponRejection}`);
+  }
+
+  /* E8: the cart (or its price) moved since the page's quote. After the coupon
+     check, so a dropped coupon keeps its own, more specific message. */
+  if (expectedTotalPaise !== undefined && expectedTotalPaise !== totals.totalPaise) {
+    metric.end("place_order_total_changed");
+    throw new Error("TOTAL_CHANGED");
+  }
+
   const warehouse = await db.serviceablePincode.findFirst({
     where: { pincode: address.pincode, isActive: true },
     select: { warehouseId: true },
@@ -294,6 +378,9 @@ export async function placeOrder(params: {
 
   const provider = getPaymentProvider(paymentMethod);
   const isCod = paymentMethod === "cod";
+  /* A coupon is spent only when it changed what is charged — a goods discount,
+     or a delivery fee it waived. One that took nothing off costs nothing. */
+  const couponTookEffect = totals.discountPaise > 0 || totals.couponDeliveryWaivedPaise > 0;
 
   // ISS-003 — the gateway call happens BEFORE the transaction opens. For Razorpay
   // this is an outbound HTTPS request; running it inside `db.$transaction` held a
@@ -304,8 +391,12 @@ export async function placeOrder(params: {
   // If the transaction below then fails, the gateway order is orphaned — which is
   // harmless: it is never captured and expires on the gateway's side. A held
   // connection is not harmless.
+  /* The order number is chosen before the gateway order so Razorpay's `receipt`
+     carries it (it used to be the literal "pending" on every order, so the
+     dashboard could not be searched by order number). */
+  const orderNo = orderNumber();
   const payResult = await provider.createOrder({
-    orderId: "pending",
+    orderId: orderNo,
     amountPaise: totals.totalPaise,
   });
   const gatewayOrderId = payResult.gatewayOrderId;
@@ -355,7 +446,7 @@ export async function placeOrder(params: {
         // The created line ids are needed to attach shipment items below.
         include: { items: { select: { id: true, variantId: true } } },
         data: {
-          orderNo: orderNumber(),
+          orderNo,
           idempotencyKey: idempotencyKey ?? null,
           userId,
           address: {
@@ -368,6 +459,9 @@ export async function placeOrder(params: {
             line1: address.line1,
             line2: address.line2,
             landmark: address.landmark,
+            accessNote: address.accessNote,
+            latitude: address.latitude,
+            longitude: address.longitude,
             city: address.city,
             state: address.state,
             pincode: address.pincode,
@@ -378,7 +472,9 @@ export async function placeOrder(params: {
           discountPaise: totals.discountPaise,
           // Record which coupon produced the discount. The column existed but was
           // never written, so a discounted order carried no trace of why. (ISS-011)
-          couponCode: totals.discountPaise > 0 ? couponCode?.trim().toUpperCase() ?? null : null,
+          couponCode: couponTookEffect ? couponCode?.trim().toUpperCase() ?? null : null,
+          /* E7: what the customer chose, as the server granted it. */
+          expressFeePaise: totals.expressChosen ? totals.express.feePaise : null,
           taxPaise: totals.taxPaise,
           deliveryFeePaise: totals.deliveryFeePaise,
           totalPaise: totals.totalPaise,
@@ -420,7 +516,7 @@ export async function placeOrder(params: {
        * customer was shown a total including this discount; charging them a
        * different one because a counter moved is worse than telling them the
        * code ran out. */
-      if (totals.discountPaise > 0 && couponCode) {
+      if (couponTookEffect && couponCode) {
         const spent = await tx.coupon.findFirst({
           where: { code: couponCode.trim().toUpperCase() },
           select: { id: true },
@@ -430,7 +526,8 @@ export async function placeOrder(params: {
             couponId: spent.id,
             userId,
             orderId: created.id,
-            discountPaise: totals.discountPaise,
+            /* What it took off: goods discount, or the delivery fee it waived. */
+            discountPaise: totals.discountPaise + totals.couponDeliveryWaivedPaise,
           });
           if (!redemption.ok) throw new Error(`COUPON_UNAVAILABLE:${redemption.reason}`);
         }
@@ -468,6 +565,8 @@ export async function placeOrder(params: {
             ref: l.variantId,
             qty: l.qty,
             categoryIsBulk: l.categoryIsBulk,
+            deliverySpeed: l.deliverySpeed,
+            onExpressRun: totals.expressChosen && totals.express.eligibleVariantIds.includes(l.variantId),
           }))
         ),
       });
@@ -491,14 +590,10 @@ export async function placeOrder(params: {
     ) {
       const existing = await db.order.findFirst({
         where: { idempotencyKey, userId },
-        select: { orderNo: true, status: true },
+        select: REPLAY_SELECT,
       });
       if (existing) {
-        return {
-          orderNo: existing.orderNo,
-          status: existing.status,
-          requiresPaymentConfirmation: existing.status === "pending_payment",
-        };
+        return replayResult(existing);
       }
     }
     throw e;
@@ -511,71 +606,6 @@ export async function placeOrder(params: {
     gatewayOrderId,
     amountPaise: totals.totalPaise,
   };
-}
-
-/**
- * Mark a `pending_payment` order as paid after signature verification.
- */
-export async function markOrderPaid(params: {
-  orderNo: string;
-  userId?: string;
-  gatewayPaymentId: string;
-}): Promise<{ ok: boolean }> {
-  const metric = new MetricsTracker("checkout-service");
-  const { orderNo, userId, gatewayPaymentId } = params;
-  try {
-    const order = await db.order.findFirst({
-      where: { orderNo, ...(userId ? { userId } : {}) },
-      select: { id: true, status: true },
-    });
-    if (!order) {
-      metric.end("mark_order_paid_order_not_found");
-      return { ok: false };
-    }
-    if (order.status !== "pending_payment") {
-      metric.end("mark_order_paid_already_confirmed");
-      return { ok: true };
-    }
-
-    let expiredMeanwhile = false;
-    await db.$transaction(async (tx) => {
-      /* Compare-and-set: two concurrent confirmations (callback + webhook, or a
-         retry) both read `pending_payment` above; only one may make the move,
-         and the loser must not write a second status event. */
-      const moved = await tx.order.updateMany({
-        where: { id: order.id, status: "pending_payment" },
-        data: { status: "confirmed" },
-      });
-      if (moved.count === 0) {
-        /* Lost the race. If the winner was a *confirmation* this is a benign
-           duplicate; if it was the expiry cron the order is dead and this call
-           must not report it paid. */
-        const now = await tx.order.findUnique({ where: { id: order.id }, select: { status: true } });
-        expiredMeanwhile = !!now && isDeadOrder(now.status);
-        return;
-      }
-      await tx.payment.updateMany({
-        where: { orderId: order.id },
-        data: { status: "captured", gatewayPaymentId, signatureVerified: true },
-      });
-      await tx.orderStatusEvent.create({
-        data: { orderId: order.id, fromStatus: "pending_payment", toStatus: "confirmed", note: "Payment verified" },
-      });
-    });
-
-    if (expiredMeanwhile) {
-      metric.end("mark_order_paid_expired_meanwhile");
-      return { ok: false };
-    }
-    trackEvent("payment_success", { orderNo, gatewayPaymentId });
-    metric.end("mark_order_paid_success");
-    return { ok: true };
-  } catch (error) {
-    captureException(error, { params });
-    trackEvent("payment_failure", { orderNo, gatewayPaymentId, error: error instanceof Error ? error.message : String(error) });
-    metric.end("mark_order_paid_failed");
-    return { ok: false };
-  }
 }
 
 /**
@@ -639,7 +669,12 @@ export function isDeadOrder(status: string): boolean {
 export const LATE_PAYMENT_MESSAGE =
   "This order expired before your payment completed. Your payment has been recorded and will be reviewed for a refund. Please do not pay again.";
 
-export type SettleOutcome = "confirmed" | "already_confirmed" | "late_recorded" | "late_already_recorded";
+export type SettleOutcome =
+  | "confirmed"
+  | "already_confirmed"
+  | "late_recorded"
+  | "late_already_recorded"
+  | "duplicate_recorded";
 
 /**
  * Apply a *verified* Razorpay capture to a payment and its order — the single
@@ -674,7 +709,9 @@ export async function settleCapturedPayment(params: {
   gatewayPaymentId: string | null;
   eventId?: string | null;
   raw?: Prisma.InputJsonValue;
-  source: "client" | "webhook";
+  /** "*_check": found by asking the gateway — at the payment-window expiry
+      (ISS-074), when the customer returns to pay, or asks to cancel (E5). */
+  source: "client" | "webhook" | "expiry_check" | "retry_check" | "cancel_check";
   note?: string;
 }): Promise<SettleOutcome> {
   const { paymentId, orderId, orderNo, amountPaise, gatewayPaymentId, eventId, raw, source, note } = params;
@@ -712,6 +749,45 @@ export async function settleCapturedPayment(params: {
       data: captured,
     });
 
+    /* A *different* capture for a payment that is already captured: Razorpay
+       took a second payment against the same Razorpay order (two checkout
+       windows, or a retry while the first callback was lost). Answering
+       "already confirmed" dropped that money without a trace (E5). It gets its
+       own captured row — the ledger then holds both — and one timeline event.
+       The order row is locked so concurrent reports of it record it once. */
+    if (first.count === 0 && gatewayPaymentId) {
+      const existing = await tx.payment.findUniqueOrThrow({
+        where: { id: paymentId },
+        select: { gateway: true, gatewayPaymentId: true },
+      });
+      if (existing.gatewayPaymentId && existing.gatewayPaymentId !== gatewayPaymentId) {
+        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId}::uuid FOR UPDATE`;
+        const known = await tx.payment.findFirst({
+          where: { orderId, gatewayPaymentId, status: "captured" },
+          select: { id: true },
+        });
+        if (known) return isDeadOrder(current.status) ? "late_already_recorded" : "already_confirmed";
+        await tx.payment.create({
+          data: {
+            orderId,
+            gateway: existing.gateway,
+            amountPaise,
+            ...captured,
+            ...(raw === undefined ? { raw: { source, secondCaptureOf: existing.gatewayPaymentId } } : {}),
+          },
+        });
+        await tx.orderStatusEvent.create({
+          data: {
+            orderId,
+            fromStatus: current.status,
+            toStatus: current.status,
+            note: `A second payment (${gatewayPaymentId}) was received for this order, which had already been paid (${existing.gatewayPaymentId}). Under review for refund.`,
+          },
+        });
+        return isDeadOrder(current.status) ? "late_recorded" : "duplicate_recorded";
+      }
+    }
+
     if (isDeadOrder(current.status)) {
       if (first.count === 0) return "late_already_recorded";
       await tx.orderStatusEvent.create({
@@ -737,8 +813,56 @@ export async function settleCapturedPayment(params: {
       { orderNo, gatewayPaymentId, amountPaise, source }
     );
     trackEvent("late_payment_captured", { orderNo, amountPaise, source });
+  } else if (outcome === "duplicate_recorded") {
+    triggerAlert(
+      "duplicate_payment_captured",
+      "A second payment was captured for an order that was already paid — refund required",
+      { orderNo, gatewayPaymentId, amountPaise, source }
+    );
+    trackEvent("duplicate_payment_captured", { orderNo, amountPaise, source });
   }
   return outcome;
+}
+
+/**
+ * The other half of the refund worklist: second captures on orders that are
+ * still live (a dead order's captures are all in
+ * `listCapturedPaymentsOnDeadOrders`). For each order with more than one
+ * captured payment, every capture after the first. Read-only.
+ */
+export async function listDuplicateCaptures() {
+  const groups = await db.payment.groupBy({
+    by: ["orderId"],
+    where: { status: "captured", order: { status: { notIn: [...DEAD_ORDER_STATES] } } },
+    _count: { _all: true },
+    having: { orderId: { _count: { gt: 1 } } },
+  });
+  if (groups.length === 0) return [];
+  const captured = await db.payment.findMany({
+    where: { status: "captured", orderId: { in: groups.map((g) => g.orderId) } },
+    select: {
+      id: true,
+      orderId: true,
+      gatewayOrderId: true,
+      gatewayPaymentId: true,
+      amountPaise: true,
+      createdAt: true,
+      updatedAt: true,
+      order: { select: { orderNo: true, status: true, userId: true } },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const seen = new Set<string>();
+  return captured
+    .filter((p) => (seen.has(p.orderId) ? true : (seen.add(p.orderId), false)))
+    .map((p) => ({
+      id: p.id,
+      gatewayOrderId: p.gatewayOrderId,
+      gatewayPaymentId: p.gatewayPaymentId,
+      amountPaise: p.amountPaise,
+      updatedAt: p.updatedAt,
+      order: p.order,
+    }));
 }
 
 /**

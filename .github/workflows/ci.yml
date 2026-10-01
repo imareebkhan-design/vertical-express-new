@@ -1,7 +1,8 @@
 name: CI
 
 # Quality gate for every push and pull request. Mirrors the "Before reporting done"
-# checklist in CLAUDE.md: typecheck, lint, and the commerce test suite must all pass.
+# checklist in CLAUDE.md: typecheck, lint, the component tests, the commerce test
+# suite and a production build must all pass.
 #
 # The suite writes real rows, so it runs against a throwaway Postgres service
 # container — never a shared database. test-support/db-guard.mjs enforces that.
@@ -18,7 +19,9 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The service suite alone takes ~11 minutes locally (755 tests, 26 Sep 2026);
+    # 15 left no room for the component tests and the production build.
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -86,6 +89,10 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # jsdom + Testing Library (`test-support/ui-setup.ts`). No database.
+      - name: Component tests
+        run: npm run test:ui
+
       # Guards the two blind spots the token migration could not reach:
       # retired brand colours hidden inside arbitrary values, and stray hex.
       - name: Design system
@@ -99,3 +106,23 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # The release artefact itself. Runs last, against the seeded throwaway
+      # database above (static pages query it at build time), with no .env file
+      # in the checkout. The gateway stays `dummy`: the production payment guard
+      # (`assertPaymentConfig`) runs at server start, not at build.
+      - name: Production build
+        env:
+          NODE_ENV: production
+          NEXT_TELEMETRY_DISABLED: "1"
+          # scripts/check-public-env.mjs refuses a build without these, because
+          # such a build renders the error screen on every page. This artefact
+          # is compiled and never served, so placeholders are enough — and they
+          # keep the real (public) project config out of the workflow.
+          NEXT_PUBLIC_FIREBASE_API_KEY: ci-placeholder
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ci-placeholder.invalid
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ci-placeholder
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ci-placeholder.invalid
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "0"
+          NEXT_PUBLIC_FIREBASE_APP_ID: ci-placeholder
+        run: npm run build

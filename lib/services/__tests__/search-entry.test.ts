@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { brandsForSearchEntry, closestInStock, listProducts } from "@/lib/services/catalog";
 import { db } from "@/lib/db";
 
@@ -27,18 +28,29 @@ test("only brands with something published behind them are offered", async () =>
   }
 });
 
-test("a brand with no products is never offered", async () => {
+test("a brand with no products is never offered", async (t) => {
   /* THE CASE THAT MATTERS. The eleven real brands were seeded deliberately
      holding zero products, because which product is actually an UltraTech is
      the owner's to say. Offering them as shortcuts would send a customer to an
-     empty results page having just been told we stock the brand. */
+     empty results page having just been told we stock the brand.
+
+     The test brings its own empty brand rather than relying on those: CI seeds
+     only prisma/seed.ts, where every brand has products, so without this the
+     guard below had nothing to prove. Active, so the only reason for it to be
+     left out is that nothing is published under it. */
+  const own = await db.brand.create({
+    data: { slug: `zzz-empty-${randomUUID()}`, name: `ZZZ Empty ${randomUUID()}`, isActive: true },
+    select: { slug: true, name: true },
+  });
+  t.after(() => db.brand.delete({ where: { slug: own.slug } }));
+
   const empty = await db.brand.findMany({
     where: { products: { none: { status: "published" } } },
     select: { slug: true, name: true },
   });
   assert.ok(
-    empty.length > 0,
-    "every brand has products, so this cannot prove anything — seed the real brands"
+    empty.some((b) => b.slug === own.slug),
+    "the scratch brand with nothing published does not read as empty"
   );
 
   const offered = new Set((await brandsForSearchEntry()).map((b) => b.slug));

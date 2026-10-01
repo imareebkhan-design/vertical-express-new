@@ -4,6 +4,7 @@ import { adminListStock, type StockFilter } from "@/lib/services/admin/stock";
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
 import { StockAdjuster } from "@/components/admin/stock-adjuster";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,9 @@ export default async function AdminInventory({
 }: {
   searchParams: Promise<{ filter?: string; page?: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const filter = (FILTERS.find((f) => f.key === sp.filter)?.key ?? "all") as StockFilter;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;

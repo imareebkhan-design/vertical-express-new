@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { listProducts } from "../catalog";
 import { getSuggestions } from "../search";
+import { handleSearchClosest } from "@/lib/api/v1";
 let categoryId1: string;
 let categoryId2: string;
 let brandId1: string;
@@ -211,6 +212,23 @@ test("Search Intelligence: Dynamic ranking priorities (Exact Name > Prefix > Con
   assert.ok(idx2 < idx1, `Product 2 starts with 'Cement' (${idx2}) should rank higher than Product 1 contains 'Cement' (${idx1})`);
 });
 
+test("Search Intelligence: an explicit price sort overrides relevance ranking", async () => {
+  // Without a sort, Product 2 (prefix match, ₹420) outranks Product 1 (contains
+  // match, ₹385) — asserted above. A shopper who explicitly picks "Price: Low
+  // to High" expects the cheaper item first regardless, not a control that
+  // looks selected but never reorders anything.
+  const result = await listProducts({ search: "Cement", sort: "price_asc" });
+  const idx1 = result.items.findIndex((i) => i.id === product1Id);
+  const idx2 = result.items.findIndex((i) => i.id === product2Id);
+  assert.ok(idx1 !== -1 && idx2 !== -1, "both products should be found");
+  assert.ok(idx1 < idx2, `₹385 product (${idx1}) should rank before ₹420 product (${idx2}) under price_asc`);
+
+  const resultDesc = await listProducts({ search: "Cement", sort: "price_desc" });
+  const dIdx1 = resultDesc.items.findIndex((i) => i.id === product1Id);
+  const dIdx2 = resultDesc.items.findIndex((i) => i.id === product2Id);
+  assert.ok(dIdx2 < dIdx1, `₹420 product (${dIdx2}) should rank before ₹385 product (${dIdx1}) under price_desc`);
+});
+
 test("Search Suggestions: suggestion route returns ranked matched groups without duplicates", async () => {
   const result = await getSuggestions("cement");
 
@@ -244,4 +262,28 @@ test("Search Intelligence: Unicode emoji and special characters handled graceful
   const result = await listProducts({ search: "cement 🏗️" });
   // Trigrams will match "cement" and handle emoji cleanly
   assert.ok(result.items.some((i) => i.id === product1Id));
+});
+
+test("GET /api/v1/search/closest: a phrase that matches nothing still surfaces its real words", async () => {
+  // "zzqqxx" matches nothing; "cement" alone matches product1/product2.
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest?q=zzqqxx%20cement"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: { id: string }[]; matchedOn: string[] } };
+  assert.ok(data.matchedOn.includes("cement"));
+  assert.ok(data.items.some((i) => i.id === product1Id));
+});
+
+test("GET /api/v1/search/closest: nothing close either returns an empty, not an error", async () => {
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest?q=zzqqxxnothingmatchesthis"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: unknown[]; matchedOn: string[] } };
+  assert.deepEqual(data.items, []);
+  assert.deepEqual(data.matchedOn, []);
+});
+
+test("GET /api/v1/search/closest: a missing query returns empty rather than the whole catalogue", async () => {
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: unknown[] } };
+  assert.deepEqual(data.items, []);
 });

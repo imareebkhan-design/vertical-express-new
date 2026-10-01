@@ -7,15 +7,16 @@ import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/shop/empty-state";
+import { CartLoading } from "@/components/shop/cart-loading";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { SpeedChip } from "@/components/ui/speed-chip";
-import { planShipments } from "@/lib/shipment-plan";
-import type { CartLine } from "@/lib/services/cart";
+import { groupCartByShipment } from "@/lib/cart-shipments";
 
 /** Full cart page body — reads the live server cart from context. */
 export function CartView() {
-  const { summary, updateItem, removeItem, pending } = useCart();
+  const { summary, loaded, updateItem, removeItem, pending } = useCart();
 
+  if (!loaded) return <CartLoading />;
   if (summary.lines.length === 0) {
     return (
       <EmptyState
@@ -29,16 +30,10 @@ export function CartView() {
 
   const { subtotalPaise } = summary;
 
-  /* The same rule checkout persists — see lib/shipment-plan.ts. Grouping here
+  /* The same rule checkout persists — see lib/cart-shipments.ts. Grouping here
      with a private copy of the rule is how the cart ends up promising a split
      that does not happen. */
-  const byId = new Map(summary.lines.map((l) => [l.itemId, l]));
-  const shipments = planShipments(
-    summary.lines.map((l) => ({ ref: l.itemId, qty: l.qty, categoryIsBulk: l.categoryIsBulk }))
-  ).map((p) => ({
-    ...p,
-    cartLines: p.lines.map((pl) => byId.get(pl.ref)).filter(Boolean) as CartLine[],
-  }));
+  const shipments = groupCartByShipment(summary.lines);
   const total = shipments.length;
 
   return (
@@ -54,7 +49,7 @@ export function CartView() {
               <strong className="font-bold text-ink">
                 {total === 2 ? "two shipments" : `${total} shipments`}
               </strong>
-              . Two arrival times — nothing waits for the slower one.
+              . They travel separately — no delivery time is set for either yet.
             </>
           ) : (
             "."
@@ -73,7 +68,7 @@ export function CartView() {
                 )}
                 <span className="text-[12px] font-medium text-ink-500">
                   {(() => {
-                    const n = group.cartLines.reduce((sum, l) => sum + l.qty, 0);
+                    const n = group.lines.reduce((sum, l) => sum + l.qty, 0);
                     return `${n} ${n === 1 ? "item" : "items"}`;
                   })()}
                 </span>
@@ -86,7 +81,7 @@ export function CartView() {
 
               <ul className="space-y-3">
           <AnimatePresence initial={false}>
-            {group.cartLines.map((line) => (
+            {group.lines.map((line) => (
               <motion.li
                 key={line.itemId}
                 layout

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import { LoginSwitcher } from "@/components/auth/login-switcher";
+import { safeNextPath } from "@/lib/safe-next";
 
 export const metadata: Metadata = {
   title: "Sign in",
@@ -17,7 +18,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const { next } = await searchParams;
   /* Same-site paths only. An open redirect here would let a phishing link
      bounce a freshly signed-in customer to another origin. */
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const safeNext = safeNextPath(next);
 
   /* Somebody already signed in has nothing to do on a sign-in form — but send
      them where they were going, not to the home page. Dropping `next` here is

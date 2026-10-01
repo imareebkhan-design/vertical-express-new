@@ -151,7 +151,10 @@ export function contentSecurityPolicy(isDev: boolean): string {
  * Security headers — ISS-022.
  *
  * Applied at `/(.*)`, which covers static pages too: Next checks headers before
- * the filesystem. HSTS is supplied by Vercel and is not repeated here.
+ * the filesystem. HSTS used to be left to Vercel; hosting is Firebase App
+ * Hosting now, so it is set here, production only (a dev server on plain HTTP
+ * must not pin itself). One year, this host only: includeSubDomains/preload
+ * would commit every subdomain and the browsers' preload list — an owner call.
  */
 export function securityHeaders(isDev: boolean) {
   return [
@@ -160,10 +163,14 @@ export function securityHeaders(isDev: boolean) {
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
     {
       key: "Permissions-Policy",
-      value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+      /* Geolocation is first-party only: "Use my location" on the storefront
+         asks for it (W-15, owner-approved 25 Sep 2026). No embedded frame may,
+         and the browser still asks the customer. Everything else stays off. */
+      value: "camera=(), microphone=(), geolocation=(self), browsing-topics=()",
     },
     // Superseded by frame-ancestors above, kept for browsers that predate it.
     { key: "X-Frame-Options", value: "DENY" },
+    ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]),
   ];
 }
 

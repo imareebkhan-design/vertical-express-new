@@ -6,7 +6,6 @@ import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { isWalletCredit } from "@/lib/wallet-tx";
 
 interface MobileWalletViewProps {
@@ -65,32 +64,10 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
       </div>
 
       <div className="p-4 space-y-4">
-        {/*
-          Vertical Credit — artboard 17.
-
-          The artboard labels this block "Terms unconfirmed" itself, which is the
-          design's own placeholder register being applied at the source. So every
-          figure here carries the marker: there is no credit model, no limit, no
-          repayment window and no policy deciding any of them. Rendering the
-          block keeps the screen the design intends and keeps the open question
-          visible; inventing a limit would put a number in front of a contractor
-          that nobody has agreed to honour.
-        */}
-        <div className="rounded-[22px] bg-paper p-5 shadow-card">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="text-[15px] font-extrabold text-ink">Vertical Credit</h2>
-            <span className="rounded-full bg-amber-soft px-2.5 py-1 text-[10px] font-bold text-ink">
-              Terms unconfirmed
-            </span>
-          </div>
-          <p className="mt-3 text-[13px] font-medium leading-[18px] text-ink-700">
-            <PlaceholderValue pending="credit terms are on the do-not-build list — no limit, window or rate has been set">
-              A trade credit line is planned, and its limit and repayment terms are not
-              settled yet.
-            </PlaceholderValue>
-          </p>
-        </div>
-
+        {/* Vertical Credit (artboard 17) is not shown. There is no credit model,
+            limit or terms, and it is an open owner decision — a card announcing
+            "a trade credit line is planned" was a commitment nobody has made.
+            It comes back if and when the product exists. */}
         {/*
           Wallet balance.
 

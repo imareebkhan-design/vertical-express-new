@@ -11,10 +11,21 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 ---
 
+## ISS-089 — Mobile web OTP verifier attachment and resend cooldown
+
+**1 October 2026 · MEDIUM · Auth · FIXED locally; real SMS verification open.**
+
+`components/mobile/auth/mobile-sign-in-view.tsx` rendered the reCAPTCHA holder at different unkeyed child positions in its phone/code branches. React replaced the element during a successful send, detaching Firebase's widget. Stable matching keys preserve the exact element and widget children across both transitions. The cooldown depended only on whether a confirmation existed, so a successful resend never restarted it; it now also depends on the new confirmation object.
+
+Two component regression tests fail against the old behavior and pass with the fix. UI 74/74, TypeScript and ESLint pass. The 390 × 844 phone-entry render was checked; live Firebase resend was not exercised. Evidence: workspace `docs/evidence/loop-2026-10-01/iter29-phone-auth.md`.
+
+This does **not** establish the cause of the owner's original red error. Firebase's [web phone-auth guide](https://firebase.google.com/docs/auth/web/phone-auth) excludes localhost for real phone authentication. The original surface and exact failing response remain unconfirmed. Test-number success is insufficient evidence for real SMS; no Firebase configuration or security protection was changed.
+
 ## Summary
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-089 | Mobile web OTP step detached reCAPTCHA; successful resend did not restart cooldown | MEDIUM | Auth | FIXED (local; real SMS unverified) |
 | ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | FIXED |
 | ISS-002 | Dummy payment gateway confirms orders with no money | CRITICAL | Payments | FIXED |
 | ISS-003 | Razorpay HTTP call executes inside DB transaction | HIGH | Checkout | FIXED |
@@ -1273,6 +1284,13 @@ and microphone, `frame-ancestors 'none'`. Verify no `unsafe-inline` for scripts.
 `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` denying camera,
 microphone, geolocation and browsing-topics, and `X-Frame-Options: DENY` alongside CSP
 `frame-ancestors 'none'`. HSTS continues to come from Vercel.
+
+**Amended 25 Sep 2026 (owner-approved, Web Completion Batch 2 / W-15).** Geolocation is
+now `geolocation=(self)`: the storefront's own "Use my location" needs it, and the
+blanket deny blocked it on every page (the recommendation above named only camera and
+microphone). No embedded frame or other origin may ask, and the browser still prompts
+the customer. `security-headers.test.ts` asserts `self` only — no wildcard, no other
+origin — and still asserts camera, microphone and browsing-topics are denied.
 
 **Deviation from the recommendation above, owner-approved.** The CSP is deliberately
 **not** nonce-based. Next applies nonces during server-side rendering, so a nonce forces
@@ -3034,3 +3052,828 @@ than discover.
 
 **Owner input required.** Yes — should a price change apply to carts that already hold the
 item, or only to carts created afterwards?
+
+## ISS-069 — The service suite passed only on a database with leftovers
+
+| | |
+|---|---|
+| **Severity** | MEDIUM |
+| **Area** | Tests / CI |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 — not yet committed |
+
+**Description.** On a fresh CI database (migrations + `prisma db seed` only) 12 of 787
+service tests failed; the same HEAD's GitHub run failed too. Three causes: ten tests in
+`express-delivery`, `packing-slip` and `pick-list` borrowed "whichever user exists" and the
+seed creates none; one `search-entry` test needed the brands from
+`scripts/seed-real-brands.mjs`, which CI never runs; and `auth-redirect-loop` grepped the
+login page for the inline open-redirect check after it moved into `lib/safe-next.ts`.
+
+**Resolution.** Each test now creates and deletes its own user or empty brand (no unique
+phone or email, so fixtures cannot collide); the redirect test asserts behaviour through
+`safeNextPath` plus a one-line wiring check. Evidence:
+`docs/evidence/ci-rehearsal-2026-09-28/` at the workspace root.
+
+**Order dependence — resolved 28 Sep (autonomous loop, iteration 4).** `roster-write`,
+`catalogue-import` and `shipments-write` borrowed `db.user.findFirst()` and passed only
+because `places.test.ts` (which sorts earlier) leaked a user: run alone on a fresh
+database they failed **29 tests** (7 + 7 + 15). Each now creates and deletes its own user;
+`places.test.ts` now deletes the user it creates. Alone: 8/8, 13/13, 20/20, 11/11;
+full suite on a fresh DB 796/796 with **0 users left behind**.
+`product-create` still reads `findFirst()` but tolerates `null`, so it is left alone.
+
+## ISS-070 — A build without the public Firebase config succeeded and served an error on every page
+
+| | |
+|---|---|
+| **Severity** | HIGH |
+| **Area** | Build / Configuration |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 — not yet committed |
+
+**Description.** `NEXT_PUBLIC_FIREBASE_*` are inlined at build time. Without them the build
+passed and every route — FAQ and Terms included — rendered the error boundary, because the
+header's account button starts Firebase Auth and `firebaseApp()` throws.
+
+**Resolution.** `scripts/check-public-env.mjs` runs as `prebuild` and fails the build naming
+the missing variables (names only, never values), loading `.env*` exactly as `next build`
+does. CI's build step supplies obvious placeholders. **Not changed:** a runtime where the
+config is missing still takes down every page; the guard only stops such a build shipping.
+
+## ISS-071 — A dead session on /account or /checkout logged React error #310
+
+| | |
+|---|---|
+| **Severity** | LOW (user lands on sign-in either way) |
+| **Area** | Auth / Routing |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 — not yet committed |
+
+**Description.** Middleware redirects a visitor with no session cookie. A visitor whose
+cookie is present but dead (expired, or from another environment) reached the page, whose
+`redirect()` ran under `loading.tsx` after the shell had streamed with a 200. Next could
+only perform it client-side as a hard navigation, and its router throws part-way through its
+hooks on that path: "Rendered more hooks than during the previous render".
+
+**Resolution.** `app/(account)/account/layout.tsx` and `app/(shop)/checkout/layout.tsx`
+render above the loading boundary and call `redirectDeadSessionToSignIn()`
+(`lib/auth/early-sign-in.ts`), a local signature/expiry check that can only turn a visitor
+away — a real 307, preserving the exact path via a middleware-set header. Pages keep their
+own authoritative `getAuthUser()` check. **Residual:** a *revoked* but unexpired session, or
+a valid Firebase user with no `users` row, still reaches the page-level redirect.
+
+## ISS-072 — Content pages were ~21px wider than a 375px phone
+
+| | |
+|---|---|
+| **Severity** | LOW |
+| **Area** | Storefront / Layout |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 — not yet committed |
+
+**Description.** `components/sections/content-page.tsx` rendered `ServicesBanner` inside a
+`main` that already had `px-4`, stacking three gutters (`main` 32 + band 48 + card 72) around
+the banner's unbreakable "verticalconstruction.in" button (244px). Every content page was
+held at 396px on any phone narrower than that. The downloads price-list rows, first
+suspected, were measured and do not contribute.
+
+**Resolution.** The banner and downloads strip render after `main`, with their own single
+gutter, as on `/downloads` and `/services`. On desktop this widens the content pages' band by
+the removed inner gutter (at 1440px the card spans 144–1296px, exactly as on `/downloads`),
+so the band now lines up with every other page instead of sitting 24px narrower each side.
+
+## ISS-073 — Phone-web checkout breakdown did not add up to the amount charged
+
+| | |
+|---|---|
+| **Severity** | MEDIUM (money display; the amount charged was always correct) |
+| **Area** | Checkout / phone-web |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 — not yet committed |
+
+**Description.** `computeTotals` returns `subtotalPaise` as the **taxable value — after the
+coupon, excluding GST** — with `totalPaise = subtotalPaise + taxPaise + deliveryFeePaise`.
+`components/mobile/checkout/mobile-checkout-view.tsx` printed that taxable value as
+"Subtotal", labelled the GST "included", and subtracted the coupon again. For the ₹320
+cement order it showed Subtotal ₹250 + delivery ₹49 against a total of ₹369; with a coupon
+the discount appeared to be taken twice. Desktop (`checkout-view.tsx`) already reconciled,
+using the cart's inclusive subtotal.
+
+**Resolution.** One presentational component, `components/shop/checkout/summary-lines.tsx`,
+used by both checkouts, derives every figure from the server's totals: Subtotal =
+`subtotalPaise + taxPaise + discountPaise` (the items at GST-inclusive prices before the
+coupon — exact, because the server's taxable value per line is inclusive price minus
+extracted tax), then Discount, GST (included), Delivery, so **Subtotal − Discount +
+Delivery = Total**. Charged totals and tax policy are unchanged. Component tests
+(`components/shop/checkout/__tests__/summary-lines.test.tsx`, 8) cover single-rate,
+mixed 28%/18%, and discounted orders on both variants, with fixtures recomputed through
+the real `computeGst`; restoring the old subtotal logic fails all 8. Browser-verified on
+phone and desktop, with and without a coupon, free and charged delivery.
+
+## ISS-074 — The payment-window expiry cancels orders without asking Razorpay whether they were paid
+
+| | |
+|---|---|
+| **Severity** | HIGH (money taken, order cancelled) |
+| **Area** | Payments / order lifecycle |
+| **Status** | RESOLVED in the working tree, 28 Sep 2026 (iteration 11) — not yet committed |
+
+**Description.** `cleanupExpiredPendingOrders` (`lib/services/orders.ts`) cancels every
+`pending_payment` order older than 15 minutes and releases its stock, using only the local
+status. It never asks the gateway. If a customer pays near the end of the window and the
+browser callback is lost (tab closed, network drop) while the webhook is late or failing,
+the order is cancelled although the money was captured. When the webhook finally arrives
+it is recorded as a late capture on the refund worklist (`payment-settlement.test.ts`) —
+and there is no refund executor (ISS-025, `refundPayment` has no caller). Customer charged,
+order cancelled, manual refund required.
+
+**Exposure.** Live mode refuses to start without `RAZORPAY_WEBHOOK_SECRET`, so production
+relies on a webhook arriving within 15 minutes of capture. Locally and on any environment
+without the secret, webhooks are rejected and the window is the only defence.
+
+**Proposed fix (engineering, no business rule).** Add a gateway lookup to
+`PaymentProvider` (Razorpay: `GET /v1/orders/{id}/payments`; dummy: none). In the expiry
+job, for an online order with a gateway order id, look up its payments first: if any is
+`captured`, settle it through the existing webhook settlement path (same amount and
+idempotency checks) instead of cancelling; if the lookup fails, skip the order this run
+rather than cancel on missing information, and alert. Tests: captured → confirmed not
+cancelled; none → cancelled as today; lookup error → skipped; plus a negative control.
+
+**Resolution (28 Sep, iteration 11).** `PaymentProvider.findCapturedPayment` (Razorpay:
+`GET /v1/orders/{id}/payments`, 10 s timeout, throws on any non-OK or unreadable answer;
+dummy/COD: none). `cleanupExpiredPendingOrders` asks it for each stale order's gateway
+payments before cancelling: captured at the right amount → `settleCapturedPayment`
+(`source: "expiry_check"`, same compare-and-set as callback/webhook); captured at another
+amount → left pending + `expiry_capture_amount_mismatch` alert; lookup failed → left
+pending + `expiry_gateway_lookup_failed` alert; `PaymentConfigError` (no Razorpay in this
+process) → cancelled as before. Tests: `lib/services/__tests__/expiry-gateway-check.test.ts`
+(6); disabling the check fails exactly the three new-behaviour tests. Existing expiry,
+settlement, cancel and webhook suites unchanged and passing. **Residual:** an order whose
+lookup keeps failing or whose amount keeps mismatching stays `pending_payment` (holding
+stock) and alerts every run until a person resolves it.
+
+## ISS-075 — A second, different Razorpay capture on an already-paid order was recorded nowhere
+
+**Severity:** MEDIUM — defensive (money recorded nowhere *if* it happens). **Status:** RESOLVED 28 Sep 2026 (loop E5).
+
+**Provider behaviour, checked against Razorpay's docs on 28 Sep 2026:** a second capture on
+one Razorpay order is **not** documented behaviour. The Orders docs say no further payment is
+allowed once an order is `paid`, nor while a payment on it is `authorized` — so "two checkout
+windows" or "retry after a lost callback" cannot, per the docs, produce two captures. The one
+route the docs leave open is **late authorization**: a bank may confirm an earlier attempt up
+to 3 days later and the default setting auto-captures authorized payments; the docs do not say
+whether that capture is refused when another payment already paid the order. This fix is
+defensive accounting for that undocumented edge, and the tests are simulated signed
+callbacks/webhooks, not reproductions of observed Razorpay behaviour.
+
+If it happens, `settleCapturedPayment`
+kept the first payment id and answered the second `already_confirmed` — right for a redelivery
+of the *same* payment, but a *different* payment id left no payment row, event, alert or
+worklist entry. `v1-journey.test.ts` asserted this as "a replay" (different, validly signed
+payment id); that assertion is updated.
+
+**Fix** (`lib/services/checkout.ts`): when the payment row is already captured under a different
+id, lock the order row (`FOR UPDATE`), and unless that payment id is already recorded, create a
+separate `captured` payment row, one same-status timeline event, and alert
+`duplicate_payment_captured` (outcome `duplicate_recorded`; on a cancelled order it is
+`late_recorded`, so the existing late-payment path and worklist apply). New
+`listDuplicateCaptures()` feeds the admin Payments "Refund required" list
+(`app/admin/payments/page.tsx`). No schema change. No refund is initiated (owner policy, ISS-025).
+
+**Tests:** `lib/services/__tests__/duplicate-capture.test.ts` (6): webhook, browser callback,
+redeliveries, a 4-way race ×4, cancelled order, same-payment redelivery creates nothing.
+Negative controls: branch disabled → exactly 5 fail; lock removed → race test fails 1 in 3 runs;
+with the lock 6/6 repeats pass. Clean rehearsal on this source: service **812/812**, UI 34/34,
+tsc, lint, build all PASS (`docs/evidence/loop-2026-09-28/iter12-iss075-rehearsal/`, workspace root).
+
+**Reader audit (iteration 12).** An extra captured row changes what "the newest payment" is.
+Every reader of an order's payments was checked:
+status-only readers (customer order detail/confirmation/history `paymentStatus`, v1
+`paymentStatus`, admin orders list, `hasFunds` in cancel/advance) still read `captured` — a second
+row exists only when the first is already captured. Gateway-id readers (v1 resume `razorpay`,
+`retryOrderPayment`, idempotent replay) act only on `pending_payment` orders, which cannot carry a
+second-capture row. **One reader misrepresented:** the admin order page's Payment panel showed
+`payments[0]` (newest) — the refund-bound payment — and hid the one that paid for the order. Fixed:
+`lib/payment-rows.ts` `splitOrderPayments` (oldest row = the order's payment; later captured rows =
+"Second capture · refund required"), 4 unit tests. Refund worklist: dead orders list every capture
+(`listCapturedPaymentsOnDeadOrders`), live orders list only captures after the first
+(`listDuplicateCaptures`, excludes dead orders) — a test asserts no payment appears in both.
+
+## ISS-076 — After a lost payment callback, "Complete payment" offered checkout again for an order Razorpay had already been paid for
+
+**Severity:** HIGH (customer told to pay again for a paid order). **Status:** RESOLVED 28 Sep 2026 (loop E5 part 2).
+
+If the browser's confirmation never reached the server (tab closed, network dropped) and no
+webhook arrived, the order stayed `pending_payment`. Reopening it showed "Complete payment",
+which reopened Razorpay on the same (already paid) Razorpay order — at best an error from
+Razorpay, at worst an invitation to pay again. Only the webhook or the 15-minute expiry
+(ISS-074) could recover it.
+
+**Fix:** the ISS-074 lookup is now one shared function, `reconcileWithGateway` in
+`lib/services/orders.ts` (the expiry uses it unchanged). `retryOrderPayment`
+(`actions/orders.ts`, web desktop + phone) and `GET /api/v1/orders/:orderNo`
+(`lib/api/v1.ts`, where the native app gets its "Complete payment" details) ask Razorpay first:
+captured at the order's amount → settled (`source: "retry_check"`), the paid order is shown and no
+checkout is offered; nothing captured → the retry flow as before; lookup failed or amount
+mismatch → alert, no checkout details and nothing marked failed or cancelled (web: "We couldn't
+confirm this payment with the bank just now. If you've already paid, please don't pay again";
+app: its existing "Check again in a minute; do not pay again"); order died meanwhile → recorded
+as a late capture (`LATE_PAYMENT_MESSAGE`). Ownership is checked before any gateway call; the
+gateway call is outside any transaction; settlement is the existing compare-and-set. No refund.
+
+**Tests:** `lib/services/__tests__/resume-payment-check.test.ts` (8, via the API handler with an
+injected lookup). Negative control (check disabled) fails exactly the 4 new-behaviour tests.
+**Browser, Razorpay TEST, local demo DB:** payment succeeded in the modal with the confirmation
+request dropped → order still pending → "Complete Payment" → real Razorpay TEST lookup →
+confirmed, one payment row, one transition, no checkout opened
+(`docs/evidence/loop-2026-09-28/iter12-e5-lost-callback.md`).
+
+**Not fixed (residual):** "Cancel order" on the same lost-callback order does not ask Razorpay.
+It cancels and releases stock; the capture then reaches us only by webhook (required in
+production by `assertPaymentConfig`) and is recorded as a late payment for refund. The web action
+server-side is covered only by typecheck + the browser run (server actions need a real session).
+
+## ISS-077 — "Cancel order" after a lost payment callback cancelled an order Razorpay had been paid for
+
+**Severity:** HIGH (paid order cancelled, stock and coupon use released, money left on a cancelled
+order). **Status:** RESOLVED 29 Sep 2026 (loop E5, money-safety close-out).
+
+After a lost callback (ISS-076) the order still read `pending_payment`, and `cancelOrder` decided on
+that local status alone: it cancelled, released stock and the coupon use, and the capture — already
+at Razorpay — could only reach us later as a late payment for refund (if the webhook arrived).
+
+**Fix** (`lib/services/orders.ts` `cancelOrder`): after the ownership, cancellable and local-funds
+checks, and outside any transaction, an order with a Razorpay order is checked with
+`reconcileWithGateway` (context `cancel`):
+captured at the order's amount → settled through `settleCapturedPayment` (`source: "cancel_check"`),
+cancel refused `PAID_NOT_CANCELLABLE`, nothing released; **authorized, capture pending** →
+refused `PAYMENT_IN_PROGRESS`, nothing moves; lookup failure / timeout / amount mismatch / **no gateway
+configured in this process** → refused `PAYMENT_STATUS_UNKNOWN`, nothing moves; nothing captured →
+cancelled through the existing compare-and-set transaction (stock and coupon released once). Orders
+with no Razorpay order (COD, or the gateway order was never created) are not looked up and cancel as
+before. Customer messages (`lib/order-display.ts` `cancelErrorResult`): "couldn't check … so it
+hasn't been cancelled … try again … if you've already paid, don't pay again" and "your bank has
+approved a payment … still being completed". Neither claims the order is unpaid or that money is
+refunded. The web order pages now refresh after a refused cancel, so an order found paid is shown
+as paid rather than as the stale "awaiting payment".
+
+**Supporting change:** the Razorpay lookup (`lib/services/payments.ts` `findCapturedPayment`) now
+reports an `authorized` payment as `status: "authorized"` (a capture wins over an authorization)
+instead of returning "nothing". `reconcileWithGateway` returns `authorized` and `unconfigured` as
+their own outcomes; the expiry now **waits** on an authorized payment instead of cancelling it,
+and "Complete payment" offers no checkout while a payment is authorized. (Follow-up below: the
+expiry also no longer cancels when it cannot ask Razorpay.)
+
+**Residual race (cannot be closed by a lookup):** a capture that happens at Razorpay *after* the
+cancel's lookup — a payment completing in another tab, or a bank's late authorization of an earlier
+attempt being auto-captured — still meets a cancelled order. The existing path records it: the
+webhook (or a late browser callback) settles it as `late_recorded`, the payment row says `captured`
+on a cancelled order, it appears on the admin "Refund required" list, and `late_payment_captured`
+alerts. That depends on the webhook (or callback) actually arriving; webhook delivery is not
+guaranteed, and nothing refunds automatically (refund policy is the owner's, ISS-025).
+Closing this residual needs two things this repository does not yet have: **reliable
+reconciliation** (a delivered webhook in every environment, or a periodic job that asks Razorpay
+about recently cancelled orders), and an **approved refund process** for the money it finds. It is
+not eliminated.
+
+**Tests:** `lib/services/__tests__/cancel-lost-callback.test.ts` (9 tests, one per required case:
+captured, authorized, lookup failure/timeout/mismatch/unconfigured, unpaid, no Razorpay order,
+settle-after-lookup, true concurrent settle vs cancel ×6, duplicate cancels ×4, ownership before any
+gateway call) and `lib/__tests__/cancel-error-mapping.test.ts` (4). Added to existing files: an
+authorized case in `expiry-gateway-check.test.ts` (+1 test, provider parsing extended) and
+`resume-payment-check.test.ts` (+1). Negative controls (disposable copy): cancel check removed → 5
+fail; authorized distinction removed → exactly the 3 authorized tests fail (cancel, expiry, API);
+unconfigured treated as unpaid → exactly the uncertainty test fails.
+**Browser, Razorpay TEST, local demo DB:** lost callback → Cancel → real Razorpay TEST lookup → order
+confirmed, cancel refused, stock untouched, page shows the paid order (that order had no coupon;
+coupon release/keep is covered by the service tests only)
+(`docs/evidence/loop-2026-09-28/iter13-e5-cancel.md`, workspace root).
+
+**Follow-up (29 Sep 2026, iteration 14) — expiry and missing gateway configuration.** Customer
+cancel refused a pending Razorpay order when this process could not ask Razorpay, but
+`cleanupExpiredPendingOrders` still treated "unconfigured" like "nothing captured" and cancelled —
+releasing stock and coupon use of an order that may have been paid. Now:
+- `reconcileWithGateway` asks only about **Razorpay** payment rows (`gateway: "razorpay"` with a
+  gateway order id); rows from the dummy gateway or COD have no Razorpay order and are not asked.
+- On a configuration failure it raises `<context>_gateway_unconfigured` once per order
+  ("Razorpay is not configured in this process … Set the Razorpay keys for this environment"),
+  carrying the order number and the configuration error, which names settings, never their values.
+- The expiry expires only on a definite "nothing captured" (or when there is no Razorpay order to
+  ask about); "unconfigured" leaves the order pending with stock, coupon use and events untouched.
+  The service holds this itself rather than relying on `assertPaymentConfig` at startup.
+Tests (`expiry-gateway-check.test.ts`): the former "expiry cancels as it always did" test now
+asserts the order stays pending (it encoded the behaviour being changed); a new regression runs the
+**real** expiry with `razorpay-test` active and the keys removed — order, payment, stock, coupon
+redemption and counter, and status events unchanged; the alert names the order and
+`RAZORPAY_KEYS_MISSING` and contains no key material; a third test keeps expiring an order whose
+only payment row is a dummy one. `payment-settlement.test.ts`'s "expiry and payment at once" race
+now injects the lookup's answer ("nothing captured yet") — without an answer the expiry can no
+longer cancel a Razorpay order, and the race would pass without ever exercising its cancel branch.
+Negative controls: old condition restored → exactly the two unconfigured tests fail; Razorpay-only
+filter removed → exactly the dummy-row test fails.
+**Residual:** the expiry takes 20 stale orders per run with no ordering; if more than 20 Razorpay
+orders are stuck pending (gateway unconfigured, lookups failing, amounts mismatching, or held
+authorizations) the same ones are re-picked every run and later stale orders are not reached. Each
+run alerts, so it is visible; it is not solved here.
+
+## ISS-078 — Expiry batch can be starved by orders it must leave pending
+
+**Severity:** MEDIUM (engineering; no owner policy needed). **Status:** RESOLVED 29 Sep 2026 (resolution below).
+
+`cleanupExpiredPendingOrders` (`lib/services/orders.ts`) reads `take: 20` stale `pending_payment`
+orders with **no ordering and no cursor**. Since ISS-074/ISS-077 it deliberately leaves some of them
+pending: Razorpay lookup failed or timed out, captured amount mismatched, payment authorized but not
+captured, or the gateway not configured in the process. Each such order is re-read on every run. If
+more than 20 of them exist, every run can pick the same blocked set, and later stale orders — including
+genuinely unpaid ones that should expire and release stock and coupon use — are never reached. Each run
+alerts per blocked order, so it is visible, but it is not self-healing.
+
+**Acceptance criteria**
+1. With more than 20 stale orders that the expiry must leave pending (any mix of lookup failure,
+   mismatch, authorized, unconfigured), a genuinely unpaid stale order created after them is expired —
+   stock and coupon use released exactly once — within a bounded number of runs (state the bound).
+2. Blocked orders are still never cancelled on missing information; each is still retried on later runs.
+3. No order is processed twice concurrently: two overlapping runs still release stock once
+   (existing `cron-cleanup.test.ts` concurrency guarantees keep passing).
+4. A regression test builds the >20-blocked scenario against the real service and proves (1)–(3), with
+   a negative control showing the current unordered `take: 20` fails it.
+5. The chosen mechanism (e.g. oldest-first ordering plus a per-order "last checked" skip/backoff, or a
+   cursor) is documented, and the alerting for blocked orders remains.
+
+Not a policy question: the rule "never cancel on missing information" is already set; this is only about
+reaching every eligible order.
+
+**Resolution (29 Sep 2026).** A per-order claim with a lease, on one new nullable column
+`orders.expiry_checked_at` (migration `20260929120000_order_expiry_checked_at`, additive, no backfill;
+`docs/DATABASE_SCHEMA.md`). `cleanupExpiredPendingOrders` (`lib/services/orders.ts`):
+1. selects at most `EXPIRY_BATCH_SIZE` = 20 stale `pending_payment` orders not claimed in the last
+   `EXPIRY_CLAIM_LEASE_MS` = 2 min, ordered `expiry_checked_at NULLS FIRST, placed_at, id` (one indexed query);
+2. for an order with a Razorpay payment to ask about, claims it just before the lookup with a conditional update
+   (`expiry_checked_at = now` only if unclaimed or the lease lapsed) — this is also the round-robin step;
+   an order with nothing to ask about cannot block and goes straight to the existing compare-and-set cancel;
+3. asks Razorpay and cancels or leaves it exactly as before (never on authorized / unknown / mismatch /
+   unconfigured; capture reconciliation unchanged; gateway call outside any transaction; stock and coupon
+   released only by the CAS that moves `pending_payment → cancelled`);
+4. stops claiming after `EXPIRY_RUN_BUDGET_MS` = 120 s; unclaimed orders keep their place.
+A cancel transaction that throws also rotates the order, so a persistently failing one cannot hold the front.
+
+**Progress guarantee — corrected 29 Sep 2026 (the first statement was unconditional in runs; it is not).**
+What the implementation and tests establish, however many orders are blocked:
+- *Per run:* ≤ 20 orders; no new claim once 120 s have passed since the run started (the selection query counts),
+  so a run lasts about 120 s plus one order's examination (one Razorpay lookup, 10 s timeout — an order has one
+  unsettled Razorpay payment row — plus short transactions without their own timeout).
+- *Progress:* a run examines the first order it selected unless an overlapping run holds that order's claim, even
+  when the budget then stops it; only a selection query that alone outlasts the budget examines nothing. An order
+  a run did not reach carries no claim and keeps its place — the next run starts from it.
+- *Order:* never-examined orders oldest first, then least recently claimed. A never-examined order (e.g. a newly
+  stale unpaid one) is reached once the never-examined stale orders placed before it have been examined; orders
+  that become stale later queue behind it. Blocked orders are re-examined after their lease, in turn.
+
+**Runs are not a fixed bound.** With N claimable orders and none arriving, ⌈N/20⌉ runs suffice *only if every one
+of those runs examines a full batch of 20*. A run examines fewer when:
+- *the budget runs out* — a slow or failing gateway. By arithmetic (not tested), if every lookup hits the 10 s
+  timeout about a dozen orders fit in one run; the test shows one per run when each order is slow enough, and
+  that ⌈N/20⌉ such runs then do *not* reach the unpaid orders;
+- *runs overlap* — they share one queue; no order is looked up twice while its claim holds, but together they may
+  examine no more than one run would (orders with no Razorpay payment are not claimed; both may reach one, and the
+  compare-and-set cancels it once);
+- *a worker dies after claiming* — the order is not examined, becomes claimable after the 2-min lease, and its
+  claim counts as an examination: it goes behind every order examined less recently (tested). Its stock and coupon
+  use are untouched until it is examined; it loses its place, not data;
+- *new orders become stale* — they go ahead of already-examined blocked orders (not ahead of an older
+  never-examined one), postponing re-examinations.
+And a run happens only when the scheduler calls the cron route (not yet configured in production — see Residual).
+
+**Overlap and restart.** Two overlapping runs cannot claim the same order within the lease, so they do not ask
+Razorpay about the same order twice while the claim holds (an examination outlasting the 2-min lease could be
+repeated — a second lookup, never a second cancel), and never release stock or coupon use twice (the CAS was already
+exactly-once); a run that loses a claim skips the order. A process that dies between claim and completion leaves
+only a claim, which lapses after 2 min; the order is then claimed again, from the back of the queue — nothing is
+cancelled unsafely and no stock or coupon use is lost.
+Cron authorization (`CRON_SECRET`) is unchanged.
+
+**Tests.** `lib/services/__tests__/expiry-queue-progress.test.ts` (5 at resolution, 7 since the correction; real service, injected clock and gateway
+answers, 25 blocked orders — authorized, lookup failure, amount mismatch, unconfigured — placed before 5 unpaid
+orders holding stock and a coupon use): later orders expire within ⌈N/20⌉ runs with stock and coupon released
+exactly once and blocked orders untouched and looked up once; blocked orders are re-examined after the lease and
+an unblocked one then expires; two concurrent workers never double-look-up or double-release; a claim left by a
+crashed worker is honoured, then reclaimed; the run budget stops new claims without stranding orders. Negative
+controls (isolated copy): the old unordered, claim-free selection fails 4 of 5; removing the budget check fails
+the budget test. Existing expiry / cancel / coupon-release / settlement suites unchanged and passing (the
+cancel-vs-expiry race test keeps its original expectations because orders with nothing to look up are not claimed).
+Added with the correction (existing five unchanged): runs cut short by the budget each examine one order, the next
+resumes at the first unreached order, and ⌈N/20⌉ such runs do not reach the unpaid orders while one run per
+never-examined order ahead does; a crashed worker's claim sends the order behind a full batch of never-examined
+orders placed after it. Negative controls (isolated copies, evidence
+`docs/evidence/loop-2026-09-28/iter18-iss078-guarantee/`): claiming before the budget check fails the budget test
+and the new short-run test; ordering by `placed_at` only fails the short-run and crash-position tests.
+
+**Residual.** Nothing here is a wall-time bound: progress happens only when the cron runs, and the production
+scheduler job is not configured (Firebase App Hosting — `docs/DEPLOY_FIREBASE.md`); the migration adding
+`expiry_checked_at` is applied to local databases only. Both are release prerequisites (`docs/PRODUCTION_READINESS.md`,
+release checklist). With many blocked orders each is re-examined only after every order examined less recently —
+at best every ⌈N/20⌉ runs, more under a slow gateway. Alerts still fire per blocked order per examination.
+
+**Audit, 30 Sep 2026 (iteration 22; owner's A–F requirements and 12 test requirements).** No defect was
+found in the mechanism, so the service code is unchanged. Two tests were added to
+`expiry-queue-progress.test.ts` (now 9):
+- **H.** 25 blocked orders ahead of a correct capture and an unpaid order. The capture is settled
+  (`confirmed`/`captured`, stock and coupon use kept). The unpaid order expires within ⌈N/20⌉ runs. Every
+  order cancelled released exactly once. **Each run made at most 20 gateway lookups and never asked about
+  an order twice.**
+- **I.** A separate gateway stub per run, so no state is shared except the database. Run 2 resumes at
+  order 21, and after the lease fresh runs look every blocked order up again, once each, and cancel none.
+
+*Exact guarantee.* An **effective run** is a run not overlapping another, whose selection query finishes
+within the 120 s budget. Each effective run examines at least its first selected order.
+- A never-examined stale order with U never-examined stale orders placed before it is examined within
+  **U + 1 effective runs**, and within ⌈(U+1)/20⌉ runs when every run examines a full batch.
+- Already-examined blocked orders are never ahead of it (`NULLS FIRST`).
+- A blocked order, once its lease lapses, with B claimable orders ahead of it, is re-examined within
+  **B + 1 effective runs**. New stale arrivals count in B.
+
+*Per-run limits.*
+- At most 20 candidate rows, from one indexed query.
+- At most 20 gateway lookups: one per order. Each order has exactly one lookup-able Razorpay payment
+  row, because `gateway_order_id` is unique and duplicate captures are written `captured` with no
+  `gateway_order_id`.
+- At most 20 cancelled or settled.
+- No new claim after 120 s, so a run lasts about 120 s plus one examination: a 10 s lookup timeout plus
+  Prisma's default 5 s transaction timeout and 2 s wait. The few untimed single queries have an UNKNOWN
+  worst case.
+
+*Negative controls* (isolated copy, restored and checked byte-identical):
+- The pre-ISS-078 unordered, claim-free `take: 20` fails 8 of 9.
+- `placed_at`-only ordering fails 2.
+
+Final gates on source manifest `42ed96bc…`: service suite 902/902, UI 68/68, tsc, lint, check:ds,
+check:assets and the build guard (both cases) all pass. `next build` was BLOCKED on disk.
+Evidence: `docs/evidence/loop-2026-09-28/iter22-iss078-audit/` (workspace root).
+
+## ISS-079 — A free-delivery coupon was never recorded or used up, so its limits bound nothing
+
+**Severity:** MEDIUM (margin: "one per customer" free delivery was unlimited). **Status:** RESOLVED 29 Sep 2026 (loop E6).
+
+`computeTotals` applied a `free_delivery` coupon by setting the delivery fee to 0, but `placeOrder` recorded
+`Order.couponCode` and called `redeemCoupon` only when `discountPaise > 0`. A free-delivery coupon has no goods
+discount, so the order carried no coupon and no redemption row was written; `resolveCoupon` counts uses from
+`Order.couponCode` and `redeemCoupon` guards `redeemedCount`, so neither ever moved. Its `usageLimit`,
+`perUserLimit` and `firstNOrders` were therefore decorations. The seeded coupon `FIRST3` is of this type.
+
+**Fix** (`lib/services/checkout.ts`): `CheckoutTotals.couponDeliveryWaivedPaise` — the fee a free-delivery coupon
+actually took off (0 if the fee was already 0). A coupon is recorded and redeemed when it took effect: a goods
+discount **or** a waived fee. The redemption's `discountPaise` is what it took off (goods discount + waived fee).
+A free-delivery coupon on an order that already had free delivery takes nothing and spends nothing, matching how
+a zero-effect discount coupon already behaved. No schema change.
+
+**Test:** `lib/services/__tests__/coupon-e6.test.ts` — "a free-delivery coupon is used up like any other" fails
+before the fix (order records no coupon) and passes after; negative control (old condition restored) fails exactly
+that test.
+
+**Observations raised, not changed (E6):**
+- *Express fee and free-delivery coupons.* A `free_delivery` coupon zeroes the whole delivery fee **including an
+  express surcharge**, although the free-delivery *threshold* deliberately does not waive express (comment in
+  `computeTotals`). Whether a free-delivery coupon should cover express is a commercial rule — owner decision.
+- *(Resolved by ISS-080, below.)* *A coupon that stops qualifying between preview and placement* (expired, claimed out, limit reached by another
+  order) is ignored at placement: the order is placed at full price, and the higher amount is what Razorpay shows.
+  The customer is not told the coupon was dropped. This is consistent with the existing "unknown code is ignored
+  rather than trusted" behaviour and with the server total being authoritative, but it differs from the
+  redemption-race path, which refuses the order. Whether to refuse instead (and show the new total) is a product
+  decision; recorded, not changed.
+- *Presentation:* checkout shows the GST-inclusive "Subtotal" (₹412) minus the coupon; the confirmation and order
+  pages show "Subtotal (before GST)" (₹295.17) plus GST, with "Includes a coupon saving of ₹41.20". Both reconcile
+  to the same total; the two formats may confuse. P4.
+- *Accessibility:* the desktop promo-code field has only a placeholder ("e.g. FIRST3"), no label (already listed
+  under E11). P4.
+
+## ISS-080 — A coupon that stopped qualifying before placement was dropped silently and the order placed at a higher total
+
+**Severity:** HIGH (customer charged a total they had not seen). **Status:** RESOLVED 29 Sep 2026 (loop E6 correction).
+
+`computeTotals` ignored an ineligible coupon, and `placeOrder` went on to create the gateway order and the order at
+the no-coupon total. A coupon that expired, was switched off, was claimed out by another order, hit the customer's own
+per-customer limit in another tab, or stopped meeting its minimum because the basket changed — between the
+coupon-applied preview and "place order" — produced an order and a Razorpay charge request for more than the customer
+had been shown, with no explanation. The re-quote on the checkout screen likewise dropped it while still saying
+"applied".
+
+**Fix**
+- `CheckoutTotals.couponRejection` (`lib/services/checkout.ts`): why a submitted code was not applied (the existing
+  `resolveCoupon` reasons — no new rule).
+- `placeOrder` refuses with `COUPON_NOT_APPLICABLE:<reason>` **before** the warehouse lookup, the gateway order, the
+  transaction, the stock decrement and the redemption — nothing is written. An idempotent replay of an order already
+  created is unaffected (the idempotency lookup returns it first).
+- `classifyPlaceOrderError` (`lib/checkout-errors.ts`, shared by the storefront action and the native API) maps it —
+  and the existing concurrent-redemption refusal `COUPON_UNAVAILABLE:*`, which used to surface as "Something went wrong
+  placing your order" — to `COUPON_INVALID` with a specific, actionable message and `{ couponRejected, reason }`.
+- Wording in the new client-safe `lib/coupon-refusal.ts` (`refusalMessage` moved there, re-exported unchanged).
+- Both checkouts (`components/shop/checkout-view.tsx`, `components/mobile/checkout/mobile-checkout-view.tsx`): on that
+  refusal they drop the coupon, re-quote from the server, show `CouponRevisedNotice`
+  (`components/shop/checkout/coupon-revised-notice.tsx`: why · "Total was ₹X — now ₹Y" · "Nothing has been charged"),
+  and place nothing until the customer presses the button again. Nothing can be placed at the old figure meanwhile
+  (desktop: button disabled while re-quoting; phone: the bottom bar is hidden until the fresh quote). A re-quote that
+  finds the applied coupon no longer qualifying does the same without a placement attempt.
+
+**Behaviour change to an existing test:** `coupon-checkout.test.ts` "an unknown code is ignored rather than trusted"
+asserted the silent full-price order; it now asserts refusal (still never trusted — no discount — but no longer
+repriced). The E6 test that asserted the silent drop was replaced by the revalidation tests.
+
+**Tests:** `coupon-e6.test.ts` — expiry, switch-off, claimed out by another customer, basket changed below the minimum,
+own per-customer limit reached in another tab (each: refused before the gateway — proved by an unusable razorpay-test
+gateway — with order, payment, stock, coupon use and cart unchanged; the re-quote states the reason; an explicit
+no-coupon resubmission is placed at exactly the revised quote), unknown code refused, no-coupon placement unchanged,
+replay of an already-created coupon order after the coupon expires, and the existing concurrent-redemption rollback.
+`lib/__tests__/coupon-revalidation.test.ts` (error mapping, screen revision helpers) and
+`components/shop/checkout/__tests__/coupon-revised-notice.test.tsx` (desktop + phone). Negative control (placement
+check removed): exactly the 8 revalidation-dependent tests fail.
+
+**Addendum (29 Sep 2026, ISS-078 session).** A delayed and a failed replacement quote were exercised in the browser
+at desktop width. Found and fixed: while re-quoting, the desktop Total line fell back to the items subtotal (₹412 —
+a figure nobody would be charged); it now reads "Updating…". A failed or rejected replacement quote was silent (the
+promise was not caught; a rejected result returned quietly): both checkouts now say "We couldn't update your total …
+reload the page to try again — nothing has been placed", and the desktop button stays disabled (the re-quote guard
+is only cleared by a successful quote); on the phone the bottom bar stays hidden. Evidence:
+`docs/evidence/loop-2026-09-28/iter17-e6-requote-delay.md` (workspace root).
+
+**Addendum 2 (29 Sep 2026, phone-web at 390 px).** The phone path was then exercised in the browser (replacement quote
+held 4 s, then failed). Safe already — the bottom bar (amount and button) was hidden throughout, no amount was on the
+page, nothing was written — but not clear: the failure message sat in the banner at the top of the page, ~575 px out of
+sight, the "your order was not placed" notice lived in the hidden bottom bar, and the Order Summary the customer was
+looking at read "Pincode serviceability details unavailable." — untrue. Fixed with `QuotePending`
+(`components/mobile/checkout/quote-pending.tsx`), which the phone Order Summary shows whenever it has no fresh quote:
+while re-quoting after a refused coupon, the notice (not placed · updating your total · nothing charged); on failure,
+the coupon reason and the failure message; otherwise unchanged ("Calculating totals…", the pincode text). The banner
+still shows the error too. Test: `components/mobile/checkout/__tests__/quote-pending.test.tsx` (4; negative controls
+fail the targeted tests); the page wiring (`mobile-checkout-view.tsx` sets `quoteFailure`) is browser-verified only.
+Recovery needs fresh totals: after the failure the bar returns only when a new quote succeeds (reload, or a changed
+address / delivery choice / coupon). Evidence: `docs/evidence/loop-2026-09-28/iter18-e6-phone-requote.md`.
+
+**Residual:** the concurrent-redemption refusal happens inside the order transaction, *after* the gateway order is
+created (ISS-003 keeps the gateway call outside the transaction), so a lost race can leave an unpaid, orphaned Razorpay
+order; everything on our side rolls back. The native app shows the new message but does not yet drop the coupon and
+re-quote by itself (native checkout is E9). The free-delivery-vs-express-surcharge question (ISS-079 observation) is
+**unchanged and still an owner decision**.
+
+## ISS-081 — Phone checkout keeps the previous total, and "place order" enabled, while an address change is re-quoted
+
+**Severity:** MEDIUM (price consent, not the charged amount). **Status:** RESOLVED 29 Sep 2026 (found and fixed the
+same day; see Resolution).
+
+At 390 px with server actions delayed 4 s, changing the delivery address from a serviceable site (₹461) to another
+address: for the whole delay the Order Summary read "Calculating totals…" while the bottom bar still showed
+**TOTAL PAYABLE ₹461** with **Pay & Place Order enabled**; the new quote then arrived (₹412, unserviceable, button
+disabled). The button was not pressed. `mobile-checkout-view.tsx` clears `totals` only for a refused coupon; an
+address / express / coupon re-quote keeps the old totals, and the bar renders from them. The server recomputes the
+total at placement, so the amount charged is the server's for the new choice — an online payment shows it in the
+Razorpay modal, but a COD order would be placed at a total the customer was never shown (and an unserviceable address
+is refused by the server). Desktop has a re-quote guard for coupon refusals only; its address-change path was not
+exercised. Fix direction (not done): hide or disable the bar while `loadingTotals`, as the refused-coupon path already
+does; add a regression. Evidence: `docs/evidence/loop-2026-09-28/iter18-e6-phone-requote.md`.
+
+**Desktop had the same gap, and more** (inspected when fixing): `checkout-view.tsx` kept the previous totals and an
+enabled "Place order" through an address / express / coupon re-quote; before the first quote the button was enabled
+and the Total showed the items subtotal; applying a coupon wrote `validateCoupon`'s totals (which ignore the express
+choice) and removing one fired a second, unguarded `getCheckoutTotals` without the express choice, either of which could
+land after the right answer.
+
+**Resolution (29 Sep 2026).** One quote hook for both checkouts, `components/shop/checkout/use-checkout-quote.ts`:
+- every change of address, coupon or delivery choice starts a new *generation* in the same render, before any request;
+  only the answer to the current generation's request is current — the previous total is never shown or submittable
+  against new inputs, a late answer for an input the customer left is ignored, and going back to an earlier input asks
+  again instead of reusing its old answer or old failure;
+- `canSubmit` = a current quote that the server says is serviceable. Desktop: the button is disabled otherwise, the
+  Total reads "Updating…" (or "—" on failure) and the failure is shown directly under it (`role="alert"`). Phone: with
+  no current quote the bottom bar (amount and button) is not rendered and the Order Summary shows why (`QuotePending`).
+  Both submit handlers refuse too (`QUOTE_NOT_CURRENT`), should the button be pressed anyway; the notice clears when a
+  fresh quote lands;
+- coupon apply only validates, then the quote hook re-quotes with the delivery choice; coupon removal no longer makes
+  its own request; the E6 refusal path now works by changing the inputs (no separate `requoting`/`setTotals(null)`).
+Unchanged: the server recomputes and charges its own total at placement; the idempotency key is still created once per
+checkout and reused on retry; no pricing, COD or delivery rule changed.
+
+Server actions reach the server one at a time (the second quote request was sent only after the first finished,
+observed in the browser), so answers arrive in the order asked; out-of-order arrival is covered by the hook test.
+
+**Tests.** `components/shop/checkout/__tests__/use-checkout-quote.test.tsx` (7): slow address-change quote; failed
+replacement quote (network and server refusal); rapid changes with answers out of order; attempted submission in every
+stale state (loading, failed, express changed, coupon changed, unserviceable); recovery after a fresh quote (new input
+and remount); no address; going back to an earlier site re-asks. Negative controls (isolated copy): no newest-request
+guard → the out-of-order test fails; quote not tied to the current inputs → 5 fail; submission on any answer → 5 fail.
+Browser, desktop 1440 and phone 390, local demo data (a temporary fixture address at 190002, removed): all five
+scenarios, 0 placements, E6 coupon refusal re-checked on both. Evidence:
+`docs/evidence/loop-2026-09-28/iter19-iss081-stale-quote.md` (workspace root).
+
+## ISS-082 — Express: a paid express order was recorded like a standard one, and a truck item could be sold the express run
+
+**Severity:** HIGH (paid service not recorded for fulfilment; a delivery promise the order is never sent on).
+**Status:** RESOLVED 30 Sep 2026 (E7) — mechanics only; express is **not** approved for production (see Policy).
+
+Found by E7 (express delivery verification), reproduced by `lib/services/__tests__/express-checkout.test.ts` before
+the fix:
+1. **The choice was not persisted.** `placeOrder` charged express correctly (quote = charge = payment = Razorpay order
+   amount) but wrote nothing that said so: the fee was folded into `deliveryFeePaise`, and `Shipment.speedClass`
+   ("express" = bike, "scheduled" = truck) is written the same whether express was bought or not. Dispatch could not
+   tell a paid express order from a standard one, nor, in a mixed basket, which line was promised the express run.
+2. **Truck items could inherit the express run.** Listing lets any product be ticked express-eligible;
+   `resolveExpressOption` checked only the listing and the pincode, so a truck-class product (bulk category, or
+   `deliverySpeed = scheduled`) with an express pincode was offered, and charged, the express run — while the planner
+   put it on the truck. Not present in the demo catalogue (all 35 eligible products are bike-class), but reachable.
+3. **The standard option over-promised.** "Standard · everything together" / "keeps the order in one delivery" was
+   shown for baskets that split into bike and truck shipments whatever is chosen.
+
+**Fix.** Migration `20260929233000_express_selection` (`orders.express_fee_paise`, `shipments.express_run`; see
+`docs/DATABASE_SCHEMA.md`). `resolveExpressOption` treats truck-class lines as ineligible (`speedClassOf`, the
+planner's own rule). `planShipments` puts the lines on the chosen express run in their own first shipment
+(`expressRun`), everything else splits exactly as before. `placeOrder` writes both from the server's quote.
+`groupCartByShipment` / `ShipmentReview` show the same split at checkout ("On the express run you chose.");
+`ExpressChoice` says "everything together" only when standard really is one delivery.
+
+**Tests.** `express-checkout.test.ts` (11, placement end to end: express-only, truck-only, truck-flagged-eligible,
+mixed with and without express, served-but-unlisted pincode, unserviceable pincode, express switched off with a direct
+request, idempotent retry, and the free-delivery-coupon behaviour pinned as CURRENT pending the owner);
+`lib/__tests__/cart-shipments-express.test.ts` (4); `components/shop/checkout/__tests__/express-choice-e7.test.tsx`
+(3). Negative controls (isolated copy): each of the five fixes removed fails its tests. One existing fixture changed:
+`express-delivery.test.ts`'s scratch product now uses a bike-class category — it took "the first category", which in
+the seed is cement, so it had been exercising a truck item being sold express (defect 2); its assertions are unchanged.
+
+**Verified in the browser** (desktop 1440, phone 390; demo DB; test-only ₹77 express fee and a fixture 190002 address,
+both removed afterwards) and against **Razorpay TEST**: an express order placed for ₹489 (₹412 + ₹77) created a
+Razorpay TEST order of exactly 48900 paise; the order recorded `express_fee_paise` 7700 and shipments [bike, express
+run: switch] + [truck: cement]; the unpaid order was then cancelled (Razorpay asked, nothing captured; stock released
+once). Evidence: `docs/evidence/loop-2026-09-28/iter20-e7-express.md` (workspace root).
+
+**Policy — owner decisions still open (nothing here approves express).**
+- The express **fee** (OWNER_INPUT 6.4) — none is set; express stays off ("no_price") until one is.
+- The express **areas** (6.9) and whether any product is express-eligible for real — the demo's 35 eligible products
+  and 210 pincode rows are seed data.
+- The express **delivery time** (6.3, DEC-017) — none is promised on screen; checkout shows the pincode's standard ETA.
+- **Free-delivery coupon vs express surcharge** — today a `free_delivery` coupon waives the whole delivery fee,
+  express included (pinned by the CURRENT-BEHAVIOUR test). Decision needed: does a free-delivery coupon cover (a) the
+  standard fee only, with express still charged, or (b) standard and express? Engineering will implement either.
+
+**Display follow-up implemented (iteration 24, 30 Sep).** Customer order detail (desktop and phone) and admin order
+now show the saved express choice and distinguish express/standard shipments. Dispatch cards, including the on-road
+lane, show `expressRun`. `speedClass = express` alone never implies the selected upgrade; a zero fee remains a
+selection, and null/legacy orders get no invented selection. No fee is added again and no ETA or paid-status claim
+is introduced (delivery discounts can waive the surcharge). UI tests 71/71; express service tests 12/12 plus related
+dispatch/ownership 7/7; tsc/lint/build pass. Authenticated browser visual checks still need O6. Evidence:
+`docs/evidence/loop-2026-09-28/iter24-express-display/README.md` at workspace root.
+
+**Residual (engineering).**
+While a quote is in flight the "How fast" block is hidden (desktop and phone), so the choice cannot be changed until it
+answers. The approved canvas designs a slot picker ("60 min" / truck slots, "Delivery · 60-min ₹49 · heavy ₹299");
+slots do not exist (ISS-057) and those figures are unconfirmed, so the radio choice remains the interim design.
+
+## ISS-083 — Guest cart lost at sign-in; placement could charge a total never shown after the cart changed elsewhere
+
+**Severity:** HIGH (items silently lost at sign-in; a COD order confirmed at an unseen total).
+**Status:** RESOLVED in code on 30 Sep 2026 (E8, local only). Browser verification through a real sign-in is still open; see E8 in
+`docs/PRODUCTION_READINESS.md` (workspace root).
+
+Found by E8. Each defect was reproduced by a failing test before its fix:
+1. **No merge on the live sign-in.** Only the dead Supabase `verifyOtp` path called `mergeGuestCart`, and the Firebase
+   session route (`app/api/auth/session/route.ts`) never did. Now `completeSignInCart` (`lib/services/cart-merge.ts`)
+   runs there. On failure, sign-in still succeeds and the guest cookie is kept; `actions/cart.ts` retries once.
+2. **Non-atomic merge.** A merge that failed part-way left some lines moved, and a retry added them twice. Two tabs signing in
+   at once raced. Now it runs as one transaction with the guest cart row locked `FOR UPDATE`.
+3. **Previous customer's cart stayed on screen** after sign-out or sign-in (client state survives `router.refresh()`).
+   `lib/auth/auth-events.ts` announces the change in the tab and to other tabs (a nonce only, no identity), and
+   `components/shop/cart-provider.tsx` clears the cart at once and ignores answers from before the change.
+4. **Checkout quote ignored the cart's contents**, so a changed cart was not re-quoted. It is now part of the quote key.
+5. **Placement priced whatever cart the server held.** A quantity changed in another window after the quote placed the
+   order at a total this page never showed (for COD, confirmed). `placeOrder` now takes an optional `expectedTotalPaise`
+   and refuses `TOTAL_CHANGED` before any gateway, stock or coupon write; an idempotent replay returns first. Both web
+   checkouts send it and, on refusal, re-read the cart and re-quote. The native API sends nothing and keeps the old behaviour.
+
+A regression introduced mid-fix and never released is also fixed: a cart re-read or a quantity tap set `loaded = false`,
+which swapped the cart for a skeleton.
+
+**Tests.** `lib/services/__tests__/cart-merge.test.ts`, `checkout-total-guard.test.ts` (5),
+`components/shop/__tests__/cart-provider.test.tsx` (7), `components/auth/__tests__/auth-events.test.tsx`,
+`components/shop/checkout/__tests__/quote-cart-change.test.tsx`. Negative controls are listed in
+`docs/evidence/loop-2026-09-28/iter21-e8-cart-merge.md`.
+
+**Owner (not blocking):** a variant in both carts has its quantities *added*. That is an implementation choice, not an
+approved rule.
+
+**Rollback.** Revert the files listed in the evidence note. No schema change.
+
+---
+
+## ISS-084 — Native app could place an order at a total it never showed after the cart changed elsewhere
+
+**Status:** RESOLVED in code on 1 Oct 2026 (local only, uncommitted). Not verified on a device (E10 is blocked on the
+EAS environment).
+
+ISS-083 (item 5) closed this gap for the two web checkouts and left the native API alone. The app quotes once for the
+pincode and coupon on screen. If the same account's cart changed on the website or another device after that quote,
+`POST /api/v1/checkout/orders` priced the new cart and created the order. For COD the order was confirmed at a total
+the app never displayed. For online payment the Razorpay sheet at least showed the real amount. A failing API test
+reproduced it (200 with an order, where 409 was expected).
+
+**Fix.**
+- `lib/api/v1.ts` `placeSchema` takes an optional `expectedTotalPaise`: a non-negative safe integer; anything else is
+  `VALIDATION`. It is passed to `placeOrder`, which already refuses a mismatch as `TOTAL_CHANGED` → `CONFLICT` +
+  `metadata.totalChanged`. Builds that send nothing keep their behaviour.
+- `mobile/src/lib/shop.ts` sends the displayed total. `mobile/src/lib/order-attempt.ts` `isTotalChanged()` recognises
+  the refusal. `mobile/src/screens/checkout/index.tsx` then releases the attempt key (nothing was created), re-reads
+  the cart and totals, and explains.
+- ~~The same screen offered "Place order" against the previous total while totals were being re-asked.~~ **Corrected
+  1 Oct (iteration 27): that claim was wrong.** `useAsync` already clears `data` when a reload starts, so the footer
+  showed "—" and placement was blocked during a re-quote. The added `totals.loading` condition is harmless
+  defence-in-depth, not a fix. The screen tests prove it: removing it changes nothing, while making `useAsync` keep old
+  data fails the failed-quote test.
+
+**Tests.** `lib/services/__tests__/v1-total-guard.test.ts` (4: stale total refused with no order, stock or cart change;
+current total places at that total; no total = old behaviour; malformed totals refused). Negative control (the
+pass-through removed): the stale-total test fails, and the current-total test fails with it because the cart was
+consumed. Mobile: `order-attempt.test.ts` +1 (only CONFLICT + `totalChanged === true` counts). The screen wiring has no
+component test (the mobile suite runs pure modules only); it is checked by `tsc`/lint and needs a device check under E10.
+
+**Screen verification (iteration 27, 1 Oct).** `mobile/src/screens/checkout/__tests__/checkout-quote.screen.test.tsx`
+(`npm run test:screen`, 7/7) renders the real `Checkout` screen with react-native-web in jsdom. Only the HTTP client,
+auth, router, cart store, attempt storage, Razorpay sheet and icons are stubbed (`mobile/test-support/screen/`).
+Proven on the screen:
+- a refused changed total places nothing, releases the attempt, re-reads the cart, re-quotes, and places only on a new
+  press at the new total with a new attempt key;
+- a loading or failed replacement quote shows "—" and cannot place;
+- an address change or a coupon apply/remove invalidates the quote, and a late answer for the previous choice is never
+  shown or sent;
+- a refused coupon is dropped, the order re-quoted without it, and nothing placed until a new press.
+Negative controls (each restored byte-identical): no expected total sent → 6/7 fail; no total-changed handling → 2 fail;
+no coupon-refusal handling → 1 fails; `useAsync` accepts stale answers → the address test fails; `useAsync` keeps old
+data → the failed-quote test fails. Still open: native rendering and a device (E10).
+P4 observed: while a quote reloads, the COD option hides (availability comes from the quote) and the button reads
+"Pay now". The COD choice returns with the new quote; nothing can be placed meanwhile.
+
+**Rollback.** Revert the four files. No schema change; the field is optional on the wire.
+
+---
+
+## ISS-085 — Every Razorpay order carried `receipt: "pending"`
+
+**Status:** RESOLVED in code on 1 Oct 2026 (local only, uncommitted). Read-back from a real Razorpay TEST order is still
+open; it happens at the next signed-in TEST placement.
+
+Found in iteration 25 (E9, P3/ops). `placeOrder` creates the gateway order before the database transaction (ISS-003)
+and passed the literal `"pending"` as its id, so support could not find an order in the Razorpay dashboard by order
+number. The order number is now generated first, sent as `receipt`, and written to the order. Uniqueness and collision
+behaviour are unchanged (same `orderNumber()`, same unique column). A gateway order orphaned by a failed transaction
+now names an order number that never got a row; this is harmless, and easier to trace than "pending".
+
+**Test.** `checkout-transaction.test.ts` +1: the Razorpay request's `receipt` equals the persisted `orderNo`, and its
+`amount` equals the order's total. It failed before the fix (`'pending'`). Related suites 38/38.
+
+**Rollback.** Revert `lib/services/checkout.ts` (two lines) and the comment in `lib/services/payments.ts`.
+
+---
+
+## ISS-086 — Cement is taxed at 28% GST; the statutory rate has been 18% since 22 Sep 2025
+
+**Status:** OPEN — owner/accountant decision (not changed by engineering). Found 1 Oct 2026 in the business-data review.
+
+`lib/services/tax.ts` maps `cement` to HSN 2523 at **28%** and labels the table "Owner-confirmed (Owner Q2.2 & Q2.3)".
+`docs/OWNER_INPUT_REQUIRED.md` §2 (GST) is still AWAITING, with no recorded answer. The 56th GST Council meeting
+(3 Sep 2025) moved Portland, slag, aluminous and similar hydraulic cements from 28% to 18%, effective 22 Sep 2025 (PIB
+press release PRID 2163555; GST Council press release PDF, Sep 2025).
+
+**Effect.** Prices are GST-inclusive, so the amount a customer pays does not change. But every cement line's recorded
+split is wrong: taxable value understated, CGST/SGST/IGST overstated (on a ₹385 bag, about ₹84.22 of tax recorded
+instead of about ₹58.73). That split is snapshotted on each order item and feeds the invoice and any GST reporting.
+Also:
+- unmapped categories fall back to 18% (`computeGst`, `config?.ratePct ?? 18`), a default nobody confirmed;
+- the rest of the table predates the same rationalisation and has not been re-checked by an accountant.
+
+**Needed (owner + CA):** confirm each category's HSN and rate under the current schedule, and what to do with orders
+already placed at 28% (demo/test data only, as far as the local DBs show; production not inspected). Engineering then
+changes the table (one line per rate), adds a regression test per confirmed rate, and records the source in
+`OWNER_INPUT_REQUIRED.md`.
+
+---
+
+## ISS-087 — A production backend could run "live" on staging TEST keys
+
+**Status:** RESOLVED in code on 1 Oct 2026 (local only, uncommitted). Found in iteration 27's hosting review.
+
+`apphosting.yaml` is the staging configuration: `PAYMENT_GATEWAY=razorpay-test`, `ALLOW_TEST_GATEWAY=1`, and the
+`rzp_test_` key id as a plain value in both `RAZORPAY_KEY_ID` and `NEXT_PUBLIC_RAZORPAY_KEY_ID`. App Hosting merges
+`apphosting.<environment>.yaml` over it. Overriding is documented; removing a variable is not (Firebase docs, "Multiple
+environments", checked 1 Oct 2026). A production environment file that set `PAYMENT_GATEWAY=razorpay-live` but missed
+the key id would boot, because `razorpay-live` accepted any key id. Checkout would then run in Razorpay TEST mode:
+orders confirmed, no money collected. This is the ISS-002 failure class.
+
+**Fix (fail closed).** `activeGateway()` refuses `razorpay-live` with a key id that is not `rzp_live_…`
+(`RAZORPAY_LIVE_WITH_TEST_KEY`). `assertPaymentConfig()` (boot) also refuses a `NEXT_PUBLIC_RAZORPAY_KEY_ID` that differs
+from `RAZORPAY_KEY_ID`; `razorpayKeyId()` hands the browser/app the public id first. Staging is unaffected
+(`razorpay-test` + `ALLOW_TEST_GATEWAY=1` + `rzp_test_`). Tests: `payments.test.ts` +3 (2 failed before the fix), 19/19.
+
+**Rollback.** Revert the two blocks in `lib/services/payments.ts`. Production also needs the R5 environment file
+(`docs/PRODUCTION_READINESS.md`).
+
+---
+
+## ISS-088 — Notifications reported "sent" when nothing was sent
+
+**Status:** RESOLVED in code on 1 Oct 2026 (local only). Readiness review item 16.
+
+`sendNotification` logged `dispatching …` and returned `{ sent: true }`, but no push, SMS or email channel exists.
+Operators reading logs would believe customers were told about status changes. It now logs `not sent — no delivery
+channel configured` and returns `{ sent: false }`. The only caller (`adminTransitionOrder`) ignores the result, so
+behaviour is unchanged. The log line no longer carries the message title/body. Test: `notifications.test.ts` (2; both
+failed before). **Owner:** choose a channel (SMS/WhatsApp/push/email) or confirm that launch has no status messages;
+the site must not promise them either.

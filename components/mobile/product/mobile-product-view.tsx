@@ -28,6 +28,7 @@ import { MobileProductCard } from "../home/mobile-product-card";
 import { trackProductView, type RecentlyViewedItem } from "@/components/shop/recently-viewed";
 import { PdpPromises } from "@/components/shop/pdp-promises";
 import { speedClassFor } from "@/components/ui/speed-chip";
+import { etaPhrase } from "@/lib/order-display";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -199,6 +200,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
             triggerHaptic("light");
             router.back();
           }}
+          aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
         >
           <ArrowLeft className="size-4.5" />
@@ -209,12 +211,15 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleShare}
+            aria-label="Share"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <Share2 className="size-4.5 text-ink/40" />
           </button>
           <button
             onClick={handleWishlistToggle}
+            aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+            aria-pressed={saved}
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <Heart className={cn("size-4.5 transition-colors", saved ? "fill-ink text-ink" : "text-ink/40")} />
@@ -281,9 +286,9 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-deep">
             {product.brandName}
           </span>
-          <h2 className="text-base font-extrabold text-ink mt-1 leading-snug">
+          <h1 className="text-base font-extrabold text-ink mt-1 leading-snug">
             {product.title}
-          </h2>
+          </h1>
           <div className="mt-2 flex items-center gap-2">
             <span className="text-base font-extrabold text-ink">
               {formatPaise(selectedVariant.pricePaise)}
@@ -370,9 +375,15 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
                       That is the same "60 min" claim removed from the hero in
                       d86a85d as unverified, reappearing where nobody looked. */}
                   <span>
-                    {pinResult.etaMinutes && pinResult.etaMinutes > 0
-                      ? `Deliverable: ETA ${pinResult.etaMinutes} mins to ${pincode}`
-                      : `We deliver to ${pincode}`}
+                    {/* The minute quote is the quick run's; a truck product
+                        states no time (lib/order-display). */}
+                    {speedClassFor(product.categoryIsBulk, product.deliverySpeed) === "express" &&
+                    pinResult.etaMinutes &&
+                    pinResult.etaMinutes > 0
+                      ? `We deliver to ${pincode} · ${etaPhrase(pinResult.etaMinutes).toLowerCase()} from dispatch`
+                      : speedClassFor(product.categoryIsBulk, product.deliverySpeed) === "express"
+                        ? `We deliver to ${pincode}`
+                        : `We deliver to ${pincode}, by truck`}
                   </span>
                 </>
               ) : (

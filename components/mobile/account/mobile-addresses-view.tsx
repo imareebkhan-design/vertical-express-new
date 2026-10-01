@@ -6,6 +6,7 @@ import { ArrowLeft, MapPin, Plus, Loader2 } from "lucide-react";
 import { saveAddress, removeAddress, makeDefaultAddress } from "@/actions/address";
 import type { AddressFormValues } from "@/components/account/address-form";
 import { triggerHaptic } from "@/lib/native/haptics";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +29,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addressFormError, setAddressFormError] = useState<string | null>(null);
   const [savingAddress, startSavingAddress] = useTransition();
+  const { pincode: chosenPincode } = useDeliveryPincode();
 
   const [addressForm, setAddressForm] = useState<AddressFormValues>({
     label: "site",
@@ -38,7 +40,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
     landmark: "",
     city: "Srinagar",
     state: "Jammu & Kashmir",
-    pincode: "190001",
+    pincode: "",
     isDefault: false,
   });
 
@@ -59,7 +61,9 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
       landmark: "",
       city: "Srinagar",
       state: "Jammu & Kashmir",
-      pincode: "190001",
+      /* Never a pincode the customer did not give us (W-13): the one they
+         confirmed for delivery, else empty. */
+      pincode: chosenPincode ?? "",
       isDefault: false,
     });
     setIsAddressFormOpen(true);

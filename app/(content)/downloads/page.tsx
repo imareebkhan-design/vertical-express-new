@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Download, FileText, Smartphone } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
 import { ServicesBanner } from "@/components/sections/services-banner";
@@ -8,36 +7,40 @@ import { Footer } from "@/components/sections/footer";
 
 export const metadata: Metadata = {
   title: "Downloads",
-  description: "Price lists, brand catalogues and the app. Every price document is dated and carries the window it is valid for.",
+  description: "Price lists, brand catalogues and the app. None of them is published yet.",
 };
 
 const TRADE_LISTS = [
   {
     title: "Cement, plaster and civil",
-    meta: "PDF · valid 1–30 Sep 2026 · 23 products",
-    size: "180 KB",
+    meta: "PDF · not published yet",
   },
   {
     title: "Tiling, adhesives and grout",
-    meta: "PDF · valid 1–30 Sep 2026 · 154 products",
-    size: "410 KB",
+    meta: "PDF · not published yet",
   },
   {
     title: "Electrical — wire, MCB, switches, lighting",
-    meta: "PDF · valid 1–30 Sep 2026 · 270 products",
-    size: "520 KB",
+    meta: "PDF · not published yet",
   },
   {
     title: "Plumbing, sanitary and bath",
-    meta: "PDF · valid 1–30 Sep 2026 · 250 products",
-    size: "480 KB",
+    meta: "PDF · not published yet",
   },
 ];
 
+/*
+ * No file store is configured (the listing form's own note says the same:
+ * "no file store configured"), so none of these PDFs exist yet either — same
+ * as `TRADE_LISTS` above. A precise "4.2 MB" / "2026 edition" for a document
+ * that does not exist is invented information wearing the shape of real
+ * metadata, exactly what this codebase's placeholder register exists to
+ * prevent. Size and edition are dropped; the card states plainly that the
+ * document is not published, same treatment as the price lists.
+ */
 const BRAND_CATALOGUES = [
   {
     title: "UltraTech cement range",
-    meta: "2026 edition · 4.2 MB",
     themeColor: "var(--t-civil)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -48,7 +51,6 @@ const BRAND_CATALOGUES = [
   },
   {
     title: "Asian Paints shade card",
-    meta: "2026 edition · 12 MB",
     themeColor: "var(--t-furn)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -59,7 +61,6 @@ const BRAND_CATALOGUES = [
   },
   {
     title: "Havells wiring & switchgear",
-    meta: "2026 edition · 8.4 MB",
     themeColor: "var(--t-elec)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -70,7 +71,6 @@ const BRAND_CATALOGUES = [
   },
   {
     title: "Jaquar bath fittings",
-    meta: "2026 edition · 15 MB",
     themeColor: "var(--t-plumb)",
     iconSvg: (
       <svg className="size-8 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
@@ -92,7 +92,7 @@ export default function DownloadsPage() {
             <span className="font-light text-ink/70">Downloads</span>
           </h1>
           <p className="mt-3 max-w-[600px] text-[14.5px] font-medium text-ink-700">
-            Price lists, brand catalogues and the app. Every price document is dated and carries the window it is valid for — a list with no date is worthless to a contractor pricing a job.
+            Price lists, brand catalogues and the app. None of them is published yet — current prices are on each product page.
           </p>
         </div>
 
@@ -104,15 +104,9 @@ export default function DownloadsPage() {
                 The Vertical Express app
               </h2>
               <p className="mt-3 max-w-[520px] text-[14.5px] leading-[22px] font-medium text-ink-700">
-                Reorder a saved list in two taps, track both shipments from the site, and scan a batch code at the gate without opening a browser.
+                Order materials and follow each shipment from your phone.
               </p>
               <div className="mt-5.5 flex flex-wrap items-center gap-3">
-                <Link
-                  href="/contact"
-                  className="inline-flex h-11 items-center rounded-full bg-ink px-6 text-[13.5px] font-bold text-white shadow-card hover:bg-ink/90 transition-colors"
-                >
-                  Notify me at launch
-                </Link>
                 <span className="inline-flex h-11 items-center gap-1.5 rounded-full bg-chip-soft px-4 text-[13px] font-semibold text-ink-500 opacity-60">
                   App Store
                 </span>
@@ -139,15 +133,9 @@ export default function DownloadsPage() {
                 Trade price lists
               </h2>
               <p className="mt-1.5 text-[13.5px] font-medium text-ink-500">
-                Updated monthly. Prices are ex-warehouse Srinagar and include GST.
+                Not published yet. Current prices are on each product page.
               </p>
             </div>
-            <Link
-              href="/contact"
-              className="inline-flex h-9 items-center rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors"
-            >
-              Email me each update
-            </Link>
           </div>
 
           <div className="rounded-[28px] border border-line bg-paper px-7 py-2 shadow-card">
@@ -161,7 +149,6 @@ export default function DownloadsPage() {
                     <p className="truncate text-[14.5px] font-bold text-ink">{item.title}</p>
                     <p className="mt-0.5 text-[12px] font-medium text-ink-500">{item.meta}</p>
                   </div>
-                  <span className="text-[13px] font-medium text-ink-500 hidden sm:inline">{item.size}</span>
                   {/*
                     Inert, and deliberately so. No PDF exists — this control
                     used to link to /downloads, so clicking "Download" reloaded
@@ -213,12 +200,19 @@ export default function DownloadsPage() {
                     {b.iconSvg}
                   </div>
                   <h3 className="mt-4 text-[15px] font-bold text-ink">{b.title}</h3>
-                  <p className="mt-1 text-[12px] font-medium text-ink-500">{b.meta}</p>
                 </div>
-                <div className="mt-4 flex items-center gap-2 text-[13px] font-bold text-ink hover:text-brand-deep cursor-pointer">
-                  <Download className="size-4 text-ink-500" />
-                  <span>Download PDF</span>
-                </div>
+                {/* Inert, same treatment and the same reason as `TRADE_LISTS`
+                    above: no file store is configured, so no PDF exists for
+                    any of these — a styled-clickable div with no href or
+                    handler is exactly the "control that goes nowhere" this
+                    codebase's own principles warn against. */}
+                <span
+                  aria-disabled="true"
+                  className="mt-4 inline-flex h-8.5 w-fit cursor-not-allowed items-center gap-2 rounded-full bg-chip-soft px-3.5 text-[12px] font-semibold text-ink-500 opacity-60"
+                >
+                  <Download className="size-3.5" />
+                  Not published
+                </span>
               </div>
             ))}
           </div>

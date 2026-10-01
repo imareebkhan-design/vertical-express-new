@@ -25,6 +25,8 @@
       ".next",
       ".vercel",
       ".vercel-old",
+      ".env",
+      ".env.*",
       "prisma/generated",
       "mobile-shell",
       "ios",

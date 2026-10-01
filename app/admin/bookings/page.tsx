@@ -1,9 +1,13 @@
 import { adminListBookings, nextBookingStatuses } from "@/lib/services/admin/manage";
 import { StatusControl } from "@/components/admin/status-control";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminBookings() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const bookings = await adminListBookings();
 
   return (

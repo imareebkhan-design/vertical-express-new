@@ -3,6 +3,8 @@ import { z } from "zod";
 import { createSessionCookie, readSession, revokeAllSessions } from "@/lib/auth/session";
 import { SESSION_COOKIE, SESSION_MAX_AGE_MS } from "@/lib/auth/session-cookie";
 import { rateLimit } from "@/lib/services/rate-limit";
+import { completeSignInCart, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
+import { cookies } from "next/headers";
 import { log } from "@/lib/observability";
 
 /**
@@ -60,21 +62,30 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(payload);
   if (!parsed.success) return NextResponse.json({ ok: false }, { status: 400 });
 
-  const cookie = await createSessionCookie(parsed.data.idToken);
-  if (!cookie) {
+  const session = await createSessionCookie(parsed.data.idToken);
+  if (!session) {
     /* Deliberately unspecific: distinguishing "expired" from "forged" from
        "issued too long ago" tells an attacker which part to fix. */
     return NextResponse.json({ ok: false }, { status: 401 });
   }
 
+  /* E8: what the customer put in the basket before signing in joins their cart.
+     Never blocks sign-in — a failed merge changes nothing, keeps the guest
+     cookie, and the next cart request retries (actions/cart.ts). */
+  const anonId = (await cookies()).get(GUEST_CART_COOKIE)?.value ?? null;
+  const merge = await completeSignInCart(session.token, anonId);
+
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, cookie, {
+  response.cookies.set(SESSION_COOKIE, session.cookie, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: SESSION_MAX_AGE_MS / 1000,
   });
+  if (merge.clearCookie) {
+    response.cookies.set(GUEST_CART_COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
+  }
   return response;
 }
 

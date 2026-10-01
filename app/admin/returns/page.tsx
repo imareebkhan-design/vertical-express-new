@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable, OpsFilters } from "@/components/admin/ops-table";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Returns & replacements | Operations",
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
  * nothing records a return today — a customer who tells a driver a bag arrived
  * split has that conversation and nothing else happens to it.
  */
-export default function AdminReturns() {
+export default async function AdminReturns() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   return (
     <OpsScreen
       title="Returns & replacements"

@@ -27,9 +27,12 @@ export async function createAddress(userId: string, input: AddressInput) {
       line1: input.line1,
       line2: input.line2 || null,
       landmark: input.landmark || null,
+      accessNote: input.accessNote || null,
       city: input.city,
       state: input.state,
       pincode: input.pincode,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
       isDefault: makeDefault,
     },
   });
@@ -52,9 +55,16 @@ export async function updateAddress(userId: string, id: string, input: AddressIn
       line1: input.line1,
       line2: input.line2 || null,
       landmark: input.landmark || null,
+      /* Omitted here until the app could edit a site, so editing any other
+         field of an address silently kept a stale access note. */
+      accessNote: input.accessNote || null,
       city: input.city,
       state: input.state,
       pincode: input.pincode,
+      // A full text-only edit invalidates the former pin rather than retaining
+      // coordinates for an address the customer may have moved.
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
       isDefault: input.isDefault || existing.isDefault,
     },
   });

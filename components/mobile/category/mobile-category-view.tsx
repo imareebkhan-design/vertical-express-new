@@ -53,7 +53,12 @@ export function MobileCategoryView({
 
   // Filters state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sort, setSort] = useState(searchParams.get("sort") || "popular");
+  const [sort, setSort] = useState(
+    /* "Popularity" sorted by a rating count nothing writes (ISS-034), so it
+       was newest-first presented as a ranking — desktop dropped it (sort-select).
+       Old ?sort=popular links still work and land on newest. */
+    !searchParams.get("sort") || searchParams.get("sort") === "popular" ? "newest" : (searchParams.get("sort") as string)
+  );
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
     searchParams.getAll("brand").flatMap((b) => b.split(",")).filter(Boolean)
   );
@@ -167,7 +172,7 @@ export function MobileCategoryView({
 
     startTransition(() => {
       const params = new URLSearchParams();
-      if (sort !== "popular") params.set("sort", sort);
+      if (sort !== "newest") params.set("sort", sort);
       if (selectedBrands.length) params.set("brand", selectedBrands.join(","));
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
@@ -177,7 +182,7 @@ export function MobileCategoryView({
 
   const resetFilters = () => {
     triggerHaptic("light");
-    setSort("popular");
+    setSort("newest");
     setSelectedBrands([]);
     setMinPrice("");
     setMaxPrice("");
@@ -233,6 +238,7 @@ export function MobileCategoryView({
               triggerHaptic("light");
               router.push("/categories");
             }}
+            aria-label="Back to categories"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
@@ -250,6 +256,7 @@ export function MobileCategoryView({
             refreshing ? "animate-spin text-brand-deep" : ""
           }`}
           title="Refresh Feed"
+          aria-label="Refresh"
         >
           <RefreshCw className="size-3.5" />
         </button>
@@ -344,10 +351,9 @@ export function MobileCategoryView({
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: "popular", label: "Popularity" },
+                { id: "newest", label: "Newest Arrivals" },
                 { id: "price_asc", label: "Price: Low to High" },
                 { id: "price_desc", label: "Price: High to Low" },
-                { id: "newest", label: "Newest Arrivals" },
                 { id: "discount", label: "Highest Discount" },
               ].map((s) => (
                 <button

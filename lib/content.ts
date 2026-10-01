@@ -63,7 +63,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "id": "contact",
         "heading": "Raising a return",
         "body": [
-          "Message us on WhatsApp or call us — the number is on the contact page. [Opening hours to be confirmed.] Have your order number ready."
+          "Email us — the address is on the contact page. [Opening hours to be confirmed.] Have your order number ready."
         ]
       }
     ]
@@ -239,7 +239,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "heading": "The material is genuine, and you can check it",
         "body": [
           "Counterfeit and re-bagged material is the real risk in this trade, and a badge on a website does nothing about it. Our answer is a process rather than a logo.",
-          "Stock is bought from authorised distributors, and batch details are recorded when it is received into the warehouse rather than reconstructed afterwards. Batch capture and the scan-on-delivery check are being rolled out — where a batch is recorded for your order it appears on the order itself."
+          "Stock is bought from authorised distributors. Batch details are not yet recorded when stock is received, and the scan-on-delivery check is not built yet — when a batch is recorded for your order, it will appear on the order itself."
         ]
       },
       {
@@ -256,7 +256,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "body": [
           "A batch code, a packing date, and a photograph of the bag taken as it was loaded. Cement loses strength as it sits, so the packing date is the single most useful fact about a bag of it — more useful than the brand, and the thing nobody at a counter can tell you.",
           "The intention is that the code on your order and the code on the bag are the same, and that you can check that at the gate. If they do not match, refuse the load: the driver takes it back and we replace it. That is the whole point of printing it.",
-          "Not there yet. We photograph bags at dispatch, but no batch code or packing date is recorded against your order, so there is nothing for you to check against today. Until there is, we are not going to claim you can."
+          "Not there yet. No batch code, packing date or dispatch photograph is recorded against your order, so there is nothing for you to check against today. Until there is, we are not going to claim you can."
         ]
       },
       {
@@ -325,7 +325,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "group": "Delivery",
         "heading": "Why does my order have items with different speeds?",
         "body": [
-          "Because it has both kinds of goods in it. Splitting a mixed order into separate deliveries, each with its own arrival time, is being built — today a mixed order is still delivered as one order."
+          "Because it has both kinds of goods in it. A mixed order is split into separate shipments automatically — small goods and truck goods move and are tracked separately, each shown on your order. What is still being built is a different promised arrival time for each: until delivery slots exist, both shipments show the same status rather than two different windows."
         ]
       },
       {
@@ -334,7 +334,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "heading": "Can I pay cash?",
         "body": [
           "Not at the moment. Cash on delivery is switched off while we build the part of the operation that makes it work — a driver carrying a float, a record of what was handed over at the gate, and a daily reconciliation. Taking cash without those is how money goes missing between the gate and the bank, and the person it goes missing from is us.",
-          "It is coming back. Everything else about your order works the same way in the meantime."
+          "It is off for now. Everything else about your order works the same way."
         ]
       },
       {
@@ -350,7 +350,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "group": "Material and genuineness",
         "heading": "How do I know the material is genuine?",
         "body": [
-          "Stock is bought from authorised distributors and batch details are recorded at goods receipt. Where a batch is recorded for your order it appears on the order. The scan-at-the-gate check is being rolled out."
+          "Stock is bought from authorised distributors. Batch details are not yet recorded at goods receipt, and the scan-at-the-gate check is not built yet. When a batch is recorded for your order, it will appear on the order."
         ]
       },
       {
@@ -375,7 +375,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "group": "Payment",
         "heading": "Is there a limit on cash on delivery?",
         "body": [
-          "There is no cash on delivery at all right now, so the question does not arise yet. When it comes back there will be a limit per delivery, and it will be published here before it applies to anybody."
+          "There is no cash on delivery at all right now, so the question does not arise. If it is offered again, any limit per delivery will be published here before it applies to anybody."
         ]
       },
       {
@@ -384,7 +384,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "heading": "How old is the cement you deliver?",
         "body": [
           "A fair question, and one we cannot answer precisely yet. Cement loses strength as it sits, which is why the packing date on the bag matters more than almost anything else about it.",
-          "We photograph bags before loading, so what leaves the warehouse is recorded. We do not yet record the packing date against your order, so we cannot promise you a maximum age at the point of sale. Until we can, we are not going to claim one."
+          "We do not yet record the packing date against your order, so we cannot promise you a maximum age at the point of sale. Until we can, we are not going to claim one."
         ]
       },
       {

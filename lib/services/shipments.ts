@@ -48,6 +48,7 @@ export async function createShipmentsForOrder(
         orderId: args.orderId,
         sequence: shipment.sequence,
         speedClass: shipment.speedClass,
+        expressRun: shipment.expressRun === true,
         warehouseId: args.warehouseId,
         items: {
           create: shipment.lines.map((l) => ({
@@ -84,6 +85,7 @@ export async function getShipmentsForOrder(userId: string, orderNo: string) {
           id: true,
           sequence: true,
           speedClass: true,
+          expressRun: true,
           status: true,
           promisedAt: true,
           dispatchedAt: true,
@@ -134,6 +136,7 @@ export async function getDispatchBoard() {
       id: true,
       sequence: true,
       speedClass: true,
+      expressRun: true,
       status: true,
       deliveryCode: true,
       createdAt: true,
@@ -157,6 +160,7 @@ export async function getDispatchBoard() {
     return {
       id: s.id,
       ref: `${s.order.orderNo}-${s.sequence}`,
+      expressRun: s.expressRun,
       orderNo: s.order.orderNo,
       status: s.status,
       destination: addr?.name ?? addr?.label ?? addr?.city ?? "—",
@@ -226,6 +230,7 @@ export async function getShipmentsOnTheRoad() {
       id: true,
       sequence: true,
       speedClass: true,
+      expressRun: true,
       status: true,
       dispatchedAt: true,
       createdAt: true,
@@ -244,6 +249,7 @@ export async function getShipmentsOnTheRoad() {
     return {
       id: s.id,
       ref: `${s.order.orderNo}-${s.sequence}`,
+      expressRun: s.expressRun,
       orderNo: s.order.orderNo,
       status: s.status,
       destination: addr?.name ?? addr?.label ?? addr?.city ?? "—",

@@ -13,11 +13,14 @@ import { AccountNav } from "@/components/account/account-nav";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { PageLoader } from "@/components/page-loader";
 import { formatPaise } from "@/lib/money";
-import { Package, MapPin, Heart, ArrowRight } from "lucide-react";
+import { itemCountLabel } from "@/lib/order-display";
+import { Package, MapPin, Heart, ArrowRight, Pencil, UserRound } from "lucide-react";
 import Link from "next/link";
 
 // Mobile Components
 import { MobileAccountView } from "@/components/mobile/account/mobile-account-view";
+import type { EditableProfile } from "@/actions/profile";
+import { buyerTypeLabel } from "@/components/account/profile-form";
 
 interface AccountSwitcherProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -29,6 +32,7 @@ interface AccountSwitcherProps {
   email: string | null;
   /** The market signs in by phone, so this is the usual identity, not email. */
   phone: string | null;
+  profile: EditableProfile;
 }
 
 export function AccountSwitcher({
@@ -38,6 +42,7 @@ export function AccountSwitcher({
   wishlistIds,
   email,
   phone,
+  profile,
 }: AccountSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
@@ -55,6 +60,7 @@ export function AccountSwitcher({
         wishlistCount={wishlistIds.length}
         email={email}
         phone={phone}
+        fullName={profile.fullName}
         recentOrders={orders}
       />
     );
@@ -73,6 +79,23 @@ export function AccountSwitcher({
           <AccountNav active="/account" />
 
           <div className="space-y-6">
+            {/* The artboard's profile card: who this account is, with Edit. */}
+            <section className="flex items-center gap-5 rounded-[26px] border border-line bg-paper p-6 shadow-card">
+              <span aria-hidden className="flex size-16 shrink-0 items-center justify-center rounded-full bg-amber-soft text-xl font-extrabold text-ink">
+                {initialsOf(profile.fullName) ?? <UserRound className="size-6" />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-lg font-extrabold text-ink">{profile.fullName ?? "Add your name"}</p>
+                <p className="mt-0.5 text-sm font-medium text-ink-700">{[phone, email].filter(Boolean).join(" · ") || "Signed in"}</p>
+                {buyerTypeLabel(profile.buyerType) ? (
+                  <p className="mt-2 inline-block rounded-full bg-chip-soft px-3 py-1 text-xs font-bold text-ink">
+                    {buyerTypeLabel(profile.buyerType)}
+                  </p>
+                ) : null}
+              </div>
+              <EditPill label="Edit your details" />
+            </section>
+
             {/* Stat cards */}
             <div className="grid grid-cols-3 gap-3">
               <StatCard icon={Package} label="Orders" value={String(totalOrders)} href="/account/orders" />
@@ -98,7 +121,7 @@ export function AccountSwitcher({
                         <div className="min-w-0">
                           <p className="text-sm font-extrabold text-ink">{o.orderNo}</p>
                           <p className="text-xs font-semibold text-ink-500">
-                            {o.items.length} item{o.items.length > 1 ? "s" : ""} · {formatPaise(o.totalPaise)}
+                            {itemCountLabel(o.items)} · {formatPaise(o.totalPaise)}
                           </p>
                         </div>
                         <OrderStatusBadge status={o.status} />
@@ -106,6 +129,25 @@ export function AccountSwitcher({
                     </li>
                   ))}
                 </ul>
+              )}
+            </section>
+
+            {/* The artboard's "Business & GST" card. Its line "Every invoice
+                carries it" is not carried over: no invoice holds a customer
+                GSTIN today (no Order.gstin). */}
+            <section className="rounded-[26px] border border-line bg-paper p-6 shadow-card">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="text-sm font-extrabold uppercase tracking-widest text-ink-500">Business &amp; GST</h2>
+                <EditPill label="Edit business and GST details" />
+              </div>
+              {profile.companyName || profile.gstin ? (
+                <p className="text-sm font-medium text-ink-700">
+                  {profile.companyName ? <span className="font-extrabold text-ink">{profile.companyName}</span> : null}
+                  {profile.companyName && profile.gstin ? <br /> : null}
+                  {profile.gstin ? <>GSTIN <span className="font-bold tabular-nums text-ink">{profile.gstin}</span></> : null}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-ink-500">No business details added.</p>
               )}
             </section>
 
@@ -141,3 +183,23 @@ function StatCard({ icon: Icon, label, value, href }: { icon: React.ElementType;
   );
 }
 
+/* The artboard's Edit control: a pill with a pencil, not a bare text link. */
+function EditPill({ label }: { label: string }) {
+  return (
+    <Link
+      href="/account/profile"
+      aria-label={label}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-chip-soft px-3.5 py-2 text-xs font-bold text-ink no-underline transition-colors hover:bg-hush"
+    >
+      <Pencil className="size-3.5" aria-hidden />
+      Edit
+    </Link>
+  );
+}
+
+/** "Bilal Ahmad" → "BA"; null when there is no name to take them from. */
+function initialsOf(name: string | null): string | null {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return null;
+  return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
+}

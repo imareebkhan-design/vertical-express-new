@@ -14,8 +14,7 @@
 # Manager, created with `scripts/apphosting-secrets.sh`. PUBLIC values (the
 # Firebase web config, the Razorpay *key id*) are browser-visible by design.
 #
-# Not set here on purpose: NEXT_PUBLIC_SITE_URL — it is the backend's own URL,
-# known only after the first rollout. Set it, then roll out again.
+# NEXT_PUBLIC_SITE_URL is the backend's own URL, set after the first rollout.
 
 runConfig:
   cpu: 1
@@ -25,6 +24,13 @@ runConfig:
   concurrency: 80
 
 env:
+  # --- this backend's own URL (known after the first rollout; browser-visible)
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: "https://ve-staging--vertical-express.asia-southeast1.hosted.app"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # --- public Firebase web config (needed at BUILD: inlined into the client bundle)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyBz0IZomwSDsVHeP77QeyhTkFlP9IoeX4s"
@@ -67,11 +73,11 @@ env:
     availability:
       - RUNTIME
   - variable: RAZORPAY_KEY_ID
-    value: "rzp_test_TeHWJN90I0MCs4"
+    value: "rzp_test_Ted08j3HWqN0s4"
     availability:
       - RUNTIME
   - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
-    value: "rzp_test_TeHWJN90I0MCs4"
+    value: "rzp_test_Ted08j3HWqN0s4"
     availability:
       - BUILD
       - RUNTIME
@@ -79,15 +85,8 @@ env:
     secret: razorpay-key-secret
   - variable: RAZORPAY_WEBHOOK_SECRET
     secret: razorpay-webhook-secret
-
-  # --- database. Needed at BUILD too: `generateStaticParams` queries Prisma, so a
-  # build without it fails. Runtime uses the pooled URL; migrations are applied
-  # by a person (`npm run db:deploy`), never by the build — see docs/DEPLOY_FIREBASE.md.
   - variable: DATABASE_URL
     secret: database-url
-    availability:
-      - BUILD
-      - RUNTIME
 
   # --- Firebase Admin (verifies the app's ID tokens and the web session cookie).
   # Named FB_ADMIN_* because App Hosting reserves the FIREBASE_ prefix; lib/auth/firebase-admin.ts reads either.
@@ -105,3 +104,17 @@ env:
       - RUNTIME
   - variable: CRON_SECRET
     secret: cron-secret
+    availability:
+      - RUNTIME
+  # Server-side only. A key restricted in Google Cloud to the Geocoding API and
+  # nothing else; used by /api/v1/location/reverse. Never NEXT_PUBLIC_.
+  - variable: GOOGLE_GEOCODING_API_KEY
+    secret: google-geocoding-api-key
+    availability:
+      - RUNTIME
+  # Server-side only. A key restricted in Google Cloud to Places API (New) and
+  # nothing else; used by /api/v1/location/places. Never NEXT_PUBLIC_.
+  - variable: GOOGLE_PLACES_API_KEY
+    secret: google-places-api-key
+    availability:
+      - RUNTIME

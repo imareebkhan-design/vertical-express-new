@@ -3,11 +3,26 @@
 import { useState } from "react";
 import { Loader2, MapPin, PackageCheck, PackageX } from "lucide-react";
 import { formatPaise } from "@/lib/money";
+import { etaPhrase } from "@/lib/order-display";
+import type { SpeedClass } from "@/lib/speed";
 import type { ServiceabilityResult } from "@/lib/services/serviceability";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 
-/** Delivery pincode checker used on the PDP (and reused at checkout). */
-export function PincodeCheck({ defaultPincode = "" }: { defaultPincode?: string }) {
-  const [pincode, setPincode] = useState(defaultPincode);
+/**
+ * Delivery pincode checker on the PDP.
+ *
+ * Starts from the pincode the customer chose in the navbar, or empty — never a
+ * hardcoded one. It was prefilled with 190001, which presented a location the
+ * customer never gave. `speed` is this product's delivery class: the pincode's
+ * minute quote describes the quick run, so a truck product states no time.
+ */
+export function PincodeCheck({ speed }: { speed: SpeedClass }) {
+  const { pincode: chosen } = useDeliveryPincode();
+  /* Null until the customer types; until then the field shows their chosen
+     pincode (which arrives after hydration, so it cannot be useState's seed). */
+  const [typed, setTyped] = useState<string | null>(null);
+  const pincode = typed ?? chosen ?? "";
+  const setPincode = (v: string) => setTyped(v);
   const [result, setResult] = useState<ServiceabilityResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,20 +93,26 @@ export function PincodeCheck({ defaultPincode = "" }: { defaultPincode?: string 
                 missing window (lib/speed.ts) — it says "Fast", not "0 min".
               */}
               <span className="text-neutral-700">
-                {result.etaMinutes && result.etaMinutes > 0
-                  ? `Delivering in ~${result.etaMinutes} min · `
-                  : "We deliver here · "}
+                {speed === "express" && result.etaMinutes && result.etaMinutes > 0
+                  ? `${etaPhrase(result.etaMinutes)} from dispatch · `
+                  : speed === "express"
+                    ? "We deliver here · "
+                    : "We deliver here, by truck · "}
                 {result.deliveryFeePaise === 0
                   ? "Free delivery"
                   : `${formatPaise(result.deliveryFeePaise ?? 0)} delivery`}
-                {result.codAllowed && " · Pay on delivery available"}
+                {/* Was " · Pay on delivery available" whenever the pincode allows
+                    cash. Cash on delivery is also switched off business-wide
+                    (Settings), which checkout enforces and this raw pincode flag
+                    does not know — so this promised a payment method checkout
+                    then refuses. Availability is stated at checkout, not here. */}
               </span>
             </>
           ) : (
             <>
               <PackageX className="mt-0.5 size-4 shrink-0 text-danger" aria-hidden />
               <span className="text-neutral-700">
-                Not serviceable yet at this pincode. We&apos;re expanding soon.
+                We don&apos;t deliver to this pincode yet.
               </span>
             </>
           )}

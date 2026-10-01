@@ -64,6 +64,7 @@ const countingTransaction: TransactionFn = (...args) => {
 const realFetch = globalThis.fetch;
 let txnDepthAtGatewayCall: number | null = null;
 let gatewayShouldFail = false;
+let lastGatewayBody: Record<string, unknown> | null = null;
 
 function stubFetch(): void {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -72,6 +73,7 @@ function stubFetch(): void {
       return realFetch(input as RequestInfo, init);
     }
     txnDepthAtGatewayCall = txnDepth;
+    lastGatewayBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
     if (gatewayShouldFail) {
       return new Response("gateway down", { status: 502 });
     }
@@ -240,4 +242,24 @@ test("ISS-003: a gateway failure leaves no order and no stock decrement", async 
   assert.equal(after.qtyOnHand, before.qtyOnHand, "stock must not move when the gateway fails");
 
   gatewayShouldFail = false;
+});
+
+test("the Razorpay order's receipt is the order number, so the dashboard can be searched by it", async () => {
+  gatewayShouldFail = false;
+  lastGatewayBody = null;
+  await addItem(TEST_USER, null, variantId, 1);
+
+  const result = await placeOrder({
+    userId: TEST_USER,
+    addressId,
+    paymentMethod: "razorpay-test",
+    idempotencyKey: `txn-receipt-${randomUUID()}`,
+  });
+
+  /* Assigned inside the fetch stub, which the compiler cannot see. */
+  const sent = lastGatewayBody as Record<string, unknown> | null;
+  assert.ok(sent, "the gateway was asked for an order");
+  assert.equal(sent.receipt, result.orderNo, "receipt used to be the literal \"pending\" on every order");
+  const row = await db.order.findUniqueOrThrow({ where: { orderNo: result.orderNo }, select: { totalPaise: true } });
+  assert.equal(sent.amount, row.totalPaise);
 });

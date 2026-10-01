@@ -14,16 +14,27 @@ import {
 import { cartItemInputSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 import { classifyCartError } from "@/lib/cart-errors";
 import { runWithContext, trackEvent, MetricsTracker, captureException } from "@/lib/observability";
+import { mergeGuestCartSafely, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
 
-const ANON_COOKIE = "ve_anon_cart";
+const ANON_COOKIE = GUEST_CART_COOKIE;
 const ANON_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 /** Read the guest cart id, creating and persisting one when a guest first acts. */
 async function resolveContext(create: boolean): Promise<{ userId: string | null; anonId: string | null }> {
   const userId = await getAuthUserId();
-  if (userId) return { userId, anonId: null };
-
   const cookieStore = await cookies();
+  if (userId) {
+    /* E8 recovery: a signed-in request still carrying a guest cart — sign-in's
+       merge failed or was interrupted. Merge now (atomic and safe to repeat);
+       the cookie goes only once nothing is left to merge. */
+    const leftover = cookieStore.get(ANON_COOKIE)?.value ?? null;
+    if (leftover) {
+      const { clearCookie } = await mergeGuestCartSafely(userId, leftover);
+      if (clearCookie) cookieStore.delete(ANON_COOKIE);
+    }
+    return { userId, anonId: null };
+  }
+
   let anonId = cookieStore.get(ANON_COOKIE)?.value ?? null;
   if (!anonId && create) {
     anonId = randomUUID();

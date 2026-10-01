@@ -11,9 +11,11 @@ import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { OrderActions } from "@/components/account/order-actions";
 import { PageLoader } from "@/components/page-loader";
 import { formatPaise } from "@/lib/money";
+import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import { ChevronRight, MapPin } from "lucide-react";
 import Link from "next/link";
+import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
 
 // Mobile Components
 import { MobileOrderDetailView } from "@/components/mobile/account/mobile-order-detail-view";
@@ -29,9 +31,10 @@ const TIMELINE_LABEL: Record<string, string> = {
 interface OrderDetailSwitcherProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: ({ speedClass: string } & DeliverySelectionShipment)[];
 }
 
-export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
+export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -40,12 +43,15 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
   }
 
   if (isMobile) {
-    return <MobileOrderDetailView order={order} />;
+    return <MobileOrderDetailView order={order} shipments={shipments} />;
   }
 
   const addr = order.address as unknown as OrderAddressSnapshot;
   const cancelled = order.status === "cancelled";
-  const cancellable = order.status === "pending_payment" || order.status === "confirmed";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const cancelState = customerCancelState(payment);
+  const eta = etaLine(order, shipments);
+  const totals = orderTotals(order);
   const currentIdx = TIMELINE.indexOf(order.status as (typeof TIMELINE)[number]);
 
   return (
@@ -90,9 +96,7 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
                 );
               })}
             </ol>
-            {order.etaMinutes && currentIdx < 3 && (
-              <p className="mt-4 text-center text-sm font-bold text-success">Estimated delivery in ~{order.etaMinutes} min</p>
-            )}
+            {eta && <p className="mt-4 text-center text-sm font-bold text-success">{eta}</p>}
           </div>
         )}
 
@@ -124,13 +128,17 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
             ))}
           </ul>
           <dl className="mt-4 space-y-1.5 border-t border-neutral-100 pt-4 text-sm font-bold">
-            <div className="flex justify-between"><dt className="text-neutral-500">Subtotal</dt><dd>{formatPaise(order.subtotalPaise)}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-500">Delivery</dt><dd className={order.deliveryFeePaise === 0 ? "text-success" : ""}>{order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}</dd></div>
-            <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-base font-extrabold"><dt>Total</dt><dd>{formatPaise(order.totalPaise)}</dd></div>
+            {totals.lines.map((l) => (
+              <div key={l.label} className="flex justify-between">
+                <dt className="text-neutral-500">{l.label}</dt>
+                <dd className={l.value === "FREE" ? "text-success" : ""}>{l.value}</dd>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-base font-extrabold"><dt>Total</dt><dd>{totals.total}</dd></div>
           </dl>
-          <p className="mt-3 text-xs font-bold text-neutral-500">
-            Payment: {order.paymentMethod === "cod" ? "Pay on delivery" : "Paid online"}
-          </p>
+          {totals.discountNote && <p className="mt-2 text-xs font-bold text-success">{totals.discountNote}</p>}
+          <p className="mt-3 text-xs font-bold text-neutral-500">Payment: {paymentLabel(payment)}</p>
+          <OrderExpressSelection expressFeePaise={order.expressFeePaise} shipments={shipments} />
         </div>
 
         {/* Address */}
@@ -145,7 +153,7 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
         </div>
 
         <div className="mt-6">
-          <OrderActions orderNo={order.orderNo} cancellable={cancellable} status={order.status} />
+          <OrderActions orderNo={order.orderNo} cancelState={cancelState} status={order.status} />
         </div>
       </main>
       <Footer />

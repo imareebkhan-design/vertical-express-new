@@ -455,8 +455,22 @@ test("payment confirmation: a duplicate is idempotent — one transition, one ev
     include: { payments: true, statusEvents: true },
   });
   assert.equal(row.status, "confirmed");
-  assert.equal(row.payments[0].gatewayPaymentId, pay1, "a replay must not overwrite the recorded payment");
-  assert.equal(row.statusEvents.filter((e) => e.toStatus === "confirmed").length, 1);
+  assert.equal(
+    row.payments.find((p) => p.gatewayOrderId === rzp)?.gatewayPaymentId,
+    pay1,
+    "a later confirmation must not overwrite the recorded payment"
+  );
+  assert.equal(
+    row.statusEvents.filter((e) => e.fromStatus === "pending_payment" && e.toStatus === "confirmed").length,
+    1
+  );
+  /* pay2 carries a valid signature, so Razorpay really took it: a second
+     payment, not a replay. It is recorded on its own row for refund rather
+     than dropped (E5; `duplicate-capture.test.ts`). */
+  assert.deepEqual(
+    row.payments.filter((p) => p.status === "captured").map((p) => p.gatewayPaymentId).sort(),
+    [pay1, pay2].sort()
+  );
 });
 
 test("payment confirmation: concurrent confirmations still produce a single transition", async () => {

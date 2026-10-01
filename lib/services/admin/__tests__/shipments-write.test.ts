@@ -1,8 +1,9 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { advanceShipment, assignShipment, confirmDelivery } from "@/lib/services/admin/shipments-write";
 import {
@@ -28,8 +29,21 @@ const ACTOR = { id: "", email: "zzz-ship@demo.invalid" };
 let seq = 0;
 const uniq = () => `zzz-ship-${Date.now()}-${seq++}`;
 
+/* The file's own user. The seed creates none; borrowing "whichever user
+   exists" passed only because an earlier test file happened to leave one
+   behind, and failed when this file ran alone on a fresh database. No phone or
+   email, so nothing unique can collide. Deleted after the file's own cleanups. */
+let OWN_USER: string | null = null;
+async function ownUser(): Promise<string> {
+  OWN_USER ??= (await db.user.create({ data: { id: randomUUID() }, select: { id: true } })).id;
+  return OWN_USER;
+}
+after(async () => {
+  if (OWN_USER) await db.user.deleteMany({ where: { id: OWN_USER } });
+});
+
 async function scratchShipment(): Promise<{ shipmentId: string; orderId: string }> {
-  const user = await db.user.findFirst({ select: { id: true } });
+  const user = { id: await ownUser() };
   const warehouse = await db.warehouse.findFirst({ select: { id: true } });
   assert.ok(user && warehouse, "the demo database has no user or warehouse to attach to");
   ACTOR.id = user.id;

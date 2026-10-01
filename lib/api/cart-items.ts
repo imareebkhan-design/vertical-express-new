@@ -6,6 +6,7 @@ import { classifyCartError } from "@/lib/cart-errors";
 import { resolveApiIdentity, type TokenVerifier } from "@/lib/auth/api-identity";
 import { rateLimit, getClientIp } from "@/lib/services/rate-limit";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
+import { withShipments } from "@/lib/api/cart-shipments";
 import { runWithContext, trackEvent, MetricsTracker, captureException } from "@/lib/observability";
 
 /**
@@ -120,6 +121,6 @@ export async function handleAddCartItem(
        follow, and the client needs the recomputed totals in the same round
        trip — on a degrading 4G connection in Srinagar a second request to read
        back the cart is the thing that makes the button feel broken. */
-    return apiOk(summary);
+    return apiOk(withShipments(summary));
   });
 }

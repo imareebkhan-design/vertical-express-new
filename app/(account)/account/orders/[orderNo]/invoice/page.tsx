@@ -106,9 +106,9 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
             </p>
           </div>
           <div className="text-right">
-            <span className="inline-block rounded-full bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
+            <h1 className="inline-block rounded-full bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
               ORDER SUMMARY
-            </span>
+            </h1>
             <p className="mt-2 text-xs font-extrabold text-ink">Order #: {order.orderNo}</p>
             <p className="text-xs font-semibold text-neutral-500">
               Date: {new Date(order.placedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}

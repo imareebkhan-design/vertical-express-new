@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { adminGetOrder, nextOrderStatuses } from "@/lib/services/admin/manage";
 import { formatPaise } from "@/lib/money";
+import { splitOrderPayments } from "@/lib/payment-rows";
 import { StatusControl } from "@/components/admin/status-control";
 import {
   OrderStatusChip,
   PaymentStatusChip,
   StatusChip,
 } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
+import { ExpressRunBadge, OrderExpressSelection } from "@/components/orders/express-selection";
 
 export const dynamic = "force-dynamic";
 
@@ -47,13 +50,18 @@ export default async function AdminOrderDetail({
 }: {
   params: Promise<{ orderNo: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const { orderNo } = await params;
   const order = await adminGetOrder(orderNo);
   if (!order) notFound();
 
   const addr = (order.address ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof addr[k] === "string" ? (addr[k] as string) : "");
-  const payment = order.payments[0];
+  /* Not `payments[0]` (newest): after a second capture (ISS-075) that is the
+     refund-bound payment, and it would hide the one that paid for the order. */
+  const { primary: payment, secondCaptures } = splitOrderPayments(order.payments);
 
   // GST is stored per line as a snapshot. Summing the lines is the only correct
   // way to show the breakup — the catalogue rate may have changed since.
@@ -223,7 +231,7 @@ export default async function AdminOrderDetail({
                       <p className="text-[13px] font-bold text-ink">
                         Shipment {sh.sequence}
                         <span className="ml-2 font-semibold text-ink-500">
-                          {sh.speedClass === "express" ? "fast" : "heavy — by truck"}
+                          {sh.speedClass === "express" ? "by bike" : "heavy — by truck"}
                         </span>
                       </p>
                       <StatusChip
@@ -239,6 +247,7 @@ export default async function AdminOrderDetail({
                       </StatusChip>
                     </div>
 
+                    <ExpressRunBadge expressRun={sh.expressRun} />
                     <Row
                       label="Items"
                       value={`${sh.items.reduce((n, i) => n + i.qty, 0)} across ${sh.items.length} ${sh.items.length === 1 ? "line" : "lines"}`}
@@ -311,6 +320,18 @@ export default async function AdminOrderDetail({
                 )}
               </>
             )}
+            {secondCaptures.map((p) => (
+              <Row
+                key={p.id}
+                label="Second capture"
+                value={
+                  <span className="tabular-nums">
+                    {p.gatewayPaymentId ?? "—"} · {formatPaise(p.amountPaise)} ·{" "}
+                    <StatusChip tone="bad">refund required</StatusChip>
+                  </span>
+                }
+              />
+            ))}
           </Panel>
 
           {/*
@@ -370,6 +391,7 @@ export default async function AdminOrderDetail({
               <Row label="Discount" value={`− ${formatPaise(order.discountPaise)}`} />
             )}
             <Row label="Delivery" value={formatPaise(order.deliveryFeePaise)} />
+            <OrderExpressSelection expressFeePaise={order.expressFeePaise} shipments={order.shipments} />
             <div className="my-2 h-px bg-line" />
             <div className="flex items-baseline justify-between">
               <span className="text-[13px] font-bold">Total</span>

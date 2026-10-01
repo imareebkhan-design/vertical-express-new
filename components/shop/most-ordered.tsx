@@ -35,7 +35,8 @@ export function MostOrdered({
         </h2>
         <Link
           href={`/category/${slug}?sort=popular`}
-          className="text-[11px] font-bold text-ink no-underline"
+          /* -m/p: a hit area of at least 24 px (WCAG 2.5.8) without moving the text. */
+          className="-m-1.5 p-1.5 text-[11px] font-bold text-ink no-underline"
         >
           See all
         </Link>

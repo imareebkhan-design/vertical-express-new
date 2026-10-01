@@ -1,10 +1,14 @@
 import { adminListCoupons } from "@/lib/services/admin/coupons";
 import { CouponsManager } from "@/components/admin/coupons-manager";
 import { formatPaise } from "@/lib/money";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminCoupons() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const coupons = await adminListCoupons();
   const now = new Date();
   const live = coupons.filter(

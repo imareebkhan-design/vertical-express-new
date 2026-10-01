@@ -99,3 +99,19 @@ test("Shipments: zero-quantity lines are not shipped", () => {
 test("Shipments: an empty cart plans nothing", () => {
   assert.deepEqual(planShipments([]), []);
 });
+
+test("Shipments: a product's own deliverySpeed overrides its category, as the speed chip does", () => {
+  const planned = planShipments([
+    { ref: "white-cement-5kg", qty: 1, categoryIsBulk: true, deliverySpeed: "express" },
+    { ref: "tile-box", qty: 2, categoryIsBulk: false, deliverySpeed: "scheduled" },
+    { ref: "switch", qty: 3, categoryIsBulk: false, deliverySpeed: null },
+  ]);
+
+  assert.deepEqual(
+    planned.map((s) => [s.speedClass, s.lines.map((l) => l.ref)]),
+    [
+      ["express", ["white-cement-5kg", "switch"]],
+      ["scheduled", ["tile-box"]],
+    ]
+  );
+});

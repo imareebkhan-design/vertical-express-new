@@ -17,14 +17,14 @@ export function DownloadsStrip() {
             <div className="flex-1 min-w-0">
               <h3 className="text-[18px] font-bold text-ink">Get the app</h3>
               <p className="mt-1 text-[13.5px] font-medium text-ink-700">
-                Reorder from a saved list in two taps, and track both shipments from the site.
+                Order materials and follow each shipment from your phone.
               </p>
               <div className="mt-3.5 flex flex-wrap items-center gap-2.5">
                 <Link
                   href="/downloads"
                   className="inline-flex h-8 items-center rounded-full bg-ink px-3.5 text-[12px] font-bold text-white shadow-card hover:bg-ink/90 transition-colors"
                 >
-                  Notify me at launch
+                  About the app
                 </Link>
                 <span className="inline-flex h-8 items-center rounded-full bg-chip-soft px-3 text-[12px] font-semibold text-ink-500 opacity-60">
                   App Store

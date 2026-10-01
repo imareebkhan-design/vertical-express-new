@@ -83,4 +83,11 @@ npx prisma migrate deploy
 echo "Seeding ..."
 npx prisma db seed
 
+# The suite assumes a customer, a vehicle and a driver exist before it starts —
+# ten files call findFirstOrThrow on one of them without creating it. The seed
+# deliberately creates none of those (a real deployment has none on day one), so
+# they are applied here as test fixtures rather than by widening the seed.
+echo "Applying test fixtures ..."
+psql -q -d "$DB_NAME" -f "$(dirname "$0")/test-fixtures.sql"
+
 echo "Test database ready: $DB_NAME"

@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronRight, MapPin, Truck, Zap } from "lucide-react";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 
 export function Hero() {
-  const [pincode, setPincode] = useState("190014");
-  const [area] = useState("Hyderpora");
+  const { pincode, city: area, hasChosen, checking, error, confirm } = useDeliveryPincode();
+  const [pincodeInput, setPincodeInput] = useState("");
   const [editingPincode, setEditingPincode] = useState(false);
 
   return (
@@ -41,7 +42,7 @@ export function Hero() {
               It goes back when products are actually assigned to those brands,
               which is the owner's call and nobody else's. */}
           <p className="mt-4 max-w-[470px] text-[15px] font-medium leading-[23px] text-ink-700">
-            Cement, tiles, wiring, plywood and fittings — delivered across the valley.
+            Cement, tiles, wiring, plywood and fittings — delivered across Srinagar.
           </p>
 
           <div className="mt-[26px] flex flex-wrap items-center gap-3">
@@ -163,27 +164,37 @@ export function Hero() {
           <div className="flex items-center gap-2">
             <MapPin className="size-4.5 text-ink-500" aria-hidden />
             <span className="text-[13.5px] font-bold text-ink">
-              Delivering to {pincode} · {area}
+              {hasChosen ? `Delivering to ${pincode} · ${area}` : "Enter your pincode to check delivery"}
             </span>
           </div>
 
           {editingPincode ? (
-            <input
-              autoFocus
-              value={pincode}
-              maxLength={6}
-              onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-              onBlur={() => setEditingPincode(false)}
-              onKeyDown={(e) => e.key === "Enter" && setEditingPincode(false)}
-              className="w-16 border-b border-ink bg-transparent text-[11px] font-bold focus:outline-none"
-              aria-label="Change delivery pincode"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                autoFocus
+                value={pincodeInput}
+                maxLength={6}
+                disabled={checking}
+                onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
+                onBlur={() => {
+                  if (pincodeInput) void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
+                  else setEditingPincode(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter" || !pincodeInput) return;
+                  void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
+                }}
+                className="w-16 border-b border-ink bg-transparent text-[11px] font-bold focus:outline-none"
+                aria-label="Change delivery pincode"
+              />
+              {error ? <span className="text-[11px] font-semibold text-danger">{error}</span> : null}
+            </div>
           ) : (
             <button
-              onClick={() => setEditingPincode(true)}
+              onClick={() => { setPincodeInput(pincode ?? ""); setEditingPincode(true); }}
               className="text-[11px] font-bold text-ink underline underline-offset-2 hover:text-ink-700 cursor-pointer"
             >
-              Change pincode
+              {hasChosen ? "Change pincode" : "Enter pincode"}
             </button>
           )}
 

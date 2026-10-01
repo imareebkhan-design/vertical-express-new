@@ -3,6 +3,7 @@ import Link from "next/link";
 import { listingFormOptions } from "@/lib/services/admin/product-create";
 import { ListingForm } from "@/components/admin/listing-form";
 import { CatalogueImport } from "@/components/admin/catalogue-import";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "List a product | Operations",
@@ -12,6 +13,9 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function AdminListing() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const options = await listingFormOptions();
 
   return (

@@ -14,7 +14,6 @@ import {
   Truck,
   Zap,
 } from "lucide-react";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { RECAPTCHA_HOLDER_ID, useFirebaseSignIn } from "@/hooks/use-firebase-sign-in";
 
@@ -47,6 +46,11 @@ function displayPhone(e164: string): string {
 
 export function MobileSignInView({ next }: { next: string }) {
   const auth = useFirebaseSignIn(next);
+  return <MobileSignInContent auth={auth} />;
+}
+
+/** Markup shared by the live hook and isolated authentication-flow tests. */
+export function MobileSignInContent({ auth }: { auth: ReturnType<typeof useFirebaseSignIn> }) {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -61,7 +65,7 @@ export function MobileSignInView({ next }: { next: string }) {
     setSecondsLeft(RESEND_SECONDS);
     const id = setInterval(() => setSecondsLeft((s) => (s <= 1 ? 0 : s - 1)), 1000);
     return () => clearInterval(id);
-  }, [onCodeStep]);
+  }, [onCodeStep, auth.confirmation]);
 
   useEffect(() => {
     if (onCodeStep) codeRef.current?.focus();
@@ -211,7 +215,8 @@ export function MobileSignInView({ next }: { next: string }) {
             {auth.busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : "Verify and continue"}
           </button>
         </div>
-        <div id={RECAPTCHA_HOLDER_ID} />
+        {/* Stable key preserves Firebase's DOM attachment across both steps. */}
+        <div key="recaptcha" id={RECAPTCHA_HOLDER_ID} />
       </div>
     );
   }
@@ -256,11 +261,11 @@ export function MobileSignInView({ next }: { next: string }) {
           on site today.
         </h1>
         <p className="mt-2.5 max-w-[300px] text-[14px] font-medium leading-5 text-ink-700">
-          Cement, tiles, wiring and fittings delivered across Srinagar — small items{" "}
-          <PlaceholderValue pending="Delivery SLA is unconfirmed — owner to confirm before launch">
-            in an hour
-          </PlaceholderValue>
-          , heavy loads on a slot you pick.
+          {/* Was "small items in an hour, heavy loads on a slot you pick": the
+              60-minute SLA is unconfirmed (owner decision) and slots do not
+              exist. States only what is true today. */}
+          Cement, tiles, wiring and fittings delivered across Srinagar — small items from our store, heavy
+          loads by truck.
         </p>
       </div>
 
@@ -324,7 +329,7 @@ export function MobileSignInView({ next }: { next: string }) {
           .
         </p>
       </div>
-      <div id={RECAPTCHA_HOLDER_ID} />
+      <div key="recaptcha" id={RECAPTCHA_HOLDER_ID} />
     </div>
   );
 }

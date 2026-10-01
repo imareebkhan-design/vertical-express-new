@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Phone, Share2 } from "lucide-react";
+import { Share2 } from "lucide-react";
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 export function Footer() {
-  const [email, setEmail] = useState("");
-  const [joined, setJoined] = useState(false);
-
+  const [canShare, setCanShare] = useState(false);
+  useEffect(() => setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function"), []);
   return (
     <footer className="bg-ink text-white pt-[52px] pb-[34px]">
       <div className="mx-auto max-w-[1200px] px-6">
@@ -27,16 +26,16 @@ export function Footer() {
               </span>
             </div>
             <p className="mt-3.5 max-w-[250px] text-[13.5px] font-medium leading-[21px] text-white/60">
-              Construction material delivered across Srinagar. Small items in an hour, heavy loads on a slot you pick.
+              Construction material delivered across Srinagar. Small items from our store, heavy loads by truck.
             </p>
             <div className="mt-4 flex gap-2">
-              <a
-                href="tel:+919876543210"
-                className="flex size-[38px] items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors"
-                aria-label="Call support"
-              >
-                <Phone className="size-4" />
-              </a>
+              {/* A "Call support" button dialled +91 98765 43210 — the design
+                  canvas's example number, not ours. No support number has been
+                  published (the contact page brackets it), so there is nothing
+                  to call; it comes back when the owner supplies one. */}
+              {/* Only where the browser can share: elsewhere (most desktop
+                  browsers) the button did nothing when pressed. */}
+              {canShare && (
               <button
                 onClick={() => {
                   if (typeof navigator !== "undefined" && navigator.share) {
@@ -48,6 +47,7 @@ export function Footer() {
               >
                 <Share2 className="size-4" />
               </button>
+              )}
             </div>
           </div>
 
@@ -130,30 +130,11 @@ export function Footer() {
               <span>Srinagar, Jammu &amp; Kashmir</span>
             </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (email.trim()) setJoined(true);
-              }}
-              className="mt-4 flex h-[46px] items-center gap-2.5 rounded-full bg-white/10 pl-4.5 pr-1.5"
-            >
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={joined ? "You're on the list" : "Your email"}
-                disabled={joined}
-                className="w-full bg-transparent text-[13px] font-medium text-white placeholder:text-white/45 focus:outline-none disabled:opacity-60"
-              />
-              <button
-                type="submit"
-                disabled={joined}
-                className="flex h-[34px] shrink-0 items-center justify-center rounded-full bg-brand px-4 text-[12.5px] font-bold text-ink hover:bg-brand/90 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {joined ? "Joined" : "Join"}
-              </button>
-            </form>
+            {/* The "Join" email form that sat here said "You're on the list" /
+                "Joined" and stored nothing — no mailing list exists (no model,
+                action or provider). A success the customer cannot rely on is
+                worse than no form, so it is gone until the owner chooses a
+                mailing list (owner-input register). */}
           </div>
         </div>
 

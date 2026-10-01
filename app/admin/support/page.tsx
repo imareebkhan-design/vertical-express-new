@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable, OpsFilters } from "@/components/admin/ops-table";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Support | Operations",
@@ -19,7 +20,10 @@ export const metadata: Metadata = {
  * is no Ticket model and no channel to receive from: WhatsApp is a wa.me link,
  * which is a way to start a conversation and not a way to keep one.
  */
-export default function AdminSupport() {
+export default async function AdminSupport() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   return (
     <OpsScreen title="Support" intro="Customer problems, in one queue, attached to the order they are about.">
       <div className="flex flex-col gap-4">

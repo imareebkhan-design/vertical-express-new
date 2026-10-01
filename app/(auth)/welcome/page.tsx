@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import { RoleSelectView } from "@/components/mobile/auth/role-select-view";
+import { safeNextPath } from "@/lib/safe-next";
 
 export const metadata: Metadata = {
   title: "Welcome",
@@ -25,7 +26,7 @@ export default async function WelcomePage({ searchParams }: PageProps) {
   const { next } = await searchParams;
   /* Same-site only, exactly as the login page does — this is reachable with a
      ?next= from a link, and an open redirect is an open redirect wherever it is. */
-  const safeNext = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+  const safeNext = safeNextPath(next);
 
   /* Onboarding runs 3 → 4: what you are, then where you are. Passing the
      caller's destination through means a customer who arrived here from

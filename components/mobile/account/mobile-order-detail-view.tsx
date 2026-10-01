@@ -20,10 +20,14 @@ import { confirmRazorpayPayment } from "@/actions/checkout";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import { cn } from "@/lib/utils";
+import { CONTACT } from "@/lib/data";
+import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
+import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
 
 interface MobileOrderDetailViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: ({ speedClass: string } & DeliverySelectionShipment)[];
 }
 
 const TIMELINE = ["confirmed", "packed", "out_for_delivery", "delivered"] as const;
@@ -34,7 +38,7 @@ const TIMELINE_LABEL: Record<string, string> = {
   delivered: "Delivered",
 };
 
-export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
+export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailViewProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -47,7 +51,11 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
 
   const addr = order.address as unknown as OrderAddressSnapshot;
   const cancelled = order.status === "cancelled";
-  const cancellable = order.status === "pending_payment" || order.status === "confirmed";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const cancelState = customerCancelState(payment);
+  const cancellable = cancelState.kind === "allowed";
+  const eta = etaLine(order, shipments);
+  const totals = orderTotals(order);
   const currentIdx = TIMELINE.indexOf(order.status as (typeof TIMELINE)[number]);
   const isPendingPayment = order.status === "pending_payment";
 
@@ -147,6 +155,10 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
       const res = await cancelOrder(order.orderNo, "Cancelled by mobile customer");
       if (!res.ok) {
         setError(res.error.message);
+        /* A refusal can mean the server just found the order paid (E5): show
+           the order as it now is, not the stale "awaiting payment". */
+        setConfirmingCancel(false);
+        router.refresh();
         return;
       }
       setConfirmingCancel(false);
@@ -241,10 +253,10 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
                 );
               })}
             </ol>
-            {order.etaMinutes && currentIdx < 3 && (
+            {eta && (
               <div className="bg-amber-soft text-ink rounded-xl p-3 text-xs font-bold text-center flex items-center justify-center gap-1.5">
-                <Clock className="size-4 animate-pulse" />
-                <span>Estimated delivery in ~{order.etaMinutes} mins</span>
+                <Clock className="size-4 shrink-0" />
+                <span>{eta}</span>
               </div>
             )}
           </div>
@@ -255,6 +267,8 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             This order was cancelled. Reason: {order.cancelledReason}
           </div>
         )}
+
+        <OrderExpressSelection expressFeePaise={order.expressFeePaise} shipments={shipments} />
 
         {/* Items detail list */}
         <div className="rounded-2xl border border-mist/15 bg-white p-4 shadow-2xs space-y-4">
@@ -283,29 +297,20 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
           </ul>
 
           <dl className="space-y-1.5 border-t border-mist/10 pt-3 text-xs font-bold text-ink/80">
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Subtotal</dt>
-              <dd>{formatPaise(order.subtotalPaise)}</dd>
-            </div>
-            {order.taxPaise > 0 && (
-              <div className="flex justify-between">
-                <dt className="font-semibold text-ink/50">GST (18% inclusive)</dt>
-                <dd>{formatPaise(order.taxPaise)}</dd>
+            {totals.lines.map((l) => (
+              <div key={l.label} className="flex justify-between">
+                <dt className="font-semibold text-ink/50">{l.label}</dt>
+                <dd className={l.value === "FREE" ? "font-bold text-ink" : ""}>{l.value}</dd>
               </div>
-            )}
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Delivery Charges</dt>
-              <dd className={order.deliveryFeePaise === 0 ? "font-bold text-ink" : ""}>
-                {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
-              </dd>
-            </div>
+            ))}
             <div className="flex justify-between border-t border-mist/10 pt-2.5 text-sm font-extrabold text-ink">
               <dt>Total Amount</dt>
-              <dd className="text-brand-deep">{formatPaise(order.totalPaise)}</dd>
+              <dd className="text-brand-deep">{totals.total}</dd>
             </div>
           </dl>
+          {totals.discountNote && <p className="text-[10px] font-bold text-success">{totals.discountNote}</p>}
           <div className="border-t border-mist/10 pt-3 text-[10px] font-bold text-ink/45">
-            Payment Mode: {order.paymentMethod === "cod" ? "Cash on Delivery" : "Online Gateway"}
+            Payment: {paymentLabel(payment)}
           </div>
         </div>
 
@@ -349,7 +354,7 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             className="w-full flex items-center justify-center gap-2 rounded-xl border border-mist/20 py-3 text-xs font-extrabold text-ink bg-white active:bg-mist/5"
           >
             <FileText className="size-4 text-ink/65" />
-            <span>Download Invoice</span>
+            <span>Order summary</span>
           </Link>
 
           {/* Cancel Trigger */}
@@ -365,6 +370,17 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
               <XCircle className="size-4" />
               <span>Cancel Order</span>
             </button>
+          )}
+
+          {/* Paid online — no self-cancel: nothing refunds the payment yet (ISS-025). */}
+          {cancelState.kind === "paid-online" && (
+            <p className="rounded-xl border border-mist/20 bg-white p-3 text-[11px] font-semibold leading-snug text-ink/70">
+              This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
+              <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${order.orderNo}`} className="font-bold text-ink underline">
+                {CONTACT.email}
+              </a>{" "}
+              with the order number.
+            </p>
           )}
 
           {/* Cancellation Confirm Panel */}

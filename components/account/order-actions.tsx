@@ -8,19 +8,22 @@ import { cancelOrder, reorder, retryOrderPayment } from "@/actions/orders";
 import { confirmRazorpayPayment } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
+import { CONTACT } from "@/lib/data";
+import type { CancelState } from "@/lib/order-display";
 
 /** Cancel / reorder / retry controls on the order detail page. */
 export function OrderActions({
   orderNo,
-  cancellable,
+  cancelState,
   status,
   email,
 }: {
   orderNo: string;
-  cancellable: boolean;
+  cancelState: CancelState;
   status?: string;
   email?: string | null;
 }) {
+  const cancellable = cancelState.kind === "allowed";
   const router = useRouter();
   const { refresh } = useCart();
   const [pending, startTransition] = useTransition();
@@ -35,6 +38,10 @@ export function OrderActions({
       const res = await cancelOrder(orderNo, "Cancelled by customer");
       if (!res.ok) {
         setError(res.error.message);
+        /* A refusal can mean the server just found the order paid (E5): show
+           the order as it now is, not the stale "awaiting payment". */
+        setConfirming(false);
+        router.refresh();
         return;
       }
       setConfirming(false);
@@ -125,7 +132,7 @@ export function OrderActions({
         </Button>
         <Link href={`/account/orders/${orderNo}/invoice`} target="_blank">
           <Button variant="outline">
-            <FileText className="size-4" /> View Invoice
+            <FileText className="size-4" /> View order summary
           </Button>
         </Link>
         {cancellable && !confirming && (
@@ -147,6 +154,20 @@ export function OrderActions({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Paid online: the order service would cancel and restock, but nothing
+          refunds the payment yet (lib/order-flow.ts, ISS-025). Offering the
+          button would take the order and keep the money. No refund is promised
+          here either — the policy is not set. */}
+      {cancelState.kind === "paid-online" && (
+        <p className="text-sm font-semibold text-neutral-600">
+          This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
+          <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${orderNo}`} className="font-bold text-ink underline">
+            {CONTACT.email}
+          </a>{" "}
+          with the order number.
+        </p>
       )}
 
       {error && <p className="text-sm font-bold text-danger">{error}</p>}

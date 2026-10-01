@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { ProductEditor } from "@/components/admin/product-editor";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export default async function AdminProductPage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const { slug } = await params;
 
   const [product, brands] = await Promise.all([

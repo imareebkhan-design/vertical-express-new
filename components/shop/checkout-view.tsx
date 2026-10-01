@@ -5,60 +5,107 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
-import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
-import { useCart } from "@/hooks/use-cart";
+import type * as CheckoutActionsModule from "@/actions/checkout";
+import { useCart } from "@/components/shop/cart-provider";
 import { formatPaise } from "@/lib/money";
-import { planShipments } from "@/lib/shipment-plan";
+import { deliveryFeeLabel } from "@/lib/checkout-display";
+import { CheckoutSummaryLines } from "@/components/shop/checkout/summary-lines";
+import { groupCartByShipment } from "@/lib/cart-shipments";
+import { checkoutQuote } from "@/lib/order-display";
 import { SpeedChip } from "@/components/ui/speed-chip";
+import { ExpressChoice } from "@/components/shop/checkout/express-choice";
+import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { CheckoutTotals } from "@/lib/services/checkout";
 import type { AddressFormValues } from "@/components/account/address-form";
 import { CodSplitNotice } from "@/components/shop/cod-split-notice";
+import { CartLoading } from "@/components/shop/cart-loading";
+import { CouponRevisedNotice } from "@/components/shop/checkout/coupon-revised-notice";
+import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevision } from "@/lib/coupon-refusal";
+import { isTotalChangedError } from "@/lib/checkout-errors";
+import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
 
 type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
 
-export function CheckoutView({ addresses, email }: { addresses: Address[]; email: string | null }) {
+/** The server actions this view calls — passed in, so the view can be tested without a server (see `test-support/ui-setup.ts`). */
+export type CheckoutActions = Pick<
+  typeof CheckoutActionsModule,
+  "getCheckoutTotals" | "placeOrder" | "confirmRazorpayPayment" | "validateCoupon"
+>;
+
+export function CheckoutView({ addresses, email, actions }: { addresses: Address[]; email: string | null; actions: CheckoutActions }) {
+  const { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } = actions;
   /* Only asked for when the account has none. A phone sign-in carries no
      email, which is the market's default, and without one the order
      confirmation has nowhere to go. */
   const [contactEmail, setContactEmail] = useState("");
   const router = useRouter();
-  const { summary, refresh } = useCart();
+  const { summary, loaded, refresh } = useCart();
   const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");
   // Prototype: Pay-on-delivery is the default/primary method until a live
   // payment gateway is wired. Online pay stays available via the test gateway.
   const [method, setMethod] = useState<PayMethod>("cod");
-  const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
+  /* E8: bumped when placement is refused because the cart moved, so the quote
+     is asked again even if the lines on screen look the same. */
+  const [requote, setRequote] = useState(0);
   const [wantsExpress, setWantsExpress] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
+  /* E6: a coupon that stopped qualifying — shown until the customer acts again. */
+  const [couponRevision, setCouponRevision] = useState<CouponRevision | null>(null);
+  const shownTotalRef = useRef<number | null>(null);
   // Stable idempotency key for this checkout attempt — the same key is reused on
   // retry so a duplicate submit returns the same order instead of a new one.
   const idempotencyKey = useRef<string>(crypto.randomUUID());
 
   const selected = addresses.find((a) => a.id === addressId);
 
-  // Recompute delivery fee / serviceability whenever the address changes.
-  useEffect(() => {
-    if (!selected) return;
-    let active = true;
-    getCheckoutTotals(selected.pincode, appliedCoupon ?? undefined, wantsExpress).then((res) => {
-      if (active && res.ok) setTotals(res.data);
-    });
-    return () => {
-      active = false;
-    };
-    /* Re-priced whenever the delivery choice changes, because the express fee
-       is part of what is owed. The server decides whether express is actually
-       on offer — this only asks. */
-  }, [selected, wantsExpress, appliedCoupon]);
+  /* ISS-081: `totals` answers exactly the address, coupon and delivery choice
+     on screen, or is null — the moment any of them changes, until the server
+     answers the new ones. "Place order" needs `canSubmit`. */
+  const {
+    quote: totals,
+    status: quoteStatus,
+    failure: quoteFailure,
+    canSubmit,
+  } = useCheckoutQuote(
+    {
+      addressId: addressId || null,
+      pincode: selected?.pincode ?? null,
+      couponCode: appliedCoupon,
+      wantsExpress,
+      cartKey: `${cartKeyOf(summary.lines)}#${requote}`,
+    },
+    getCheckoutTotals,
+    (fresh, answered) => {
+      /* The total is current again: a "being updated" notice no longer applies. */
+      setError((e) => (e === QUOTE_NOT_CURRENT ? null : e));
+      /* The server re-checked the applied coupon and it no longer qualifies
+         (e.g. the basket changed): these totals are without it. Say so and stop
+         sending it, rather than keep showing "applied". */
+      const revised = couponRevisionFromQuote(fresh, answered.couponCode, shownTotalRef.current);
+      if (revised) {
+        setCouponRevision(revised);
+        setAppliedCoupon(null);
+        setCouponMsg(null);
+      }
+      /* COD is the default, but when the server refuses it here the only
+         method that can place the order is online — leaving COD selected made
+         "Place order" a dead end. */
+      if (!fresh.codAllowed) setMethod((m) => (m === "cod" ? "online" : m));
+    }
+  );
 
+  useEffect(() => {
+    if (totals) shownTotalRef.current = totals.totalPaise;
+  }, [totals]);
+
+  if (!loaded) return <CartLoading />;
   if (summary.lines.length === 0) {
     return (
       <div className="rounded-card border border-hairline-border bg-white p-8 text-center shadow-card">
@@ -72,12 +119,18 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
 
   const submit = () => {
     setError(null);
+    setCouponRevision(null);
     if (!addressId) {
       setError("Please select a delivery address");
       return;
     }
+    /* The button is disabled then too; this holds even if it is pressed anyway. */
+    if (!canSubmit) {
+      setError(QUOTE_NOT_CURRENT);
+      return;
+    }
     if (method === "cod" && totals && !totals.codAllowed) {
-      setError("Pay on delivery isn't available for this pincode");
+      setError("Pay on delivery isn't available right now");
       return;
     }
     startPlacing(async () => {
@@ -93,8 +146,32 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
         // accordingly, so the total placed matches the total shown.
         wantsExpress,
         contactEmail: email ? null : contactEmail.trim() || null,
+        /* E8: checked, never charged — refused if the cart moved since this quote. */
+        expectedTotalPaise: totals?.totalPaise,
       });
       if (!res.ok) {
+        /* E6: the coupon no longer qualifies. Nothing was placed or charged.
+           Drop it, re-quote from the server, show old vs new total, and wait
+           for the customer to press "Place order" again. */
+        const revision = couponRevisionFromPlaceError(res.error, totals?.totalPaise ?? null);
+        if (revision && appliedCoupon) {
+          /* Dropping the coupon changes the quote's inputs, so the total on
+             screen stops being current at once and is re-quoted. */
+          setCouponRevision(revision);
+          setAppliedCoupon(null);
+          setCouponCode("");
+          setCouponMsg(null);
+          return;
+        }
+        /* E8: the cart changed elsewhere (another tab, a sign-in merge, stock)
+           since this total. Nothing was placed. Re-read the cart and re-quote;
+           the button stays off until the new total is back. */
+        if (isTotalChangedError(res.error)) {
+          setError(res.error.message);
+          setRequote((n) => n + 1);
+          await refresh();
+          return;
+        }
         setError(res.error.message);
         return;
       }
@@ -155,40 +232,32 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
   const applyCouponHandler = async () => {
     if (!couponCode.trim() || !selected) return;
     setCouponMsg(null);
+    setCouponRevision(null);
     const res = await validateCoupon(couponCode.trim(), selected.pincode);
     if (!res.ok) {
       setCouponMsg({ text: res.error.message, success: false });
       return;
     }
-    setTotals(res.data);
+    /* Only validated here: the total comes from the quote for the new inputs
+       (which also carries the delivery choice — this answer does not). */
     setAppliedCoupon(couponCode.trim().toUpperCase());
     setCouponMsg({ text: `Coupon ${couponCode.trim().toUpperCase()} applied!`, success: true });
   };
 
-  const removeCouponHandler = async () => {
+  /* Re-quoted by the quote hook, with the delivery choice; a separate request
+     here asked without it and could land after the right answer. */
+  const removeCouponHandler = () => {
     setAppliedCoupon(null);
     setCouponCode("");
     setCouponMsg(null);
-    if (selected) {
-      const res = await getCheckoutTotals(selected.pincode);
-      if (res.ok) setTotals(res.data);
-    }
   };
 
   /* The same split the cart shows and checkout persists — one rule, in
      lib/shipment-plan.ts. */
-  const byId = new Map(summary.lines.map((l) => [l.itemId, l]));
-  const shipments = planShipments(
-    summary.lines.map((l) => ({ ref: l.itemId, qty: l.qty, categoryIsBulk: l.categoryIsBulk }))
-  ).map((sh) => {
-    const lines = sh.lines.map((pl) => byId.get(pl.ref)).filter(Boolean) as typeof summary.lines;
-    return {
-      ...sh,
-      lines,
-      itemCount: lines.reduce((n, l) => n + l.qty, 0),
-      totalPaise: lines.reduce((n, l) => n + l.lineTotalPaise, 0),
-    };
-  });
+  /* Without express, and as the current quote places the express run (E7) — the
+     split placement will persist. */
+  const standardShipments = groupCartByShipment(summary.lines);
+  const shipments = groupCartByShipment(summary.lines, totals?.expressChosen ? totals.express.eligibleVariantIds : []);
   const shipmentCount = shipments.length;
 
   return (
@@ -279,10 +348,10 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               <MapPin className="size-4" /> This pincode isn&apos;t serviceable yet.
             </p>
           )}
-          {totals && totals.serviceable && totals.etaMinutes && (
-            <p className="mt-3 text-sm font-bold text-success">
-              Delivering in ~{totals.etaMinutes} min
-            </p>
+          {/* The pincode quote describes the quick run only; a truck shipment
+              has no time to state (checkoutQuote, lib/order-display). */}
+          {totals && totals.serviceable && checkoutQuote(totals.etaMinutes, shipments) && (
+            <p className="mt-3 text-sm font-bold text-success">{checkoutQuote(totals.etaMinutes, shipments)}</p>
           )}
         </Section>
 
@@ -299,104 +368,20 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
             disabled control with no explanation. */}
         {totals && (
           <Section step={2} title="How fast">
-            {totals.express.available ? (
-              <div className="space-y-2">
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-[20px] border border-line bg-canvas p-4">
-                  <input
-                    type="radio"
-                    name="delivery-speed"
-                    checked={!wantsExpress}
-                    onChange={() => setWantsExpress(false)}
-                    className="mt-0.5 size-4 shrink-0 accent-ink"
-                  />
-                  <span>
-                    <span className="block text-[13.5px] font-bold text-ink">
-                      Standard · everything together
-                    </span>
-                    <span className="mt-0.5 block text-[12.5px] font-medium leading-[17px] text-ink-700">
-                      No extra charge.
-                      {totals.express.reason === "mixed_cart"
-                        ? " Some of this basket cannot make the hour, so choosing standard keeps the order in one delivery."
-                        : ""}
-                    </span>
-                  </span>
-                </label>
-
-                <label className="flex cursor-pointer items-start gap-2.5 rounded-[20px] border border-line bg-canvas p-4">
-                  <input
-                    type="radio"
-                    name="delivery-speed"
-                    checked={wantsExpress}
-                    onChange={() => setWantsExpress(true)}
-                    className="mt-0.5 size-4 shrink-0 accent-ink"
-                  />
-                  <span>
-                    <span className="block text-[13.5px] font-bold text-ink">
-                      60-minute delivery ·{" "}
-                      {totals.express.feePaise !== null
-                        ? formatPaise(totals.express.feePaise)
-                        : "—"}
-                    </span>
-                    <span className="mt-0.5 block text-[12.5px] font-medium leading-[17px] text-ink-700">
-                      {totals.express.reason === "mixed_cart"
-                        ? `${totals.express.eligibleVariantIds.length} of ${summary.lines.length} items can go in the hour. The rest follow on the standard run.`
-                        : "Everything in this basket can go in the hour."}
-                    </span>
-                  </span>
-                </label>
-              </div>
-            ) : (
-              <p className="text-[13px] font-medium leading-[18.5px] text-ink-700">
-                {totals.express.reason === "no_price"
-                  ? "60-minute delivery is not being offered yet — the charge for it has not been set."
-                  : totals.express.reason === "not_serviceable"
-                    ? "We do not deliver to this pincode."
-                    : "Nothing in this basket is set up for 60-minute delivery to this pincode. It goes on the standard run."}
-              </p>
-            )}
+            <ExpressChoice
+              express={totals.express}
+              wantsExpress={wantsExpress}
+              onChange={setWantsExpress}
+              lineCount={summary.lines.length}
+              standardShipments={standardShipments.length}
+            />
           </Section>
         )}
 
-        {/* Step 3 — one slot per shipment. */}
-        <Section step={3} title="Slot for each shipment">
-          <p className="mb-4 text-[13px] font-medium leading-[18.5px] text-ink-700">
-            {shipmentCount > 1
-              ? "Two shipments, two arrival times. Nothing waits for the slower one."
-              : "One shipment."}
-          </p>
-
-          <div className="space-y-3">
-            {shipments.map((sh) => (
-              <div key={sh.sequence} className="rounded-[20px] border border-line bg-canvas p-4">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <SpeedChip speed={sh.speedClass} />
-                  {shipmentCount > 1 && (
-                    <span className="text-[13px] font-bold text-ink">
-                      Shipment {sh.sequence} of {shipmentCount}
-                    </span>
-                  )}
-                  <span className="text-[12px] font-medium text-ink-500">
-                    {sh.itemCount} {sh.itemCount === 1 ? "item" : "items"}
-                  </span>
-                </div>
-                <p className="mt-2 text-[12.5px] font-medium leading-[17px] text-ink-500">
-                  {sh.speedClass === "express"
-                    ? "Small goods, out from the Srinagar store."
-                    : "Heavy material, by truck."}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          {/* The artboard puts a date strip and four two-hour windows here. There
-              is no Slot model and Shipment.promisedAt is null until one exists,
-              so a picker would take a choice and quietly drop it. */}
-          <p className="mt-3 text-[12.5px] font-medium leading-[17px] text-ink-700">
-            <PlaceholderValue pending="slot booking is not built — no Slot model, and ops has not confirmed the windows">
-              Choosing a delivery window is not available yet. We will call to
-              arrange the truck.
-            </PlaceholderValue>
-          </p>
+        {/* Step 3 — how the basket travels. Titled "Slot for each shipment" on
+            the artboard; there is no slot to pick (no Slot model). */}
+        <Section step={3} title="Your shipments">
+          <ShipmentReview shipments={shipments} />
         </Section>
 
         {/* Step 4 — GSTIN for input credit. */}
@@ -421,7 +406,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
               title="Cash on delivery"
               caption={
                 codDisabled
-                  ? "Unavailable for this pincode"
+                  ? "Not available right now"
                   : shipmentCount > 1
                     ? "Pay each driver at their delivery — two payments"
                     : "Pay the driver at your gate"
@@ -452,7 +437,6 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           </div>
         </Section>
 
-        {error && <p className="text-sm font-bold text-danger">{error}</p>}
       </div>
 
       {/* Order summary */}
@@ -509,6 +493,7 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
                 <input
                   type="text"
                   placeholder="e.g. FIRST3"
+                  aria-label="Coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                   className="w-full rounded-full border border-line px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:border-brand-deep focus:outline-none"
@@ -526,38 +511,56 @@ export function CheckoutView({ addresses, email }: { addresses: Address[]; email
           </div>
 
           <dl className="mt-4 space-y-2 border-t border-hairline-border pt-4 text-sm font-bold">
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Subtotal</dt>
-              <dd>{formatPaise(summary.subtotalPaise)}</dd>
-            </div>
-            {totals && totals.discountPaise > 0 && (
-              <div className="flex justify-between text-success">
-                <dt>Discount</dt>
-                <dd>-{formatPaise(totals.discountPaise)}</dd>
-              </div>
+            {totals ? (
+              /* Every figure from the server's totals; shared with the phone
+                 checkout so the two cannot disagree (summary-lines.tsx). */
+              <CheckoutSummaryLines totals={totals} variant="desktop" />
+            ) : (
+              <>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">Subtotal</dt>
+                  <dd>{formatPaise(summary.subtotalPaise)}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-neutral-500">Delivery</dt>
+                  <dd>{deliveryFeeLabel(totals)}</dd>
+                </div>
+              </>
             )}
-            {totals && totals.taxPaise > 0 && (
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">GST ({Math.round(totals.gst.ratePct)}%)</dt>
-                <dd>{formatPaise(totals.taxPaise)}</dd>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Delivery</dt>
-              <dd className={totals?.deliveryFeePaise === 0 ? "text-success" : ""}>
-                {totals ? (totals.deliveryFeePaise === 0 ? "FREE" : formatPaise(totals.deliveryFeePaise)) : "—"}
-              </dd>
-            </div>
           </dl>
           <div className="mt-4 flex justify-between border-t border-hairline-border pt-4 text-base font-extrabold">
             <span>Total</span>
-            <span>{formatPaise(totals?.totalPaise ?? summary.subtotalPaise)}</span>
+            {/* No current quote, no total: the items subtotal, or the total for
+                a site no longer selected, is not what anyone would be charged. */}
+            <span>{totals ? formatPaise(totals.totalPaise) : quoteStatus === "failed" ? "—" : "Updating…"}</span>
           </div>
+          {quoteFailure && (
+            <p role="alert" className="mt-2 text-sm font-bold text-danger">
+              {quoteFailure}
+            </p>
+          )}
+          {couponRevision && (
+            <div className="mt-4">
+              <CouponRevisedNotice
+                revision={couponRevision}
+                currentTotalPaise={totals?.totalPaise ?? null}
+                variant="desktop"
+              />
+            </div>
+          )}
+          {/* Beside the button that produced it, and announced: a refusal such
+              as "your total changed" used to appear under the payment card,
+              out of sight of the button and silent to a screen reader. */}
+          {error && (
+            <p role="alert" className="mt-4 text-sm font-bold text-danger">
+              {error}
+            </p>
+          )}
           <Button
             size="lg"
             className="mt-5 w-full"
             onClick={submit}
-            disabled={placing || !addressId || (totals ? !totals.serviceable : false)}
+            disabled={placing || !canSubmit}
           >
             {placing ? <Loader2 className="animate-spin" /> : "Place order"}
           </Button>

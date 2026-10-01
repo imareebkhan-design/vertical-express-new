@@ -2,12 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Plus, Check, Zap } from "lucide-react";
+import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
+import { SpeedChip } from "@/components/ui/speed-chip";
 
 export function OrderedMost({ items }: { items: CatalogItem[] }) {
+  /* Evidence-bound, like every other "most ordered" rail in this codebase
+     (see components/shop/most-ordered.tsx) — a heading with nothing under it
+     is worse than no section, and `items` is real order volume now (see
+     app/page.tsx), so it is genuinely empty until real orders exist. */
+  if (items.length === 0) return null;
+
   return (
     <section className="pt-16">
       <div className="mx-auto max-w-[1200px] px-6">
@@ -66,6 +73,7 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
       {/* 92x92px Image Tile */}
       <Link
         href={`/product/${item.slug}`}
+        aria-label={item.title}
         className="relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] text-ink-700 no-underline"
         style={{
           backgroundColor: isExpress ? "var(--t-elec)" : "var(--t-civil)",
@@ -120,16 +128,11 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
             </span>
           )}
 
-          {isExpress ? (
-            <span className="inline-flex items-center gap-1 rounded-chip bg-brand px-2 py-0.5 text-[11px] font-extrabold text-ink">
-              <Zap className="size-3 fill-ink stroke-none" />
-              60 min
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-chip bg-amber-soft px-2 py-0.5 text-[11px] font-extrabold text-ink">
-              Tomorrow, 8 AM
-            </span>
-          )}
+          {/* The canonical SpeedChip (components/ui/speed-chip.tsx) replaces
+              this card's own hand-rolled "60 min" / "Tomorrow, 8 AM" chips —
+              the unverified express window and a delivery slot that does not
+              exist in any form (ISS-054, ISS-057). */}
+          <SpeedChip speed={isExpress ? "express" : "scheduled"} />
         </div>
       </div>
 

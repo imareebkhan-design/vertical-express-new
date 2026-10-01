@@ -1,5 +1,6 @@
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { CATALOGUE_HEADER, parseCatalogueCsv } from "@/lib/catalogue-csv";
 import { importCatalogue, previewCatalogue } from "@/lib/services/admin/catalogue-import";
@@ -26,6 +27,19 @@ const ACTOR = { id: "", email: "zzz-import@demo.invalid" };
 
 let seq = 0;
 const uniq = () => `ZZZ Import ${Date.now()}-${seq++}`;
+
+/* The file's own user. The seed creates none; borrowing "whichever user
+   exists" passed only because an earlier test file happened to leave one
+   behind, and failed when this file ran alone on a fresh database. No phone or
+   email, so nothing unique can collide. Deleted after the file's own cleanups. */
+let OWN_USER: string | null = null;
+async function ownUser(): Promise<string> {
+  OWN_USER ??= (await db.user.create({ data: { id: randomUUID() }, select: { id: true } })).id;
+  return OWN_USER;
+}
+after(async () => {
+  if (OWN_USER) await db.user.deleteMany({ where: { id: OWN_USER } });
+});
 
 const H = CATALOGUE_HEADER.join(",");
 
@@ -63,7 +77,7 @@ async function world() {
     db.category.findFirstOrThrow({ where: { isActive: true }, select: { slug: true } }),
     db.warehouse.findFirstOrThrow({ where: { isActive: true }, select: { name: true } }),
     db.serviceablePincode.findFirst({ where: { isActive: true }, select: { pincode: true } }),
-    db.user.findFirst({ select: { id: true } }),
+    ownUser().then((id) => ({ id })),
   ]);
   assert.ok(pincode, "the seed has no serviceable pincode to import express products against");
   ACTOR.id = user?.id ?? "";

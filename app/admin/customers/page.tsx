@@ -3,6 +3,7 @@ import { Users } from "lucide-react";
 import { adminListCustomers, adminCustomerMix } from "@/lib/services/admin/stock";
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,9 @@ export default async function AdminCustomers({
 }: {
   searchParams: Promise<{ page?: string; q?: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
   const [c, mix] = await Promise.all([

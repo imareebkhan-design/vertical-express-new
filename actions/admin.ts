@@ -16,6 +16,8 @@ export async function adminAdvanceOrder(orderId: string, to: OrderStatus): Promi
   } catch (e) {
     const msg = e instanceof Error ? e.message : "";
     if (msg === "INVALID_TRANSITION") return fail("CONFLICT", "That status change isn't allowed");
+    if (msg === "STATUS_CHANGED") return fail("CONFLICT", "This order changed while you were looking at it. Reload and try again.");
+    if (msg === "PAYMENT_REQUIRED") return fail("CONFLICT", "An online order is confirmed by its payment, not by hand.");
     return fail("NOT_FOUND", "Order not found");
   }
 }

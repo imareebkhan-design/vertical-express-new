@@ -2,7 +2,9 @@ import Link from "next/link";
 import type { OrderStatus } from "@/prisma/generated/client/client";
 import { adminListOrders } from "@/lib/services/admin/manage";
 import { formatPaise } from "@/lib/money";
+import { summariseShipments } from "@/lib/shipment-summary";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +24,9 @@ export default async function AdminOrders({
 }: {
   searchParams: Promise<{ page?: string; status?: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
   const active = FILTERS.find((f) => f.key === sp.status) ?? FILTERS[0];
@@ -60,8 +65,9 @@ export default async function AdminOrders({
           <thead>
             <tr className="text-left text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
               <th className="px-3 pb-2.5">Order</th>
-              <th className="px-3 pb-2.5">Customer</th>
+              <th className="px-3 pb-2.5">Customer &amp; site</th>
               <th className="px-3 pb-2.5 text-right">Items</th>
+              <th className="px-3 pb-2.5">Shipments</th>
               <th className="px-3 pb-2.5">Status</th>
               <th className="px-3 pb-2.5">Payment</th>
               <th className="px-3 pb-2.5 text-right">Total</th>
@@ -74,6 +80,7 @@ export default async function AdminOrders({
               const city = typeof addr.city === "string" ? addr.city : "";
               const pincode = typeof addr.pincode === "string" ? addr.pincode : "";
               const payment = o.payments[0];
+              const shipments = summariseShipments(o.shipments);
               return (
                 <tr key={o.id} className="border-t border-line">
                   <td className="px-3 py-3">
@@ -98,6 +105,12 @@ export default async function AdminOrders({
                   </td>
                   <td className="px-3 py-3 text-right text-[12.5px] font-semibold tabular-nums">
                     {o.items.length}
+                  </td>
+                  <td className="px-3 py-3">
+                    <span className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[12px] font-semibold text-ink">{shipments.label}</span>
+                      {shipments.needsDispatch && <StatusChip tone="warn">Needs a driver</StatusChip>}
+                    </span>
                   </td>
                   <td className="px-3 py-3">
                     <OrderStatusChip status={o.status} />

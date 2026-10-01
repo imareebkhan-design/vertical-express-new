@@ -4,6 +4,7 @@ import { getOpsToday, type QueueKind } from "@/lib/services/admin/today";
 import { getOpsExceptions } from "@/lib/services/admin/exceptions";
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, StatusChip, type StatusTone } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,9 @@ function Stat({
 }
 
 export default async function AdminToday() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const [t, exceptions] = await Promise.all([getOpsToday(), getOpsExceptions()]);
   const needsAction =
     (t.queueCounts.payment_stalled ?? 0) +

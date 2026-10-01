@@ -12,6 +12,8 @@ export interface CartLine {
   categorySlug: string;
   /** Heavy material — decides which shipment the line travels in. */
   categoryIsBulk: boolean;
+  /** `Product.deliverySpeed`: overrides the category when set. Null = use the category. */
+  deliverySpeed: "express" | "scheduled" | null;
   title: string;
   variantName: string;
   brandName: string;
@@ -187,6 +189,7 @@ export async function getCartSummary(
       productId: v.product.id,
       categorySlug: v.product.category.slug,
       categoryIsBulk: v.product.category.isBulk,
+      deliverySpeed: v.product.deliverySpeed,
       title: v.product.title,
       variantName: v.name,
       brandName: v.product.brand.name,

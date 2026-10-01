@@ -31,7 +31,7 @@ const PILLARS = [
     icon: ShieldCheck,
     title: "You will be able to check what you bought",
     body: "Cement and adhesives have a batch and a packing date, and knowing them is how you tell fresh stock from stock that has sat. Recording that at goods receipt and showing it on your order is being built — it is not running yet, and no order carries a batch code today.",
-    href: "/how-we-work#verification",
+    href: "/how-we-work#genuine",
     linkLabel: "How verification will work",
   },
   {

@@ -26,13 +26,9 @@ export function AddToCartButton({
   const [added, setAdded] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  if (disabled) {
-    return (
-      <span className="rounded-full bg-chip px-3 py-2 text-[11px] font-bold text-ink-500">
-        Notify me
-      </span>
-    );
-  }
+  /* It said "Notify me" and notified nobody — nothing records the request.
+     The row already says it is out of stock. */
+  if (disabled) return null;
 
   const handle = async () => {
     if (busy) return;

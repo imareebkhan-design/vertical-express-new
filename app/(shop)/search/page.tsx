@@ -28,9 +28,12 @@ export default async function SearchPage({ searchParams }: PageProps) {
 
   // Support comma-separated brands (e.g. brand=slug1,slug2) or multiple query values
   const brandParams = toArray(sp.brand).flatMap(b => b.split(","));
+  /* The shelf a category chip picked (W-17) — the app's `category` parameter. */
+  const category = typeof sp.category === "string" && sp.category ? sp.category : null;
 
   const result = await listProducts({
     search: query || undefined,
+    categorySlug: query && category ? category : undefined,
     brandSlugs: brandParams.length ? brandParams : undefined,
     minPaise: sp.minPrice ? rupeesToPaise(Number(sp.minPrice)) : undefined,
     maxPaise: sp.maxPrice ? rupeesToPaise(Number(sp.maxPrice)) : undefined,
@@ -55,6 +58,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
   return (
     <SearchSwitcher
       query={query}
+      category={query ? category : null}
       result={result}
       activeFilterCount={activeFilterCount}
       brands={brands}

@@ -13,3 +13,13 @@ export const SESSION_COOKIE = "__session";
 
 /** Two weeks — Firebase's maximum for a session cookie. */
 export const SESSION_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * The path (with query) the visitor asked for, forwarded by middleware.
+ *
+ * A layout cannot read its own URL, and the early sign-in redirect in the
+ * protected layouts needs it to send people back where they were going. Set by
+ * middleware on every request, so a value supplied by the client never
+ * survives. Only ever used as a sign-in `next`, which safeNextPath re-checks.
+ */
+export const REQUESTED_PATH_HEADER = "x-ve-requested-path";

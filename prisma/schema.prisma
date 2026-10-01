@@ -57,6 +57,11 @@ model Profile {
   /// mean a homeowner and a contractor differed in what they may *do*, when
   /// what actually differs is what they are shown first.
   buyerType      BuyerType? @map("buyer_type")
+  /// When onboarding was shown and closed — by answering OR by skipping, which
+  /// closes it exactly as an answer does (see DEC-014-onboarding in
+  /// docs/UI_PARITY_MATRIX.md). Null means never shown; nothing else about a
+  /// customer may be inferred from it.
+  onboardedAt    DateTime?  @map("onboarded_at")
   marketingOptIn Boolean    @default(false) @map("marketing_opt_in")
   firstUtm       Json?      @map("first_utm")
   createdAt      DateTime   @default(now()) @map("created_at")
@@ -83,6 +88,9 @@ model Address {
   city       String
   state      String
   pincode    String       @db.Char(6)
+  /// Customer-confirmed delivery pin; absent for manual/legacy addresses.
+  latitude   Float?
+  longitude  Float?
   isDefault  Boolean      @default(false) @map("is_default")
   deletedAt  DateTime?    @map("deleted_at")
   createdAt  DateTime     @default(now()) @map("created_at")
@@ -429,12 +437,23 @@ model Order {
   deliveryFeePaise Int                @default(0) @map("delivery_fee_paise")
   totalPaise       Int                @map("total_paise")
   couponCode       String?            @map("coupon_code")
+  /// The express charge this order was placed with — null when the customer did
+  /// not choose express or it was not on offer (E7). Already inside
+  /// `deliveryFeePaise`, unless a free-delivery coupon waived the delivery fee
+  /// (then it is still set: the customer chose the express run and dispatch must
+  /// run it). Without it a paid express order was written exactly like a
+  /// standard one.
+  expressFeePaise  Int?               @map("express_fee_paise")
   etaMinutes       Int?               @map("eta_minutes")
   warehouseId      String?            @map("warehouse_id") @db.Uuid
   notes            String?
   placedAt         DateTime           @default(now()) @map("placed_at")
   deliveredAt      DateTime?          @map("delivered_at")
   cancelledReason  String?            @map("cancelled_reason")
+  /// When the payment-window expiry last examined this order and left it
+  /// pending (ISS-078): the expiry's claim and its round-robin key. Null = never
+  /// examined, so a newly stale order is taken first. Not a business field.
+  expiryCheckedAt  DateTime?          @map("expiry_checked_at")
   createdAt        DateTime           @default(now()) @map("created_at")
   updatedAt        DateTime           @updatedAt @map("updated_at")
   items            OrderItem[]
@@ -447,6 +466,7 @@ model Order {
 
   @@index([userId, placedAt(sort: Desc)])
   @@index([status])
+  @@index([status, expiryCheckedAt, placedAt])
   @@map("orders")
 }
 
@@ -649,6 +669,10 @@ model Shipment {
   /// 1-based, stable. Renders as "Shipment 1 of 2" and orders the dispatch board.
   sequence     Int
   speedClass   SpeedClass     @map("speed_class")
+  /// This shipment carries the express run the customer chose and paid for (E7).
+  /// `speedClass` says how goods travel (bike or truck); it is written the same
+  /// whether express was bought or not, so it cannot say this.
+  expressRun   Boolean        @default(false) @map("express_run")
   status       ShipmentStatus @default(pending)
   warehouseId  String?        @map("warehouse_id") @db.Uuid
   /// When we told the customer it would arrive. Null until slots exist.

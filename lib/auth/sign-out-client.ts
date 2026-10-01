@@ -2,6 +2,7 @@
 
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
+import { announceAuthChanged } from "@/lib/auth/auth-events";
 
 /**
  * Signs the customer out of both halves of the session.
@@ -28,6 +29,8 @@ export async function signOutEverywhereOnThisDevice(): Promise<void> {
       /* The server session is already gone, which is what gates access. A
          failure here leaves a stale client credential that grants nothing. */
     }
+    /* Drop the signed-out customer's cart from this page (E8). */
+    announceAuthChanged();
   }
 }
 
@@ -47,5 +50,6 @@ export async function signOutEverywhere(): Promise<void> {
     } catch {
       /* The server sessions are already revoked, which is what gates access. */
     }
+    announceAuthChanged();
   }
 }

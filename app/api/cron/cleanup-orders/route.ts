@@ -60,8 +60,8 @@ export async function GET(request: NextRequest) {
     } catch (err: unknown) {
       captureException(err);
       metric.end("cleanup_orders_cron_failed");
-      const message = err instanceof Error ? err.message : "Cleanup error";
-      return NextResponse.json({ error: message }, { status: 500 });
+      /* Captured above with its detail; the caller gets no internals. */
+      return NextResponse.json({ error: "Cleanup error" }, { status: 500 });
     }
   });
 }

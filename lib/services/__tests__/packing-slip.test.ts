@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { getPackingSlip } from "@/lib/services/shipments";
 import { advanceShipment, assignShipment } from "@/lib/services/admin/shipments-write";
@@ -24,8 +25,15 @@ const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 let seq = 0;
 const uniq = () => `zzz-slip-${Date.now()}-${seq++}`;
 
+/* The order's customer is the test's own. The seed creates no users, so
+   borrowing "whichever user exists" passed only on a database with leftovers.
+   No phone or email: both are unique, and a colliding fixture is not
+   deterministic. */
+const scratchUsers: string[] = [];
+
 async function scratchShipment(opts: { shipments: number }) {
-  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+  const user = await db.user.create({ data: { id: randomUUID() }, select: { id: true } });
+  scratchUsers.push(user.id);
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
   const variant = await db.productVariant.findFirstOrThrow({ select: { id: true, sku: true } });
 
@@ -78,6 +86,8 @@ async function cleanup() {
   });
   await db.order.deleteMany({ where: { orderNo: { startsWith: "zzz-slip-" } } });
   await db.driver.deleteMany({ where: { name: "ZZZ Slip Driver" } });
+  /* After the orders: an order holds its user (no cascade). */
+  await db.user.deleteMany({ where: { id: { in: scratchUsers.splice(0) } } });
 }
 
 test("the slip lists what is in the box and where it goes", async (t) => {

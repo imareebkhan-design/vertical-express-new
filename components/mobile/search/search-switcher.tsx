@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useSearchParams } from "next/navigation";
 import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -18,12 +19,16 @@ import { SortSelect } from "@/components/shop/sort-select";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { Pagination } from "@/components/shop/pagination";
 import { PageLoader } from "@/components/page-loader";
+import { SearchCategoryChips } from "@/components/shop/search-category-chips";
+import { searchCategoryHref } from "@/lib/search-url";
 
 // Mobile Components
 import { MobileSearchView } from "@/components/mobile/search/mobile-search-view";
 
 interface SearchSwitcherProps {
   query: string;
+  /** The shelf a category chip picked, from `?category=`. */
+  category: string | null;
   result: CatalogResult;
   activeFilterCount: number;
   /** Active brands with published products, for the entry state's shortcuts. */
@@ -34,6 +39,7 @@ interface SearchSwitcherProps {
 
 export function SearchSwitcher({
   query,
+  category,
   result,
   activeFilterCount,
   brands,
@@ -41,6 +47,8 @@ export function SearchSwitcher({
 }: SearchSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
+  const searchParams = useSearchParams();
+  const hrefFor = (slug: string | null) => searchCategoryHref(new URLSearchParams(searchParams.toString()), slug);
 
   if (!ready) {
     return <PageLoader />;
@@ -51,6 +59,7 @@ export function SearchSwitcher({
       <MobileSearchView
         initialQuery={query}
         initialResult={result}
+        category={category}
         brands={brands}
         closest={closest}
       />
@@ -71,6 +80,14 @@ export function SearchSwitcher({
           <p className="mt-1.5 text-sm font-medium text-ink-700">
             {result.total} {result.total === 1 ? "product" : "products"}
           </p>
+          {query ? (
+            <SearchCategoryChips
+              categories={result.facets.categories}
+              selected={category}
+              hrefFor={hrefFor}
+              className="mt-4"
+            />
+          ) : null}
         </div>
 
         {result.total === 0 ? (

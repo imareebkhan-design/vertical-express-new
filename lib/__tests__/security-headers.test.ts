@@ -56,13 +56,17 @@ test("ISS-022: every hardening header is present on every route", async () => {
 
   const permissions = headers.get("Permissions-Policy");
   assert.ok(permissions, "Permissions-Policy must be set");
-  for (const feature of ["camera", "microphone", "geolocation"]) {
+  for (const feature of ["camera", "microphone", "browsing-topics"]) {
     assert.match(
       permissions,
       new RegExp(`${feature}=\\(\\)`),
       `Permissions-Policy must deny ${feature}`
     );
   }
+  /* The storefront's own pages may ask for location (W-15); no other origin
+     and no wildcard may. The browser still asks the customer. */
+  assert.match(permissions, /(^|,\s*)geolocation=\(self\)(,|$)/, "geolocation must be limited to self");
+  assert.doesNotMatch(permissions, /geolocation=\([^)]*(\*|https?:)/, "geolocation must not be granted to any other origin");
 });
 
 test("ISS-022: the CSP locks down the directives that matter", async () => {
@@ -129,4 +133,11 @@ test("ISS-022: no credential leaks into the policy via a configured DSN", async 
   const joined = [...csp.values()].join(" ");
 
   assert.ok(!joined.includes("@"), "no userinfo may appear in the CSP");
+});
+
+test("HSTS: production builds pin HTTPS for a year on this host only; dev servers do not", async () => {
+  /* Hosting moved from Vercel (which added HSTS itself) to Firebase App
+     Hosting, so the header is set by the app now. */
+  assert.equal((await headerMap(PHASE_PRODUCTION_BUILD)).get("Strict-Transport-Security"), "max-age=31536000");
+  assert.equal((await headerMap(PHASE_DEVELOPMENT_SERVER)).get("Strict-Transport-Security"), undefined);
 });

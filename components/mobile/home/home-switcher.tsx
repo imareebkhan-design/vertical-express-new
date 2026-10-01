@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { CatalogItem } from "@/lib/services/catalog";
+import type { CatalogItem, listRooms } from "@/lib/services/catalog";
 import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -27,9 +27,11 @@ interface HomeSwitcherProps {
   categories: Category[];
   /** Published products per category slug. The tiles used to hardcode these. */
   categoryCounts: CategoryCounts;
+  /** Curated rooms, or []. See `ShopByRoom` for why an empty array hides the section rather than rendering placeholder tiles. */
+  rooms: Awaited<ReturnType<typeof listRooms>>;
 }
 
-export function HomeSwitcher({ deals, featured, newArrivals, categories, categoryCounts }: HomeSwitcherProps) {
+export function HomeSwitcher({ deals, featured, newArrivals, categories, categoryCounts, rooms }: HomeSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -44,6 +46,7 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories, categor
         featured={featured}
         newArrivals={newArrivals}
         categories={categories}
+        rooms={rooms}
       />
     );
   }

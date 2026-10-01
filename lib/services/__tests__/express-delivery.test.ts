@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import {
   resolveExpressOption,
@@ -38,7 +39,9 @@ async function scratchProduct(opts: {
   pincodes: string[];
 }): Promise<{ productId: string; variantId: string }> {
   const brand = await db.brand.findFirst({ select: { id: true } });
-  const category = await db.category.findFirst({ select: { id: true } });
+  /* A bike-class category: since E7 a truck item is never offered the express run
+     (express-checkout.test.ts), and "the first category" in the seed is cement. */
+  const category = await db.category.findFirst({ where: { isBulk: false }, select: { id: true } });
   assert.ok(brand && category, "the demo catalogue has no brand or category to attach to");
 
   const slug = uniq();
@@ -81,9 +84,22 @@ async function setFee(paise: string | null) {
   });
 }
 
+/* A customer of the test's own. The seed creates no users, so borrowing
+   "whichever user exists" passed only on a database with leftovers and failed
+   on a fresh CI one. No phone or email: both are unique, and a fixture that can
+   collide is not deterministic. */
+const scratchUsers: string[] = [];
+async function scratchUser() {
+  const user = await db.user.create({ data: { id: randomUUID() }, select: { id: true } });
+  scratchUsers.push(user.id);
+  return user;
+}
+
 async function cleanup() {
   await db.product.deleteMany({ where: { slug: { startsWith: "zzz-exp-" } } });
   await setFee(null);
+  /* The user's cart and its items cascade with it. */
+  await db.user.deleteMany({ where: { id: { in: scratchUsers.splice(0) } } });
 }
 
 test("a pincode the product does not name gets no express", async (t) => {
@@ -240,7 +256,7 @@ test("choosing express adds its fee to what is owed", async (t) => {
   /* Stock, so the cart will hold it. */
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
   await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 10 } });
-  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+  const user = await scratchUser();
 
   const cart = await cartFor(variantId, user.id);
   assert.equal(cart.lines.length, 1, "the scratch product did not reach the cart");
@@ -273,7 +289,7 @@ test("asking for express when it is not on offer is quietly standard", async (t)
   const { variantId } = await scratchProduct({ eligible: true, pincodes: [PIN_SERVED] });
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
   await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 10 } });
-  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+  const user = await scratchUser();
 
   const cart = await cartFor(variantId, user.id);
   const asked = await computeTotals(cart, PIN_SERVED, null, null, user.id, true);
@@ -303,7 +319,7 @@ test("the express fee survives the free-delivery threshold", async (t) => {
   const { variantId } = await scratchProduct({ eligible: true, pincodes: [PIN_SERVED] });
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
   await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 100 } });
-  const user = await db.user.findFirstOrThrow({ select: { id: true } });
+  const user = await scratchUser();
 
   /* Well over the ₹500 threshold: 100 units at ₹100 each. */
   await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });

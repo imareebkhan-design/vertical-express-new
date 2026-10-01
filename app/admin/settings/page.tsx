@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { SettingsForm } from "@/components/admin/settings-form";
 import { SETTING_KEYS, readSettings } from "@/lib/services/settings";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Settings | Operations",
@@ -18,6 +19,9 @@ export const dynamic = "force-dynamic";
  * two invented GSTINs reached customers' invoices.
  */
 export default async function AdminSettings() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const s = await readSettings();
 
   return (

@@ -19,6 +19,7 @@ const ENV_KEYS = [
   "RAZORPAY_WEBHOOK_SECRET",
   "DATABASE_URL",
   "ALLOW_TEST_GATEWAY",
+  "NEXT_PUBLIC_RAZORPAY_KEY_ID",
 ] as const;
 
 type MutableEnv = Record<string, string | undefined>;
@@ -39,6 +40,7 @@ beforeEach(() => {
   setEnv("RAZORPAY_KEY_ID", undefined);
   setEnv("RAZORPAY_KEY_SECRET", undefined);
   setEnv("RAZORPAY_WEBHOOK_SECRET", undefined);
+  setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", undefined);
 });
 
 afterEach(() => {
@@ -174,4 +176,38 @@ test("the opt-in does not touch the dummy gateway, which stays forbidden in prod
   setEnv("ALLOW_TEST_GATEWAY", "1");
   setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
   assert.throws(() => activeGateway(), PaymentConfigError);
+});
+
+/* A production backend whose environment file switches to live mode but still
+   inherits the staging key ids from apphosting.yaml would take "payments" in
+   Razorpay TEST mode — orders confirmed, no money collected (the ISS-002 class).
+   Live mode therefore refuses to start on anything but live key ids. */
+function liveEnv() {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-live");
+  setEnv("RAZORPAY_KEY_ID", "rzp_live_abc123");
+  setEnv("RAZORPAY_KEY_SECRET", "secret");
+  setEnv("RAZORPAY_WEBHOOK_SECRET", "webhook_secret");
+}
+
+test("live mode refuses a TEST key id (inherited staging config)", () => {
+  liveEnv();
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
+  assert.throws(() => activeGateway(), PaymentConfigError);
+  assert.throws(() => assertPaymentConfig(), PaymentConfigError);
+});
+
+test("live mode refuses a browser key id that is not the server's live key", () => {
+  liveEnv();
+  setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_test_abc123");
+  assert.throws(() => assertPaymentConfig(), PaymentConfigError);
+  setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_live_other");
+  assert.throws(() => assertPaymentConfig(), PaymentConfigError);
+});
+
+test("live mode with live key ids (browser id equal or unset) starts", () => {
+  liveEnv();
+  assert.doesNotThrow(() => assertPaymentConfig());
+  setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_live_abc123");
+  assert.doesNotThrow(() => assertPaymentConfig());
 });

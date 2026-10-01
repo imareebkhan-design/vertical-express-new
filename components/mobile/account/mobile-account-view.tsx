@@ -4,14 +4,13 @@ import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  BadgeCheck,
   User,
   Package,
   MapPin,
   Wallet,
   Bell,
   Fingerprint,
-  Moon,
-  Info,
   LogOut,
   ChevronRight,
   LifeBuoy,
@@ -32,6 +31,8 @@ interface MobileAccountViewProps {
   email: string | null;
   /** How most customers here are identified. Email is the exception. */
   phone: string | null;
+  /** The name the customer gave us, if any — never invented. */
+  fullName?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentOrders: any[];
   /** The customer's saved delivery addresses, shown as sites. */
@@ -45,6 +46,7 @@ export function MobileAccountView({
   wishlistCount,
   email,
   phone,
+  fullName = null,
   recentOrders,
   sites,
 }: MobileAccountViewProps) {
@@ -53,10 +55,8 @@ export function MobileAccountView({
   const [loggingOut, startLogout] = useTransition();
 
   // Settings states
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -73,9 +73,7 @@ export function MobileAccountView({
     });
 
     if (typeof window !== "undefined") {
-      setNotificationsEnabled(localStorage.getItem("ve_notifications_enabled") !== "false");
       setBiometricsEnabled(localStorage.getItem("ve_biometric_enabled") === "true");
-      setDarkModeEnabled(localStorage.getItem("ve_dark_mode_enabled") === "true");
       
       // Setup online/offline listeners
       setIsOffline(!navigator.onLine);
@@ -89,27 +87,6 @@ export function MobileAccountView({
       };
     }
   }, []);
-
-  const handleNotificationToggle = async () => {
-    triggerHaptic("light");
-    const nextState = !notificationsEnabled;
-    if (nextState) {
-      try {
-        const { requestPushPermission } = await import("@/lib/native/push");
-        const granted = await requestPushPermission();
-        if (!granted) {
-          alert("Push notification permissions denied. Please enable them in system settings.");
-          setNotificationsEnabled(false);
-          localStorage.setItem("ve_notifications_enabled", "false");
-          return;
-        }
-      } catch {
-        // Fallback for non-native context
-      }
-    }
-    setNotificationsEnabled(nextState);
-    localStorage.setItem("ve_notifications_enabled", nextState ? "true" : "false");
-  };
 
   const handleBiometricToggle = async () => {
     triggerHaptic("light");
@@ -136,13 +113,6 @@ export function MobileAccountView({
     }
     setBiometricsEnabled(nextState);
     localStorage.setItem("ve_biometric_enabled", nextState ? "true" : "false");
-  };
-
-  const handleDarkModeToggle = () => {
-    triggerHaptic("light");
-    const nextState = !darkModeEnabled;
-    setDarkModeEnabled(nextState);
-    localStorage.setItem("ve_dark_mode_enabled", nextState ? "true" : "false");
   };
 
   const handleLogout = () => {
@@ -173,11 +143,13 @@ export function MobileAccountView({
     let title = `Order #${o.orderNo} Update`;
     let body = `Your order status is now ${o.status}.`;
     if (o.status === "confirmed") {
-      title = `Order #${o.orderNo} Confirmed!`;
-      body = `Vertical Express has accepted your order. Delivering soon!`;
+      title = `Order #${o.orderNo} confirmed`;
+      body = `Your order is confirmed.`;
     } else if (o.status === "delivered") {
       title = `Order #${o.orderNo} delivered`;
-      body = `Credit has been added to your wallet balance.`;
+      /* Not "credit has been added": cashback depends on a rule the order may
+         not meet, and the wallet screen is where that is stated truthfully. */
+      body = `Your order was delivered.`;
     }
     return {
       id: o.id,
@@ -210,7 +182,7 @@ export function MobileAccountView({
             title="Notifications"
           >
             <Bell className="size-4" />
-            {notificationsEnabled && mockNotifications.length > 0 && (
+            {mockNotifications.length > 0 && (
               <span className="absolute right-1 top-1 size-2 rounded-full bg-danger" />
             )}
           </button>
@@ -248,10 +220,12 @@ export function MobileAccountView({
           */}
           <div className="min-w-0">
             <h2 className="text-sm font-extrabold text-ink leading-none">
-              {phone ?? email ?? "Your account"}
+              {fullName ?? phone ?? email ?? "Your account"}
             </h2>
             <p className="text-[11px] text-ink/40 font-semibold mt-1.5 truncate">
-              {phone && email ? email : phone ? "Signed in by phone" : email ? "Signed in by email" : "Signed in"}
+              {fullName
+                ? [phone, email].filter(Boolean).join(" · ") || "Signed in"
+                : phone && email ? email : phone ? "Signed in by phone" : email ? "Signed in by email" : "Signed in"}
             </p>
           </div>
         </div>
@@ -356,6 +330,23 @@ export function MobileAccountView({
             My Activity
           </h3>
           <Link
+            href="/account/profile"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <BadgeCheck className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">Profile &amp; GST</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Name, buyer type and business details</p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+
+          <Link
             href="/account/wishlist"
             onClick={() => triggerHaptic("light")}
             className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
@@ -454,33 +445,6 @@ export function MobileAccountView({
             App Settings
           </h3>
 
-          {/* Notifications Toggle */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <Bell className="size-4.5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-ink">Push Notifications</p>
-                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Order updates & wallet alerts</p>
-              </div>
-            </div>
-            <button
-              onClick={handleNotificationToggle}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                notificationsEnabled ? "bg-brand-deep" : "bg-mist/35"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block size-3.5 transform rounded-full bg-white transition-transform",
-                  notificationsEnabled ? "translate-x-4.5" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
           {/* Biometric Toggle if Available */}
           {biometricsAvailable && (
             <div className="p-4 flex items-center justify-between">
@@ -510,33 +474,6 @@ export function MobileAccountView({
             </div>
           )}
 
-          {/* Dark Mode Toggle */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-                <Moon className="size-4.5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-ink">Dark Mode (Beta)</p>
-                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Toggle interface design theme</p>
-              </div>
-            </div>
-            <button
-              onClick={handleDarkModeToggle}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                darkModeEnabled ? "bg-brand-deep" : "bg-mist/35"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block size-3.5 transform rounded-full bg-white transition-transform",
-                  darkModeEnabled ? "translate-x-4.5" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
           {/* Help & Support */}
           <button
             onClick={() => {
@@ -557,16 +494,6 @@ export function MobileAccountView({
             <ChevronRight className="size-4 text-ink/30" />
           </button>
 
-          {/* App Version Info */}
-          <div className="p-4 flex items-center gap-3 bg-surface/20">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-mist/20 text-ink/65">
-              <Info className="size-4.5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-ink">App Version</p>
-              <p className="text-[9px] text-ink/40 font-semibold mt-0.5">Vertical Express Native Shell v1.0.2</p>
-            </div>
-          </div>
         </div>
 
         {/* Logout CTA */}
@@ -587,7 +514,7 @@ export function MobileAccountView({
         title="Notifications Inbox"
       >
         <div className="space-y-4 pb-8 max-h-[70vh] overflow-y-auto">
-          {!notificationsEnabled || mockNotifications.length === 0 ? (
+          {mockNotifications.length === 0 ? (
             <div className="py-12 text-center text-xs font-bold text-ink/45">
               All caught up! No new notifications.
             </div>
@@ -626,20 +553,12 @@ export function MobileAccountView({
       >
         <div className="space-y-4 pb-8">
           <p className="text-xs font-semibold text-ink/75 leading-relaxed">
-            Need help with your building materials order? Contact our regional support team in Srinagar directly.
+            Need help with an order? Email us with your order number.
           </p>
           <div className="rounded-xl border border-mist/20 p-4 bg-white space-y-3">
             <div>
-              <span className="text-[9px] font-extrabold uppercase text-ink/40">Customer Support Phone</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">+91 94190 12345</p>
-            </div>
-            <div>
               <span className="text-[9px] font-extrabold uppercase text-ink/40">Support Email</span>
               <p className="text-xs font-extrabold text-ink mt-0.5">info@verticalexpress.in</p>
-            </div>
-            <div>
-              <span className="text-[9px] font-extrabold uppercase text-ink/40">Warehouse Location</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">Rajbagh Industrial Zone, Srinagar, J&K</p>
             </div>
           </div>
         </div>

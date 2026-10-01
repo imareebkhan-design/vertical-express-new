@@ -10,6 +10,7 @@ import {
 import { PickListPanel } from "@/components/admin/pick-list";
 import { listRoster } from "@/lib/services/admin/roster-write";
 import { RosterManager } from "@/components/admin/roster-manager";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
   title: "Dispatch | Operations",
@@ -32,6 +33,9 @@ export const dynamic = "force-dynamic";
  * rather than an afterthought.
  */
 export default async function AdminDispatch() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const [board, roster, onTheRoad, fullRoster, pickList] = await Promise.all([
     getDispatchBoard(),
     getDispatchRoster(),

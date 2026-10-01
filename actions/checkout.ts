@@ -113,6 +113,8 @@ export async function placeOrder(input: {
   contactEmail?: string | null;
   /* Requested, not granted — re-resolved server-side. */
   wantsExpress?: boolean;
+  /* The total on screen. Checked, never charged: the server's own figure is. */
+  expectedTotalPaise?: number;
 }): Promise<ActionResult<PlaceOrderData>> {
   const user = await getAuthUser();
   if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
@@ -140,6 +142,10 @@ export async function placeOrder(input: {
       couponCode: input.couponCode,
       contactEmail,
       wantsExpress: input.wantsExpress,
+      expectedTotalPaise:
+        typeof input.expectedTotalPaise === "number" && Number.isSafeInteger(input.expectedTotalPaise)
+          ? input.expectedTotalPaise
+          : undefined,
     });
     revalidatePath("/cart");
     revalidatePath("/account/orders");

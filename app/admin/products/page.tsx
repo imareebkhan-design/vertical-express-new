@@ -4,10 +4,14 @@ import { db } from "@/lib/db";
 import { ProductBrandSelect } from "@/components/admin/product-brand-select";
 import { formatPaise } from "@/lib/money";
 import { ProductStatusChip, StatusChip } from "@/components/admin/status-chip";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminProducts() {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const [{ products, total }, brands] = await Promise.all([
     adminListProducts(),
     /* Only active brands are offered — an inactive one is retired, and

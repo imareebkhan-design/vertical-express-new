@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { productForPage } from "./data";
 import {
-  getProductBySlug,
   getRelatedProducts,
   boughtWithProduct,
   listProductSlugs,
@@ -21,7 +21,7 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = await productForPage(slug);
   if (!product) return { title: "Product not found" };
   return {
     /* The layout's title template appends "| Vertical Express" already, so
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductPage({ params }: PageProps) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const product = await productForPage(slug);
   if (!product) notFound();
 
   /* Two different rails and they are not interchangeable. `related` is more of

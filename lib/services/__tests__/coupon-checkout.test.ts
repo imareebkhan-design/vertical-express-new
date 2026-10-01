@@ -114,7 +114,7 @@ after(async () => {
   await db.cart.deleteMany({ where: { userId: TEST_USER } });
   await db.address.deleteMany({ where: { userId: TEST_USER } });
   await db.serviceablePincode.deleteMany({ where: { pincode: TEST_PINCODE } });
-  await db.coupon.deleteMany({ where: { code: COUPON_CODE } });
+  await db.coupon.deleteMany({ where: { code: { in: [COUPON_CODE, `${COUPON_CODE}BIG`] } } });
   if (variantId) {
     await db.inventory.deleteMany({ where: { variantId } });
     await db.productVariant.delete({ where: { id: variantId } });
@@ -168,19 +168,33 @@ test("Coupons: omitting the code charges full price and records no coupon", asyn
   assert.equal(order.couponCode, null);
 });
 
-test("Coupons: an unknown code is ignored rather than trusted", async () => {
+test("Coupons: an unknown code is never trusted — placement is refused, not repriced", async () => {
+  /* Was "ignored rather than trusted": the order was placed at full price. The
+     not-trusting still holds (no discount is ever produced), but placing at a
+     total the customer had not seen is now refused instead (E6 revalidation). */
   await addItem(TEST_USER, null, variantId, 1);
+  const before = await db.order.count({ where: { userId: TEST_USER } });
 
-  const result = await placeOrder({
-    userId: TEST_USER,
-    addressId,
-    paymentMethod: "cod",
-    couponCode: "NOT-A-REAL-COUPON",
-    idempotencyKey: randomUUID(),
-  });
+  await assert.rejects(
+    placeOrder({
+      userId: TEST_USER,
+      addressId,
+      paymentMethod: "cod",
+      couponCode: "NOT-A-REAL-COUPON",
+      idempotencyKey: randomUUID(),
+    }),
+    /COUPON_NOT_APPLICABLE:not_found/
+  );
+  assert.equal(await db.order.count({ where: { userId: TEST_USER } }), before, "no order, so no discount either");
+  await db.cartItem.deleteMany({ where: { cart: { userId: TEST_USER } } });
+});
 
-  const order = await db.order.findFirst({ where: { orderNo: result.orderNo } });
-  assert.ok(order);
-  assert.equal(order.discountPaise, 0, "an unknown code must not produce a discount");
-  assert.equal(order.couponCode, null);
+test("Coupons: a flat coupon larger than the basket records only what it took off", async () => {
+  await db.coupon.create({ data: { code: `${COUPON_CODE}BIG`, type: "flat", value: 500000, minOrderPaise: 0, isActive: true } });
+  await addItem(TEST_USER, null, variantId, 1); // ₹1,000.00
+  const cart = await getCartSummary(TEST_USER, null);
+  const totals = await computeTotals(cart, TEST_PINCODE, "Jammu & Kashmir", `${COUPON_CODE}BIG`);
+  assert.equal(totals.discountPaise, cart.subtotalPaise, "the discount is the goods' value, not the coupon's face value");
+  assert.equal(totals.totalPaise, totals.deliveryFeePaise, "only delivery is left to pay");
+  await db.cartItem.deleteMany({ where: { cart: { userId: TEST_USER } } });
 });

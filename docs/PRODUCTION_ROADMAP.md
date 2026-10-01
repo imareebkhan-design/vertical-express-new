@@ -1,6 +1,10 @@
 # Vertical Express — Production Roadmap
 
-*Status as of 2026-09-20.* The canonical high-level answer to: **where is Vertical Express today, what remains, and what is the path to production?**
+*Updated 2026-09-21.* The canonical high-level answer to: **where is Vertical Express today, what remains, and what is the path to production?**
+
+**OWNER DECISION — Option A approved:** continue custom commerce, Firebase Auth, Expo, Razorpay, Firebase App Hosting and EAS. See [DEC-019](DECISIONS.md). The Shopify audit is complete. No Shopify implementation/migration is authorized. Refund, invoice, COD, operational, production-data and device gaps are not waived.
+
+**Staging status update (supersedes the historical tables below):** first deployment completed; recovered session verified hosted Firebase authentication and staging database binding. Health/catalogue and unauthenticated 401 checks were rechecked on 21 September. Staging has 18/18 migrations and the 20-category/10-brand/45-product/45-variant demo seed. `database-url` is set/granted. EAS development/preview API URLs were verified in the prior session. Source exclusion checked with Firebase CLI 15.30.2: 615 files, zero `.env*`. See [verification evidence](../../STAGING_VERIFICATION_2026-09-21.md). The next gate is exposed staging credential recovery; do not duplicate the rollout, migrations or seed.
 
 How this document relates to the others:
 
@@ -255,13 +259,8 @@ Open decisions: EAS project confirmation; separate Firebase project for staging 
 
 ## Current Next Action
 
-> ### ⛔ Two owner actions gate everything. Nothing else can start.
->
-> **1. Billing — RESOLVED (verified 2026-09-21).** `vertical-express` is linked to open billing account `01840D-863F69-F7A1A0` (INR; client `verticalexpress01@gmail.com` is its admin); `billingEnabled: true`; `firebase apphosting:backends:list` succeeds. Backend `ve-staging` has been created (asia-southeast1) and five of six secrets are set and granted.
->
-> **2. Put the REAL staging connection strings in `homerun-clone/.env.staging` — the ONLY remaining blocker.** on this Mac (gitignored) with `DATABASE_URL` and `DIRECT_URL` from the **`vertical-express-staging`** Supabase project.
-> *Current evidence:* the file exists but both values are still **placeholder text** (checked by shape only; the guard refuses it). Nothing on this machine holds the staging credentials. Supabase → project `vertical-express-staging` → Connect → Transaction pooler (6543) for `DATABASE_URL` (+ `?pgbouncer=true&connection_limit=5`) and Session pooler (5432) for `DIRECT_URL`. Do not paste the values into chat.
->
-> **3. Then** staging deployment resumes at Phase 2.1 (guard → migrate → seed → secrets → deploy → verify the real URL).
->
-> Nothing is committed or pushed. No production resource has been touched.
+1. Rotate the exposed **staging-only** DB password securely. Update both local `.env.staging` URLs and the App Hosting `database-url` secret, preserving ref `gjhxhmcsuhxcmrvtkggz`, verified aws-0-ap-south-1 pooler and transaction/session settings. Never print values. If authorized API access is unavailable, isolate the dashboard reset as the owner action.
+2. Re-run guard/connectivity/migration status after rotation. Roll out staging only if needed to consume the new secret; verify hosted auth/database binding after that change.
+3. Resolve exposed Razorpay TEST API-secret rotation, then verify/configure the TEST webhook and authenticated five-minute order-expiry scheduler.
+4. Verify resolved EAS development/preview staging configuration, run backend/mobile quality gates, then development builds and real-device E2E as hardware/accounts permit. Keep production EAS empty.
+5. Keep policy and production boundaries explicit. Preserve WIP; no commit or push is authorized.

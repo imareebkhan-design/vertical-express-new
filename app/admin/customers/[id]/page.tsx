@@ -6,6 +6,7 @@ import { OpsTable } from "@/components/admin/ops-table";
 import { OrderStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { formatPaise } from "@/lib/money";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
+import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,9 @@ export default async function AdminCustomerDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  /* Backstop for the layout gate: a request that renders only this page
+     segment never ran app/admin/layout.tsx, so the page checks too. */
+  if (!(await getAdminUser())) return null;
   const { id } = await params;
   const c = await adminCustomerDetail(id);
   if (!c) notFound();

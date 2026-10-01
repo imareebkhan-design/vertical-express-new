@@ -13,6 +13,7 @@ import { PageLoader } from "@/components/page-loader";
 import { CheckCircle2, Clock, MapPin, Package, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPaise } from "@/lib/money";
+import { etaShort, orderTotals, paymentLabel } from "@/lib/order-display";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import Link from "next/link";
 
@@ -22,9 +23,10 @@ import { MobileConfirmationView } from "@/components/mobile/checkout/mobile-conf
 interface ConfirmationSwitcherProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: { speedClass: string }[];
 }
 
-export function ConfirmationSwitcher({ order }: ConfirmationSwitcherProps) {
+export function ConfirmationSwitcher({ order, shipments }: ConfirmationSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
 
@@ -33,11 +35,12 @@ export function ConfirmationSwitcher({ order }: ConfirmationSwitcherProps) {
   }
 
   if (isMobile) {
-    return <MobileConfirmationView order={order} />;
+    return <MobileConfirmationView order={order} shipments={shipments} />;
   }
 
   const addr = order.address as unknown as OrderAddressSnapshot;
-  const isCod = order.paymentMethod === "cod";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const totals = orderTotals(order);
 
   return (
     <>
@@ -49,17 +52,16 @@ export function ConfirmationSwitcher({ order }: ConfirmationSwitcherProps) {
             <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">Order placed.</h1>
             <p className="mt-1 text-sm font-semibold text-ink-500">
               Order <span className="font-extrabold text-ink">#{order.orderNo}</span> ·{" "}
-              {isCod ? "Pay on delivery" : "Payment received"}
+              {paymentLabel(payment)}
             </p>
           </div>
 
           <div className="mt-8 grid grid-cols-3 gap-3 text-center">
             {[
-              /* "Soon" was the fallback. The guard was right — 0 does not print as a
-               time — but the word is still a commitment, and 0 means an operator
-               set no promise for this pincode. */
-            { icon: Clock, label: "ETA", value: order.etaMinutes ? `~${order.etaMinutes} min` : "Not scheduled yet" },
-              { icon: Wallet, label: "Paid", value: isCod ? "On delivery" : formatPaise(order.totalPaise) },
+              /* The checkout quote belongs to the quick shipment only; a truck
+                 shipment has no time to state (etaShort, lib/order-display). */
+              { icon: Clock, label: "ETA", value: etaShort(order, shipments) },
+              { icon: Wallet, label: "Total", value: totals.total },
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               { icon: Package, label: "Items", value: String(order.items.reduce((s: number, i: any) => s + i.qty, 0)) },
             ].map(({ icon: Icon, label, value }) => (
@@ -95,27 +97,18 @@ export function ConfirmationSwitcher({ order }: ConfirmationSwitcherProps) {
             </ul>
 
             <dl className="mt-4 space-y-2 border-t border-line pt-4 text-[13.5px] font-bold">
-              <div className="flex justify-between">
-                <dt className="text-ink-500">Subtotal</dt>
-                <dd className="text-ink">{formatPaise(order.subtotalPaise)}</dd>
-              </div>
-              {order.taxPaise > 0 && (
-                <div className="flex justify-between">
-                  <dt className="text-ink-500">GST (18%)</dt>
-                  <dd className="text-ink">{formatPaise(order.taxPaise)}</dd>
+              {totals.lines.map((l) => (
+                <div key={l.label} className="flex justify-between">
+                  <dt className="text-ink-500">{l.label}</dt>
+                  <dd className={l.value === "FREE" ? "text-success" : "text-ink"}>{l.value}</dd>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <dt className="text-ink-500">Delivery</dt>
-                <dd className={order.deliveryFeePaise === 0 ? "text-success" : "text-ink"}>
-                  {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
-                </dd>
-              </div>
+              ))}
               <div className="flex justify-between border-t border-line pt-2 text-base font-extrabold">
                 <dt className="text-ink">Total</dt>
-                <dd className="text-ink">{formatPaise(order.totalPaise)}</dd>
+                <dd className="text-ink">{totals.total}</dd>
               </div>
             </dl>
+            {totals.discountNote && <p className="mt-2 text-xs font-bold text-success">{totals.discountNote}</p>}
           </div>
 
           <div className="mt-4 flex items-start gap-2.5 rounded-[22px] border border-line bg-paper p-5 shadow-card">

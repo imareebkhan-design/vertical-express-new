@@ -65,8 +65,8 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 - Index: `code`. Validation: percent 1–100.
 
 **orders**
-- `order_no text unique` (human: VE-2026-000123), `user_id fk`, `address jsonb` (snapshot), `status enum(pending_payment, confirmed, packed, out_for_delivery, delivered, cancelled, refund_initiated, refunded)`, `payment_method enum(razorpay, cod)`, `subtotal_paise`, `discount_paise`, `delivery_fee_paise`, `total_paise`, `coupon_code text null`, `eta_minutes int null`, `warehouse_id fk`, `notes`, `placed_at`, `delivered_at null`, `cancelled_reason null`
-- Index: `(user_id, placed_at desc)`, `status`, `order_no`.
+- `order_no text unique` (human: VE-2026-000123), `user_id fk`, `address jsonb` (snapshot), `status enum(pending_payment, confirmed, packed, out_for_delivery, delivered, cancelled, refund_initiated, refunded)`, `payment_method enum(razorpay, cod)`, `subtotal_paise`, `discount_paise`, `delivery_fee_paise`, `total_paise`, `coupon_code text null`, `eta_minutes int null`, `warehouse_id fk`, `notes`, `placed_at`, `delivered_at null`, `cancelled_reason null`, `expiry_checked_at null` (ISS-078 — see below)
+- Index: `(user_id, placed_at desc)`, `status`, `order_no`, `(status, expiry_checked_at, placed_at)`.
 
 **order_items** — snapshot lines
 - `order_id fk`, `variant_id fk`, `title`, `variant_name`, `image_url`, `unit_price_paise`, `applied_tier_min_qty int null`, `qty`, `line_total_paise`
@@ -189,3 +189,52 @@ Drop `shipment_items`, then `shipments`, then the two enum types. No existing da
 is touched, so a rollback loses only shipment rows written since deploy. Orders
 placed before this migration have no shipments and are unaffected — any reader
 must treat an empty `shipments` array as "not split", not as an error.
+
+
+## Order expiry queue (migration `20260929120000_order_expiry_checked_at`, ISS-078)
+
+`orders.expiry_checked_at timestamp(3) null` — when the payment-window expiry
+(`cleanupExpiredPendingOrders`) last claimed this order to ask Razorpay about it
+and left it pending. Not a business field; nothing else reads it.
+
+- NULL = never examined. The expiry selects stale `pending_payment` orders ordered
+  `expiry_checked_at NULLS FIRST, placed_at, id`, at most 20 per run, skipping any
+  claimed in the last 2 minutes (the claim lease). Claiming sets it to now, which
+  also moves the order to the back of the queue. Index
+  `orders_status_expiry_checked_at_placed_at_idx` serves that selection.
+- Additive and nullable, no backfill: existing rows are NULL and are simply
+  examined first on the next run.
+- **Not yet applied in production** (29 Sep 2026): applied to local
+  `vertical_express_test` / `vertical_express_demo` only. The code selects on it,
+  so this migration must be deployed with (before) the code — see the release
+  checklist in the workspace `docs/PRODUCTION_READINESS.md`.
+
+**Rollback.** Revert the code first (it would otherwise select on the column),
+then `DROP INDEX "orders_status_expiry_checked_at_placed_at_idx"; ALTER TABLE
+"orders" DROP COLUMN "expiry_checked_at";`. No other data depends on it; losing it
+only loses the round-robin position, which is rebuilt as NULLs.
+
+
+## Express selection (migration `20260929233000_express_selection`, E7)
+
+- `orders.express_fee_paise integer null` — the express charge the order was placed
+  with; NULL when express was not chosen or not on offer. It is already inside
+  `delivery_fee_paise`, unless a free-delivery coupon waived the delivery fee (then
+  it is still set: the customer chose the express run). Written by `placeOrder` from
+  the server's quote (`totals.expressChosen`, `totals.express.feePaise`), never from
+  the client.
+- `shipments.express_run boolean not null default false` — true on the one shipment
+  carrying the express run the customer chose (the express-eligible, bike-class
+  lines). `speed_class` stays the vehicle class (bike or truck) and is written the
+  same whether express was bought or not.
+- Additive, no backfill: orders placed before it carry NULL / false, which is what
+  they were — no earlier order recorded an express choice.
+- **Not yet applied in production** (30 Sep 2026): local `vertical_express_test` /
+  `vertical_express_demo` only. The code writes both columns on every placement, so
+  this migration must be deployed **before** the code (release checklist R1) — with
+  the columns missing, every placement fails (observed locally against a stale
+  client: `Unknown argument expressFeePaise`, after the gateway order was created).
+
+**Rollback.** Revert the code first, then `ALTER TABLE "shipments" DROP COLUMN
+"express_run"; ALTER TABLE "orders" DROP COLUMN "express_fee_paise";`. Dropping them
+loses the record of which orders bought express; export it first if any exist.

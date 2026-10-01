@@ -97,7 +97,7 @@ export function SiteSetupView({ next = "/" }: { next?: string }) {
             <div className="flex items-start gap-3 rounded-[20px] bg-paper p-3.5 shadow-card">
               <SpeedChip speed="scheduled" />
               <p className="text-[13px] font-medium leading-[18px] text-ink-700">
-                Cement, tiles, tanks — you pick the slot
+                Cement, tiles, tanks — by truck
               </p>
             </div>
           </div>

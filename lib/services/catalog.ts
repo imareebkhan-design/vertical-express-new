@@ -54,6 +54,9 @@ export interface CatalogFacets {
    *  configures, each carrying only the values actually stocked. Empty when the
    *  catalogue has no attribute data for the category. */
   attributes: { label: string; values: { value: string; count: number }[] }[];
+  /** Search only: which shelves the query matched, largest first
+   *  ("In Cement 23 · In Adhesives 6"). Counted over every match. */
+  categories?: { slug: string; name: string; count: number }[];
 }
 
 /**
@@ -64,7 +67,7 @@ export interface CatalogFacets {
  * window is small enough that counting in memory is honest and cheap.
  */
 function buildAttributeFacets(
-  items: CatalogItem[],
+  items: { attributes: Record<string, string> }[],
   categorySlug: string | undefined
 ): CatalogFacets["attributes"] {
   if (!categorySlug) return [];
@@ -205,12 +208,24 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   if (!q.search || !q.search.trim()) {
     const where = buildWhere(q);
     const priceSort = q.sort === "price_asc" || q.sort === "price_desc" || q.sort === "discount";
+    /* Attribute values live in a JSON column, so there is nothing to filter on
+       in SQL. Filtering must therefore see the whole matching set and page
+       afterwards — filtering the already-paged window returned short or empty
+       pages while `total` still counted the whole category. Same shape as the
+       price sorts; moves into the query when the search engine lands. */
+    const attrEntries = Object.entries(q.attrs ?? {}).filter(([, v]) => v);
+    const windowed = priceSort || attrEntries.length > 0;
 
-    const [rows, total, brandGroups, priceAgg] = await Promise.all([
+    /* Facets describe the whole category, not the page on screen: a paged
+       window would report only its own items' grades and the rail would
+       undercount the rest. When the full set is already fetched it is reused;
+       otherwise one specs-only query, which is cheap. */
+    const needsSpecs = !windowed && !!q.categorySlug && attributeConfigFor(q.categorySlug).attributes.length > 0;
+    const [rows, total, brandGroups, priceAgg, specRows] = await Promise.all([
       db.product.findMany({
         where,
         orderBy: orderBy(q.sort),
-        ...(priceSort ? {} : { skip: (page - 1) * perPage, take: perPage }),
+        ...(windowed ? {} : { skip: (page - 1) * perPage, take: perPage }),
         include: {
           brand: true,
           category: { select: { slug: true, isBulk: true } },
@@ -235,20 +250,22 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         _min: { pricePaise: true },
         _max: { pricePaise: true },
       }),
+      needsSpecs ? db.product.findMany({ where, select: { specs: true } }) : Promise.resolve(null),
     ]);
 
-    let items = rows.map(toItem).filter((x): x is CatalogItem => x !== null);
+    const fetched = rows.map(toItem).filter((x): x is CatalogItem => x !== null);
+    /* Facets describe what could be chosen, so they are counted before the
+       attribute filter — picking one grade must not hide the others. */
+    const attributeFacets = buildAttributeFacets(
+      specRows ? specRows.map((r) => ({ attributes: attributesOf(r.specs) })) : fetched,
+      q.categorySlug
+    );
 
-    /* Attribute values live in a JSON column, so there is nothing to filter on
-       in SQL. Narrowing here matches how the price and discount sorts already
-       work, and the page window is small. Moves into the query when the search
-       engine lands. */
-    const attrEntries = Object.entries(q.attrs ?? {}).filter(([, v]) => v);
-    if (attrEntries.length > 0) {
-      items = items.filter((item) =>
-        attrEntries.every(([label, value]) => item.attributes[label] === value)
-      );
-    }
+    let items =
+      attrEntries.length > 0
+        ? fetched.filter((item) => attrEntries.every(([label, value]) => item.attributes[label] === value))
+        : fetched;
+    const matched = attrEntries.length > 0 ? items.length : total;
 
     if (priceSort) {
       items.sort((a, b) => {
@@ -258,8 +275,8 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         const dB = b.compareAtPaise ? (b.compareAtPaise - b.pricePaise) / b.compareAtPaise : 0;
         return dB - dA;
       });
-      items = items.slice((page - 1) * perPage, page * perPage);
     }
+    if (windowed) items = items.slice((page - 1) * perPage, page * perPage);
 
     const brandIds = brandGroups.map((g) => g.brandId);
     const brands = brandIds.length
@@ -269,7 +286,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
 
     return {
       items,
-      total,
+      total: matched,
       page,
       perPage,
       facets: {
@@ -278,7 +295,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
           minPaise: priceAgg._min.pricePaise ?? 0,
           maxPaise: priceAgg._max.pricePaise ?? 0,
         },
-        attributes: buildAttributeFacets(items, q.categorySlug),
+        attributes: attributeFacets,
       },
     };
   }
@@ -401,16 +418,28 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   const countResult = await db.$queryRawUnsafe<{ count: number }[]>(countSql, ...queryArgs);
   const total = countResult[0]?.count ?? 0;
 
-  // 4. Fetch matched products with limit/offset and dynamic scoring
+  /* 4. Fetch matched products with limit/offset and dynamic scoring.
+   *
+   * "Popular"/"newest" rank by search_score first — relevance is the point of
+   * search. But price_asc/price_desc/discount are an explicit sort choice: a
+   * shopper who picks "Price: Low to High" expects the cheapest matching item
+   * first, full stop. Keeping search_score as the primary key there made the
+   * control silently inert whenever matches had mixed relevance scores (e.g.
+   * a title match and a category-only match for the same query) — the price
+   * sort only ever broke ties within a relevance tier, so results didn't
+   * visibly reorder. search_score is dropped to a tiebreaker for these three,
+   * matching how the non-search branch above already sorts (price/discount
+   * only, no relevance term to mix in).
+   */
   let orderByClause = "ORDER BY search_score DESC, p.rating_count DESC, p.created_at DESC";
   if (q.sort === "newest") {
     orderByClause = "ORDER BY search_score DESC, p.created_at DESC";
   } else if (q.sort === "price_asc") {
-    orderByClause = "ORDER BY search_score DESC, (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) ASC";
+    orderByClause = "ORDER BY (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) ASC, search_score DESC";
   } else if (q.sort === "price_desc") {
-    orderByClause = "ORDER BY search_score DESC, (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) DESC";
+    orderByClause = "ORDER BY (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) DESC, search_score DESC";
   } else if (q.sort === "discount") {
-    orderByClause = "ORDER BY search_score DESC, (SELECT (compare_at_paise - price_paise)::float / compare_at_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true AND compare_at_paise > 0) DESC NULLS LAST";
+    orderByClause = "ORDER BY (SELECT (compare_at_paise - price_paise)::float / compare_at_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true AND compare_at_paise > 0) DESC NULLS LAST, search_score DESC";
   }
 
   const selectSql = `
@@ -530,17 +559,26 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
 
   // 6. Query facets dynamically scoped to matched product IDs
   const allMatchedSql = `
-    SELECT p.id, p.brand_id
+    SELECT p.id, p.brand_id, c.slug AS category_slug, c.name AS category_name
     FROM products p
     JOIN brands b ON p.brand_id = b.id
     JOIN categories c ON p.category_id = c.id
     WHERE ${conditions.join(" AND ")};
   `;
-  const allMatchedRows = await db.$queryRawUnsafe<{ id: string; brand_id: string }[]>(
+  const allMatchedRows = await db.$queryRawUnsafe<
+    { id: string; brand_id: string; category_slug: string; category_name: string }[]
+  >(
     allMatchedSql,
     ...queryArgs
   );
   const matchedProductIds = allMatchedRows.map((r) => r.id);
+  const shelves = new Map<string, { slug: string; name: string; count: number }>();
+  for (const r of allMatchedRows) {
+    const shelf = shelves.get(r.category_slug) ?? { slug: r.category_slug, name: r.category_name, count: 0 };
+    shelf.count += 1;
+    shelves.set(r.category_slug, shelf);
+  }
+  const categoryFacets = [...shelves.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 
   const [brandGroups, priceAgg] = matchedProductIds.length
     ? await Promise.all([
@@ -575,6 +613,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         maxPaise: priceAgg._max.pricePaise ?? 0,
       },
       attributes: buildAttributeFacets(items, q.categorySlug),
+      categories: categoryFacets,
     },
   };
 }
@@ -1067,3 +1106,116 @@ export const boughtWithProduct = unstable_cache(
   ["catalog-bought-with"],
   { revalidate: 300, tags: ["catalog"] }
 );
+
+/**
+ * What actually sold across the catalogue in the last `days` — the evidence
+ * behind a heading like "Popular in Srinagar this week".
+ *
+ * The same rule as `mostOrderedInCategory`: real order lines, excluding
+ * orders abandoned at payment, cancelled or refunded. Returns empty until
+ * enough has been ordered, and the caller must not dress anything else up as
+ * popular in the meantime.
+ */
+export async function mostOrderedRecently(days = 7, limit = 6): Promise<CatalogItem[]> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+  const rows = await db.orderItem.groupBy({
+    by: ["variantId"],
+    where: {
+      order: {
+        placedAt: { gte: since },
+        status: { notIn: ["pending_payment", "cancelled", "refunded", "refund_initiated"] },
+      },
+      variant: { product: { status: "published" } },
+    },
+    _sum: { qty: true },
+    orderBy: { _sum: { qty: "desc" } },
+    take: limit * 2,
+  });
+  if (rows.length === 0) return [];
+
+  const variants = await db.productVariant.findMany({
+    where: { id: { in: rows.map((r) => r.variantId) } },
+    select: { id: true, productId: true },
+  });
+  const rank = new Map(rows.map((r, i) => [r.variantId, i]));
+  const productIds = [
+    ...new Set(
+      variants.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0)).map((v) => v.productId)
+    ),
+  ].slice(0, limit);
+  if (productIds.length === 0) return [];
+
+  const full = await db.product.findMany({
+    where: { id: { in: productIds }, status: "published" },
+    include: {
+      brand: true,
+      category: { select: { slug: true, isBulk: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: {
+          bulkTiers: { select: { id: true }, take: 1 },
+          inventory: { select: { qtyOnHand: true, qtyReserved: true } },
+        },
+      },
+    },
+  });
+  const order = new Map(productIds.map((id, i) => [id, i]));
+  return full
+    .map(toItem)
+    .filter((x): x is CatalogItem => x !== null)
+    .sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+/**
+ * The curated rooms — "Shop by room" — each with the categories it leads
+ * with and how many published products those hold.
+ *
+ * Editorial data: which categories a bathroom leads with is a merchandising
+ * decision, so nothing here infers a mapping. While the tables are empty this
+ * returns [] and the section does not render — a room tile that opens an
+ * empty search is a dead button.
+ */
+export async function listRooms() {
+  const rooms = await db.room.findMany({
+    where: { isActive: true },
+    orderBy: { sortOrder: "asc" },
+    select: {
+      slug: true,
+      name: true,
+      categories: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          category: {
+            select: {
+              slug: true,
+              name: true,
+              group: true,
+              imageUrl: true,
+              isBulk: true,
+              _count: { select: { products: { where: { status: "published" } } } },
+            },
+          },
+        },
+      },
+    },
+  });
+  return rooms
+    .map((r) => {
+      const categories = r.categories.map(({ category: c }) => ({
+        slug: c.slug,
+        name: c.name,
+        group: c.group,
+        imageUrl: c.imageUrl,
+        isBulk: c.isBulk,
+        productCount: c._count.products,
+      }));
+      return {
+        slug: r.slug,
+        name: r.name,
+        itemCount: categories.reduce((n, c) => n + c.productCount, 0),
+        categories,
+      };
+    })
+    .filter((r) => r.categories.length > 0);
+}

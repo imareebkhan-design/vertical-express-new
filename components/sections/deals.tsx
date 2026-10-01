@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Plus, Check, Zap } from "lucide-react";
+import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { useState } from "react";
+import { SpeedChip } from "@/components/ui/speed-chip";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
   return (
@@ -15,10 +16,16 @@ export function Deals({ items }: { items: CatalogItem[] }) {
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">
-              Deals this week
+              Deals
             </h2>
             <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-              <span className="text-ink font-semibold">Prices valid to 31 Aug</span> · while stock lasts
+              {/* There is no `dealEndsAt` field anywhere in the schema — a
+                  specific end date here was never derived from data, and a
+                  hardcoded one goes stale the moment the calendar passes it
+                  (this one already claimed prices expired weeks ago while the
+                  same deals kept rendering). "While stock lasts" is the part
+                  that's actually true and doesn't expire on its own. */}
+              While stock lasts
             </p>
           </div>
 
@@ -26,7 +33,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
             href="/categories"
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors shrink-0"
           >
-            <span>See all deals</span>
+            <span>Browse all categories</span>
             <ChevronRight className="size-3.5" />
           </Link>
         </div>
@@ -135,16 +142,10 @@ function DealCard({ item }: { item: CatalogItem }) {
         </div>
 
         <div className="mt-2.5 pt-1">
-          {isExpress ? (
-            <span className="inline-flex items-center gap-1 rounded-chip bg-brand px-2 py-0.5 text-[11px] font-extrabold text-ink">
-              <Zap className="size-3 fill-ink stroke-none" />
-              60 min
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-chip bg-amber-soft px-2 py-0.5 text-[11px] font-extrabold text-ink">
-              Tomorrow, 8 AM
-            </span>
-          )}
+          {/* The canonical SpeedChip replaces this card's own hand-rolled
+              "60 min" / "Tomorrow, 8 AM" — the unverified express window and a
+              delivery slot that does not exist in any form (ISS-054, ISS-057). */}
+          <SpeedChip speed={isExpress ? "express" : "scheduled"} />
         </div>
       </div>
     </div>

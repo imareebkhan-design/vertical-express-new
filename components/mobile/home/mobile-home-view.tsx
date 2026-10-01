@@ -1,9 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, Bell, MapPin, ChevronDown } from "lucide-react";
-import type { CatalogItem } from "@/lib/services/catalog";
+import { Search, MapPin, ChevronDown } from "lucide-react";
+import type { CatalogItem, listRooms } from "@/lib/services/catalog";
 import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
@@ -11,17 +11,23 @@ import { QuantityHelpers } from "@/components/mobile/home/quantity-helpers";
 import { CategoryGlyph, type GlyphName } from "./category-glyph";
 import { formatPaise } from "@/lib/money";
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
+import { FirstOrderCard, HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/mobile/home/home-lead";
+import { useCart } from "@/hooks/use-cart";
+import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
 
 /**
- * The app home screen, built to the `HomeFirstRun` artboard.
+ * The phone-web home screen.
  *
- * The design draws three home variants. `Main` (contractor) and `HomeHomeowner`
- * lead with an "Order again" rail, saved lists, and a "running low at this site"
- * rail inferred from past orders. None of those three features exist in the data
- * model yet — there is no saved-list entity, this view receives no order history,
- * and the consumption model behind "roughly 6 left" is explicitly unconfirmed in
- * the placeholder register. `HomeFirstRun` is the design's own answer for a user
- * with no history, so it is the variant that can be rendered honestly today.
+ * Two compositions, chosen as the app chooses (`mobile/src/lib/first-run.ts`):
+ * a customer with order history gets `Main`'s lead — "Order again" from their
+ * own orders, then the category grid (W-07). Everybody else, including anybody
+ * signed out and anybody while the answer is loading, gets `HomeFirstRun`.
+ * `Main`'s saved lists and "running low at this site" are not drawn: there is
+ * no saved-list model, and the consumption estimate behind "roughly 6 left" is
+ * unconfirmed in the placeholder register. `HomeHomeowner` is not built on web.
+ *
+ * The page itself stays one cached page for everyone; the customer's facts are
+ * fetched here, after it renders (`actions/home.ts`).
  *
  * Everything on screen comes from real catalog data or from fixed copy in the
  * artboard. No price, delivery time or stock figure is invented here.
@@ -88,10 +94,26 @@ interface MobileHomeViewProps {
   featured: CatalogItem[];
   newArrivals: CatalogItem[];
   categories: Category[];
+  rooms: Awaited<ReturnType<typeof listRooms>>;
+  /** Injected for tests; the app uses the server action. */
+  loadFacts?: () => Promise<MyHomeFacts>;
 }
 
-export function MobileHomeView({ featured }: MobileHomeViewProps) {
-  const { pincode, cityName, openLocationModal } = useNativeShell();
+export function MobileHomeView({ featured, rooms, loadFacts = getMyHomeFacts }: MobileHomeViewProps) {
+  const { pincode, cityName, hasChosenLocation, openLocationModal } = useNativeShell();
+  const { addItem } = useCart();
+  /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
+  const [facts, setFacts] = useState<MyHomeFacts | null>(null);
+  useEffect(() => {
+    let live = true;
+    loadFacts()
+      .then((f) => live && setFacts(f))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [loadFacts]);
+  const returning = (facts?.historyCount ?? 0) > 0;
 
   // The artboard shows two. More would push the nav off a 852px frame.
   const popular = featured.slice(0, 2);
@@ -111,7 +133,13 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
           <span className="flex min-w-0 items-center gap-2">
             <MapPin className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
             <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-ink">
-              {cityName} Site · <span className="tabular-nums text-ink-500">{pincode}</span>
+              {hasChosenLocation ? (
+                <>
+                  {cityName} Site · <span className="tabular-nums text-ink-500">{pincode}</span>
+                </>
+              ) : (
+                "Choose delivery location"
+              )}
             </span>
           </span>
           <ChevronDown className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
@@ -124,13 +152,7 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
         >
           <Search className="size-[19px]" strokeWidth={1.7} aria-hidden />
         </Link>
-        <Link
-          href="/account"
-          aria-label="Notifications"
-          className="flex size-[38px] flex-none items-center justify-center rounded-full bg-paper text-ink no-underline shadow-card"
-        >
-          <Bell className="size-[19px]" strokeWidth={1.7} aria-hidden />
-        </Link>
+        <NotificationsBell />
       </div>
 
       {/* Greeting — grey lead-in, then ink */}
@@ -144,41 +166,17 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
         </h1>
       </div>
 
-      {/* First-list prompt */}
-      <div className="px-4 pt-4">
-        <div className="flex flex-col gap-3.5 rounded-[28px] bg-amber-soft p-5">
-          <div className="flex items-start justify-between gap-3.5">
-            <div className="flex-1">
-              <h2 className="text-[19px] font-bold leading-6 tracking-[-0.018em] text-ink">
-                Start your first list
-              </h2>
-              <p className="mt-[7px] text-[13px] font-medium leading-[18.5px] text-ink-700">
-                Put everything for one pour, one wiring phase or one room in a list. Then reorder
-                it in a tap next time.
-              </p>
-            </div>
-            <CategoryGlyph name="clip" className="size-[52px] flex-none" />
-          </div>
-          <div className="flex gap-[9px]">
-            <Link
-              href="/categories"
-              className="flex h-11 flex-1 items-center justify-center rounded-full bg-ink text-[13.5px] font-bold tracking-[-0.01em] text-white no-underline"
-            >
-              Add materials
-            </Link>
-            <Link
-              href="/search"
-              className="flex h-11 items-center justify-center rounded-full bg-paper px-[13px] text-[12.5px] font-bold tracking-[-0.01em] text-ink no-underline shadow-card"
-            >
-              Browse first
-            </Link>
-          </div>
-        </div>
-        <p className="mt-[11px] px-1 text-[11px] font-semibold leading-[14px] text-ink-500">
-          This screen fills in as you order — your reorders, saved lists and what&apos;s running
-          low at each site will lead it.
-        </p>
-      </div>
+      {returning && <HomeSearchPill />}
+
+      {returning ? (
+        <OrderAgainRail
+          items={facts?.orderAgain ?? []}
+          totalOrders={facts?.totalOrders ?? 0}
+          onAdd={(item) => void addItem(item.variantId, 1, item.title)}
+        />
+      ) : (
+        <FirstOrderCard />
+      )}
 
       {/*
         The homeowner's entry point, above the trade taxonomy.
@@ -187,9 +185,9 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
         bathroom does not know they need Tiling and Sanitary & Bath, so the room
         comes before the trade grid. A contractor scrolls straight past it.
       */}
-      <ShopByRoom />
+      {!returning && <ShopByRoom rooms={rooms} />}
 
-      <QuantityHelpers />
+      {!returning && <QuantityHelpers />}
 
       {/* Category entry grid */}
       <div className="px-4 pt-5">
@@ -197,9 +195,11 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
           <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
             Start with a category
           </h2>
+          {/* 14px of text is too small a target (W-25); the padding makes it
+              32px and the negative margin keeps the row where it was. */}
           <Link
             href="/categories"
-            className="text-[11px] font-bold leading-[14px] text-ink no-underline"
+            className="-mx-2 -my-[9px] inline-flex min-h-8 items-center px-2 text-[11px] font-bold leading-[14px] text-ink no-underline"
           >
             All {TOTAL_CATEGORIES}
           </Link>
@@ -222,7 +222,7 @@ export function MobileHomeView({ featured }: MobileHomeViewProps) {
       </div>
 
       {/* Popular — real catalog data */}
-      {popular.length > 0 && (
+      {!returning && popular.length > 0 && (
         <div className="px-4 pt-5">
           <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
             Popular in Srinagar this week

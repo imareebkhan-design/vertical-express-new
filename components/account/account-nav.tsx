@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Heart, MapPin, Package, UserRound, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarClock, Heart, MapPin, Package, UserRound, Wallet } from "lucide-react";
 
 const ITEMS = [
   { href: "/account", label: "Overview", icon: UserRound },
@@ -7,6 +7,8 @@ const ITEMS = [
   { href: "/account/wallet", label: "Wallet", icon: Wallet },
   { href: "/account/bookings", label: "Bookings", icon: CalendarClock },
   { href: "/account/addresses", label: "Addresses", icon: MapPin },
+  /* The artboard's "Business & GST" row, with the profile's Edit folded in. */
+  { href: "/account/profile", label: "Profile & GST", icon: BadgeCheck },
   { href: "/account/wishlist", label: "Wishlist", icon: Heart },
 ];
 

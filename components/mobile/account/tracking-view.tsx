@@ -93,7 +93,7 @@ export function TrackingView({ order }: { order: OrderShipments }) {
           <ArrowLeft className="size-[18px] text-ink" aria-hidden />
         </Link>
         <div>
-          <p className="text-[15px] font-extrabold text-ink">Order {order.orderNo}</p>
+          <h1 className="text-[15px] font-extrabold text-ink">Order {order.orderNo}</h1>
           <p className="text-[12px] font-semibold text-ink-500">
             {siteName} · {shipments.length} shipment{shipments.length !== 1 ? "s" : ""}
           </p>
@@ -196,7 +196,7 @@ export function TrackingView({ order }: { order: OrderShipments }) {
         <div className="flex items-start gap-3 rounded-[24px] bg-paper p-5 shadow-card">
           <ShieldCheck className="mt-0.5 size-[18px] flex-none text-ink" strokeWidth={1.7} aria-hidden />
           <div>
-            <p className="text-[14px] font-bold text-ink">Batch verified at dispatch</p>
+            <p className="text-[14px] font-bold text-ink">Batch codes</p>
             <p className="mt-1 text-[13px] font-medium leading-[18px] text-ink-700">
               <PlaceholderValue pending="there is no Batch model, so no code is recorded against a shipment yet">
                 Batch codes are not recorded against shipments yet.
