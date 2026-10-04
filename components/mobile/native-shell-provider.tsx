@@ -12,6 +12,8 @@ import { OnboardingFlow } from "@/components/mobile/auth/onboarding-flow";
 import { BiometricLock } from "@/components/mobile/auth/biometric-lock";
 import { BottomSheetLayout } from "@/components/mobile/bottom-sheet-layout";
 import { MobileTabBar } from "@/components/mobile/navigation/mobile-tab-bar";
+import { showsTabBar } from "@/components/mobile/navigation/tab-bar-visibility";
+import { useCart } from "@/hooks/use-cart";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 interface NativeShellContextType {
@@ -41,6 +43,7 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [isNative, setIsNative] = useState(false);
   const { isMobile } = useMobileSurface(isNative);
+  const cart = useCart();
   const [isOnboarded, setIsOnboarded] = useState(true);
   const [isUnlocked, setIsUnlocked] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
@@ -308,12 +311,9 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
     );
   }
 
-  // Determine if primary tab page to show footer tab bar
-  const isPrimaryTab = ["/", "/categories", "/search", "/cart", "/account"].includes(pathname);
-
   // The floating pill nav belongs to the app language, and mobile web now shares
   // it — the design treats the two as the same product below 768px.
-  const showTabBar = isPrimaryTab && isMobile;
+  const showTabBar = showsTabBar(pathname, isMobile, cart.summary.lines.length > 0);
 
   // One instance for both surfaces. The native shell wraps children in its own
   // <main>; web pages supply their own, so only the wrapper differs.
@@ -393,7 +393,7 @@ export function NativeShellProvider({ children }: { children: React.ReactNode })
     <NativeShellContext.Provider value={{ isNative, pincode, cityName, hasChosenLocation, openLocationModal }}>
       {isNative ? (
         <div className="flex flex-col min-h-screen bg-surface">
-          <main className={`flex-1 w-full ${isPrimaryTab ? "pb-24" : "pb-6"}`}>
+          <main className={`flex-1 w-full ${showTabBar ? "pb-24" : "pb-6"}`}>
             {children}
           </main>
         </div>

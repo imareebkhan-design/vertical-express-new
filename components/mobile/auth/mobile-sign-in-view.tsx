@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import {
   ArrowLeft,
   Cable,
@@ -226,12 +227,7 @@ export function MobileSignInContent({ auth }: { auth: ReturnType<typeof useFireb
     <div style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
         className="flex min-h-screen flex-col bg-canvas">
       <div className="flex items-center gap-2.5 px-5 pt-3">
-        <div className="flex size-[34px] items-center justify-center rounded-[11px] bg-amber">
-          <Zap className="size-[18px] fill-ink text-ink" aria-hidden />
-        </div>
-        <span className="text-[17px] font-extrabold tracking-[-0.02em] text-ink">
-          Vertical Express
-        </span>
+        <Logo className="h-auto w-[180px]" />
       </div>
 
       {/* The product collage — three tilted category cards, a mark and a city pill. */}

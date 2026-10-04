@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import { Share2 } from "lucide-react";
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
@@ -15,16 +16,9 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.4fr]">
           {/* Column 1: Brand & Info */}
           <div>
-            <div className="flex items-center gap-[11px]">
-              <div className="flex size-[34px] items-center justify-center rounded-[11px] bg-brand text-ink">
-                <svg className="size-[18px] fill-ink stroke-none" viewBox="0 0 24 24" aria-hidden>
-                  <path d="M13.2 2.5 5 13.2h5.2L9.8 21.5 18.5 10.8h-5.3z" />
-                </svg>
-              </div>
-              <span className="text-[15.5px] font-bold tracking-[-0.025em] text-white">
-                Vertical Express
-              </span>
-            </div>
+            <Link href="/" aria-label="Vertical Express home">
+              <Logo variant="light" className="h-auto w-[200px] max-w-full" />
+            </Link>
             <p className="mt-3.5 max-w-[250px] text-[13.5px] font-medium leading-[21px] text-white/60">
               Construction material delivered across Srinagar. Small items from our store, heavy loads by truck.
             </p>
@@ -158,4 +152,3 @@ export function Footer() {
     </footer>
   );
 }
-

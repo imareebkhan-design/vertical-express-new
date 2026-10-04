@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -90,14 +91,7 @@ export function Navbar() {
         <div className="mx-auto flex h-[74px] max-w-[1200px] items-center gap-[22px] px-6">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-[11px] shrink-0 text-ink no-underline hover:opacity-90 transition-opacity">
-            <div className="flex size-[38px] items-center justify-center rounded-[12px] bg-brand text-ink">
-              <svg className="size-5 fill-ink stroke-none" viewBox="0 0 24 24" aria-hidden>
-                <path d="M13.2 2.5 5 13.2h5.2L9.8 21.5 18.5 10.8h-5.3z" />
-              </svg>
-            </div>
-            <span className="text-[15.5px] font-bold tracking-[-0.025em] text-ink">
-              Vertical Express
-            </span>
+            <Logo className="h-auto w-[170px]" />
           </Link>
 
           {/* Search Box (flex-1 full row expansion, widest element) */}
@@ -290,14 +284,7 @@ export function Navbar() {
       <div className="flex h-16 w-full items-center justify-between px-4 lg:hidden">
         {/* Left: Brand Icon + Title */}
         <Link href="/" className="flex items-center gap-2 text-ink no-underline">
-          <div className="flex size-[34px] items-center justify-center rounded-[11px] bg-brand text-ink">
-            <svg className="size-4.5 fill-ink stroke-none" viewBox="0 0 24 24" aria-hidden>
-              <path d="M13.2 2.5 5 13.2h5.2L9.8 21.5 18.5 10.8h-5.3z" />
-            </svg>
-          </div>
-          <span className="text-[14px] font-bold tracking-[-0.02em] text-ink">
-            Vertical Express
-          </span>
+          <Logo className="h-auto w-[140px]" />
         </Link>
 
         {/* Right: Search, Cart, Account */}

@@ -26,12 +26,19 @@ let addressId: string;
 let productId: string;
 let variantId: string;
 const savedEnv: Record<string, string | undefined> = {};
+let savedCod: Awaited<ReturnType<typeof db.setting.findUnique>>;
 
 const quote = async () => (await computeTotals(await getCartSummary(USER, null), PINCODE, STATE, null, USER)).totalPaise;
 const stock = async () => (await db.inventory.findFirstOrThrow({ where: { variantId, warehouseId } })).qtyOnHand;
 const orders = () => db.order.count({ where: { userId: USER } });
 
 before(async () => {
+  savedCod = await db.setting.findUnique({ where: { key: "cod.enabled" } });
+  await db.setting.upsert({
+    where: { key: "cod.enabled" },
+    create: { key: "cod.enabled", value: "true" },
+    update: { value: "true" },
+  });
   savedEnv.PAYMENT_GATEWAY = process.env.PAYMENT_GATEWAY;
   process.env.PAYMENT_GATEWAY = "dummy";
   const brand = await db.brand.findFirst({ select: { id: true } });
@@ -57,6 +64,11 @@ beforeEach(async () => {
 });
 
 after(async () => {
+  if (savedCod) {
+    await db.setting.upsert({ where: { key: savedCod.key }, create: savedCod, update: savedCod });
+  } else {
+    await db.setting.deleteMany({ where: { key: "cod.enabled" } });
+  }
   if (savedEnv.PAYMENT_GATEWAY === undefined) delete process.env.PAYMENT_GATEWAY;
   else process.env.PAYMENT_GATEWAY = savedEnv.PAYMENT_GATEWAY;
   const where = { order: { userId: USER } };
