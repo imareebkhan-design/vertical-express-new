@@ -118,3 +118,10 @@ env:
     secret: google-places-api-key
     availability:
       - RUNTIME
+  # Operators allowed into /admin: comma-separated, verified Google emails
+  # (lib/services/admin/authz.ts). A secret, not a value, because this repo is
+  # public. Without it the console refuses everyone (fails closed).
+  - variable: ADMIN_EMAILS
+    secret: admin-emails
+    availability:
+      - RUNTIME
