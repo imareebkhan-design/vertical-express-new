@@ -30,7 +30,12 @@
       "prisma/generated",
       "mobile-shell",
       "ios",
-      "android"
+      "android",
+      "supabase/.temp",
+      ".catalog-backups",
+      ".image-backups",
+      ".seo-backups",
+      ".DS_Store"
     ]
   }
 }
