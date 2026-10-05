@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { adminSaveProduct, adminSetVariantPrice } from "@/actions/products";
 import { OpsTable } from "@/components/admin/ops-table";
-import { formatPaise, parseRupeeInput } from "@/lib/money";
+import { VariantPriceRow } from "@/components/admin/variant-price-row";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 /**
@@ -77,7 +77,7 @@ export function ProductEditor({
       const res = await adminSaveProduct({ id: product.id, ...form });
       setMessage(
         res.ok
-          ? { ok: true, text: "Saved. Live on the storefront now." }
+          ? { ok: true, text: "Product details saved. Live on the storefront now." }
           : { ok: false, text: res.error.message }
       );
     });
@@ -281,7 +281,7 @@ export function ProductEditor({
         ) : (
           <div className="flex flex-col gap-2.5">
             {product.variants.map((v) => (
-              <VariantPriceRow key={v.id} variant={v} field={field} />
+              <VariantPriceRow key={v.id} variant={v} field={field} save={adminSetVariantPrice} />
             ))}
           </div>
         )}
@@ -292,112 +292,6 @@ export function ProductEditor({
           who made it and the previous price. Stock is not edited here.
         </p>
       </Section>
-    </div>
-  );
-}
-
-/** Paise as the text an operator would type: 38500 → "385", 38550 → "385.50". */
-function paiseInput(paise: number | null): string {
-  if (paise === null) return "";
-  const rupees = Math.floor(paise / 100);
-  const rest = paise % 100;
-  return rest === 0 ? String(rupees) : `${rupees}.${String(rest).padStart(2, "0")}`;
-}
-
-/**
- * One variant's selling price and MRP. Sends the typed text plus the amounts
- * this row was showing; the server parses the text and refuses the save if the
- * stored price has moved since (someone else saved first).
- */
-function VariantPriceRow({
-  variant,
-  field,
-}: {
-  variant: Product["variants"][number];
-  field: string;
-}) {
-  const [shown, setShown] = useState({ pricePaise: variant.pricePaise, compareAtPaise: variant.compareAtPaise });
-  const [price, setPrice] = useState(paiseInput(variant.pricePaise));
-  const [mrp, setMrp] = useState(paiseInput(variant.compareAtPaise));
-  const [pending, start] = useTransition();
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const save = () => {
-    setMessage(null);
-    start(async () => {
-      const res = await adminSetVariantPrice({
-        variantId: variant.id,
-        price,
-        mrp,
-        shownPricePaise: shown.pricePaise,
-        shownCompareAtPaise: shown.compareAtPaise,
-      });
-      if (!res.ok) {
-        setMessage({ ok: false, text: res.error.message });
-        return;
-      }
-      if (!res.data.changed) {
-        setMessage({ ok: true, text: "No change." });
-        return;
-      }
-      const pricePaise = parseRupeeInput(price);
-      const compareAtPaise = mrp.trim() === "" ? null : parseRupeeInput(mrp);
-      if (pricePaise !== null) setShown({ pricePaise, compareAtPaise });
-      setMessage({ ok: true, text: "Price saved. New orders use it now." });
-    });
-  };
-
-  const priceId = `price-${variant.id}`;
-  const mrpId = `mrp-${variant.id}`;
-  return (
-    <div className="flex flex-wrap items-end gap-3 rounded-field bg-chip-soft/50 p-3">
-      <div className="min-w-[160px] flex-1">
-        <p className="text-[13px] font-bold text-ink">{variant.name}</p>
-        <p className="text-[11px] font-semibold text-ink-500">
-          {variant.sku} · {variant.onHand} available · now {formatPaise(shown.pricePaise)}
-        </p>
-      </div>
-      <div className="w-[130px]">
-        <label htmlFor={priceId} className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
-          Selling (₹)
-        </label>
-        <input
-          id={priceId}
-          inputMode="decimal"
-          value={price}
-          onChange={(e) => setPrice(e.target.value)}
-          className={field}
-        />
-      </div>
-      <div className="w-[130px]">
-        <label htmlFor={mrpId} className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
-          MRP (₹)
-        </label>
-        <input
-          id={mrpId}
-          inputMode="decimal"
-          value={mrp}
-          placeholder="None"
-          onChange={(e) => setMrp(e.target.value)}
-          className={field}
-        />
-      </div>
-      <button
-        type="button"
-        onClick={save}
-        disabled={pending}
-        className="h-10 rounded-panel bg-ink px-4 text-[13px] font-bold text-white disabled:opacity-50"
-      >
-        {pending ? "Saving…" : "Save price"}
-      </button>
-      {message && (
-        <p
-          className={"w-full text-[12px] font-semibold " + (message.ok ? "text-ink" : "text-ops-bad")}
-          role={message.ok ? "status" : "alert"}
-        >
-          {message.text}
-        </p>
-      )}
     </div>
   );
 }

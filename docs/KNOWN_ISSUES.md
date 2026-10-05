@@ -3069,6 +3069,17 @@ use the current variant price (resolved on read); no price locking or reservatio
 quoted before a price change is refused at placement (`TOTAL_CHANGED`) and the customer sees
 and accepts the updated total before paying. Placed orders keep their historical line prices.
 
+**Browser QA (5 Oct, local, admin signed in).** Edit + restore, blank MRP, validation and a
+real two-tab stale save all behaved; audit rows carried actor, before and after. Found and
+fixed: a price typed into a row and then "saved" with the page's top Save (product details)
+showed "Saved. Live on the storefront now." while the price had not changed. The row now says
+"Not saved yet — press Save price" until it is saved, a previous "Price saved" clears on the next
+edit, and the top message reads "Product details saved". `components/admin/variant-price-row.tsx`
+(extracted so it can be tested) + `components/admin/__tests__/variant-price-row.test.tsx` 5/5.
+Also: `dbdf0ec` failed two checks in `lib/__tests__/product-editor-authority.test.ts` (written
+when prices were read-only); that test now pins the narrower rule — the product form binds no
+price, only the price row does, through `adminSetVariantPrice`.
+
 Tests: `lib/services/admin/__tests__/variant-pricing.test.ts` 10/10 (rules, audit, no-op,
 stale screen, simultaneous saves, audit-failure rollback, order snapshot, open cart +
 TOTAL_CHANGED); three negative controls (no compare-and-set, no audit, no MRP rule) each
