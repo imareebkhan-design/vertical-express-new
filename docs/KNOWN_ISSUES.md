@@ -91,7 +91,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-065 | Marketing funnel and search demand were fabricated in the reporting service | HIGH | Reporting | FIXED |
 | ISS-066 | Coupon usage, per-customer and first-N-orders limits were never enforced | HIGH | Money/Promotions | FIXED |
 | ISS-067 | An unreachable services booking UI still carries free-visit and 24-hour promises | MEDIUM | Services/Dead code | OPEN |
-| ISS-068 | A product's price can be set once and never changed | HIGH | Catalog | OPEN |
+| ISS-068 | A product's price can be set once and never changed | HIGH | Catalog | FIXED (local; cart policy owner-confirmed) |
 
 ---
 
@@ -3021,7 +3021,7 @@ Two coherent outcomes, and correcting the copy of dead code is neither:
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Catalog / Operations |
-| **Status** | OPEN |
+| **Status** | FIXED (local, 5 Oct 2026) — not yet pushed or deployed |
 
 **Description.** `ProductVariant.pricePaise` is written in exactly one place —
 `lib/services/admin/product-create.ts`, when the product is first listed. No admin path
@@ -3052,6 +3052,27 @@ than discover.
 
 **Owner input required.** Yes — should a price change apply to carts that already hold the
 item, or only to carts created afterwards?
+
+**Resolution (5 Oct 2026, local commit — not pushed or deployed).** The product editor's
+"Variants and pricing" panel now edits each variant's selling price and MRP
+(`adminSetVariantPrice` → `lib/services/admin/variant-pricing.ts`):
+- same rules as the listing form (price > 0; MRP blank or above the price) plus the
+  32-bit column limit; rupee text parsed on the server;
+- compare-and-set against the price the operator's screen showed — a save from a stale
+  screen, or the loser of two simultaneous saves, is refused and writes nothing;
+- `variant.price_changed` audit row (actor, before, after) in the same transaction — if
+  the audit write fails the price does not change;
+- placed orders keep their `unit_price_paise` snapshot.
+
+**Cart policy: confirmed by the owner on 5 Oct 2026 — keep the existing behaviour.** Carts
+use the current variant price (resolved on read); no price locking or reservation. A checkout
+quoted before a price change is refused at placement (`TOTAL_CHANGED`) and the customer sees
+and accepts the updated total before paying. Placed orders keep their historical line prices.
+
+Tests: `lib/services/admin/__tests__/variant-pricing.test.ts` 10/10 (rules, audit, no-op,
+stale screen, simultaneous saves, audit-failure rollback, order snapshot, open cart +
+TOTAL_CHANGED); three negative controls (no compare-and-set, no audit, no MRP rule) each
+fail the suite. Not yet seen in a browser: the console needs an admin sign-in.
 
 ## ISS-069 — The service suite passed only on a database with leftovers
 

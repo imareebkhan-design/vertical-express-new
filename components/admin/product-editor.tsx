@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { adminSaveProduct } from "@/actions/products";
+import { adminSaveProduct, adminSetVariantPrice } from "@/actions/products";
 import { OpsTable } from "@/components/admin/ops-table";
-import { formatPaise } from "@/lib/money";
+import { formatPaise, parseRupeeInput } from "@/lib/money";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 /**
@@ -14,11 +14,12 @@ import { PlaceholderValue } from "@/components/ui/placeholder-value";
  * decisions a shopkeeper makes, and every one of them was previously locked in
  * a seed file behind a deploy.
  *
- * Read-only here: tax and variants. HSN and GST rate come from the category's
+ * Variant prices are editable per row (ISS-068): parsed on the server, refused
+ * from a stale screen, audited in the same transaction.
+ *
+ * Read-only here: tax and stock. HSN and GST rate come from the category's
  * confirmed configuration rather than a text box, because a rate typed on the
- * wrong screen is a tax error on every order of that category. Prices and stock
- * live on variants and warehouses under their own rules — pricing is
- * server-authoritative deliberately, and this is not the place to relax it.
+ * wrong screen is a tax error on every order of that category.
  */
 type Product = {
   id: string;
@@ -262,33 +263,141 @@ export function ProductEditor({
 
       <Section title="Audit">
         <p className="text-[12px] font-medium leading-[17px] text-ink-700">
-          Nothing on this page keeps a history. A price change, a status change and a
-          brand reassignment are all recorded to the application log and nowhere a person
-          can read them — ISS-015, still open. The artboard shows who changed a price
-          three weeks ago, which is exactly the question that gets asked, and exactly the
-          one this screen cannot answer.
+          Price changes are recorded in the audit log with who made them and the previous
+          price. A status change and a brand reassignment still go only to the application
+          log, where nobody can read them here — ISS-015. Showing the price history on this
+          screen (the artboard&rsquo;s &ldquo;who changed this price&rdquo;) is not built yet.
         </p>
       </Section>
 
       <Section title="Variants and pricing">
-        <OpsTable
-          columns={["Variant", "SKU", "MRP", "Selling", "On hand"]}
-          rows={product.variants.map((v) => [
-            v.name,
-            v.sku,
-            v.compareAtPaise ? formatPaise(v.compareAtPaise) : "—",
-            formatPaise(v.pricePaise),
-            String(v.onHand),
-          ])}
-          emptyTitle="No variants."
-          emptyNote="A product needs at least one variant to be buyable."
-        />
-        <p className="mt-2 text-[12px] font-medium text-ink-700">
-          Read-only. Price and stock are server-authoritative — the cart sends a variant
-          and a quantity and never a price — and editing them from here would need the
-          same guarantees the checkout path already has.
+        {product.variants.length === 0 ? (
+          <OpsTable
+            columns={["Variant", "SKU", "MRP", "Selling", "On hand"]}
+            rows={[]}
+            emptyTitle="No variants."
+            emptyNote="A product needs at least one variant to be buyable."
+          />
+        ) : (
+          <div className="flex flex-col gap-2.5">
+            {product.variants.map((v) => (
+              <VariantPriceRow key={v.id} variant={v} field={field} />
+            ))}
+          </div>
+        )}
+        <p className="mt-2 max-w-[620px] text-[12px] font-medium leading-[17px] text-ink-700">
+          Prices include GST. A change applies to new orders only — orders already placed
+          keep the price they were placed at. A customer whose checkout still shows the old
+          total is asked to check the new one before paying. Each change is recorded with
+          who made it and the previous price. Stock is not edited here.
         </p>
       </Section>
+    </div>
+  );
+}
+
+/** Paise as the text an operator would type: 38500 → "385", 38550 → "385.50". */
+function paiseInput(paise: number | null): string {
+  if (paise === null) return "";
+  const rupees = Math.floor(paise / 100);
+  const rest = paise % 100;
+  return rest === 0 ? String(rupees) : `${rupees}.${String(rest).padStart(2, "0")}`;
+}
+
+/**
+ * One variant's selling price and MRP. Sends the typed text plus the amounts
+ * this row was showing; the server parses the text and refuses the save if the
+ * stored price has moved since (someone else saved first).
+ */
+function VariantPriceRow({
+  variant,
+  field,
+}: {
+  variant: Product["variants"][number];
+  field: string;
+}) {
+  const [shown, setShown] = useState({ pricePaise: variant.pricePaise, compareAtPaise: variant.compareAtPaise });
+  const [price, setPrice] = useState(paiseInput(variant.pricePaise));
+  const [mrp, setMrp] = useState(paiseInput(variant.compareAtPaise));
+  const [pending, start] = useTransition();
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const save = () => {
+    setMessage(null);
+    start(async () => {
+      const res = await adminSetVariantPrice({
+        variantId: variant.id,
+        price,
+        mrp,
+        shownPricePaise: shown.pricePaise,
+        shownCompareAtPaise: shown.compareAtPaise,
+      });
+      if (!res.ok) {
+        setMessage({ ok: false, text: res.error.message });
+        return;
+      }
+      if (!res.data.changed) {
+        setMessage({ ok: true, text: "No change." });
+        return;
+      }
+      const pricePaise = parseRupeeInput(price);
+      const compareAtPaise = mrp.trim() === "" ? null : parseRupeeInput(mrp);
+      if (pricePaise !== null) setShown({ pricePaise, compareAtPaise });
+      setMessage({ ok: true, text: "Price saved. New orders use it now." });
+    });
+  };
+
+  const priceId = `price-${variant.id}`;
+  const mrpId = `mrp-${variant.id}`;
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-field bg-chip-soft/50 p-3">
+      <div className="min-w-[160px] flex-1">
+        <p className="text-[13px] font-bold text-ink">{variant.name}</p>
+        <p className="text-[11px] font-semibold text-ink-500">
+          {variant.sku} · {variant.onHand} available · now {formatPaise(shown.pricePaise)}
+        </p>
+      </div>
+      <div className="w-[130px]">
+        <label htmlFor={priceId} className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+          Selling (₹)
+        </label>
+        <input
+          id={priceId}
+          inputMode="decimal"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          className={field}
+        />
+      </div>
+      <div className="w-[130px]">
+        <label htmlFor={mrpId} className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">
+          MRP (₹)
+        </label>
+        <input
+          id={mrpId}
+          inputMode="decimal"
+          value={mrp}
+          placeholder="None"
+          onChange={(e) => setMrp(e.target.value)}
+          className={field}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={save}
+        disabled={pending}
+        className="h-10 rounded-panel bg-ink px-4 text-[13px] font-bold text-white disabled:opacity-50"
+      >
+        {pending ? "Saving…" : "Save price"}
+      </button>
+      {message && (
+        <p
+          className={"w-full text-[12px] font-semibold " + (message.ok ? "text-ink" : "text-ops-bad")}
+          role={message.ok ? "status" : "alert"}
+        >
+          {message.text}
+        </p>
+      )}
     </div>
   );
 }

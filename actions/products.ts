@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { unpublishableReason } from "@/lib/services/admin/publish-guard";
+import { setVariantPrice } from "@/lib/services/admin/variant-pricing";
+import { parseRupeeInput } from "@/lib/money";
 import { log } from "@/lib/observability";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -17,9 +19,10 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
  * whoever runs the shop, locked behind an engineer.
  *
  * Scope is deliberately the fields a shopkeeper changes, not everything the
- * artboard draws. Prices and stock live on variants and warehouses and have
- * their own correctness rules — pricing is server-authoritative for a reason,
- * and a text box on this screen is not where that should be relaxed.
+ * artboard draws. Prices live on variants and have their own correctness rules,
+ * so they are changed through `adminSetVariantPrice` below — parsed on the
+ * server, refused from a stale screen, and audited in the same transaction.
+ * Stock is not editable here.
  */
 const schema = z.object({
   id: z.string().uuid(),
@@ -97,4 +100,61 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
   revalidatePath(`/product/${slug}`);
   revalidatePath("/", "layout");
   return succeed(null);
+}
+
+/**
+ * Changing a variant's price (ISS-068). Rupee amounts arrive as the text the
+ * operator typed and are parsed here, on the server; the form also sends the
+ * amounts it displayed, so a save made from a stale screen is refused rather
+ * than overwriting a newer change. The rules and the audit row live in
+ * `setVariantPrice`.
+ */
+const priceSchema = z.object({
+  variantId: z.string().uuid(),
+  price: z.string().trim(),
+  mrp: z.string().trim(),
+  shownPricePaise: z.number().int(),
+  shownCompareAtPaise: z.number().int().nullable(),
+});
+
+export async function adminSetVariantPrice(
+  input: unknown
+): Promise<ActionResult<{ changed: boolean }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+
+  const parsed = priceSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Those details are not valid");
+  const { variantId, price, mrp, shownPricePaise, shownCompareAtPaise } = parsed.data;
+
+  const pricePaise = parseRupeeInput(price);
+  if (pricePaise === null) return fail("VALIDATION", "The selling price is not a rupee amount");
+  let compareAtPaise: number | null = null;
+  if (mrp !== "") {
+    compareAtPaise = parseRupeeInput(mrp);
+    if (compareAtPaise === null) return fail("VALIDATION", "The MRP is not a rupee amount");
+  }
+
+  const res = await setVariantPrice(
+    {
+      variantId,
+      pricePaise,
+      compareAtPaise,
+      expected: { pricePaise: shownPricePaise, compareAtPaise: shownCompareAtPaise },
+    },
+    admin
+  );
+  if (!res.ok) {
+    if (res.reason === "invalid") return fail("VALIDATION", res.message);
+    if (res.reason === "not_found") return fail("NOT_FOUND", "Variant not found");
+    return fail("CONFLICT", "This price was changed by someone else. Reload to see the current price.");
+  }
+
+  if (res.changed) {
+    revalidatePath("/admin/products");
+    revalidatePath(`/admin/products/${res.productSlug}`);
+    revalidatePath(`/product/${res.productSlug}`);
+    revalidatePath("/", "layout");
+  }
+  return succeed({ changed: res.changed });
 }
