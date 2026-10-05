@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { unpublishableReason } from "@/lib/services/admin/publish-guard";
 import { log } from "@/lib/observability";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -51,6 +52,11 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
     select: { slug: true, status: true, brandId: true, deliverySpeed: true },
   });
   if (!before) return fail("NOT_FOUND", "Product not found");
+
+  if (status === "published") {
+    const why = await unpublishableReason(db, id);
+    if (why) return fail("VALIDATION", why);
+  }
 
   try {
     await db.product.update({
