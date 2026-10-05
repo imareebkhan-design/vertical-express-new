@@ -43,6 +43,17 @@ const family = z.object({
   dbVariants: z.literal(0),
   price: z.null(),
   stock: z.null(),
+  /* A manufacturer's own specification table, copied as published (the XTRA POWER expansion).
+     Absent for the master catalogue's ranges, whose source has none. */
+  specs: z.array(z.object({ label: z.string().min(1), value: z.string().min(1) })).optional(),
+  /* Where an expansion product came from; audited, never shown to customers. */
+  sourceUrl: z.string().url().optional(),
+  sourcePageSha256: z.string().regex(/^[0-9a-f]{64}$/).optional(),
+  model: z.string().nullable().optional(),
+  officialName: z.string().optional(),
+  officialCategory: z.string().optional(),
+  officialSubCategories: z.array(z.string()).optional(),
+  modelSource: z.string().nullable().optional(),
 });
 
 export const rangeCatalogueSchema = z.object({
@@ -152,11 +163,16 @@ export async function applyRangeImport(input: RangeCatalogue, artifactSha256: st
       async (tx) => {
         for (const f of fams) {
           const row = await tx.product.create({
-            data: { slug: f.slug, title: f.title, brandId: brandId(f.brand), categoryId: catId.get(category)!, status: "draft" },
+            data: {
+              slug: f.slug, title: f.title, brandId: brandId(f.brand), categoryId: catId.get(category)!, status: "draft",
+              ...(f.specs?.length ? { specs: f.specs } : {}),
+            },
           });
           await recordAudit(tx, { actorType: "system", action: "catalogue.range_imported", entityType: "product", entityId: row.id,
             after: { slug: f.slug, status: "draft", series: f.series, productType: f.productType, sourceRows: f.sourceRows,
-              originalRanges: f.originalRanges, declaredOptions: f.declaredOptions, sourceTypes: f.sourceTypes, source } });
+              originalRanges: f.originalRanges, declaredOptions: f.declaredOptions, sourceTypes: f.sourceTypes, source,
+              ...(f.sourceUrl ? { sourceUrl: f.sourceUrl, sourcePageSha256: f.sourcePageSha256, model: f.model ?? null, officialName: f.officialName,
+                officialCategory: f.officialCategory, officialSubCategories: f.officialSubCategories, modelSource: f.modelSource } : {}) } });
         }
       },
       { timeout: 120_000 }

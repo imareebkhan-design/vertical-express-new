@@ -119,6 +119,28 @@ test("a range cannot be published and is invisible to customers", async () => {
   assert.equal((await brandsForSearchEntry(500)).some((b) => b.slug.startsWith(RUN)), false);
 });
 
+test("an expansion product keeps the manufacturer's spec table as specs and its source in the audit only", async () => {
+  const cat = catalogue();
+  cat.families = [{
+    ...cat.families[1], slug: `${RUN}-xp`, title: `${RUN} Existing Brand XPT 400 Angle Grinder`,
+    specs: [{ label: "Input Power", value: "2050 Watts" }], model: "XPT-400", officialName: "XPT 400 ANGLE GRINDER 180MM",
+    sourceUrl: "https://xtrapowertools.com/product-details/xpt-400-angle-grinder-180mm", sourcePageSha256: "b".repeat(64),
+    officialCategory: "Power Tools", officialSubCategories: ["Xtra Power Professional"], modelSource: "spec table",
+  }];
+  await applyRangeImport(cat, SHA);
+  const p = await db.product.findFirstOrThrow({ where: { slug: `${RUN}-xp` }, include: { variants: true } });
+  assert.deepEqual(p.specs, [{ label: "Input Power", value: "2050 Watts" }]);
+  assert.equal(p.status, "draft");
+  assert.equal(p.variants.length, 0);
+  assert.equal(p.description, null, "no copy invented");
+  const a = await db.auditLog.findFirstOrThrow({ where: { entityId: p.id, action: "catalogue.range_imported" } });
+  const after = a.after as { sourceUrl: string; model: string };
+  assert.equal(after.sourceUrl, "https://xtrapowertools.com/product-details/xpt-400-angle-grinder-180mm");
+  assert.equal(after.model, "XPT-400");
+  assert.deepEqual((a.after as { officialSubCategories: string[] }).officialSubCategories, ["Xtra Power Professional"]);
+  assert.equal(JSON.stringify(p.specs).includes("xtrapowertools"), false, "provenance never reaches customer-visible specs");
+});
+
 test("the guard allows a product once it has an active priced variant", async () => {
   const p = await db.product.findFirstOrThrow({ where: { slug: `${RUN}-b` } });
   await db.productVariant.create({ data: { productId: p.id, sku: `${RUN}-sku-0`, name: "free", pricePaise: 0 } });
