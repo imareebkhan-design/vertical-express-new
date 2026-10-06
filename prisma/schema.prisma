@@ -225,9 +225,18 @@ model ProductImage {
   alt       String
   sortOrder Int     @default(0) @map("sort_order")
   isPrimary Boolean @default(false) @map("is_primary")
+  /// Where the picture came from (the manufacturer's image URL). Null for images that predate provenance.
+  sourceUrl String? @map("source_url")
+  /// The right under which it is used, e.g. "manufacturer-official". Never inferred.
+  licence   String?
+  width     Int?
+  height    Int?
+  /// SHA-256 of the delivered file — makes a re-run of an image import a no-op.
+  sha256    String? @db.Char(64)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId, sortOrder])
+  @@unique([productId, sha256])
   @@map("product_images")
 }
 

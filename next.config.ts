@@ -18,6 +18,15 @@ function originOf(url: string | undefined): string | null {
 }
 
 const supabaseOrigin = originOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
+/* Product photographs (Task 6): the bucket or CDN they are served from, e.g.
+   https://storage.googleapis.com/<bucket>. Unset = no external image host; only
+   same-origin pictures render, exactly as before. */
+const productImageBase = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE;
+const productImageOrigin = originOf(productImageBase);
+/* CSP source with the bucket path, not just the origin: storage.googleapis.com
+   serves every Google Cloud customer's public files. */
+const productImageSource =
+  productImageBase && productImageOrigin ? `${productImageBase.replace(/\/$/, "")}/` : null;
 // Mirrors how `lib/observability` resolves the DSN, so the policy cannot allow a
 // different ingest host than the one the app actually reports to. Only the
 // origin is used — the key in the DSN's userinfo never reaches the header.
@@ -108,7 +117,7 @@ export function contentSecurityPolicy(isDev: boolean): string {
   `style-src 'self' 'unsafe-inline'`,
   // Supabase Storage is the provisioned image host (DEC-011); product imagery
   // moves there with admin product management (ISS-019).
-  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, GSTATIC, "https://*.googleusercontent.com"]
+  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, productImageSource, GSTATIC, "https://*.googleusercontent.com"]
     .filter(Boolean)
     .join(" "),
   `font-src 'self' data:`,
@@ -193,6 +202,12 @@ export default function config(phase: string): NextConfig {
     async headers() {
       return [{ source: "/(.*)", headers: securityHeaders(isDev) }];
     },
+
+    /* Only the configured product-image host and path prefix — never a wildcard. */
+    images:
+      productImageBase && productImageOrigin
+        ? { remotePatterns: [new URL(`${productImageBase.replace(/\/$/, "")}/**`)] }
+        : undefined,
 
     outputFileTracingRoot: process.cwd(),
     turbopack: {

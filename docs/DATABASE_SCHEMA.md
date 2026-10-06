@@ -34,7 +34,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 - `slug text unique`, `title`, `brand_id fk`, `category_id fk`, `subcategory_id fk null`, `vendor_id fk null` (future), `description text`, `specs jsonb` (key/value list), `unit_label text` ("per bag"), `status enum(draft, published, archived)`, `is_deal bool`, `rating_avg numeric(2,1) default 0`, `rating_count int default 0`, `search tsvector` (generated: title+brand+category), `seo_title/seo_description`
 - Validation: title 3–160; slug kebab. Index: `slug`, `(category_id, status)`, `(brand_id, status)`, `GIN(search)`, `trgm(title)`.
 
-**product_images** — N:1 products; `product_id fk`, `url`, `alt`, `sort_order`, `is_primary bool`. Index: `(product_id, sort_order)`.
+**product_images** — N:1 products; `product_id fk`, `url`, `alt`, `sort_order`, `is_primary bool`. Index: `(product_id, sort_order)`. Provenance (migration `20261006120000_product_image_provenance`, all nullable): `source_url`, `licence`, `width`, `height`, `sha256 char(64)`; unique `(product_id, sha256)` so an image import re-run is a no-op (rows without a sha256 are unconstrained).
 
 **product_variants** — N:1 products (every product ≥ 1 variant)
 - `product_id fk`, `sku text unique`, `name` ("50 kg bag", "White, 20 L"), `attributes jsonb`, `price_paise int`, `compare_at_paise int null`, `is_default bool`, `is_active bool`
