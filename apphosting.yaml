@@ -31,6 +31,14 @@ env:
       - BUILD
       - RUNTIME
 
+  # --- product photographs: public-read Cloud Storage bucket (Task 6). Browser-visible by
+  # design; next.config.ts allows exactly this path in CSP img-src and images.remotePatterns.
+  - variable: NEXT_PUBLIC_PRODUCT_IMAGE_BASE
+    value: "https://storage.googleapis.com/ve-staging-product-images"
+    availability:
+      - BUILD
+      - RUNTIME
+
   # --- public Firebase web config (needed at BUILD: inlined into the client bundle)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
     value: "AIzaSyBz0IZomwSDsVHeP77QeyhTkFlP9IoeX4s"
