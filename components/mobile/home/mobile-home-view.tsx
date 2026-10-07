@@ -14,6 +14,12 @@ import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 import { FirstOrderCard, HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/mobile/home/home-lead";
 import { useCart } from "@/hooks/use-cart";
 import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
+import { HeroBanners } from "@/components/merchandising/hero-banners";
+import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
+import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
+import { MerchPicture } from "@/components/merchandising/merch-picture";
+import { CATEGORY_IMAGERY } from "@/lib/merchandising/home";
+import type { DealProduct } from "@/lib/merchandising/deal";
 
 /**
  * The phone-web home screen.
@@ -33,7 +39,14 @@ import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
  * artboard. No price, delivery time or stock figure is invented here.
  */
 
-/** The eight entry categories the artboard leads with, and their group tint. */
+/**
+ * The eight entry categories, and their group tint.
+ *
+ * The artboard's eight, reordered so the six with a picture
+ * (`CATEGORY_IMAGERY`) fill the first row and a half; Sanitary & bath replaces
+ * Lighting because it has a picture and Lighting does not yet. The glyph stays
+ * underneath each picture as its fallback.
+ */
 const ENTRY_CATEGORIES: {
   label: string;
   slug: string;
@@ -43,13 +56,19 @@ const ENTRY_CATEGORIES: {
   { label: "Cement", slug: "cement", glyph: "bag", tint: "var(--color-tint-civil)" },
   { label: "Tiling", slug: "tiling", glyph: "tile", tint: "var(--color-tint-civil)" },
   { label: "Painting", slug: "painting", glyph: "paint", tint: "var(--color-tint-civil)" },
+  { label: "Plywood", slug: "plywood-mdf-hdhmr", glyph: "ply", tint: "var(--color-tint-civil)" },
   {
     label: "Wires & MCB",
     slug: "wires-mcb-distribution-boards",
     glyph: "wire",
     tint: "var(--color-tint-electrical)",
   },
-  { label: "Plywood", slug: "plywood-mdf-hdhmr", glyph: "ply", tint: "var(--color-tint-civil)" },
+  {
+    label: "Sanitary",
+    slug: "sanitary-bath-fittings",
+    glyph: "pipe",
+    tint: "var(--color-tint-plumbing)",
+  },
   {
     label: "CPVC & tanks",
     slug: "cpvc-pipes-overhead-tanks",
@@ -62,7 +81,6 @@ const ENTRY_CATEGORIES: {
     glyph: "tools",
     tint: "var(--color-tint-furniture)",
   },
-  { label: "Lighting", slug: "lighting", glyph: "bulb", tint: "var(--color-tint-electrical)" },
 ];
 
 /** A category inherits its L1 group's tint; it never picks its own. */
@@ -95,11 +113,21 @@ interface MobileHomeViewProps {
   newArrivals: CatalogItem[];
   categories: Category[];
   rooms: Awaited<ReturnType<typeof listRooms>>;
+  /** Active category slug → catalogue name; merchandising links only to these. */
+  categoryNames?: Record<string, string>;
+  /** The configured Deal of the Day's product, or null. */
+  dealProduct?: DealProduct | null;
   /** Injected for tests; the app uses the server action. */
   loadFacts?: () => Promise<MyHomeFacts>;
 }
 
-export function MobileHomeView({ featured, rooms, loadFacts = getMyHomeFacts }: MobileHomeViewProps) {
+export function MobileHomeView({
+  featured,
+  rooms,
+  categoryNames = {},
+  dealProduct = null,
+  loadFacts = getMyHomeFacts,
+}: MobileHomeViewProps) {
   const { pincode, cityName, hasChosenLocation, openLocationModal } = useNativeShell();
   const { addItem } = useCart();
   /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
@@ -166,28 +194,22 @@ export function MobileHomeView({ featured, rooms, loadFacts = getMyHomeFacts }: 
         </h1>
       </div>
 
+      {/* Campaign banners (lib/merchandising/home.ts), above everything else. */}
+      <div className="px-4 pt-3.5">
+        <HeroBanners compact />
+      </div>
+
       {returning && <HomeSearchPill />}
 
-      {returning ? (
+      {/* A returning customer's own reorders still lead; a first-run customer's
+          first-order card follows the merchandising below. */}
+      {returning && (
         <OrderAgainRail
           items={facts?.orderAgain ?? []}
           totalOrders={facts?.totalOrders ?? 0}
           onAdd={(item) => void addItem(item.variantId, 1, item.title)}
         />
-      ) : (
-        <FirstOrderCard />
       )}
-
-      {/*
-        The homeowner's entry point, above the trade taxonomy.
-
-        Order matters and is the artboard's, not arbitrary: somebody redoing a
-        bathroom does not know they need Tiling and Sanitary & Bath, so the room
-        comes before the trade grid. A contractor scrolls straight past it.
-      */}
-      {!returning && <ShopByRoom rooms={rooms} />}
-
-      {!returning && <QuantityHelpers />}
 
       {/* Category entry grid */}
       <div className="px-4 pt-5">
@@ -208,10 +230,13 @@ export function MobileHomeView({ featured, rooms, loadFacts = getMyHomeFacts }: 
           {ENTRY_CATEGORIES.map((c) => (
             <Link key={c.slug} href={`/category/${c.slug}`} className="no-underline">
               <div
-                className="flex h-[74px] w-full items-center justify-center overflow-hidden rounded-[18px]"
+                className="ve-cat-tile flex h-[74px] w-full items-center justify-center rounded-[18px]"
                 style={{ backgroundColor: c.tint }}
               >
                 <CategoryGlyph name={c.glyph} className="size-8" />
+                {CATEGORY_IMAGERY[c.slug] ? (
+                  <MerchPicture image={CATEGORY_IMAGERY[c.slug]} sizes="96px" fallback="transparent" />
+                ) : null}
               </div>
               <div className="mt-1.5 text-center text-[11px] font-semibold leading-[13px] text-ink">
                 {c.label}
@@ -220,6 +245,23 @@ export function MobileHomeView({ featured, rooms, loadFacts = getMyHomeFacts }: 
           ))}
         </div>
       </div>
+
+      <TrendingSrinagar categoryNames={categoryNames} compact />
+
+      <DealOfTheDay product={dealProduct} compact />
+
+      {!returning && <FirstOrderCard />}
+
+      {/*
+        The homeowner's entry point, above the trade taxonomy.
+
+        Order matters and is the artboard's, not arbitrary: somebody redoing a
+        bathroom does not know they need Tiling and Sanitary & Bath, so the room
+        comes before the trade grid. A contractor scrolls straight past it.
+      */}
+      {!returning && <ShopByRoom rooms={rooms} />}
+
+      {!returning && <QuantityHelpers />}
 
       {/* Popular — real catalog data */}
       {!returning && popular.length > 0 && (

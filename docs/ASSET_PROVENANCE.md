@@ -8,7 +8,7 @@ This file exists because the opposite was true for months: the catalogue shipped
 manufacturers' product photography under invented Vertical Express brand names, with no
 record of where any of it came from. See ISS-044.
 
-`scripts/check-assets.mjs` enforces the rule for `public/products/` and `public/hero/`
+`scripts/check-assets.mjs` enforces the rule for `public/products/`, `public/hero/`, `public/categories/` and `public/merchandising/`
 in CI. It cannot judge whether a claim here is *true* — only that a claim exists. The
 entries are only as good as the person writing them.
 
@@ -19,6 +19,19 @@ entries are only as good as the person writing them.
 | File | Source | Authority | Added |
 |---|---|---|---|
 | `public/placeholder-product.webp` | Generated locally, no external source. Node `zlib` PNG encoder + `cwebp`, from the design tokens `--color-chip-soft #F2F0EC`, `--color-line #E7E4DF`, `--color-chip #EDEBE7`. Two abstract overlapping rounded squares. No text, no logo, no trademark, no depiction of any product. | Own work — no third-party content | 31 Aug 2026 |
+
+| `public/login/build-scene.webp` | AI-generated editorial illustration (Codex, built-in image generation, 7 Oct 2026), 1200×800 WebP, sha256 `8b442b5d…`. Unbranded building-site scene. Prompt and hashes: workspace `docs/evidence/login-showcase-2026-10-07/v2/`. Also the homepage launch banner. | Own work — generated for this project; no third-party content, no marks | 7 Oct 2026 |
+| `public/login/finish-scene.webp` | As above, sha256 `eef371e2…`. Unbranded interior-materials scene. Also the homepage interiors banner. | Own work — generated for this project; no third-party content, no marks | 7 Oct 2026 |
+| `public/merchandising/categories/cement.webp` | Crop of `public/login/build-scene.webp` (box 20,350,500,710, Pillow, Lanczos), 480×360 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/categories/tiling.webp` | Crop of `public/login/finish-scene.webp` (box 340,120,860,510, Pillow, Lanczos), 480×360 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/categories/painting.webp` | Crop of `public/login/finish-scene.webp` (box 120,380,640,770, Pillow, Lanczos), 480×360 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/categories/plywood-mdf-hdhmr.webp` | Crop of `public/login/finish-scene.webp` (box 0,236,420,551, Pillow, Lanczos), 420×315 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/categories/wires-mcb-distribution-boards.webp` | Crop of `public/login/finish-scene.webp` (box 700,480,1100,780, Pillow, Lanczos), 400×300 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/categories/sanitary-bath-fittings.webp` | Crop of `public/login/finish-scene.webp` (box 780,260,1180,560, Pillow, Lanczos), 400×300 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/trending/new-build.webp` | Crop of `public/login/build-scene.webp` (box 40,250,920,800, Pillow, Lanczos), 720×450 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/trending/floors-walls.webp` | Crop of `public/login/finish-scene.webp` (box 300,90,900,465, Pillow, Lanczos), 600×375 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/trending/bath-kitchen.webp` | Crop of `public/login/finish-scene.webp` (box 760,240,1200,515, Pillow, Lanczos), 440×275 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
+| `public/merchandising/trending/woodwork.webp` | Crop of `public/login/finish-scene.webp` (box 0,260,740,722, Pillow, Lanczos), 720×450 WebP q82. Editorial category picture for the homepage — never a product image. | Own work — derived from the generated scene above | 7 Oct 2026 |
 
 ## Owner-supplied or licensed assets
 

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
+import { categoryImage } from "@/lib/merchandising/home";
+import { MerchPicture } from "@/components/merchandising/merch-picture";
 
 /**
  * A tile is a name, a slug and an icon. It used to carry its own product count
@@ -174,6 +176,16 @@ const THEME_BG = {
   furn: "var(--t-furn)",
 };
 
+/**
+ * Tiles with a picture lead, so the first row reads as photographs and the
+ * icon tiles follow together rather than alternating. Pictures come from
+ * `CATEGORY_IMAGERY`; a tile without one keeps its tinted icon, which is also
+ * what shows if a picture fails to load (the icon sits underneath it).
+ */
+const ORDERED_TILES = [...CATEGORY_TILES].sort(
+  (a, b) => Number(categoryImage(b.slug) !== null) - Number(categoryImage(a.slug) !== null)
+);
+
 /** Published products per category slug, from `listCategories()`. */
 export type CategoryCounts = Record<string, number>;
 
@@ -203,32 +215,38 @@ export function Categories({ counts }: { counts: CategoryCounts }) {
 
         {/* 6-Column Grid of Category Tiles */}
         <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {CATEGORY_TILES.map((cat) => (
-            <Link
-              key={cat.slug}
-              href={`/category/${cat.slug}`}
-              className="group flex flex-col items-center no-underline"
-            >
-              <div
-                className="flex h-[118px] w-full items-center justify-center rounded-[20px] text-ink-700 transition-transform duration-200 group-hover:scale-105"
-                style={{ backgroundColor: THEME_BG[cat.theme] }}
+          {ORDERED_TILES.map((cat) => {
+            const img = categoryImage(cat.slug);
+            return (
+              <Link
+                key={cat.slug}
+                href={`/category/${cat.slug}`}
+                className="group flex flex-col items-center no-underline"
               >
-                {cat.iconSvg}
-              </div>
-              <span className="mt-2.5 text-center text-[13.5px] font-bold leading-[17px] text-ink group-hover:text-brand-deep transition-colors">
-                {cat.name}
-              </span>
-              <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
-                {/* A category with nothing in it says so rather than "0 products",
-                    which reads as a broken tile rather than an empty shelf. */}
-                {counts[cat.slug] === undefined
-                  ? "\u00a0"
-                  : counts[cat.slug] === 0
-                    ? "Nothing in stock"
-                    : `${counts[cat.slug]} product${counts[cat.slug] === 1 ? "" : "s"}`}
-              </span>
-            </Link>
-          ))}
+                <div
+                  className="ve-cat-tile flex aspect-[4/3] w-full items-center justify-center rounded-[20px] text-ink-700"
+                  style={{ backgroundColor: THEME_BG[cat.theme] }}
+                >
+                  {cat.iconSvg}
+                  {img ? (
+                    <MerchPicture image={img} sizes="(max-width: 1023px) 33vw, 185px" fallback="transparent" />
+                  ) : null}
+                </div>
+                <span className="mt-2.5 text-center text-[13.5px] font-bold leading-[17px] text-ink group-hover:text-brand-deep transition-colors">
+                  {cat.name}
+                </span>
+                <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
+                  {/* A category with nothing in it says so rather than "0 products",
+                      which reads as a broken tile rather than an empty shelf. */}
+                  {counts[cat.slug] === undefined
+                    ? "\u00a0"
+                    : counts[cat.slug] === 0
+                      ? "Nothing in stock"
+                      : `${counts[cat.slug]} product${counts[cat.slug] === 1 ? "" : "s"}`}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </section>

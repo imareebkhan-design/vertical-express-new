@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getDeals, listProducts, listCategories, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
+import { getCatalogItem, getDeals, listProducts, listCategories, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
+import { DEAL_OF_THE_DAY } from "@/lib/merchandising/home";
 import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 
 export const revalidate = 300;
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [deals, popular, newestResult, categories, rooms] = await Promise.all([
+  const [deals, popular, newestResult, categories, rooms, dealProduct] = await Promise.all([
     getDeals(8),
     /* Real order volume from the last 7 days, not the catalogue's "popular"
        sort — that sort orders by `ratingCount` (see catalog.ts), a column
@@ -33,6 +34,9 @@ export default async function Home() {
        component can do what the mobile app already correctly does with the
        same empty table: render nothing until a room is actually curated. */
     listRooms(),
+    /* The Deal of the Day reads its product's real price from the catalogue;
+       with no deal configured there is nothing to fetch. */
+    DEAL_OF_THE_DAY ? getCatalogItem(DEAL_OF_THE_DAY.productSlug) : Promise.resolve(null),
   ]);
 
   /* The category tiles advertise how much is in each one. They used to carry
@@ -49,6 +53,7 @@ export default async function Home() {
       categories={categories}
       categoryCounts={categoryCounts}
       rooms={rooms}
+      dealProduct={dealProduct}
     />
   );
 }

@@ -170,6 +170,21 @@ not yet answered.
 
 ---
 
+## 12. Homepage merchandising (added 7 Oct 2026)
+
+Every value below lives in `lib/merchandising/home.ts` and nowhere else. Until it is
+answered the homepage shows a truthful default, never a guessed offer.
+
+| # | Question | Blocking | Status |
+|---|---|---|---|
+| 12.1 | **Launch banner wording, and is there a launch offer?** If yes: what it is, which categories, start and end dates. Goes in `LAUNCH_BANNER.offer`. The current line "Explore launch offers across selected categories" leans on the existing Deals shelf — confirm or reword | DOES NOT BLOCK | AWAITING |
+| 12.2 | **Deal of the Day** — which product, at what price (set it on the product in admin; a struck-through MRP shows only if the product has a compare-at price above it), and until when (`expiresAt`, drives the countdown). Until then: "Launch deal — coming soon" | DOES NOT BLOCK | AWAITING |
+| 12.3 | **"Trending in Srinagar" picks** — four curated groups (new build, floors & walls, bath & kitchen, woodwork), labelled "Curated" on screen. Confirm or replace. A real ranking needs order analytics, which do not exist yet | DOES NOT BLOCK | AWAITING |
+| 12.4 | **Category pictures** — six categories have one (cut from the generated login scenes). Waterproofing, adhesives, switches, lighting, fans, CPVC and hardware show their icon. Steel/TMT, CCTV, power tools, doors and wood flooring are **inactive** in the catalogue, so the homepage does not show them at all — activate them and supply a picture each | DOES NOT BLOCK | AWAITING |
+| 12.5 | **Banner imagery** — banners use AI-generated editorial scenes (no products, no marks). Approve, or supply real photography of the Srinagar store and stock | DOES NOT BLOCK | AWAITING |
+
+---
+
 ## What is NOT blocked — engineering proceeds now
 
 **None of the following requires owner input. Work on these while waiting.**

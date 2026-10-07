@@ -759,6 +759,29 @@ async function getDealsRaw(take = 8): Promise<CatalogItem[]> {
   return rows.map(toItem).filter((x): x is CatalogItem => x !== null);
 }
 
+/**
+ * One published product as a catalogue card, or null. Used by the homepage's
+ * Deal of the Day, which shows a configured product at its real price.
+ */
+export async function getCatalogItem(slug: string): Promise<CatalogItem | null> {
+  const row = await db.product.findFirst({
+    where: { slug, status: "published" },
+    include: {
+      brand: true,
+      category: { select: { slug: true, isBulk: true } },
+      images: { where: { isPrimary: true }, take: 1 },
+      variants: {
+        where: { isDefault: true },
+        include: {
+          bulkTiers: { select: { id: true }, take: 1 },
+          inventory: { select: { qtyOnHand: true, qtyReserved: true } },
+        },
+      },
+    },
+  });
+  return row ? toItem(row) : null;
+}
+
 export const getDeals = unstable_cache(
   async (take = 8) => getDealsRaw(take),
   ["catalog-deals"],

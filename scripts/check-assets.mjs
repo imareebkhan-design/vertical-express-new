@@ -96,7 +96,7 @@ const KNOWN_MISSING = new Set(["/categories/ceiling-fans-exhaust.webp"]);
  * awaiting an owner decision, which is documentation, not clearance. What this
  * now catches is a *new* category image arriving with no provenance at all.
  */
-const PROVENANCE_REQUIRED = ["products", "hero", "categories"];
+const PROVENANCE_REQUIRED = ["products", "hero", "categories", "merchandising/categories", "merchandising/trending"];
 
 /**
  * The ten category composites carrying prominent manufacturer marks, plus the
@@ -172,7 +172,7 @@ function walk(dir) {
       walk(p);
     } else if (/\.(tsx?|mjs)$/.test(entry.name)) {
       const src = readFileSync(p, "utf8");
-      for (const m of src.matchAll(/"(\/(?:products|categories|hero)\/[^"]+\.(?:webp|png|jpe?g|avif))"/g)) {
+      for (const m of src.matchAll(/"(\/(?:products|categories|hero|merchandising|login)\/[^"]+\.(?:webp|png|jpe?g|avif))"/g)) {
         componentRefs.push({ ref: m[1], file: p.replace(ROOT + "/", "") });
       }
     }
