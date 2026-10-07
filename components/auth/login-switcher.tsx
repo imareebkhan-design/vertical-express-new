@@ -53,12 +53,7 @@ export function LoginSwitcher({ next }: { next: string }) {
           {/* SignInForm owns the "Sign in" heading and every auth path. */}
           <SignInForm next={next} />
 
-          <div className="mt-5 rounded-[14px] bg-chip-soft px-4 py-3">
-            <p className="text-[12px] font-semibold leading-[17px] text-ink-700">
-              First time here? Signing in creates your account — there is no separate sign-up
-              step and no password to remember.
-            </p>
-          </div>
+          <p className="mt-4 text-[12px] font-medium text-ink-500">New here? Signing in creates your account.</p>
 
           <p className="mt-5 text-center text-[12px] font-medium leading-4 text-ink-500">
             By continuing you agree to our{" "}

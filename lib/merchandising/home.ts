@@ -63,41 +63,33 @@ const FINISH_SCENE: MerchImage = {
 };
 
 /**
- * Category slug → picture. A slug missing here is not an error: the tile falls
- * back to its tinted icon, which is the intended look for a category whose
- * picture has not been made yet. Only add a picture that shows that category.
+ * Category slug → picture: one unbranded product on a transparent background,
+ * framed identically (640×480, same padding, same shadow), so every tile in a
+ * grid reads as one set. The tile behind it supplies the colour. A slug missing
+ * here falls back to the category's line drawing. Provenance:
+ * docs/ASSET_PROVENANCE.md.
  */
 export const CATEGORY_IMAGERY: Readonly<Record<string, MerchImage>> = {
-  cement: {
-    src: "/merchandising/categories/cement.webp",
-    alt: "Cement sacks stacked on a building site",
-    focal: "50% 55%",
-  },
-  tiling: {
-    src: "/merchandising/categories/tiling.webp",
-    alt: "Terrazzo and wood-effect tiles leaning against a wall",
-    focal: "50% 45%",
-  },
-  painting: {
-    src: "/merchandising/categories/painting.webp",
-    alt: "Open paint tin beside tile and wood samples",
-    focal: "50% 60%",
-  },
-  "plywood-mdf-hdhmr": {
-    src: "/merchandising/categories/plywood-mdf-hdhmr.webp",
-    alt: "Plywood and laminated board panels",
-    focal: "45% 50%",
-  },
-  "wires-mcb-distribution-boards": {
-    src: "/merchandising/categories/wires-mcb-distribution-boards.webp",
-    alt: "Coils of electrical wire",
-    focal: "50% 50%",
-  },
-  "sanitary-bath-fittings": {
-    src: "/merchandising/categories/sanitary-bath-fittings.webp",
-    alt: "Chrome bath taps and fittings",
-    focal: "50% 50%",
-  },
+  cement: { src: "/merchandising/category-tiles/cement.webp", alt: "Sacks of cement" },
+  tiling: { src: "/merchandising/category-tiles/tiling.webp", alt: "Ceramic floor and wall tiles" },
+  painting: { src: "/merchandising/category-tiles/painting.webp", alt: "Paint tin, roller and brush" },
+  waterproofing: { src: "/merchandising/category-tiles/waterproofing.webp", alt: "Bucket of waterproofing coating with a brush" },
+  "plywood-mdf-hdhmr": { src: "/merchandising/category-tiles/plywood-mdf-hdhmr.webp", alt: "Stack of plywood and laminated board" },
+  fevicol: { src: "/merchandising/category-tiles/fevicol.webp", alt: "Wood glue bottle and adhesive tub" },
+  "hinges-channels-handles": { src: "/merchandising/category-tiles/hinges-channels-handles.webp", alt: "Hinges, a drawer channel and a cabinet handle" },
+  "kitchen-systems-accessories": { src: "/merchandising/category-tiles/kitchen-systems-accessories.webp", alt: "Pull-out kitchen basket" },
+  "wardrobe-bed-fittings": { src: "/merchandising/category-tiles/wardrobe-bed-fittings.webp", alt: "Wardrobe rail, cabinet hinges and bed gas lifts" },
+  "door-locks-hardware": { src: "/merchandising/category-tiles/door-locks-hardware.webp", alt: "Lever door handle with mortise lock" },
+  "general-hardware-tools": { src: "/merchandising/category-tiles/general-hardware-tools.webp", alt: "Hammer, spanner and screwdrivers" },
+  "wires-mcb-distribution-boards": { src: "/merchandising/category-tiles/wires-mcb-distribution-boards.webp", alt: "Coils of electrical wire and MCBs" },
+  "switches-sockets": { src: "/merchandising/category-tiles/switches-sockets.webp", alt: "Modular switch plate with a socket" },
+  "conduits-gi-boxes": { src: "/merchandising/category-tiles/conduits-gi-boxes.webp", alt: "PVC conduit fittings and a junction box" },
+  lighting: { src: "/merchandising/category-tiles/lighting.webp", alt: "LED bulb, panel light and tube light" },
+  "ceiling-fans-exhaust": { src: "/merchandising/category-tiles/ceiling-fans-exhaust.webp", alt: "Ceiling fan" },
+  "home-appliances-power-backup": { src: "/merchandising/category-tiles/home-appliances-power-backup.webp", alt: "Home inverter and battery" },
+  "cpvc-pipes-overhead-tanks": { src: "/merchandising/category-tiles/cpvc-pipes-overhead-tanks.webp", alt: "Water tank and CPVC pipe fittings" },
+  "sanitary-bath-fittings": { src: "/merchandising/category-tiles/sanitary-bath-fittings.webp", alt: "Shower head and basin mixer" },
+  "kitchen-sinks-faucets": { src: "/merchandising/category-tiles/kitchen-sinks-faucets.webp", alt: "Stainless steel sink and kitchen faucet" },
 };
 
 export function categoryImage(slug: string): MerchImage | null {
@@ -115,7 +107,7 @@ export const LAUNCH_BANNER: HeroBanner = {
   id: "launch",
   eyebrow: "Vertical Express launch offer",
   title: "Vertical Express is now launching in Srinagar",
-  body: "Building materials, delivered smarter. Explore launch offers across selected categories.",
+  body: "Building materials, delivered across the city.",
   offer: null,
   primary: { label: "Browse materials", href: "/categories" },
   secondary: { label: "How delivery works", href: "/how-we-work" },
@@ -128,7 +120,7 @@ export const HERO_BANNERS: readonly HeroBanner[] = [
     id: "interiors",
     eyebrow: "Tiles · bath · interiors",
     title: "Make every room your own",
-    body: "Tiles, paint, plywood and bath fittings for the finishing stage.",
+    body: "Tiles, paint, plywood and bath fittings.",
     offer: null,
     primary: { label: "Shop tiling", href: "/category/tiling" },
     secondary: { label: "Bath fittings", href: "/category/sanitary-bath-fittings" },
@@ -136,9 +128,9 @@ export const HERO_BANNERS: readonly HeroBanner[] = [
   },
   {
     id: "store",
-    eyebrow: "Held in our Srinagar store",
+    eyebrow: "Everyday essentials",
     title: "Electricals, hardware and paint",
-    body: "Smaller goods go out from the store; heavy material travels by truck.",
+    body: "Wire, switches, fittings and tools.",
     offer: null,
     primary: { label: "Shop electricals", href: "/category/wires-mcb-distribution-boards" },
     secondary: { label: "Hardware & tools", href: "/category/general-hardware-tools" },
@@ -158,7 +150,6 @@ export const HERO_BANNERS: readonly HeroBanner[] = [
 export interface TrendingPick {
   id: string;
   title: string;
-  body: string;
   image: MerchImage;
   /** Real category slugs with a short label; the first is the card's main link. Inactive ones are dropped at render. */
   categories: { slug: string; label: string }[];
@@ -173,12 +164,10 @@ export interface TrendingPick {
 export const TRENDING = {
   source: "curated" as "curated" | "analytics",
   title: "Trending in Srinagar",
-  subtitle: "Picked by our team for the work going on across the city this season.",
   picks: [
     {
       id: "new-build",
       title: "Starting a new build",
-      body: "Cement and waterproofing for the structure.",
       image: {
         src: "/merchandising/trending/new-build.webp",
         alt: "Illustrative site with cement sacks and bricks",
@@ -192,7 +181,6 @@ export const TRENDING = {
     {
       id: "floors-walls",
       title: "Floors & walls",
-      body: "Tiles for the floor, paint for the walls.",
       image: {
         src: "/merchandising/trending/floors-walls.webp",
         alt: "Terrazzo and wood-effect tiles",
@@ -206,7 +194,6 @@ export const TRENDING = {
     {
       id: "bath-kitchen",
       title: "Bath & kitchen",
-      body: "Taps, fittings, sinks and the pipes behind them.",
       image: {
         src: "/merchandising/trending/bath-kitchen.webp",
         alt: "Chrome taps and bath fittings",
@@ -221,7 +208,6 @@ export const TRENDING = {
     {
       id: "woodwork",
       title: "Woodwork",
-      body: "Boards and laminates, and the hardware that holds them.",
       image: {
         src: "/merchandising/trending/woodwork.webp",
         alt: "Wood and laminate panels beside a paint tin",

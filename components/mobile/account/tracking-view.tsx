@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, ShieldCheck, Truck } from "lucide-react";
+import { ArrowLeft, Check, Truck } from "lucide-react";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import type { OrderShipments } from "@/lib/services/shipments";
 
@@ -125,7 +125,7 @@ export function TrackingView({ order }: { order: OrderShipments }) {
             {shipment.status === "delivered" ? "Delivered" : "Arriving"}
           </p>
           <p className="mt-1 text-[26px] font-extrabold leading-8 tracking-[-0.025em] text-ink">
-            {eta ? `by ${eta}` : <PlaceholderValue pending="slot windows are not set yet">not scheduled yet</PlaceholderValue>}
+            {eta ? `by ${eta}` : <PlaceholderValue pending="slot windows are not set yet">To be scheduled</PlaceholderValue>}
           </p>
           {shipment.warehouse?.name && shipment.dispatchedAt && (
             <p className="mt-1.5 text-[13px] font-medium text-ink-700">
@@ -191,20 +191,6 @@ export function TrackingView({ order }: { order: OrderShipments }) {
           </div>
         </div>
       )}
-
-      <div className="px-5 pt-3">
-        <div className="flex items-start gap-3 rounded-[24px] bg-paper p-5 shadow-card">
-          <ShieldCheck className="mt-0.5 size-[18px] flex-none text-ink" strokeWidth={1.7} aria-hidden />
-          <div>
-            <p className="text-[14px] font-bold text-ink">Batch codes</p>
-            <p className="mt-1 text-[13px] font-medium leading-[18px] text-ink-700">
-              <PlaceholderValue pending="there is no Batch model, so no code is recorded against a shipment yet">
-                Batch codes are not recorded against shipments yet.
-              </PlaceholderValue>
-            </p>
-          </div>
-        </div>
-      </div>
 
       <div className="px-5 pt-3">
         <div className="flex items-start gap-3 rounded-[24px] bg-paper p-5 shadow-card">

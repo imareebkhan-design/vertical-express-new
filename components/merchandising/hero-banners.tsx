@@ -119,7 +119,7 @@ export function HeroBanners({ banners = HERO_BANNERS, compact = false }: { banne
                 <div className="ve-hero-collage">
                   {b.visual.images.map((img, n) => (
                     <div key={img.src} className={`ve-hero-card ve-hero-card-${n}`}>
-                      <MerchPicture image={img} sizes="(max-width: 767px) 40vw, 260px" fallback="var(--color-ink-700)" />
+                      <MerchPicture image={img} sizes="(max-width: 767px) 40vw, 260px" fit="contain" fallback="var(--color-ink-700)" />
                     </div>
                   ))}
                 </div>

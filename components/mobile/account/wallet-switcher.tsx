@@ -6,8 +6,6 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
 import { WalletView } from "@/components/account/wallet-view";
@@ -49,8 +47,6 @@ export function WalletSwitcher({ wallet, transactions }: WalletSwitcherProps) {
             />
           </div>
         </div>
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

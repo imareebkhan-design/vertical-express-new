@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, MapPin } from "lucide-react";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { SpeedChip } from "@/components/ui/speed-chip";
 import { triggerHaptic } from "@/lib/native/haptics";
 
@@ -102,22 +101,6 @@ export function SiteSetupView({ next = "/" }: { next?: string }) {
             </div>
           </div>
 
-          <div className="mt-3 space-y-2 rounded-[20px] bg-amber-soft p-3.5">
-            <p className="text-[13px] font-medium leading-[18px] text-ink-700">
-              Winter road access can add{" "}
-              <PlaceholderValue pending="the winter delivery delay is unconfirmed — owner to confirm">
-                several days
-              </PlaceholderValue>
-              .
-            </p>
-            {/* Cash on delivery is switched off at the business level until the
-                operation behind it exists — a float, a handover record, a daily
-                reconciliation. Advertising it on the first screen a customer
-                sees would be the earliest possible broken promise. */}
-            <p className="text-[13px] font-medium leading-[18px] text-ink-700">
-              Payment is online for now. Cash on delivery is not available yet.
-            </p>
-          </div>
         </div>
       )}
 

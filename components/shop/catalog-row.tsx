@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { formatPaise, discountPercent } from "@/lib/money";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
-import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
 
 /**
@@ -54,11 +53,6 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
         </h3>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold text-ink-500">{item.unitLabel}</p>
-          {/* On a phone this sits with the spec line; the desktop row has room
-              for it in the right-hand column and keeps it there. */}
-          <span className="sm:hidden">
-            <SpeedChip speed={speedClassFor(item.categoryIsBulk, item.deliverySpeed)} />
-          </span>
         </div>
 
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -84,9 +78,6 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
       </div>
 
       <div className="flex flex-none flex-col items-end justify-between gap-3 self-stretch py-0.5">
-        <span className="hidden sm:block">
-          <SpeedChip speed={speedClassFor(item.categoryIsBulk, item.deliverySpeed)} />
-        </span>
         <AddToCartButton variantId={item.variantId} title={item.title} disabled={!item.inStock} />
       </div>
     </article>

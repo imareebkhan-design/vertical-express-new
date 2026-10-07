@@ -8,8 +8,6 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { SearchBox } from "@/components/shop/search-box";
 import { EmptyState } from "@/components/shop/empty-state";
@@ -112,8 +110,6 @@ export function SearchSwitcher({
           </div>
         )}
 
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

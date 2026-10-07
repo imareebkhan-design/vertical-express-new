@@ -2,7 +2,6 @@
 
 import { Banknote } from "lucide-react";
 import { formatPaise } from "@/lib/money";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 
 /**
  * What paying cash on delivery actually involves when an order splits.
@@ -57,10 +56,7 @@ export function CodSplitNotice({
         </ul>
         <p className="mt-1.5 text-[12px] font-medium leading-[17px] text-ink-700">
           Delivery and tax are charged on the order, so each driver&apos;s figure differs
-          slightly from the goods total above.{" "}
-          <PlaceholderValue pending="no COD ceiling has been set — owner decision, see CLAUDE.md">
-            A per-shipment cash limit may apply.
-          </PlaceholderValue>
+          slightly from the goods total above.
         </p>
       </div>
     </div>

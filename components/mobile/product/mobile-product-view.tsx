@@ -205,9 +205,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
         >
           <ArrowLeft className="size-4.5" />
         </button>
-        <span className="text-xs font-bold text-ink max-w-[60%] truncate">
-          {product.brandName}
-        </span>
+        <span aria-hidden className="flex-1" />
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleShare}
@@ -337,7 +335,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
         {/* Serviceability / Delivery Check */}
         <div className="border-t border-mist/10 pt-4 space-y-3">
           <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
-            Delivery Serviceability Check
+            Check delivery
           </h4>
           <form onSubmit={handlePincodeSubmit} className="flex gap-2">
             <input

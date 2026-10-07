@@ -90,8 +90,7 @@ test("the config carries no invented commercial claim", () => {
   const copy = [
     ...HERO_BANNERS.flatMap((b) => [b.eyebrow, b.title, b.body, b.primary.label, b.secondary?.label ?? ""]),
     TRENDING.title,
-    TRENDING.subtitle,
-    ...TRENDING.picks.flatMap((p) => [p.title, p.body, ...p.categories.map((c) => c.label)]),
+    ...TRENDING.picks.flatMap((p) => [p.title, ...p.categories.map((c) => c.label)]),
   ].join("\n");
   assert.doesNotMatch(copy, /\d+\s*%|₹|rs\.?\s*\d|#1|best[- ]?sell|top[- ]?sell|minutes?\b/i);
 });

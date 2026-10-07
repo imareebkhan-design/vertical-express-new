@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { Share2 } from "lucide-react";
-import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 export function Footer() {
   const [canShare, setCanShare] = useState(false);
@@ -12,15 +11,15 @@ export function Footer() {
   return (
     <footer className="bg-ink text-white pt-[52px] pb-[34px]">
       <div className="mx-auto max-w-[1200px] px-6">
-        {/* 5-Column Grid: 1.3fr 1fr 1fr 1fr 1.4fr */}
-        <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1.4fr]">
+        {/* 4-column grid */}
+        <div className="grid grid-cols-1 gap-9 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
           {/* Column 1: Brand & Info */}
           <div>
             <Link href="/" aria-label="Vertical Express home">
               <Logo variant="light" className="h-auto w-[200px] max-w-full" />
             </Link>
             <p className="mt-3.5 max-w-[250px] text-[13.5px] font-medium leading-[21px] text-white/60">
-              Construction material delivered across Srinagar. Small items from our store, heavy loads by truck.
+              Building materials, delivered across Srinagar.
             </p>
             <div className="mt-4 flex gap-2">
               {/* A "Call support" button dialled +91 98765 43210 — the design
@@ -55,7 +54,7 @@ export function Footer() {
               <li><Link href="/category/general-hardware-tools" className="text-white/70 hover:text-white transition-colors">Furniture &amp; Hardware</Link></li>
               <li><Link href="/category/wires-mcb-distribution-boards" className="text-white/70 hover:text-white transition-colors">Electrical</Link></li>
               <li><Link href="/category/cpvc-pipes-overhead-tanks" className="text-white/70 hover:text-white transition-colors">Plumbing, Sanitary &amp; Bath</Link></li>
-              <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All {TOTAL_CATEGORIES} categories</Link></li>
+              <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All categories</Link></li>
             </ul>
           </div>
 
@@ -65,31 +64,12 @@ export function Footer() {
               Company
             </p>
             <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
-              <li><Link href="/how-we-work" className="text-white/70 hover:text-white transition-colors">About us</Link></li>
               <li><Link href="/how-we-work" className="text-white/70 hover:text-white transition-colors">How we work</Link></li>
               <li><Link href="/contact" className="text-white/70 hover:text-white transition-colors">Contact</Link></li>
               <li><Link href="/faq" className="text-white/70 hover:text-white transition-colors">FAQ</Link></li>
-              <li><Link href="/faq" className="text-white/70 hover:text-white transition-colors">Knowledge hub</Link></li>
-            </ul>
-          </div>
-
-          {/* Column 4: Downloads */}
-          <div>
-            <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.09em] text-white/45">
-              Downloads
-            </p>
-            <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
-              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Get the app</Link></li>
-              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Price lists</Link></li>
-              <li><Link href="/downloads" className="text-white/70 hover:text-white transition-colors">Brand catalogues</Link></li>
               <li>
-                <a
-                  href="https://verticalconstruction.in"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-white/70 hover:text-white transition-colors"
-                >
-                  Services site ↗
+                <a href="https://verticalconstruction.in" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white transition-colors">
+                  Book a professional ↗
                 </a>
               </li>
             </ul>

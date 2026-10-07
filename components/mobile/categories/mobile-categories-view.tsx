@@ -4,12 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import type { Category } from "@/prisma/generated/client/client";
-import {
-  CATEGORY_GROUPS,
-  TOTAL_CATEGORIES,
-  CategoryGlyph,
-  glyphFor,
-} from "@/components/ui/product-panel";
+import { CATEGORY_GROUPS, ProductPanel } from "@/components/ui/product-panel";
 
 /**
  * The app's categories screen, built to the `Categories` artboard.
@@ -47,9 +42,6 @@ export function MobileCategoriesView({
           <h1 className="text-[23px] font-extrabold leading-7 tracking-[-0.022em] text-ink">
             Categories
           </h1>
-          <p className="mt-1 text-[11px] font-semibold leading-[14px] text-ink-500">
-            {TOTAL_CATEGORIES} categories · everything we stock in Srinagar
-          </p>
         </div>
         <Link
           href="/search"
@@ -84,28 +76,12 @@ export function MobileCategoriesView({
 
       {groups.map((group) => (
         <section key={group.title} className="px-4 pt-5">
-          <div className="flex items-center gap-[9px]">
-            <span
-              className="size-[11px] flex-none rounded-[4px]"
-              style={{ backgroundColor: group.tint }}
-            />
-            <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
-              {group.title}
-            </h2>
-            <span className="text-[11px] font-semibold leading-[14px] text-ink-500">
-              {group.categories.length}
-            </span>
-          </div>
+          <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">{group.title}</h2>
 
-          <div className="mt-3 grid grid-cols-4 gap-2">
+          <div className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
             {group.categories.map((c) => (
               <Link key={c.slug} href={`/category/${c.slug}`} className="no-underline">
-                <div
-                  className="flex h-[74px] w-full items-center justify-center overflow-hidden rounded-[18px]"
-                  style={{ backgroundColor: group.tint }}
-                >
-                  <CategoryGlyph name={glyphFor(c.slug)} className="size-8" />
-                </div>
+                <ProductPanel categorySlug={c.slug} label={c.name} className="aspect-square w-full rounded-[18px]" glyphClassName="size-8" />
                 <div className="mt-1.5 h-[26px] overflow-hidden text-center text-[11px] font-semibold leading-[13px] text-ink">
                   {c.name}
                 </div>

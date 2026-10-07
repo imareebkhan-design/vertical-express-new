@@ -60,7 +60,7 @@ export function ShipmentReview({ shipments }: ShipmentReviewProps) {
       {shipments.some((sh) => sh.speedClass === "scheduled") && (
         <p className="mt-3 text-[12.5px] font-medium leading-[17px] text-ink-700">
           <PlaceholderValue pending="slot booking is not built — no Slot model, and ops has not confirmed the windows">
-            Choosing a delivery window is not available yet. We will call to arrange the truck.
+            We&rsquo;ll call to arrange the truck delivery.
           </PlaceholderValue>
         </p>
       )}

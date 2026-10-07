@@ -1,5 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import { categoryImage } from "@/lib/merchandising/home";
+import { CutoutPicture } from "@/components/merchandising/cutout-picture";
 
 /**
  * The tinted product panel the design uses everywhere a product appears —
@@ -11,8 +13,8 @@ import { cn } from "@/lib/utils";
  *
  *  1. A panel takes the tint of its L1 *group*. A category never picks its own
  *     colour, so a new category inherits correctly by being added to GROUP_TINT.
- *  2. The artwork is a line drawing of the material itself, never a filled icon
- *     and never a photograph. One neutral stroke works on all four tints.
+ *  2. With a category picture (`CATEGORY_IMAGERY`) the panel shows it on a
+ *     neutral well; without one, a line drawing of the material on the tint.
  *
  * This replaces the grey gradient placeholder, which read as a missing image
  * rather than as a deliberate stand-in.
@@ -347,6 +349,24 @@ export function ProductPanel({
   glyphClassName = "size-2/5",
 }: ProductPanelProps) {
   const { tint, glyph } = CATEGORY[categorySlug] ?? FALLBACK;
+  const picture = categoryImage(categorySlug);
+
+  /* Until a product has its own photograph it shows its category's: one
+     unbranded, representative product on a neutral well, the same picture the
+     category tile uses. The drawing appears only if the picture fails. */
+  if (picture) {
+    return (
+      <div
+        role="img"
+        aria-label={label}
+        className={cn("relative flex items-center justify-center overflow-hidden bg-chip-soft", className)}
+      >
+        <CutoutPicture image={{ ...picture, alt: "" }}>
+          <CategoryGlyph name={glyph} className={glyphClassName} />
+        </CutoutPicture>
+      </div>
+    );
+  }
 
   return (
     <div

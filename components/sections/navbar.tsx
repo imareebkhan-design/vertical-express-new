@@ -19,7 +19,6 @@ import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
 import { formatINR, cn } from "@/lib/utils";
-import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
 
 const L1_GROUPS = [
   {
@@ -189,7 +188,7 @@ export function Navbar() {
                   )}
                 >
                   <LayoutGrid className="size-3.5" aria-hidden />
-                  <span>All {TOTAL_CATEGORIES} categories</span>
+                  <span>All categories</span>
                 </Link>
 
                 {/* 4 L1 Groups with Dropdowns */}
@@ -250,21 +249,7 @@ export function Navbar() {
                 {/* Spacer */}
                 <div className="flex-1" />
 
-                {/* Right Links */}
-                <Link
-                  href="/how-we-work"
-                  className="inline-flex items-center text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors"
-                >
-                  How we work
-                </Link>
-
-                <Link
-                  href="/downloads"
-                  className="inline-flex items-center text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors"
-                >
-                  Downloads
-                </Link>
-
+                {/* Right link */}
                 <Link
                   href="/services"
                   className="inline-flex items-center gap-1 text-[13.5px] font-bold tracking-[-0.01em] text-ink hover:text-ink-700 transition-colors"

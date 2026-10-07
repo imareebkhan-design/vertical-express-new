@@ -49,7 +49,7 @@ export function CartView() {
               <strong className="font-bold text-ink">
                 {total === 2 ? "two shipments" : `${total} shipments`}
               </strong>
-              . They travel separately — no delivery time is set for either yet.
+              , delivered separately.
             </>
           ) : (
             "."

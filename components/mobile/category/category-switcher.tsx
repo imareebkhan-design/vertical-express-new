@@ -8,8 +8,6 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { SortSelect } from "@/components/shop/sort-select";
@@ -96,9 +94,7 @@ export function CategorySwitcher({
         <CategoryBanner
           name={category.name}
           description={category.description}
-          isBulk={category.isBulk}
           total={result.total}
-          brandCount={result.facets.brands.length}
           slug={slug}
         />
 
@@ -131,8 +127,6 @@ export function CategorySwitcher({
           </div>
         </div>
 
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

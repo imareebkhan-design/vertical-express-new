@@ -2,254 +2,78 @@
 
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
-import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
-import { categoryImage } from "@/lib/merchandising/home";
-import { MerchPicture } from "@/components/merchandising/merch-picture";
+import { CATEGORY_GROUPS, ProductPanel } from "@/components/ui/product-panel";
 
 /**
- * A tile is a name, a slug and an icon. It used to carry its own product count
- * as a string — "23 products" under Cement, "148 products" under Tiling, "134
- * products" under Sanitary & bath — 879 across the twelve of them, against a
- * catalogue that holds 30 in those categories and 45 in total.
+ * Every category, as a picture and a name — the grid a shopper scans to find
+ * their aisle. Two rows of ten on desktop.
  *
- * It is the same claim as the "4,100 products" removed from the hero in
- * d86a85d, one component further down the same page, and it is the reason a
- * count does not belong in a component: nothing made it wrong, it was written
- * wrong and had no way of becoming right. The number now comes from the
- * database with the categories themselves.
+ * Short names, because a tile label is read at a glance; the category page
+ * carries the full one. No product counts: a number under a tile is noise to a
+ * shopper and, written by hand, it was wrong (879 claimed against 30 held).
  */
-interface CategoryTile {
-  name: string;
-  slug: string;
-  theme: "civil" | "elec" | "plumb" | "furn";
-  iconSvg: React.ReactNode;
-}
-
-const CATEGORY_TILES: CategoryTile[] = [
-  {
-    name: "Cement",
-    slug: "cement",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M6 3h12l2 6v12H4V9z" />
-        <path d="M10 3v6h4V3" />
-      </svg>
-    ),
-  },
-  {
-    name: "Tiling",
-    slug: "tiling",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="8" height="8" rx="1" />
-        <rect x="13" y="3" width="8" height="8" rx="1" />
-        <rect x="3" y="13" width="8" height="8" rx="1" />
-        <rect x="13" y="13" width="8" height="8" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    name: "Painting",
-    slug: "painting",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M19 11V4a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v7" />
-        <path d="M5 11h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: "Waterproofing",
-    slug: "waterproofing",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
-      </svg>
-    ),
-  },
-  {
-    name: "Plywood & MDF",
-    slug: "plywood-mdf-hdhmr",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M3 7l9-4 9 4-9 4-9-4z" />
-        <path d="M3 12l9 4 9-4" />
-        <path d="M3 17l9 4 9-4" />
-      </svg>
-    ),
-  },
-  {
-    name: "Adhesives",
-    slug: "fevicol",
-    theme: "civil",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M10 2v4h4V2" />
-        <path d="M6 6h12v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z" />
-      </svg>
-    ),
-  },
-  {
-    name: "Wires & MCB",
-    slug: "wires-mcb-distribution-boards",
-    theme: "elec",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <path d="M9 9h6v6H9z" />
-        <path d="M12 3v1" />
-        <path d="M12 20v1" />
-      </svg>
-    ),
-  },
-  {
-    name: "Switches",
-    slug: "switches-sockets",
-    theme: "elec",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <rect x="5" y="3" width="14" height="18" rx="3" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ),
-  },
-  {
-    name: "Lighting",
-    slug: "lighting",
-    theme: "elec",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M9 18h6" />
-        <path d="M10 22h4" />
-        <path d="M12 2a7 7 0 0 0-7 7c0 2.5 1.5 4.5 3 5.5v1.5a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V14.5c1.5-1 3-3 3-5.5a7 7 0 0 0-7-7z" />
-      </svg>
-    ),
-  },
-  {
-    name: "Ceiling fans",
-    slug: "ceiling-fans-exhaust",
-    theme: "elec",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path d="M12 9c0-3.5 2-5 5-5s2 3.5 0 5-5 0-5 0z" />
-        <path d="M9 12c-3.5 0-5-2-5-5s3.5-2 5 0 0 5 0 5z" />
-        <path d="M12 15c0 3.5-2 5-5 5s-2-3.5 0-5 5 0 5 0z" />
-        <path d="M15 12c3.5 0 5 2 5 5s-3.5 2-5 0 0-5 0-5z" />
-      </svg>
-    ),
-  },
-  {
-    name: "CPVC & tanks",
-    slug: "cpvc-pipes-overhead-tanks",
-    theme: "plumb",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M4 6h16v12H4z" />
-        <path d="M8 6v12" />
-        <path d="M16 6v12" />
-      </svg>
-    ),
-  },
-  {
-    name: "Sanitary & bath",
-    slug: "sanitary-bath-fittings",
-    theme: "plumb",
-    iconSvg: (
-      <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-        <path d="M4 12h16a1 1 0 0 1 1 1v2a6 6 0 0 1-6 6H9a6 6 0 0 1-6-6v-2a1 1 0 0 1 1-1z" />
-        <path d="M6 12V5a2 2 0 0 1 2-2h1" />
-      </svg>
-    ),
-  },
-];
-
-const THEME_BG = {
-  civil: "var(--t-civil)",
-  elec: "var(--t-elec)",
-  plumb: "var(--t-plumb)",
-  furn: "var(--t-furn)",
+const SHORT_NAME: Record<string, string> = {
+  "plywood-mdf-hdhmr": "Plywood & MDF",
+  fevicol: "Adhesives",
+  "hinges-channels-handles": "Hinges & handles",
+  "kitchen-systems-accessories": "Kitchen systems",
+  "wardrobe-bed-fittings": "Wardrobe fittings",
+  "door-locks-hardware": "Door locks",
+  "general-hardware-tools": "Hardware & tools",
+  "wires-mcb-distribution-boards": "Wires & MCB",
+  "switches-sockets": "Switches",
+  "conduits-gi-boxes": "Conduits",
+  "ceiling-fans-exhaust": "Fans",
+  "home-appliances-power-backup": "Inverters",
+  "cpvc-pipes-overhead-tanks": "Pipes & tanks",
+  "sanitary-bath-fittings": "Bath fittings",
+  "kitchen-sinks-faucets": "Kitchen sinks",
 };
 
-/**
- * Tiles with a picture lead, so the first row reads as photographs and the
- * icon tiles follow together rather than alternating. Pictures come from
- * `CATEGORY_IMAGERY`; a tile without one keeps its tinted icon, which is also
- * what shows if a picture fails to load (the icon sits underneath it).
- */
-const ORDERED_TILES = [...CATEGORY_TILES].sort(
-  (a, b) => Number(categoryImage(b.slug) !== null) - Number(categoryImage(a.slug) !== null)
-);
+const ALL = CATEGORY_GROUPS.flatMap((g) => g.categories).map((c) => ({
+  slug: c.slug,
+  name: SHORT_NAME[c.slug] ?? c.name,
+}));
 
 /** Published products per category slug, from `listCategories()`. */
 export type CategoryCounts = Record<string, number>;
 
 export function Categories({ counts }: { counts: CategoryCounts }) {
-  return (
-    <section id="categories" className="pt-16">
-      <div className="mx-auto max-w-[1200px] px-6">
-        {/* Section Header */}
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">
-              Shop by category
-            </h2>
-            <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-              Four groups, {TOTAL_CATEGORIES} categories. Everything we hold in Srinagar.
-            </p>
-          </div>
+  /* A category with nothing published is an empty shelf; it is left out rather
+     than shown as a tile that leads nowhere. Inactive categories are not in
+     `counts` at all. */
+  const tiles = ALL.filter((c) => (counts[c.slug] ?? 0) > 0);
 
+  return (
+    <section id="categories" className="ve-reveal pt-14">
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">Shop by category</h2>
           <Link
             href="/categories"
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors shrink-0"
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-ink no-underline hover:text-ink-700"
           >
-            <span>All {TOTAL_CATEGORIES} categories</span>
-            <ChevronRight className="size-3.5" />
+            See all
+            <ChevronRight className="size-3.5" aria-hidden />
           </Link>
         </div>
 
-        {/* 6-Column Grid of Category Tiles */}
-        <div className="mt-6 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {ORDERED_TILES.map((cat) => {
-            const img = categoryImage(cat.slug);
-            return (
-              <Link
-                key={cat.slug}
-                href={`/category/${cat.slug}`}
-                className="group flex flex-col items-center no-underline"
-              >
-                <div
-                  className="ve-cat-tile flex aspect-[4/3] w-full items-center justify-center rounded-[20px] text-ink-700"
-                  style={{ backgroundColor: THEME_BG[cat.theme] }}
-                >
-                  {cat.iconSvg}
-                  {img ? (
-                    <MerchPicture image={img} sizes="(max-width: 1023px) 33vw, 185px" fallback="transparent" />
-                  ) : null}
-                </div>
-                <span className="mt-2.5 text-center text-[13.5px] font-bold leading-[17px] text-ink group-hover:text-brand-deep transition-colors">
-                  {cat.name}
-                </span>
-                <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
-                  {/* A category with nothing in it says so rather than "0 products",
-                      which reads as a broken tile rather than an empty shelf. */}
-                  {counts[cat.slug] === undefined
-                    ? "\u00a0"
-                    : counts[cat.slug] === 0
-                      ? "Nothing in stock"
-                      : `${counts[cat.slug]} product${counts[cat.slug] === 1 ? "" : "s"}`}
-                </span>
+        <ul className="mt-5 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-5 lg:grid-cols-10">
+          {tiles.map((cat) => (
+            <li key={cat.slug}>
+              <Link href={`/category/${cat.slug}`} className="group flex flex-col items-center no-underline">
+                <ProductPanel
+                  categorySlug={cat.slug}
+                  label={cat.name}
+                  className="ve-cat-tile aspect-square w-full rounded-[18px]"
+                  glyphClassName="size-1/2"
+                />
+                <span className="mt-2 text-center text-[12.5px] font-semibold leading-4 text-ink">{cat.name}</span>
               </Link>
-            );
-          })}
-        </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
 }
-

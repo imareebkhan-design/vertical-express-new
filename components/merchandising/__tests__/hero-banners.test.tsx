@@ -119,8 +119,7 @@ test("reduced motion: no autoplay and no play control, manual controls still wor
   }
 });
 
-test("with no approved deal, Deal of the Day says so and shows no price", () => {
+test("with no approved deal, Deal of the Day takes no space at all", () => {
   const { container } = render(<DealOfTheDay product={null} />);
-  assert.ok(screen.getByRole("heading", { name: "Launch deal — coming soon" }));
-  assert.doesNotMatch(container.textContent ?? "", /₹|%|MRP|Ends in/);
+  assert.equal(container.innerHTML, "");
 });

@@ -7,8 +7,6 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
@@ -218,8 +216,6 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
             }}
           />
         )}
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

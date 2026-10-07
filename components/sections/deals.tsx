@@ -6,35 +6,21 @@ import type { CatalogItem } from "@/lib/services/catalog";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { useState } from "react";
-import { SpeedChip } from "@/components/ui/speed-chip";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
   return (
-    <section id="deals" className="pt-16">
+    <section id="deals" className="ve-reveal pt-14">
       <div className="mx-auto max-w-[1200px] px-6">
-        {/* Section Header */}
         <div className="flex items-end justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">
-              Deals
-            </h2>
-            <p className="mt-1.5 text-[13.5px] font-medium text-ink-700">
-              {/* There is no `dealEndsAt` field anywhere in the schema — a
-                  specific end date here was never derived from data, and a
-                  hardcoded one goes stale the moment the calendar passes it
-                  (this one already claimed prices expired weeks ago while the
-                  same deals kept rendering). "While stock lasts" is the part
-                  that's actually true and doesn't expire on its own. */}
-              While stock lasts
-            </p>
-          </div>
-
+          <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">Deals</h2>
+          {/* There is no deal end date in the schema, so none is shown. */}
           <Link
             href="/categories"
-            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-paper px-4 text-[12.5px] font-bold text-ink shadow-card hover:bg-hush transition-colors shrink-0"
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-ink no-underline hover:text-ink-700"
           >
-            <span>Browse all categories</span>
-            <ChevronRight className="size-3.5" />
+            See all
+            <ChevronRight className="size-3.5" aria-hidden />
           </Link>
         </div>
 
@@ -54,12 +40,9 @@ function DealCard({ item }: { item: CatalogItem }) {
   const [added, setAdded] = useState(false);
 
   const priceRupees = item.pricePaise / 100;
-  const compareAtRupees = (item.compareAtPaise ?? item.pricePaise) / 100;
-  const discountPercent = compareAtRupees > priceRupees
-    ? Math.round(((compareAtRupees - priceRupees) / compareAtRupees) * 100)
-    : 0;
-
-  const isExpress = !item.categoryIsBulk;
+  const mrpPaise = item.compareAtPaise !== null && item.compareAtPaise > item.pricePaise ? item.compareAtPaise : null;
+  /* Rounded down, so the badge never claims more than the real saving. */
+  const discountPercent = mrpPaise ? Math.floor(((mrpPaise - item.pricePaise) * 100) / mrpPaise) : 0;
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -73,26 +56,21 @@ function DealCard({ item }: { item: CatalogItem }) {
 
   return (
     <div className="group flex flex-col rounded-[22px] bg-paper p-2.5 shadow-card border border-line transition-shadow hover:shadow-card-hover">
-      {/* Visual / Image preview box */}
       <Link
         href={`/product/${item.slug}`}
-        className="relative flex h-[200px] w-full items-center justify-center overflow-hidden rounded-[16px] bg-civil-soft text-ink-700 no-underline"
-        style={{
-          backgroundColor: isExpress ? "var(--t-elec)" : "var(--t-civil)",
-        }}
+        className="relative block h-[200px] w-full overflow-hidden rounded-[16px] no-underline"
       >
-        {item.imageUrl && item.imageUrl !== "/placeholder-product.webp" ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={item.imageUrl}
-            alt=""
-            className="size-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
-          />
+        {!isGenericPlaceholder(item.imageUrl) ? (
+          <span className="flex size-full items-center justify-center bg-chip-soft">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.imageUrl ?? ""}
+              alt=""
+              className="size-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+            />
+          </span>
         ) : (
-          <svg className="size-20 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M3 9h18" />
-          </svg>
+          <ProductPanel categorySlug={item.categorySlug} label={item.title} className="size-full" />
         )}
 
         {/* Discount Badge */}
@@ -112,41 +90,21 @@ function DealCard({ item }: { item: CatalogItem }) {
         </button>
       </Link>
 
-      {/* Info */}
-      <div className="p-2 flex-1 flex flex-col">
-        <div className="mt-1 text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
-          {item.brandName}
-        </div>
-
+      <div className="flex flex-1 flex-col p-2">
+        <div className="mt-1 text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-500">{item.brandName}</div>
         <Link
           href={`/product/${item.slug}`}
-          className="mt-1 line-clamp-1 text-[14.5px] font-bold text-ink hover:text-brand-deep transition-colors no-underline"
+          className="mt-1 line-clamp-2 min-h-10 text-[14px] font-bold leading-5 text-ink no-underline transition-colors hover:text-brand-deep"
         >
           {item.title}
         </Link>
-
-        <div className="mt-0.5 line-clamp-1 text-[13px] font-medium text-ink-500">
-          {item.unitLabel || "Standard pack"}
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
+          <span className="text-[17px] font-bold tabular-nums text-ink">{formatINR(priceRupees)}</span>
+          {mrpPaise ? (
+            <span className="text-[12.5px] font-medium tabular-nums text-ink-500 line-through">{formatINR(mrpPaise / 100)}</span>
+          ) : null}
         </div>
-
-        <div className="mt-2.5 flex items-baseline gap-2">
-          <span className="text-[17px] font-bold text-ink">
-            {formatINR(priceRupees)}
-          </span>
-        </div>
-
-        <div className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          {/* unitLabel already reads "per bag" / "per can" — prefixing another
-              "per" produced "per per can". */}
-          {item.unitLabel || "per unit"} · MRP {formatINR(compareAtRupees)}
-        </div>
-
-        <div className="mt-2.5 pt-1">
-          {/* The canonical SpeedChip replaces this card's own hand-rolled
-              "60 min" / "Tomorrow, 8 AM" — the unverified express window and a
-              delivery slot that does not exist in any form (ISS-054, ISS-057). */}
-          <SpeedChip speed={isExpress ? "express" : "scheduled"} />
-        </div>
+        <div className="mt-0.5 text-[11.5px] font-medium text-ink-500">{item.unitLabel}</div>
       </div>
     </div>
   );

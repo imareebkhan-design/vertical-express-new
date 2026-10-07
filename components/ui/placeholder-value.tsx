@@ -2,41 +2,28 @@ import React from "react";
 import { cn } from "@/lib/utils";
 
 /**
- * A value that is a plausible stand-in, not a confirmed business rule.
+ * A value that is a stand-in, not a confirmed business rule.
  *
- * The design's placeholder register (design-canvas/Legend.dc.html) exists
- * because an unmarked guess gets screenshotted into a pitch deck and becomes a
- * commitment. Its answer is a dotted amber underline — deliberately quiet on
- * screen, unmistakable when you look for it.
+ * It marks the spot in the source — `pending` says what has to be settled and
+ * by whom — so the open question is findable (`grep PlaceholderValue`) and the
+ * value can be swapped when the owner answers.
  *
- * This is the mechanism that lets an unconfirmed figure be *shown* rather than
- * omitted. Omitting it silently deletes a section the design intends to be
- * there; marking it keeps the layout honest and keeps the open question
- * visible. Money, time, limits and terms carry the marker. Product facts,
- * standards and pack sizes do not.
- *
- * Amber is a 1.5px rule here, never text — the accent fails AA against the warm
- * canvas, so the words stay ink and only the underline is amber.
+ * Nothing of that reaches the customer. It used to render a dotted amber
+ * underline and a hover title such as "Provisional — no Order.gstin field and
+ * no Invoice model", which put developer notes in front of shoppers. Now the
+ * words render as ordinary text; `data-placeholder` remains for audits.
  */
 export function PlaceholderValue({
   children,
-  /** What still has to be settled, and by whom. Surfaced to assistive tech. */
-  pending,
   className,
 }: {
   children: React.ReactNode;
+  /** What still has to be settled, and by whom. Source-only; never rendered. */
   pending?: string;
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        "border-b-[1.5px] border-dotted border-amber pb-px",
-        className
-      )}
-      title={pending ? `Provisional — ${pending}` : "Provisional value, pending confirmation"}
-      data-placeholder="true"
-    >
+    <span className={cn(className)} data-placeholder="true">
       {children}
     </span>
   );

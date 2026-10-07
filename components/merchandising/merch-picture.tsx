@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import type { MerchImage } from "@/lib/merchandising/home";
 
@@ -18,16 +18,26 @@ export function MerchPicture({
   priority = false,
   className = "",
   fallback = "var(--color-chip)",
+  fit = "cover",
+  children,
 }: {
   image: MerchImage;
   sizes: string;
   priority?: boolean;
   className?: string;
   fallback?: string;
+  /** "contain" for cut-out product pictures, which must never be cropped. */
+  fit?: "cover" | "contain";
+  /** Drawn only if the picture fails — e.g. the category's line drawing. */
+  children?: ReactNode;
 }) {
   const [failed, setFailed] = useState(false);
   if (failed) {
-    return <span role="img" aria-label={image.alt} className="absolute inset-0" style={{ background: fallback }} />;
+    return (
+      <span role="img" aria-label={image.alt} className="absolute inset-0 flex items-center justify-center" style={{ background: fallback }}>
+        {children}
+      </span>
+    );
   }
   return (
     <Image
@@ -36,7 +46,11 @@ export function MerchPicture({
       fill
       sizes={sizes}
       priority={priority}
-      className={`object-cover ${className}`}
+      /* Cut-outs are pre-sized (640×480, ~23 KB) transparent WebP. The optimiser
+         re-encodes them as JPEG for some requests, which turns the transparent
+         background black, so they are served as they are. */
+      unoptimized={fit === "contain"}
+      className={`${fit === "contain" ? "object-contain" : "object-cover"} ${className}`}
       style={{ objectPosition: image.focal ?? "50% 50%" }}
       onError={() => setFailed(true)}
     />

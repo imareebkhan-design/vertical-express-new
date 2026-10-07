@@ -10,10 +10,8 @@ import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
 import { Categories, type CategoryCounts } from "@/components/sections/categories";
 import { Deals } from "@/components/sections/deals";
-import { HowWeWork } from "@/components/sections/how-we-work";
 import { OrderedMost } from "@/components/sections/ordered-most";
 import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { PageLoader } from "@/components/page-loader";
 import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
@@ -67,12 +65,10 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories, categor
         <Hero />
         <Categories counts={categoryCounts} />
         <TrendingSrinagar categoryNames={categoryNames} />
-        <DealOfTheDay product={dealProduct} dealsHref={deals.length > 0 ? "#deals" : undefined} />
+        <DealOfTheDay product={dealProduct} />
         <Deals items={deals} />
-        <HowWeWork />
         <OrderedMost items={featured} />
         <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

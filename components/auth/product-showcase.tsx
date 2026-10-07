@@ -5,7 +5,7 @@ import Image from "next/image";
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 const SCENES = [
-  { title: "Build from the ground up.", detail: "Cement, steel & masonry", label: "Build", image: "/login/build-scene.webp", alt: "Illustrative construction scene with cement sacks, steel, bricks and building plans" },
+  { title: "Build from the ground up.", detail: "Cement & masonry", label: "Build", image: "/login/build-scene.webp", alt: "Illustrative construction scene with cement sacks, steel, bricks and building plans" },
   { title: "Make every room your own.", detail: "Tiles, paint, electrical & plumbing", label: "Finish", image: "/login/finish-scene.webp", alt: "Illustrative finishing materials with tiles, wood, paint, cable and fittings" },
   { title: "Equip every step of the work.", detail: "Power tools & accessories", label: "Equip", image: null, alt: "" },
 ] as const;
@@ -93,7 +93,6 @@ export function ProductShowcase() {
           <button type="button" aria-label="Next scene" onClick={() => choose(active + 1)}><ChevronRight size={17} aria-hidden /></button>
         </div>
       </div>
-      <p className="ve-login-image-note">{active === 2 ? "Official tool photographs · catalogue preview" : "Illustrative material scene · explore the catalogue for product details"}</p>
     </section>
   );
 }

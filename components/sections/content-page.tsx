@@ -2,8 +2,6 @@ import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { groupSectionRuns } from "@/lib/content-groups";
 
 export interface ContentSection {
@@ -140,8 +138,6 @@ export function ContentPage({
           and /services. Inside the padded <main> the gutters stacked, and the
           banner's unbreakable "verticalconstruction.in" button held every
           content page ~21px wider than a 375px phone. */}
-      <ServicesBanner />
-      <DownloadsStrip />
       <Footer />
     </>
   );

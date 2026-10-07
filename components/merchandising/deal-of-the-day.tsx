@@ -12,19 +12,16 @@ import { formatPaise } from "@/lib/money";
  * Deal of the Day.
  *
  * Shows a live deal only when one is configured and holds up against the
- * catalogue (`resolveDealOfTheDay`); otherwise an honest "coming soon". A
+ * catalogue (`resolveDealOfTheDay`); otherwise nothing at all. A
  * countdown appears only for a configured expiry, ticks on the client, and the
- * deal steps down to "coming soon" the moment it runs out.
+ * section disappears the moment it runs out.
  */
 export function DealOfTheDay({
   product,
-  dealsHref,
   compact = false,
 }: {
   /** The configured deal's product from the catalogue, or null. */
   product: DealProduct | null;
-  /** Where "see current deals" goes, when there are any. */
-  dealsHref?: string;
   compact?: boolean;
 }) {
   const [now, setNow] = useState(() => new Date());
@@ -38,38 +35,9 @@ export function DealOfTheDay({
 
   const wrap = compact ? "ve-reveal px-4 pt-6" : "ve-reveal mx-auto max-w-[1200px] px-6 pt-16";
 
-  if (view.state === "coming-soon") {
-    return (
-      <section aria-labelledby="deal-of-the-day" className={wrap}>
-        <div className="ve-deal-panel">
-          <div className="relative flex-1">
-            <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-brand">Deal of the day</span>
-            <h2 id="deal-of-the-day" className={compact ? "mt-2 text-[21px] font-extrabold leading-[26px] tracking-[-0.025em] text-white" : "mt-2.5 text-[30px] font-extrabold leading-9 tracking-[-0.03em] text-white"}>
-              Launch deal — coming soon
-            </h2>
-            <p className={compact ? "mt-1.5 text-[12.5px] font-medium leading-[18px] text-white/75" : "mt-2 max-w-[460px] text-[14px] font-medium leading-[21px] text-white/75"}>
-              Our first Deal of the Day is being set up. Until then, the full range is open.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              <Link href="/categories" className="ve-hero-cta ve-hero-cta-primary">
-                Browse materials
-                <ChevronRight className="size-4" aria-hidden />
-              </Link>
-              {dealsHref ? (
-                <Link href={dealsHref} className="ve-hero-cta ve-hero-cta-secondary">
-                  See current deals
-                </Link>
-              ) : null}
-            </div>
-          </div>
-          <div className="ve-deal-stamp" aria-hidden>
-            <Tag className={compact ? "size-8" : "size-11"} strokeWidth={1.6} />
-            <span>Coming soon</span>
-          </div>
-        </div>
-      </section>
-    );
-  }
+  /* No approved deal: the section is simply absent. A "coming soon" panel is
+     a promise taking up space on a shopping page. */
+  if (view.state === "coming-soon") return null;
 
   const left = view.expiresAt ? countdownLabel(view.expiresAt, now) : null;
   return (

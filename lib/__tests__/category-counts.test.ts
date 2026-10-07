@@ -43,7 +43,7 @@ test("the category section still renders its tiles", () => {
   /* Non-vacuity: an over-eager comment stripper, or a deleted section, would
      satisfy every assertion below on an empty string. */
   assert.match(tiles, /Shop by category/, "the category section copy has gone");
-  assert.match(tiles, /slug: "cement"/, "the tile list has gone");
+  assert.match(tiles, /CATEGORY_GROUPS/, "the tile list no longer comes from the category taxonomy");
 });
 
 test("no tile carries a hardcoded product count", () => {
@@ -57,13 +57,13 @@ test("no tile carries a hardcoded product count", () => {
   );
 });
 
-test("the count comes from the categories query", () => {
-  /* The tile takes its number from `listCategories()`, which counts published
-     products per category in the same round trip that fetches them. */
+test("which tiles show comes from the categories query", () => {
+  /* Tiles no longer print a count (8 Oct 2026: noise to a shopper). The real
+     count from `listCategories()` still decides which categories appear. */
   assert.match(
     tiles,
-    /counts\[cat\.slug\]/,
-    "the tile no longer reads its count from the passed-in data"
+    /counts\[c\.slug\]/,
+    "the tiles no longer read the real counts passed in"
   );
 
   const catalog = rendered("lib/services/catalog.ts");
@@ -81,12 +81,9 @@ test("the count comes from the categories query", () => {
   );
 });
 
-test("an empty category says so rather than showing a zero", () => {
-  /* The absent-as-a-number pattern again, one step ahead of it: "0 products"
-     under a tile reads as a broken tile rather than an empty shelf. */
-  assert.match(
-    tiles,
-    /Nothing in stock/,
-    "a category with no published products renders a bare zero"
-  );
+test("an empty category is left out rather than shown as a dead tile", () => {
+  /* A tile for a shelf with nothing on it leads nowhere. It is filtered out on
+     the real count, never labelled with a zero. */
+  assert.match(tiles, /\(counts\[c\.slug\] \?\? 0\) > 0/, "empty categories are no longer filtered out");
+  assert.doesNotMatch(tiles, /\$\{counts\[/, "a tile prints a product count again");
 });

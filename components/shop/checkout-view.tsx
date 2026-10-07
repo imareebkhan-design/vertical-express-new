@@ -15,7 +15,6 @@ import { checkoutQuote } from "@/lib/order-display";
 import { SpeedChip } from "@/components/ui/speed-chip";
 import { ExpressChoice } from "@/components/shop/checkout/express-choice";
 import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { AddressFormValues } from "@/components/account/address-form";
@@ -384,20 +383,9 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
           <ShipmentReview shipments={shipments} />
         </Section>
 
-        {/* Step 4 — GSTIN for input credit. */}
-        <Section step={4} title="Business details">
-          <p className="text-[13px] font-medium leading-[18.5px] text-ink-700">
-            Buying for a business? A GSTIN on the invoice lets you claim input
-            credit.{" "}
-            <PlaceholderValue pending="no Order.gstin field and no Invoice model — the number would be discarded">
-              GST invoicing is not issued yet, so we are not collecting a GSTIN
-              at checkout.
-            </PlaceholderValue>
-          </p>
-        </Section>
-
-        {/* Step 5 — Payment */}
-        <Section step={5} title="Payment">
+        {/* Step 4 — Payment. (GSTIN capture returns as a step when orders can
+            carry one and invoices exist; until then it is not shown.) */}
+        <Section step={4} title="Payment">
           <div className="space-y-3">
             <PayOption
               active={method === "cod"}

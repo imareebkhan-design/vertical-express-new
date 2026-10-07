@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ExternalLink } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
 import { ServicesBanner, SERVICES_SITE_URL } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 
 export const metadata: Metadata = {
@@ -259,7 +258,6 @@ export default function ServicesPage() {
 
         {/* Bottom Strips */}
         <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

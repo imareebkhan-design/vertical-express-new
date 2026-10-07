@@ -7,8 +7,6 @@ import type { AddressFormValues } from "@/components/account/address-form";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { CheckoutView } from "@/components/shop/checkout-view";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
@@ -47,8 +45,6 @@ export function CheckoutSwitcher({ addresses, email }: CheckoutSwitcherProps) {
         <h1 className="mb-2 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Where it’s going</h1>
         <p className="mb-6 text-sm font-medium text-ink-700">Choose the site, then pay. Heavy and quick items travel as separate shipments.</p>
         <CheckoutView addresses={addresses} email={email} actions={checkoutActions} />
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

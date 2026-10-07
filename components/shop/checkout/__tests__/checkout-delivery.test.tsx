@@ -63,7 +63,7 @@ test("shipment review: one card per shipment, no arrival time, truck note only w
   assert.equal(screen.getAllByRole("listitem").length, 2);
   assert.ok(screen.getByRole("listitem", { name: "Shipment 2 of 2" }));
   assert.match(document.body.textContent ?? "", /2 shipments — they travel separately/);
-  assert.match(document.body.textContent ?? "", /We will call to arrange the truck/);
+  assert.match(document.body.textContent ?? "", /call to arrange the truck delivery/);
   assert.doesNotMatch(document.body.textContent ?? "", /\d+ (min|hours?)\b|AM|PM/, "no time is claimed");
   cleanup();
 

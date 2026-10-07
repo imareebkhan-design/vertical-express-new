@@ -41,8 +41,8 @@ export function CartShipmentGroups({
       {total > 1 && (
         <p className="px-1 text-[12.5px] font-medium leading-[18px] text-ink-700">
           {count} {count === 1 ? "item" : "items"}, splitting into{" "}
-          <strong className="font-bold text-ink">{total === 2 ? "two shipments" : `${total} shipments`}</strong>. They
-          travel separately — no delivery time is set for either yet.
+          <strong className="font-bold text-ink">{total === 2 ? "two shipments" : `${total} shipments`}</strong>, delivered
+          separately.
         </p>
       )}
 

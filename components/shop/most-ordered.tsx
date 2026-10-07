@@ -42,7 +42,7 @@ export function MostOrdered({
         </Link>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-3">
+      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {items.slice(0, 4).map((item) => (
           <MobileProductCard key={item.id} item={item} />
         ))}

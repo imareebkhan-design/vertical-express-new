@@ -65,7 +65,7 @@ function componentsLinkingToCategories(): { rel: string; slugs: string[] }[] {
     .map((abs) => {
       const src = readFileSync(abs, "utf8");
       if (!src.includes("/category/")) return null;
-      const slugs = [...src.matchAll(/^\s*slug: "([a-z0-9-]+)",/gm)].map((m) => m[1]);
+      const slugs = [...src.matchAll(/\bslug: "([a-z0-9-]+)"/g)].map((m) => m[1]);
       return slugs.length ? { rel: relative(ROOT, abs), slugs } : null;
     })
     .filter((x): x is { rel: string; slugs: string[] } => x !== null);

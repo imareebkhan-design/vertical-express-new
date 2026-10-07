@@ -23,7 +23,6 @@ import { saveAddress, removeAddress } from "@/actions/address";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
-import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { ExpressChoice } from "@/components/shop/checkout/express-choice";
 import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
@@ -598,31 +597,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           </div>
         )}
 
-        {/*
-          "Buying for a business?" — the Slots artboard.
-
-          Same wording as the web checkout on purpose. A customer who sees one
-          answer on their phone and another on a laptop stops trusting either,
-          and this one is about tax.
-
-          Profile carries a gstin column, but an Order does not, and there is no
-          Invoice model — so a number typed here would be collected and
-          discarded, which is worse than not asking. The block states that
-          rather than presenting a field that goes nowhere.
-        */}
-        <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
-          <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
-            Business details
-          </h3>
-          <p className="mt-3 text-[12px] font-medium leading-[17px] text-ink/70">
-            Buying for a business? A GSTIN on the invoice lets you claim input credit.{" "}
-            <PlaceholderValue pending="no Order.gstin field and no Invoice model — the number would be discarded">
-              GST invoicing is not issued yet, so we are not collecting a GSTIN at checkout.
-            </PlaceholderValue>
-          </p>
-        </div>
-
-        {/* Coupons experience */}
+                {/* Coupons experience */}
         {selected && (
           <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs space-y-3">
             <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">

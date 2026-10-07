@@ -29,7 +29,7 @@
 .ve-hero-collage { position: absolute; inset: 0 0 0 46%; }
 .ve-hero-card {
   position: absolute; width: 34%; aspect-ratio: 4 / 5; overflow: hidden;
-  border-radius: 22px; box-shadow: 0 24px 40px -18px rgb(0 0 0 / .6);
+  border-radius: 22px; box-shadow: 0 24px 40px -18px rgb(0 0 0 / .6); background: var(--color-chip-soft);
   outline: 1px solid rgb(255 255 255 / .12);
 }
 .ve-hero-card-0 { left: 6%; top: 20%; transform: rotate(-7deg); }

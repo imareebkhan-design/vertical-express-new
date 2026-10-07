@@ -231,48 +231,30 @@ export const CONTENT: Record<string, ContentDoc> =
   },
   "how-we-work": {
     "title": "How we work",
-    "intro": "Everything on this page is a process you can check rather than a claim you have to believe. Where something is not settled, it says so.",
-    "updated": "25 August 2026",
+    "intro": "Building materials for Srinagar sites and homes, ordered online and delivered to your gate.",
+    "updated": "8 October 2026",
     "sections": [
       {
-        "id": "genuine",
-        "heading": "The material is genuine, and you can check it",
-        "body": [
-          "Counterfeit and re-bagged material is the real risk in this trade, and a badge on a website does nothing about it. Our answer is a process rather than a logo.",
-          "Stock is bought from authorised distributors. Batch details are not yet recorded when stock is received, and the scan-on-delivery check is not built yet — when a batch is recorded for your order, it will appear on the order itself."
-        ]
-      },
-      {
         "id": "delivery",
-        "heading": "Two speeds, and we do not mix them up",
+        "heading": "Two ways your order travels",
         "body": [
-          "A bag of cement and a coil of wire do not travel the same way, so we stopped pretending they do. Speed lives on the product: you see it on the card, on the product page and in the cart, and it is the same answer every time.",
-          "Small items come from our Srinagar store. Heavy material travels by truck. Full slot selection, so you can pick the window a truck arrives in, is not built yet."
-        ]
-      },
-      {
-        "id": "get",
-        "heading": "What you actually get",
-        "body": [
-          "A batch code, a packing date, and a photograph of the bag taken as it was loaded. Cement loses strength as it sits, so the packing date is the single most useful fact about a bag of it — more useful than the brand, and the thing nobody at a counter can tell you.",
-          "The intention is that the code on your order and the code on the bag are the same, and that you can check that at the gate. If they do not match, refuse the load: the driver takes it back and we replace it. That is the whole point of printing it.",
-          "Not there yet. No batch code, packing date or dispatch photograph is recorded against your order, so there is nothing for you to check against today. Until there is, we are not going to claim you can."
+          "Small goods — hardware, electricals, paint and adhesives — go out from our Srinagar store.",
+          "Heavy material — cement, tiles, plywood and tanks — travels by truck and is unloaded at your gate. Add stairs or a narrow lane to your site’s access note so the driver knows before setting off.",
+          "An order with both kinds of goods arrives as two shipments. Your cart shows the split before you pay."
         ]
       },
       {
         "id": "payment",
-        "heading": "How you pay",
+        "heading": "Paying",
         "body": [
-          "Online — card, UPI or net banking, through the payment gateway. Nothing is kept on file that you did not ask us to keep.",
-          "Cash on delivery is switched off at the moment. Taking cash needs a driver carrying a float, a record of what was handed over at your gate, and a daily reconciliation, and we would rather not offer it than offer it badly.",
-          "If material arrives damaged, wrong or off-batch, tell the driver before they leave. That is the cheapest moment for everyone to put it right."
+          "Pay online by card, UPI or net banking. Prices include GST."
         ]
       },
       {
-        "id": "not-yet",
-        "heading": "What we have not built yet",
+        "id": "problems",
+        "heading": "If something is wrong",
         "body": [
-          "We would rather list this than let you assume it exists. Slot selection for heavy deliveries, live order tracking, scan-on-delivery batch verification, and trade credit are all in progress and not available today."
+          "If material arrives damaged or isn’t what you ordered, tell the driver before they leave and we’ll replace it."
         ]
       }
     ]
@@ -308,49 +290,23 @@ export const CONTENT: Record<string, ContentDoc> =
     ]
   },
   "faq": {
-    "title": "Questions we actually get",
-    "intro": "If an answer is not settled yet, it says so rather than guessing.",
-    "updated": "25 August 2026",
+    "title": "Frequently asked questions",
+    "updated": "8 October 2026",
     "sections": [
       {
         "id": "speed",
         "group": "Delivery",
-        "heading": "How fast is delivery, really?",
+        "heading": "How is my order delivered?",
         "body": [
-          "It depends on the item, and the item tells you. Small goods — hardware, electricals, paint, adhesives — come from our Srinagar store. Cement, tiles, tanks and plywood travel by truck on a scheduled run. Every product card and product page carries its own delivery speed, which is why there is no single promise at the top of the site."
+          "Small goods — hardware, electricals, paint, adhesives — go out from our Srinagar store. Cement, tiles, tanks and plywood travel by truck to your gate."
         ]
       },
       {
         "id": "split",
         "group": "Delivery",
-        "heading": "Why does my order have items with different speeds?",
+        "heading": "Why is my order in two shipments?",
         "body": [
-          "Because it has both kinds of goods in it. A mixed order is split into separate shipments automatically — small goods and truck goods move and are tracked separately, each shown on your order. What is still being built is a different promised arrival time for each: until delivery slots exist, both shipments show the same status rather than two different windows."
-        ]
-      },
-      {
-        "id": "cash",
-        "group": "Payment",
-        "heading": "Can I pay cash?",
-        "body": [
-          "Not at the moment. Cash on delivery is switched off while we build the part of the operation that makes it work — a driver carrying a float, a record of what was handed over at the gate, and a daily reconciliation. Taking cash without those is how money goes missing between the gate and the bank, and the person it goes missing from is us.",
-          "It is off for now. Everything else about your order works the same way."
-        ]
-      },
-      {
-        "id": "gst",
-        "group": "Payment",
-        "heading": "Do your prices include GST?",
-        "body": [
-          "Yes, prices shown are inclusive and the tax is broken out on your order summary. What we cannot do yet is put your GSTIN on it — see \"Can I get an invoice with my GSTIN?\" below."
-        ]
-      },
-      {
-        "id": "genuine",
-        "group": "Material and genuineness",
-        "heading": "How do I know the material is genuine?",
-        "body": [
-          "Stock is bought from authorised distributors. Batch details are not yet recorded at goods receipt, and the scan-at-the-gate check is not built yet. When a batch is recorded for your order, it will appear on the order."
+          "It has both kinds of goods in it. Small goods and truck goods travel separately, and each shipment is shown on your order."
         ]
       },
       {
@@ -358,50 +314,39 @@ export const CONTENT: Record<string, ContentDoc> =
         "group": "Delivery",
         "heading": "Where do you deliver?",
         "body": [
-          "Srinagar only, for now. Check your pincode at checkout — if we cannot serve it we will say so rather than take the order and fail."
+          "Across Srinagar. Choose your delivery location at the top of the page and we’ll tell you straight away if we reach it."
         ]
       },
       {
-        "id": "seasonal",
-        "group": "Delivery",
-        "heading": "What does the seasonal chip mean?",
-        "body": [
-          "That the item is one winter genuinely interferes with. Construction here runs on a season — building April to October, interiors through the winter, near-dormant in January and February — and road access to some sites closes for stretches of it. A seasonal chip means the delivery window for that item depends on conditions rather than on our warehouse, and the product page says so rather than quoting a time we would miss.",
-          "How much winter adds is not settled yet. We would rather leave that blank than publish a number we cannot hold."
-        ]
-      },
-      {
-        "id": "cod-limit",
+        "id": "pay",
         "group": "Payment",
-        "heading": "Is there a limit on cash on delivery?",
+        "heading": "How can I pay?",
         "body": [
-          "There is no cash on delivery at all right now, so the question does not arise. If it is offered again, any limit per delivery will be published here before it applies to anybody."
+          "Online, by card, UPI or net banking."
         ]
       },
       {
-        "id": "age",
-        "group": "Material and genuineness",
-        "heading": "How old is the cement you deliver?",
+        "id": "gst",
+        "group": "Payment",
+        "heading": "Do prices include GST?",
         "body": [
-          "A fair question, and one we cannot answer precisely yet. Cement loses strength as it sits, which is why the packing date on the bag matters more than almost anything else about it.",
-          "We do not yet record the packing date against your order, so we cannot promise you a maximum age at the point of sale. Until we can, we are not going to claim one."
+          "Yes. Every price shown includes GST, and the tax is broken out on your order summary."
         ]
       },
       {
-        "id": "gst-invoice",
-        "group": "Account and business",
-        "heading": "Can I get an invoice with my GSTIN?",
+        "id": "damaged",
+        "group": "Orders",
+        "heading": "What if something arrives damaged?",
         "body": [
-          "Not yet. Prices include GST and the tax is broken out on your order, but we are not issuing a GST invoice carrying your registration number, and we are not collecting a GSTIN at checkout — a number we collected and could not put on an invoice would be worse than not asking for it.",
-          "If you are buying for a business and need input credit, this is the thing to ask us about, because it changes what the order is worth to you."
+          "Tell the driver before they leave and we’ll replace it."
         ]
       },
       {
-        "id": "saved-lists",
-        "group": "Account and business",
-        "heading": "Can I save a list of what I order every month?",
+        "id": "reorder",
+        "group": "Orders",
+        "heading": "Can I reorder what I bought before?",
         "body": [
-          "Not yet. Reordering the same set of materials for each pour or each wiring phase is the most obvious thing a trade customer needs from a shop like this, and it is not built. Your past orders are on your account and can be worked from in the meantime."
+          "Yes — your past orders are in your account, and the home screen brings them back so you can add them again."
         ]
       }
     ]

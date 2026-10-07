@@ -36,7 +36,8 @@ test("a mixed basket shows two shipment cards, quick first, each holding its own
   assert.match(first.textContent ?? "", /4 items/, "units in the shipment");
   assert.match(second.textContent ?? "", /Heavy material by truck/);
   assert.match(document.body.textContent ?? "", /6 items, splitting into two shipments/);
-  assert.match(document.body.textContent ?? "", /no delivery time is set for either yet/);
+  assert.match(document.body.textContent ?? "", /delivered separately/);
+  assert.doesNotMatch(document.body.textContent ?? "", /\d+\s*min|tomorrow|today/i, "no delivery time is promised");
 });
 
 test("one kind of goods is one card with no split talk", () => {

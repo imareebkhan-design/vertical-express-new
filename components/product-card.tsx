@@ -9,7 +9,6 @@ import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
-import { SpeedChip } from "@/components/ui/speed-chip";
 
 interface ProductCardProps {
   product: Product;
@@ -121,11 +120,6 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           <span className="text-[11px] font-semibold text-neutral-400">{product.unit}</span>
         </div>
 
-        {product.speed && (
-          <p className="mt-2">
-            <SpeedChip speed={product.speed} etaMinutes={product.etaMinutes} />
-          </p>
-        )}
 
         {soldOut && (
           <p className="mt-2 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">

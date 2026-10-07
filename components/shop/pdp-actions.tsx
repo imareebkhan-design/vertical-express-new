@@ -88,14 +88,10 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         Price {product.unitLabel.replace(/^per\s+/i, "per ")}, <strong className="font-bold">including GST</strong>.
       </p>
 
-      {/* Delivery speed belongs to the goods, never to the header. */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      {/* Delivery speed belongs to the goods, never to the header. The panel
+          below the buy box says how it travels; the chip is enough here. */}
+      <div>
         <SpeedChip speed={speed} />
-        <span className="text-[13px] font-medium text-ink-700">
-          {speed === "scheduled"
-            ? "Heavy material — delivered by truck."
-            : "Held in our Srinagar store."}
-        </span>
       </div>
 
       {/* Variant selector (only if multiple) */}

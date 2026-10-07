@@ -12,6 +12,7 @@ import { toggleWishlist } from "@/actions/wishlist";
 import { useCart } from "@/hooks/use-cart";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 
 const MotionImage = motion(Image);
 
@@ -107,9 +108,9 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
 
         {/* Product Image Container */}
         <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-mist/10 mb-3">
-          {item.imageUrl ? (
+          {!isGenericPlaceholder(item.imageUrl) ? (
             <MotionImage
-              src={item.imageUrl}
+              src={item.imageUrl ?? ""}
               alt={item.title}
               layoutId={`img-${item.id}`}
               fill
@@ -120,9 +121,11 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               sizes="(max-width: 768px) 50vw, 33vw"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-ink/30 text-xs font-medium">
-              No Image
-            </div>
+            <ProductPanel
+              categorySlug={item.categorySlug}
+              label={item.title}
+              className={cn("size-full", !item.inStock && "opacity-40 grayscale")}
+            />
           )}
 
           {/* Out of Stock Overlay */}

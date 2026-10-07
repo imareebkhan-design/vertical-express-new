@@ -243,29 +243,14 @@ export function MobileCategoryView({
           >
             <ArrowLeft className="size-4.5" />
           </button>
-          <div>
-            <h1 className="text-base font-extrabold text-ink leading-none">{category.name}</h1>
-            <p className="text-[10px] text-ink/40 font-semibold mt-1 block">
-              {initialResult.total} {initialResult.total === 1 ? "item" : "items"} available
-            </p>
-          </div>
+          <h1 className="text-base font-extrabold text-ink leading-none">{category.name}</h1>
         </div>
-        <button
-          onClick={handleRefresh}
-          className={`flex size-8 items-center justify-center rounded-full bg-mist/20 text-ink transition-transform ${
-            refreshing ? "animate-spin text-brand-deep" : ""
-          }`}
-          title="Refresh Feed"
-          aria-label="Refresh"
-        >
-          <RefreshCw className="size-3.5" />
-        </button>
       </div>
 
       {/* Sticky Filter / Toolbar Bar */}
       <div className="sticky top-[53px] z-20 flex items-center justify-between border-b border-mist/10 bg-white/95 px-4 py-2.5 shadow-xs">
         <span className="text-[10px] font-extrabold text-ink/50 uppercase tracking-wide">
-          {displayedProducts.length} Showing
+          {displayedProducts.length} {displayedProducts.length === 1 ? "product" : "products"}
         </span>
         <button
           onClick={() => {

@@ -2,34 +2,20 @@ import React from "react";
 import Link from "next/link";
 import type { CatalogFacets } from "@/lib/services/catalog";
 import { attributeConfigFor } from "@/lib/catalog-attributes";
-import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
-import { CategoryGlyph, categoryTint, glyphFor } from "@/components/ui/product-panel";
+import { ProductPanel, categoryTint } from "@/components/ui/product-panel";
 
-/**
- * The category banner: what this category is, how much of it we hold, and how
- * it travels — before any product row.
- *
- * The design leads every category landing page with this. Without it a listing
- * opens straight into rows and never says the one thing that changes how a
- * contractor plans: cement does not come in the 60-minute window.
- */
+/** The category banner: its name, its description if any, how many products, and its picture. */
 export function CategoryBanner({
   name,
   description,
-  isBulk,
   total,
-  brandCount,
   slug,
 }: {
   name: string;
   description: string | null;
-  isBulk: boolean;
   total: number;
-  brandCount: number;
   slug: string;
 }) {
-  const speed = speedClassFor(isBulk);
-
   return (
     <section
       className="mb-8 overflow-hidden rounded-[28px] px-8 py-7"
@@ -47,20 +33,12 @@ export function CategoryBanner({
             </p>
           )}
 
-          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2">
-            <span className="text-[13px] font-bold tabular-nums text-ink">
-              {total} {total === 1 ? "product" : "products"}
-            </span>
-            {brandCount > 0 && (
-              <span className="text-[13px] font-bold tabular-nums text-ink">
-                {brandCount} {brandCount === 1 ? "brand" : "brands"}
-              </span>
-            )}
-            <SpeedChip speed={speed} />
-          </div>
+          <p className="mt-4 text-[13px] font-semibold tabular-nums text-ink-700">
+            {total} {total === 1 ? "product" : "products"}
+          </p>
         </div>
 
-        <CategoryGlyph name={glyphFor(slug)} className="hidden size-24 flex-none lg:block" />
+        <ProductPanel categorySlug={slug} label={name} className="hidden size-36 flex-none rounded-[22px] lg:flex" glyphClassName="size-20" />
       </div>
     </section>
   );
@@ -95,22 +73,14 @@ export function ShopByAttribute({
         {railLabel ?? `Shop by ${lead.label.toLowerCase()}`}
       </h2>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {lead.values.map(({ value, count }) => (
+        {lead.values.map(({ value }) => (
           <Link
             key={value}
             href={`/category/${slug}?${lead.label.toLowerCase()}=${encodeURIComponent(value)}`}
             className="rounded-[20px] bg-paper p-4 no-underline shadow-card transition-shadow hover:shadow-card-hover"
           >
-            <div
-              className="mb-3 flex h-14 w-full items-center justify-center rounded-[14px]"
-              style={{ backgroundColor: categoryTint(slug) }}
-            >
-              <CategoryGlyph name={glyphFor(slug)} className="size-7" />
-            </div>
+            <ProductPanel categorySlug={slug} label={value} className="mb-3 h-20 w-full rounded-[14px]" glyphClassName="size-8" />
             <p className="text-[13px] font-bold leading-[17px] text-ink">{value}</p>
-            <p className="mt-1 text-[11px] font-semibold tabular-nums text-ink-500">
-              {count} {count === 1 ? "product" : "products"}
-            </p>
           </Link>
         ))}
       </div>

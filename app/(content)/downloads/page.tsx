@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Download, FileText, Smartphone } from "lucide-react";
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
 import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 
@@ -219,7 +218,6 @@ export default function DownloadsPage() {
         </div>
 
         {/* Bottom Strips */}
-        <ServicesBanner />
         <DownloadsStrip />
       </main>
       <Footer />

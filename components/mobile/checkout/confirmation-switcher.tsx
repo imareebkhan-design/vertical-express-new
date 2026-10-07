@@ -6,8 +6,6 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { PageLoader } from "@/components/page-loader";
 import { CheckCircle2, Clock, MapPin, Package, Wallet } from "lucide-react";
@@ -133,8 +131,6 @@ export function ConfirmationSwitcher({ order, shipments }: ConfirmationSwitcherP
           </div>
         </div>
 
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>

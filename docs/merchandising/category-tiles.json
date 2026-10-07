@@ -1,0 +1,162 @@
+[
+ {
+  "file": "public/merchandising/category-tiles/ceiling-fans-exhaust.webp",
+  "sha256": "786b1b9ffdfe470e8895e96055d730a161e6c628fc3f416e2a29c2cbd7166058",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a white three-blade ceiling fan seen from slightly below at a three-quarter angle, with a small white square exhaust fan beside it, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/cement.webp",
+  "sha256": "3feab28ff0ef6ceda2fe1150e4d58e82e4974fa42eaa3f9a80981fda5bcb79c4",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: two heavy 50 kg woven polypropylene sacks of grey cement powder lying flat one on top of the other, the top sack slit open at one corner with fine grey cement powder spilling out, sacks plain grey with no printing, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/conduits-gi-boxes.webp",
+  "sha256": "215c0f029badf4e57e266e77cf345ca22b2af1e3c567f844c1cb3bc716b11e23",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: several grey rigid PVC electrical conduit pipes with bends and couplers, and a galvanised steel square junction box, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/cpvc-pipes-overhead-tanks.webp",
+  "sha256": "b8a79e1ea8b38974ffce53c6df16941d3e669cb874534c4d1ec033e9606858b9",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: cream-coloured CPVC water pipes with elbow and tee fittings arranged neatly, and a small black cylindrical plastic water storage tank behind them, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/door-locks-hardware.webp",
+  "sha256": "6995e7c61e159f5b05aa45712328b7157dcfde596e1654b2183866ae995d2328",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a brushed brass lever door handle set with its mortise lock body and two keys, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/fevicol.webp",
+  "sha256": "245b180a3853161c16c81f390264f87889c8234b45a769dfe2088a2063ebb57a",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a white plastic squeeze bottle of wood glue with a red nozzle cap and a small open tub of white adhesive with a spreader, all unlabelled, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/general-hardware-tools.webp",
+  "sha256": "ded2e9d529f245d70b1cadafc91375d321ae2b4dbd74b58de7f69825907ae6fc",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: (real photograph, not an illustration) a steel claw hammer with a black rubber grip, a chrome adjustable spanner and two screwdrivers with plain black handles laid out neatly side by side, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/hinges-channels-handles.webp",
+  "sha256": "734517c70c4e0a28b800286c3978bd564f8b2545a816955f194251dedec311da",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: two stainless-steel butt hinges, a telescopic metal drawer channel and a brushed steel cabinet pull handle arranged neatly, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/home-appliances-power-backup.webp",
+  "sha256": "bad33e0d0707a3382177829539337fd0de75b517d925670694b8db707812addb",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a compact grey home power inverter unit standing beside a tall tubular inverter battery, plain and unbranded, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/kitchen-sinks-faucets.webp",
+  "sha256": "6881e745b85f7e5de85c77bd826a5597452c8bdb673154b4954f51d1e31653de",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a brushed stainless-steel single-bowl kitchen sink seen at an angle with a tall curved chrome kitchen faucet, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/kitchen-systems-accessories.webp",
+  "sha256": "0c5e5eb6e0df92b2c0e963740c0d9278c0eeea757d0332bd0d90c3c5bde7bb12",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a stainless-steel pull-out kitchen drawer basket organiser with a wire plate rack, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/lighting.webp",
+  "sha256": "6ed359789935d4f4dc9e1c7db7c2f4606861b23f38beff2091c661eea4773213",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a modern LED bulb, a slim round flat LED panel light and a short LED tube light, softly glowing warm white, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/painting.webp",
+  "sha256": "5cefc3fa0d16addaf6082bf8d37ef33e74b27b6a375078f121f64eafffa0fc64",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: an open round metal paint tin filled with white paint, a paint roller and a flat paint brush resting beside it, the tin completely unlabelled, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/plywood-mdf-hdhmr.webp",
+  "sha256": "9132cbe969c034a2f5d7d0e2b83a81581b44048032c72128e588faef02b992a7",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a neat stack of plywood sheets showing the layered wood edges, with one smooth light-oak laminated board on top, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/sanitary-bath-fittings.webp",
+  "sha256": "fce770b2418dda97676a282591a908e5f73a53b258619285b728df6f1d70b330",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a chrome single-lever wall-mounted basin tap and a round chrome rain shower head, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/switches-sockets.webp",
+  "sha256": "49190851b32018ba69d64023d8534d470e600e015655c6550012db688b8f68ea",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a white modular wall switch plate with two rocker switches and an Indian-style power socket with three round pin holes arranged in a triangle, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/tiling.webp",
+  "sha256": "0042ddad715ce9599f84a78857e776260bc0d15d74a95bccbc013bf401ef197a",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: a neat stack of square glossy ceramic floor tiles in warm beige and soft grey, with one large tile leaning upright behind the stack, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/wardrobe-bed-fittings.webp",
+  "sha256": "d4bc9e7a2ac8fa8f57d07abe06b21f3bf4c950ebecc9eaddcca7cea0ac6dd088",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: furniture and wardrobe fittings laid out neatly — a pair of chrome soft-close concealed cabinet hinges, a chrome oval wardrobe hanging rail with two end brackets, and a pair of black gas-lift struts for a storage bed, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/waterproofing.webp",
+  "sha256": "7665c191d58789f37f58f783b7ba618a4fdc87ac5a3e3a5d9eb273f8cde93532",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: an open white plastic bucket filled with thick grey waterproofing coating, a wide masonry brush resting across the rim, bucket unlabelled, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ },
+ {
+  "file": "public/merchandising/category-tiles/wires-mcb-distribution-boards.webp",
+  "sha256": "eed53666895834c925fae8111bff2befcb3f3d508f1bf327db031d74b00ae402",
+  "model": "Luma Photon (luma-photon) via Pixa/Pixelcut, 4:3, 1792×1344",
+  "prompt": "Studio product photograph for an e-commerce category tile: three coils of PVC-insulated electrical copper wire in red, black and blue, with two white miniature circuit breakers standing beside them, centered with generous empty margin around it, on a seamless plain warm light-grey background, soft diffused daylight from the upper left, gentle soft shadow beneath, photorealistic, crisp detail, generic unbranded product, no logos, no text, no labels, no watermark.",
+  "processing": "Pixelcut remove_background → docs/merchandising/compose-category-tiles.py (trim, fit in 600×600 at 7% padding, soft contact shadow, transparent WebP q84)",
+  "generated": "2026-10-08"
+ }
+]

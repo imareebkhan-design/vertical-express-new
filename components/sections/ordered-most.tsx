@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
-import { SpeedChip } from "@/components/ui/speed-chip";
 
 export function OrderedMost({ items }: { items: CatalogItem[] }) {
   /* Evidence-bound, like every other "most ordered" rail in this codebase
@@ -56,7 +56,6 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
     ? Math.round(((compareAtRupees - priceRupees) / compareAtRupees) * 100)
     : 0;
 
-  const isExpress = !item.categoryIsBulk;
 
   const handleAdd = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -74,23 +73,17 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
       <Link
         href={`/product/${item.slug}`}
         aria-label={item.title}
-        className="relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] text-ink-700 no-underline"
-        style={{
-          backgroundColor: isExpress ? "var(--t-elec)" : "var(--t-civil)",
-        }}
+        className="relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-chip-soft no-underline"
       >
-        {item.imageUrl && item.imageUrl !== "/placeholder-product.webp" ? (
+        {!isGenericPlaceholder(item.imageUrl) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={item.imageUrl}
+            src={item.imageUrl ?? ""}
             alt=""
             className="size-full object-contain p-2 transition-transform duration-200 group-hover:scale-105"
           />
         ) : (
-          <svg className="size-10 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <path d="M3 9h18" />
-          </svg>
+          <ProductPanel categorySlug={item.categorySlug} label={item.title} className="size-full" />
         )}
       </Link>
 
@@ -128,11 +121,7 @@ function OrderedMostCard({ item }: { item: CatalogItem }) {
             </span>
           )}
 
-          {/* The canonical SpeedChip (components/ui/speed-chip.tsx) replaces
-              this card's own hand-rolled "60 min" / "Tomorrow, 8 AM" chips —
-              the unverified express window and a delivery slot that does not
-              exist in any form (ISS-054, ISS-057). */}
-          <SpeedChip speed={isExpress ? "express" : "scheduled"} />
+          
         </div>
       </div>
 

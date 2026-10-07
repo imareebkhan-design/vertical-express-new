@@ -9,14 +9,12 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
 import { Navbar } from "@/components/sections/navbar";
-import { ServicesBanner } from "@/components/sections/services-banner";
-import { DownloadsStrip } from "@/components/sections/downloads-strip";
 import { Footer } from "@/components/sections/footer";
 import { PageLoader } from "@/components/page-loader";
 
 // Mobile Components
 import { MobileCategoriesView } from "@/components/mobile/categories/mobile-categories-view";
-import { TOTAL_CATEGORIES } from "@/components/ui/product-panel";
+import { ProductPanel } from "@/components/ui/product-panel";
 
 interface CategoriesSwitcherProps {
   /** Carries `_count.products`, which the tiles render. */
@@ -301,8 +299,9 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
       if (activeFilter && group.title !== activeFilter) {
         return null;
       }
-      const matchedCategories = group.categories.filter((c) =>
-        c.name.toLowerCase().includes(searchQuery.toLowerCase())
+      /* An empty or inactive category is an empty shelf: left out, not shown with a zero. */
+      const matchedCategories = group.categories.filter(
+        (c) => (countBySlug[c.slug] ?? 0) > 0 && c.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       if (matchedCategories.length === 0) return null;
       return {
@@ -310,7 +309,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
         categories: matchedCategories,
       };
     }).filter(Boolean) as GroupDefinition[];
-  }, [activeFilter, searchQuery]);
+  }, [activeFilter, searchQuery, countBySlug]);
 
   if (!ready) {
     return <PageLoader />;
@@ -327,14 +326,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
         {/* Page Header */}
         <div className="mx-auto flex max-w-[1200px] flex-col sm:flex-row items-start sm:items-end justify-between gap-6 px-6 pt-11">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-[-0.035em] text-ink sm:text-4xl lg:text-[46px] lg:leading-[52px]">
-              <span className="font-light text-ink/70">Everything we hold</span>
-              <br />
-              in Srinagar.
-            </h1>
-            <p className="mt-3 text-[14.5px] font-medium text-ink-700">
-              {TOTAL_CATEGORIES} categories in four groups. This is the complete list — the home page only shows a shortcut.
-            </p>
+            <h1 className="text-3xl font-extrabold tracking-[-0.035em] text-ink sm:text-4xl">All categories</h1>
           </div>
 
           {/* Filter Search Input */}
@@ -360,10 +352,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
                 : "bg-paper text-ink shadow-card hover:bg-hush"
             }`}
           >
-            <span>All Groups</span>
-            <span className={activeFilter === null ? "text-white/60" : "text-ink-500"}>
-              {TOTAL_CATEGORIES}
-            </span>
+            <span>All</span>
           </button>
 
           {GROUPS.map((group) => {
@@ -379,30 +368,16 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
                 }`}
               >
                 <span>{group.title}</span>
-                <span className={isSelected ? "text-white/60" : "text-ink-500"}>
-                  {group.categories.length}
-                </span>
               </button>
             );
           })}
         </div>
 
         {/* Group Sections */}
-        <div className="space-y-16 pt-10 pb-16">
+        <div className="space-y-12 pt-10 pb-16">
           {filteredGroups.map((group) => (
-            <section key={group.title} className="mx-auto max-w-[1200px] px-6">
-              <div className="mb-5 flex items-center gap-3">
-                <span
-                  className="size-3.5 rounded-[5px]"
-                  style={{ backgroundColor: group.themeColor }}
-                />
-                <h2 className="text-[26px] font-bold tracking-[-0.02em] text-ink">
-                  {group.title}
-                </h2>
-                <span className="text-[13.5px] font-medium text-ink-500">
-                  {group.categories.length} categories
-                </span>
-              </div>
+            <section key={group.title} className="ve-reveal mx-auto max-w-[1200px] px-6">
+              <h2 className="mb-5 text-[22px] font-bold tracking-[-0.02em] text-ink">{group.title}</h2>
 
               <div className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {group.categories.map((cat) => (
@@ -411,26 +386,14 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
                     href={`/category/${cat.slug}`}
                     className="group flex flex-col items-center no-underline"
                   >
-                    <div
-                      className="flex h-[118px] w-full items-center justify-center rounded-[20px] text-ink-700 transition-transform duration-200 group-hover:scale-105"
-                      style={{ backgroundColor: group.themeColor }}
-                    >
-                      {cat.iconSvg}
-                    </div>
-                    <span className="mt-2.5 text-center text-[13.5px] font-bold leading-[17px] text-ink group-hover:text-brand-deep transition-colors">
+                    <ProductPanel
+                      categorySlug={cat.slug}
+                      label={cat.name}
+                      className="ve-cat-tile aspect-square w-full rounded-[20px]"
+                      glyphClassName="size-1/2"
+                    />
+                    <span className="mt-2.5 text-center text-[13.5px] font-semibold leading-[17px] text-ink">
                       {cat.name}
-                    </span>
-                    <span className="mt-0.5 text-center text-[11px] font-medium text-ink-500">
-                      {/* Was a literal per tile — "203 products" under Lighting,
-                          "134 products" under Sanitary & bath, 1,565 across the
-                          twenty-one of them against a catalogue of 45. Same
-                          defect as the home-page tiles and the hero's "4,100
-                          products" before them. */}
-                      {countBySlug[cat.slug] === undefined
-                        ? "\u00a0"
-                        : countBySlug[cat.slug] === 0
-                          ? "Nothing in stock"
-                          : `${countBySlug[cat.slug]} product${countBySlug[cat.slug] === 1 ? "" : "s"}`}
                     </span>
                   </Link>
                 ))}
@@ -440,8 +403,6 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
         </div>
 
         {/* Bottom Strips */}
-        <ServicesBanner />
-        <DownloadsStrip />
       </main>
       <Footer />
     </>
