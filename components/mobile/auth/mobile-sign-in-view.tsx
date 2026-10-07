@@ -3,17 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { ProductShowcase } from "@/components/auth/product-showcase";
 import {
   ArrowLeft,
-  Cable,
   ChevronRight,
   Clock,
   Loader2,
-  Package,
-  PaintBucket,
   ShieldCheck,
-  Truck,
-  Zap,
 } from "lucide-react";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { RECAPTCHA_HOLDER_ID, useFirebaseSignIn } from "@/hooks/use-firebase-sign-in";
@@ -230,40 +226,13 @@ export function MobileSignInContent({ auth }: { auth: ReturnType<typeof useFireb
         <Logo className="h-auto w-[180px]" />
       </div>
 
-      {/* The product collage — three tilted category cards, a mark and a city pill. */}
-      <div className="relative mt-3.5 h-[262px] flex-none" aria-hidden>
-        <div className="absolute left-[34px] top-[34px] flex h-[152px] w-[128px] -rotate-[8deg] items-center justify-center rounded-[26px] bg-tint-civil shadow-card">
-          <Package className="size-[62px] text-ink/40" strokeWidth={1.5} />
-        </div>
-        <div className="absolute left-[132px] top-[14px] flex h-[168px] w-[140px] rotate-[5deg] items-center justify-center rounded-[28px] bg-tint-furniture shadow-card">
-          <PaintBucket className="size-[68px] text-ink/40" strokeWidth={1.5} />
-        </div>
-        <div className="absolute left-[238px] top-[74px] flex h-[132px] w-[116px] rotate-[11deg] items-center justify-center rounded-[24px] bg-tint-electrical shadow-card">
-          <Cable className="size-[54px] text-ink/40" strokeWidth={1.5} />
-        </div>
-        <div className="absolute left-[88px] top-[176px] flex size-[52px] items-center justify-center rounded-full bg-paper shadow-card">
-          <Zap className="size-[22px] fill-amber text-amber" />
-        </div>
-        <div className="absolute left-[216px] top-[196px] flex h-[30px] items-center gap-1.5 rounded-full bg-paper px-3.5 shadow-card">
-          <Truck className="size-[14px] text-ink-500" />
-          <span className="text-[12px] font-bold text-ink">Srinagar</span>
-        </div>
-      </div>
-
-      <div className="mt-1.5 px-5">
-        <h1 className="text-[32px] font-extrabold leading-[36px] tracking-[-0.03em] text-ink">
-          <span className="font-light text-ink-500">Building material,</span>
-          <br />
-          on site today.
+      <div className="px-5 pb-4 pt-5">
+        <h1 className="text-[28px] font-bold leading-[31px] tracking-[-0.035em] text-ink">
+          <span className="font-normal text-ink-500">From foundation</span><br />to finishing touches.
         </h1>
-        <p className="mt-2.5 max-w-[300px] text-[14px] font-medium leading-5 text-ink-700">
-          {/* Was "small items in an hour, heavy loads on a slot you pick": the
-              60-minute SLA is unconfirmed (owner decision) and slots do not
-              exist. States only what is true today. */}
-          Cement, tiles, wiring and fittings delivered across Srinagar — small items from our store, heavy
-          loads by truck.
-        </p>
+        <p className="mt-2 text-[13px] leading-[19px] text-ink-700">Materials, interiors and tools for your home project.</p>
       </div>
+      <div className="mx-auto w-full max-w-[460px] px-5 pb-4"><ProductShowcase /></div>
 
       <div className="flex-1" />
 
@@ -313,7 +282,8 @@ export function MobileSignInContent({ auth }: { auth: ReturnType<typeof useFireb
           </button>
         </div>
 
-        <p className="mt-3.5 px-4 text-center text-[12px] font-medium leading-4 text-ink-500">
+        <div className="mt-2 text-center"><Link href="/categories" className="ve-login-browse">Explore materials first →</Link></div>
+        <p className="mt-1 px-4 text-center text-[12px] font-medium leading-4 text-ink-500">
           By continuing you agree to our{" "}
           <Link href="/terms" className="font-bold text-ink underline underline-offset-2">
             Terms

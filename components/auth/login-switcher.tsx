@@ -7,6 +7,7 @@ import { PageLoader } from "@/components/page-loader";
 import { Logo } from "@/components/ui/logo";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { MobileSignInView } from "@/components/mobile/auth/mobile-sign-in-view";
+import { ProductShowcase } from "@/components/auth/product-showcase";
 
 /**
  * Two sign-in screens, one route.
@@ -22,16 +23,6 @@ import { MobileSignInView } from "@/components/mobile/auth/mobile-sign-in-view";
  * does not, which is the lesson of ISS-046.
  */
 
-/**
- * The four L1 groups, verbatim from the navbar's taxonomy.
- *
- * The customer-side counterpart of the role chips on the ops artboard — same
- * structural job, showing what is behind the door before you open it. Real
- * category names rather than marketing adjectives, so nothing here is a claim
- * that has to be checked with the owner.
- */
-const GROUPS = ["Civil & Interiors", "Furniture & Hardware", "Electrical", "Plumbing & Bath"];
-
 export function LoginSwitcher({ next }: { next: string }) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
@@ -41,37 +32,20 @@ export function LoginSwitcher({ next }: { next: string }) {
   if (isMobile) return <MobileSignInView next={next} />;
 
   return (
-    <main id="main-content" className="flex min-h-screen flex-col bg-canvas lg:flex-row">
-      <aside className="flex flex-col justify-end bg-ink px-6 py-10 sm:px-10 lg:w-[560px] lg:flex-none lg:px-14 lg:py-14">
-        <Link
-          href="/"
-          aria-label="Vertical Express home"
-          className="mb-8 inline-flex w-fit transition-opacity hover:opacity-90 lg:mb-auto"
-        >
-          <Logo variant="light" className="h-9 lg:h-10" />
-        </Link>
-
-        <h2 className="text-[28px] font-extrabold leading-[32px] tracking-[-0.03em] text-white sm:text-[38px] sm:leading-[43px]">
-          <span className="font-light text-white/50">Cement to switches,</span>
-          <br />
-          delivered to your site.
-        </h2>
-
-        <p className="mt-4 hidden max-w-[400px] text-[14.5px] font-medium leading-[22px] text-white/60 sm:block">
-          Order what the build needs without leaving it. Prices include GST, and you can pay
-          online or on delivery where that is available.
-        </p>
-
-        <div className="mt-6 hidden flex-wrap gap-2.5 sm:flex">
-          {GROUPS.map((group) => (
-            <span
-              key={group}
-              className="rounded-full bg-white/10 px-3 py-1 text-[12px] font-bold text-white/75"
-            >
-              {group}
-            </span>
-          ))}
+    <main id="main-content" className="flex min-h-dvh flex-col bg-canvas lg:flex-row">
+      <aside className="ve-login-editorial">
+        <div className="ve-login-brand-row">
+          <Link href="/" aria-label="Vertical Express home" className="inline-flex w-fit">
+            <Logo className="h-14" />
+          </Link>
+          <span className="ve-login-city">Srinagar, Kashmir</span>
         </div>
+        <div className="ve-login-intro">
+          <h2><span>From foundation</span><br />to finishing touches.</h2>
+          <p>Building materials, interiors and tools for your home project. Explore the range, build your cart and follow your orders in one place.</p>
+        </div>
+        <ProductShowcase />
+        <Link href="/categories" className="ve-login-browse">Explore materials before signing in →</Link>
       </aside>
 
       <div className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6">

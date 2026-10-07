@@ -362,7 +362,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
           >
             <span>All Groups</span>
             <span className={activeFilter === null ? "text-white/60" : "text-ink-500"}>
-              21
+              {TOTAL_CATEGORIES}
             </span>
           </button>
 
@@ -447,4 +447,3 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
     </>
   );
 }
-

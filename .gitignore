@@ -68,3 +68,7 @@ supabase/.temp/
 
 # firebase-tools writes this beside whatever command ran; never product work
 firebase-debug.log*
+
+# Official manufacturer photos used on the login showcase: served from the product-image
+# bucket in deployed environments; never committed to this public repository.
+public/login/xp-*.webp

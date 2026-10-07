@@ -35,7 +35,8 @@
       ".catalog-backups",
       ".image-backups",
       ".seo-backups",
-      ".DS_Store"
+      ".DS_Store",
+      "public/login/xp-*.webp"
     ]
   }
 }
