@@ -341,7 +341,8 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           </div>
         )}
 
-        {/* Serviceability / Delivery Check */}
+        {/* Serviceability / Delivery Check — only for something that can be bought. */}
+        {selectedVariant && (
         <div className="border-t border-mist/10 pt-4 space-y-3">
           <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
             Check delivery
@@ -402,6 +403,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
             </div>
           )}
         </div>
+        )}
 
         {/*
           The artboard's promise blocks — batch verification, the slot the

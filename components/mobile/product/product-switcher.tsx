@@ -85,7 +85,8 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
      the design sets a spec line. */
   const specLine = [
     ...product.specs.slice(0, 4).map((sp) => sp.value),
-    product.unitLabel,
+    // A catalog-only product's unit is a schema default, not a confirmed selling unit.
+    product.purchasable ? product.unitLabel : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -141,14 +142,20 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
               <PdpActions product={product} />
             </div>
 
-            <PdpPromises
-          speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
-          categorySlug={product.categorySlug}
-        />
+            {/* Dispatch, returns and the delivery check describe buying it;
+                a catalog-only product cannot be bought yet. */}
+            {product.purchasable && (
+              <>
+                <PdpPromises
+                  speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+                  categorySlug={product.categorySlug}
+                />
 
-            <div className="mt-6">
-              <PincodeCheck speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
-            </div>
+                <div className="mt-6">
+                  <PincodeCheck speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
+                </div>
+              </>
+            )}
 
             {product.description && (
               <div className="mt-8">
