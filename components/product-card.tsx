@@ -32,11 +32,12 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
 
   /* Undefined means the caller did not say, which renders as before. Only an
      explicit false marks the tile out of stock. */
-  const soldOut = product.inStock === false;
+  const soldOut = product.inStock === false && product.price != null;
 
   const showImage = !isGenericPlaceholder(product.image) && !imageFailed;
-  /* Catalog-only: no price, no discount, no cart controls. The cart service
-     refuses these products as well; this is the honest face of that rule. */
+  /* Catalog-only: no price, discount, stock state or cart controls (soldOut
+     above is false for them — "out of stock" would be a stock claim with
+     nothing behind it). The cart service refuses these products as well. */
   const price = product.price;
   const compareAt = product.compareAt;
   const onRequest = price == null;

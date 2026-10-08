@@ -29,6 +29,8 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   const saved = wishlistIds.has(item.id);
   // Catalog-only cards carry no variant or price and never reach the cart.
   const sellable = isPurchasableItem(item) ? item : null;
+  // "Sold out" is a stock claim; a catalog-only card has no stock to claim.
+  const soldOut = sellable !== null && !item.inStock;
   const discount = sellable ? discountPercent(sellable.pricePaise, sellable.compareAtPaise) : null;
 
   // Find if item is already in cart
@@ -119,7 +121,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               fill
               className={cn(
                 "object-cover transition-transform group-hover:scale-105",
-                !item.inStock && "opacity-40 grayscale"
+                soldOut && "opacity-40 grayscale"
               )}
               sizes="(max-width: 768px) 50vw, 33vw"
             />
@@ -127,12 +129,12 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             <ProductPanel
               categorySlug={item.categorySlug}
               label={item.title}
-              className={cn("size-full", !item.inStock && "opacity-40 grayscale")}
+              className={cn("size-full", soldOut && "opacity-40 grayscale")}
             />
           )}
 
           {/* Out of Stock Overlay */}
-          {!item.inStock && (
+          {soldOut && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[0.5px]">
               <span className="rounded-lg bg-ink/80 px-2.5 py-1 text-[9px] font-extrabold tracking-wider text-white uppercase shadow-sm">
                 Sold Out
