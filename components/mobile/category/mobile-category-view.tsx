@@ -250,7 +250,10 @@ export function MobileCategoryView({
       {/* Sticky Filter / Toolbar Bar */}
       <div className="sticky top-[53px] z-20 flex items-center justify-between border-b border-mist/10 bg-white/95 px-4 py-2.5 shadow-xs">
         <span className="text-[10px] font-extrabold text-ink/50 uppercase tracking-wide">
-          {displayedProducts.length} {displayedProducts.length === 1 ? "product" : "products"}
+          {/* The server total, unless the on-device stock toggle narrows the
+              loaded page — the loaded count alone read "24" on a 204-product shelf. */}
+          {inStockOnly ? displayedProducts.length : initialResult.total}{" "}
+          {(inStockOnly ? displayedProducts.length : initialResult.total) === 1 ? "product" : "products"}
         </span>
         <button
           onClick={() => {
