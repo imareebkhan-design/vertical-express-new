@@ -4,7 +4,7 @@ import { CONTENT } from "@/lib/content";
 
 export const metadata: Metadata = {
   title: "How we work",
-  description: "Everything on this page is a process you can check rather than a claim you have to believe. Where something is not settled, it says so.",
+  description: "How Vertical Express delivers building materials across Srinagar: store dispatch for small goods, truck delivery for heavy material.",
 };
 
 export default function Page() {

@@ -3,8 +3,8 @@ import { ContentPage } from "@/components/sections/content-page";
 import { CONTENT } from "@/lib/content";
 
 export const metadata: Metadata = {
-  title: "Questions we actually get",
-  description: "If an answer is not settled yet, it says so rather than guessing.",
+  title: "Frequently asked questions",
+  description: "Delivery, payment and orders at Vertical Express, Srinagar.",
 };
 
 export default function Page() {
