@@ -114,9 +114,9 @@ export function categoryImage(slug: string): CategoryIllustration | null {
  */
 export const LAUNCH_BANNER: HeroBanner = {
   id: "launch",
-  eyebrow: "Vertical Express launch offer",
-  title: "Vertical Express is now launching in Srinagar",
-  body: "Building materials, delivered across the city.",
+  eyebrow: "Build · finish · equip",
+  title: "Materials for every stage of your build",
+  body: "Explore construction materials and check delivery availability for your site.",
   offer: null,
   primary: { label: "Browse materials", href: "/categories" },
   secondary: { label: "How delivery works", href: "/how-we-work" },
@@ -172,7 +172,7 @@ export interface TrendingPick {
  */
 export const TRENDING = {
   source: "curated" as "curated" | "analytics",
-  title: "Trending in Srinagar",
+  title: "Explore by project",
   picks: [
     {
       id: "new-build",

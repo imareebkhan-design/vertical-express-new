@@ -3855,6 +3855,18 @@ now names an order number that never got a row; this is harmless, and easier to 
 
 ---
 
+## Homepage visual correctness — 8 October 2026 local repair
+
+**Status:** FIXED LOCALLY; browser-verified 8 Oct (new banner and "Explore by project" render, old wording absent, phone width checked); deployment pending. Homepage now uses neutral catalogue wording instead of an unconfirmed launch offer/citywide delivery claim, and editorial cards say “Explore by project” instead of “Trending in Srinagar”. Carousel gestures require horizontal movement to dominate vertical movement, preventing diagonal page scrolls from selecting slides. Cancelled gestures remain ignored. Fifteen targeted UI tests, typecheck and lint PASS. No asset publication or cloud changes. Workspace report: `docs/catalog/homerun-reference-2026-10-08/EXECUTION_PROGRESS.md`.
+
+## Catalogue search identity — 8 October 2026 local repair
+
+**Status:** FIXED LOCALLY; browser-verified 8 Oct against the running app (ACC suggests only the ACC brand; TMT no longer returns sinks — empty because no TMT product is published locally; steel stays broad); deployment pending. ACC matched Accessories through category substring search; TMT expanded to bare steel and returned unrelated sinks. Shared search-term expansion now removes bare material synonyms for structural queries, while short names match whole words and do not use fuzzy title matching. General steel searches and existing model/SKU paths remain covered.
+
+Validation: 30/30 targeted local service tests (search-identity, search, search-entry, catalog-search-categories, search-category-chips), typecheck and lint PASS. Draft catalogue completeness is a separate open blocker. Workspace evidence: `docs/catalog/readiness-2026-10/REPAIR_PROGRESS.md`. Rollback: revert this pass's catalogue/search changes and remove the shared helper and identity regression test together.
+
+---
+
 ## ISS-086 — Cement is taxed at 28% GST; the statutory rate has been 18% since 22 Sep 2025
 
 **Status:** OPEN — owner/accountant decision (not changed by engineering). Found 1 Oct 2026 in the business-data review.

@@ -45,8 +45,8 @@ test("the launch banner leads, and only the active slide is exposed", () => {
   const s = setup();
   try {
     assert.equal(screen.getAllByRole("group").length, 1);
-    assert.match(activeLabel(), /^1 of 3: Vertical Express launch offer/);
-    assert.ok(screen.getByRole("heading", { name: "Vertical Express is now launching in Srinagar" }));
+    assert.match(activeLabel(), /^1 of 3: Build · finish · equip/);
+    assert.ok(screen.getByRole("heading", { name: "Materials for every stage of your build" }));
   } finally {
     s.restore();
   }
@@ -85,6 +85,23 @@ test("choosing a slide, by dot, arrow, key or swipe, moves there and stops rotat
     // A short drag is a tap, not a swipe.
     fireEvent.pointerDown(frame, { clientX: 300 });
     fireEvent.pointerUp(frame, { clientX: 290 });
+    assert.match(activeLabel(), /^1 of 3/);
+  } finally {
+    s.restore();
+  }
+});
+
+test("vertical scrolling and cancelled gestures do not select another banner", () => {
+  const s = setup();
+  try {
+    const frame = screen.getByRole("group").parentElement!;
+    fireEvent.pointerDown(frame, { clientX: 300, clientY: 100 });
+    fireEvent.pointerUp(frame, { clientX: 230, clientY: 300 });
+    assert.match(activeLabel(), /^1 of 3/);
+    assert.equal(s.timers.size, 1);
+    fireEvent.pointerDown(frame, { clientX: 300, clientY: 100 });
+    fireEvent.pointerCancel(frame);
+    fireEvent.pointerUp(frame, { clientX: 100, clientY: 100 });
     assert.match(activeLabel(), /^1 of 3/);
   } finally {
     s.restore();

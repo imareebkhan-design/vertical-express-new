@@ -28,7 +28,7 @@ export function HeroBanners({ banners = HERO_BANNERS, compact = false }: { banne
   // Until the preference is read, assume reduced motion: never animate by default.
   const [reduced, setReduced] = useState(true);
   const [visible, setVisible] = useState(true);
-  const swipeFrom = useRef<number | null>(null);
+  const swipeFrom = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia?.("(prefers-reduced-motion: reduce)");
@@ -81,14 +81,18 @@ export function HeroBanners({ banners = HERO_BANNERS, compact = false }: { banne
         className="ve-hero-window"
         aria-live={playing ? "off" : "polite"}
         onPointerDown={(e) => {
-          swipeFrom.current = e.clientX;
+          swipeFrom.current = { x: e.clientX, y: e.clientY };
         }}
         onPointerUp={(e) => {
           const from = swipeFrom.current;
           swipeFrom.current = null;
           if (from === null) return;
-          const dx = e.clientX - from;
-          if (Math.abs(dx) >= SWIPE_PX) go(active + (dx < 0 ? 1 : -1));
+          const dx = e.clientX - from.x;
+          const dy = e.clientY - from.y;
+          // A vertical page scroll often drifts sideways on a phone.
+          if (Math.abs(dx) >= SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
+            go(active + (dx < 0 ? 1 : -1));
+          }
         }}
         onPointerCancel={() => {
           swipeFrom.current = null;
