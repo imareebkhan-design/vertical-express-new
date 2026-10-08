@@ -132,6 +132,7 @@ export async function adminListProduct(
   );
 
   if (!res.ok) {
+    if (res.error === "not_sellable") return fail("VALIDATION", `Not ready to sell: ${res.reasons.join("; ")}. Save it as a draft instead.`);
     if (res.error === "slug_taken") return fail("CONFLICT", "That slug is already in use");
     if (res.error === "sku_taken") return fail("CONFLICT", "That SKU is already in use");
     return fail("CONFLICT", "That product could not be created");

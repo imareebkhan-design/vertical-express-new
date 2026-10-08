@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { catalogOnlyReason, unpublishableReason } from "@/lib/services/admin/publish-guard";
+import { catalogOnlyReason, sellableReasons, unpublishableReason } from "@/lib/services/admin/publish-guard";
+import { recordAudit } from "@/lib/services/audit";
 import { setVariantPrice } from "@/lib/services/admin/variant-pricing";
 import { parseRupeeInput } from "@/lib/money";
 import { log } from "@/lib/observability";
@@ -56,23 +57,42 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
   });
   if (!before) return fail("NOT_FOUND", "Product not found");
 
-  if (status === "published" || status === "catalog_only") {
-    const why = status === "published" ? await unpublishableReason(db, id) : await catalogOnlyReason(db, id);
-    if (why) return fail("VALIDATION", why);
-  }
-
+  /* The status gate and the write are one transaction, with the product row
+     locked: the guard reads the state the write produced (a brand change in
+     the same save is checked too), and a failing guard rolls the write back.
+     A concurrent save cannot slip between the check and the update. */
+  class GateRefused extends Error {}
   try {
-    await db.product.update({
-      where: { id },
-      data: {
-        title,
-        slug,
-        brandId,
-        status,
-        deliverySpeed: deliverySpeed === "" ? null : deliverySpeed,
-      },
+    await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${id}::uuid FOR UPDATE`;
+      await tx.product.update({
+        where: { id },
+        data: {
+          title,
+          slug,
+          brandId,
+          status,
+          deliverySpeed: deliverySpeed === "" ? null : deliverySpeed,
+        },
+      });
+      if (status === "published" && before.status !== "published") {
+        const reasons = await sellableReasons(tx, id);
+        if (reasons.length) throw new GateRefused(reasons.join("; "));
+        await recordAudit(tx, {
+          actorType: "admin", actorId: admin.id, action: "catalogue.product_published",
+          entityType: "product", entityId: id, before: { status: before.status }, after: { status },
+        });
+      } else if (status === "published") {
+        // Already published: the existing variant rule still holds on every save.
+        const why = await unpublishableReason(tx, id);
+        if (why) throw new GateRefused(why);
+      } else if (status === "catalog_only") {
+        const why = await catalogOnlyReason(tx, id);
+        if (why) throw new GateRefused(why);
+      }
     });
-  } catch {
+  } catch (e) {
+    if (e instanceof GateRefused) return fail("VALIDATION", e.message);
     return fail("CONFLICT", "Another product already uses that slug");
   }
 

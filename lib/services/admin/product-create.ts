@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { recordAudit, type DbClient } from "@/lib/services/audit";
+import { sellableReasons } from "@/lib/services/admin/publish-guard";
 import type { DeliverySpeed, ProductStatus } from "@/prisma/generated/client/client";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 
@@ -58,7 +59,16 @@ export interface NewProduct {
 
 export type CreateResult =
   | { ok: true; slug: string }
-  | { ok: false; error: "slug_taken" | "sku_taken" | "unknown" };
+  | { ok: false; error: "slug_taken" | "sku_taken" | "unknown" }
+  | { ok: false; error: "not_sellable"; reasons: string[] };
+
+/** A `published` listing that fails the commercial readiness gate. Thrown inside
+ *  the caller's transaction so nothing of the listing is written. */
+export class NotSellableError extends Error {
+  constructor(readonly slug: string, readonly reasons: string[]) {
+    super(`${slug} is not sellable: ${reasons.join("; ")}`);
+  }
+}
 
 
 /**
@@ -154,6 +164,16 @@ export async function writeProduct(
     },
   });
 
+  /* The commercial readiness gate, after every write and in the same
+     transaction: a listing created straight into `published` passes exactly
+     the checks the catalog_only → published transition does, or none of it
+     is written. A new listing has no approved photo yet, so in practice it is
+     created as a draft and published once its photo is attached. */
+  if (input.status === "published") {
+    const reasons = await sellableReasons(tx, product.id);
+    if (reasons.length) throw new NotSellableError(product.slug, reasons);
+  }
+
   return product.slug;
 }
 
@@ -171,6 +191,7 @@ export async function createProduct(
     const slug = await db.$transaction((tx) => writeProduct(tx, input, actor));
     return { ok: true, slug };
   } catch (err) {
+    if (err instanceof NotSellableError) return { ok: false, error: "not_sellable", reasons: err.reasons };
     /* Both slug and sku are unique, and telling somebody which one collided is
        the difference between a fixable message and a shrug. */
     const message = err instanceof Error ? err.message : "";

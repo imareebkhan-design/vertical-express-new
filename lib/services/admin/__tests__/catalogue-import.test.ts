@@ -94,7 +94,9 @@ async function world() {
       warehouse: "",
       express: "no",
       express_pincodes: "",
-      status: "published",
+      /* Draft: a CSV row cannot carry an approved photo, so the commercial
+         readiness gate refuses `published` (tested below). */
+      status: "draft",
       description: "",
     } as Cell,
     warehouseName: warehouse.name,
@@ -141,7 +143,7 @@ test("a row becomes a product, its variant and its stock together", async (t) =>
     include: { variants: { include: { inventory: true } } },
   });
   assert.ok(product, "the product was not written");
-  assert.equal(product.status, "published");
+  assert.equal(product.status, "draft");
 
   const variant = product.variants[0];
   assert.ok(variant, "a product was created with no variant — nothing to add to a cart");
@@ -416,4 +418,14 @@ test("a formula in a looked-up column is refused by the lookup, and never stored
 
   const written = await db.product.count({ where: { title: { startsWith: "ZZZ Import " } } });
   assert.equal(written, 0, "a preview wrote a row");
+});
+
+test("a row imported straight into published is refused by the readiness gate, and nothing is written", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  const res = await runImport(file(row(w.base, { status: "published", stock: "5", warehouse: w.warehouseName })));
+  assert.equal(res.ok, false);
+  assert.match(res.ok ? "" : res.error, /not sellable/);
+  assert.equal(await db.product.count({ where: { title: w.base.title } }), 0, "the whole file rolled back");
 });

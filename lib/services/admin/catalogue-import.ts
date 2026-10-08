@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { writeProduct, type NewProduct } from "@/lib/services/admin/product-create";
+import { NotSellableError, writeProduct, type NewProduct } from "@/lib/services/admin/product-create";
 import type { CatalogueRow, CsvIssue } from "@/lib/catalogue-csv";
 
 /**
@@ -270,6 +270,9 @@ export async function importCatalogue(
        a half-truth about which product failed is worse than none. The preview
        catches everything foreseeable; reaching here means a race or a constraint
        nobody modelled. */
+    if (err instanceof NotSellableError) {
+      return { ok: false, error: `${err.message}. Import it with status draft. Nothing was written.` };
+    }
     const message = err instanceof Error ? err.message : "";
     if (message.includes("slug") || message.includes("sku")) {
       return {
