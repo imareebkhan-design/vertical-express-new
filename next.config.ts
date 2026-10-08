@@ -75,6 +75,16 @@ const GSTATIC = "https://www.gstatic.com";
 const RECAPTCHA = "https://www.google.com https://www.recaptcha.net";
 
 /**
+ * Google Maps JavaScript API — the live delivery map on the order tracking
+ * screen. The loader script and its tiles, sprites and fonts come from these
+ * hosts; the key itself is referrer-restricted to our origins in Google Cloud.
+ */
+const MAPS_SCRIPT = "https://maps.googleapis.com";
+const MAPS_IMAGES = "https://maps.gstatic.com https://*.googleapis.com https://*.ggpht.com";
+const MAPS_FONTS_CSS = "https://fonts.googleapis.com";
+const MAPS_FONTS = "https://fonts.gstatic.com";
+
+/**
  * Content Security Policy — ISS-022.
  *
  * Deliberately NOT nonce-based. Next.js applies nonces during server-side
@@ -111,16 +121,17 @@ export function contentSecurityPolicy(isDev: boolean): string {
     GOOGLE_CLIENT,
     GSTATIC,
     RECAPTCHA,
+    MAPS_SCRIPT,
   ]
     .filter(Boolean)
     .join(" "),
-  `style-src 'self' 'unsafe-inline'`,
+  `style-src 'self' 'unsafe-inline' ${MAPS_FONTS_CSS}`,
   // Supabase Storage is the provisioned image host (DEC-011); product imagery
   // moves there with admin product management (ISS-019).
-  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, productImageSource, GSTATIC, "https://*.googleusercontent.com"]
+  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, productImageSource, GSTATIC, "https://*.googleusercontent.com", MAPS_IMAGES]
     .filter(Boolean)
     .join(" "),
-  `font-src 'self' data:`,
+  `font-src 'self' data: ${MAPS_FONTS}`,
   [
     `connect-src 'self'`,
     RAZORPAY,

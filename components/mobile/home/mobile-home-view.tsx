@@ -72,7 +72,7 @@ export function MobileHomeView({
   dealProduct = null,
   loadFacts = getMyHomeFacts,
 }: MobileHomeViewProps) {
-  const { pincode, cityName, hasChosenLocation, openLocationModal } = useNativeShell();
+  const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const { addItem } = useCart();
   /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
   const [facts, setFacts] = useState<MyHomeFacts | null>(null);
@@ -107,10 +107,11 @@ export function MobileHomeView({
             <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-ink">
               {hasChosenLocation ? (
                 <>
-                  {cityName} Site · <span className="tabular-nums text-ink-500">{pincode}</span>
+                  <span className="font-semibold text-ink-500">Deliver to </span>
+                  {locationLabel}
                 </>
               ) : (
-                "Choose delivery location"
+                "Where should we deliver?"
               )}
             </span>
           </span>

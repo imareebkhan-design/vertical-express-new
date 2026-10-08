@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Truck } from "lucide-react";
+import { LiveTrackingCard } from "@/components/tracking/live-tracking-card";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import type { OrderShipments } from "@/lib/services/shipments";
 
@@ -119,6 +120,14 @@ export function TrackingView({ order }: { order: OrderShipments }) {
         </div>
       )}
 
+      {/* Live map only while this shipment is on the road. Keyed so switching
+          shipments starts a fresh map rather than reusing the last one's rider. */}
+      {shipment.status === "out_for_delivery" && (
+        <div className="px-5 pt-5">
+          <LiveTrackingCard key={shipment.id} orderNo={order.orderNo} shipmentId={shipment.id} />
+        </div>
+      )}
+
       <div className="px-5 pt-5">
         <div className="rounded-[24px] bg-paper p-5 shadow-card">
           <p className="text-[12px] font-bold uppercase tracking-[0.09em] text-ink-500">
@@ -133,7 +142,7 @@ export function TrackingView({ order }: { order: OrderShipments }) {
             </p>
           )}
 
-          {/* Stage timeline. Replaces live position, which is deferred. */}
+          {/* Stage timeline. The live position, when there is one, is the card above. */}
           <ol className="mt-5 space-y-0">
             {STAGES.map((stage, i) => {
               const done = idx >= i;

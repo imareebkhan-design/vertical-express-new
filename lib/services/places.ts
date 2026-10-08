@@ -3,6 +3,13 @@ import { z } from "zod";
 import { parseGeocodeResponse } from "@/lib/geocode-parse";
 import { captureException } from "@/lib/observability";
 
+/**
+ * Suggestions lean towards Srinagar — the only market (CLAUDE.md) — without
+ * being limited to it. A bias, not a restriction: whether we deliver somewhere
+ * is the serviceability table's decision, never the search box's.
+ */
+const SRINAGAR_BIAS = { circle: { center: { latitude: 34.0837, longitude: 74.7973 }, radius: 30_000 } };
+
 export const placesInput = z.discriminatedUnion("action", [
   z.object({ action: z.literal("suggest"), query: z.string().trim().min(3).max(160), session: z.string().uuid() }),
   z.object({ action: z.literal("resolve"), placeId: z.string().regex(/^[A-Za-z0-9_-]{1,255}$/), session: z.string().uuid() }),
@@ -32,7 +39,7 @@ export async function lookupPlace(input: z.infer<typeof placesInput>, fetchImpl:
     { method: suggest ? "POST" : "GET", cache: "no-store", signal: controller.signal,
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key,
         "X-Goog-FieldMask": suggest ? "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text" : "location,addressComponents" },
-      ...(suggest ? { body: JSON.stringify({ input: input.query, sessionToken: input.session, includedRegionCodes: ["in"], languageCode: "en" }) } : {}),
+      ...(suggest ? { body: JSON.stringify({ input: input.query, sessionToken: input.session, includedRegionCodes: ["in"], languageCode: "en", locationBias: SRINAGAR_BIAS }) } : {}),
     });
     if (!response.ok) {
       captureException(new Error(`Places API HTTP ${response.status}`), { route: "places", action: input.action });

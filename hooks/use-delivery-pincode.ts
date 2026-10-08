@@ -26,13 +26,26 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const KEY_PINCODE = "ve_pincode";
 const KEY_CITY = "ve_city";
+/** The confirmed place behind the pincode, when the customer chose one by GPS or search. */
+const KEY_PLACE = "ve_delivery_place";
+
+/** What a confirmed location keeps — see lib/location/delivery-candidate.ts. */
+export interface DeliveryPlace {
+  source: "gps" | "search";
+  label: string;
+  formattedAddress: string;
+  lat: number;
+  lng: number;
+  placeId: string | null;
+}
 
 interface LocationState {
   pincode: string | null;
   city: string | null;
+  place: DeliveryPlace | null;
 }
 
-let locationState: LocationState = { pincode: null, city: null };
+let locationState: LocationState = { pincode: null, city: null, place: null };
 let checkingState = false;
 let errorState: string | null = null;
 let hydrated = false;
@@ -45,7 +58,16 @@ function emit() {
 function hydrate() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
-  locationState = { pincode: localStorage.getItem(KEY_PINCODE), city: localStorage.getItem(KEY_CITY) };
+  locationState = { pincode: localStorage.getItem(KEY_PINCODE), city: localStorage.getItem(KEY_CITY), place: readPlace() };
+}
+
+function readPlace(): DeliveryPlace | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY_PLACE) ?? "null") as DeliveryPlace | null;
+    return raw && typeof raw.lat === "number" && typeof raw.lng === "number" && typeof raw.label === "string" ? raw : null;
+  } catch {
+    return null;
+  }
 }
 
 function subscribe(listener: () => void) {
@@ -63,7 +85,7 @@ function getLocationSnapshot(): LocationState {
    identity, and a new object each time is reported as a possible infinite
    loop. It surfaced once the phone-web shell (mounted on every page) began
    reading this store. */
-const SERVER_LOCATION: LocationState = { pincode: null, city: null };
+const SERVER_LOCATION: LocationState = { pincode: null, city: null, place: null };
 
 function getServerLocationSnapshot(): LocationState {
   return SERVER_LOCATION;
@@ -99,7 +121,9 @@ async function confirmPincode(candidate: string): Promise<boolean> {
        rather than repeated silently here. */
     localStorage.setItem(KEY_PINCODE, candidate);
     localStorage.setItem(KEY_CITY, "Srinagar");
-    locationState = { pincode: candidate, city: "Srinagar" };
+    /* A typed pincode replaces any earlier pin: the customer chose it on purpose. */
+    localStorage.removeItem(KEY_PLACE);
+    locationState = { pincode: candidate, city: "Srinagar", place: null };
     return true;
   } catch {
     errorState = "Couldn't check that pincode. Try again.";
@@ -110,11 +134,38 @@ async function confirmPincode(candidate: string): Promise<boolean> {
   }
 }
 
+/**
+ * Saves a place the customer confirmed in the location sheet. Only ever called
+ * from an explicit "Deliver here" — a GPS fix never replaces a chosen location
+ * on its own — and only for a place the server said we deliver to.
+ */
+function choosePlace(place: DeliveryPlace & { pincode: string; city: string | null; serviceable: boolean }): boolean {
+  if (!place.serviceable || !/^\d{6}$/.test(place.pincode)) return false;
+  const kept: DeliveryPlace = {
+    source: place.source,
+    label: place.label,
+    formattedAddress: place.formattedAddress,
+    lat: place.lat,
+    lng: place.lng,
+    placeId: place.placeId,
+  };
+  const city = place.city ?? "Srinagar";
+  localStorage.setItem(KEY_PINCODE, place.pincode);
+  localStorage.setItem(KEY_CITY, city);
+  localStorage.setItem(KEY_PLACE, JSON.stringify(kept));
+  locationState = { pincode: place.pincode, city, place: kept };
+  errorState = null;
+  emit();
+  return true;
+}
+
 export function useDeliveryPincode() {
-  const { pincode, city } = useSyncExternalStore(subscribe, getLocationSnapshot, getServerLocationSnapshot);
+  const { pincode, city, place } = useSyncExternalStore(subscribe, getLocationSnapshot, getServerLocationSnapshot);
   const checking = useSyncExternalStore(subscribe, getCheckingSnapshot, getFalse);
   const error = useSyncExternalStore(subscribe, getErrorSnapshot, getNull);
   const confirm = useCallback((candidate: string) => confirmPincode(candidate), []);
 
-  return { pincode, city, hasChosen: pincode !== null, checking, error, confirm };
+  const choose = useCallback(choosePlace, []);
+
+  return { pincode, city, place, hasChosen: pincode !== null, checking, error, confirm, choose };
 }

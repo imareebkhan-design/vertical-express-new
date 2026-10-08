@@ -151,6 +151,18 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/v1/wishlist/toggle/route.ts": "lib/api/authed.ts",
     /* Coupon eligibility depends on this customer's own cart and usage history. */
     "app/api/v1/coupon/validate/route.ts": "lib/api/authed.ts",
+    /* The order's owner only — ownership is in the tracking query. */
+    "app/api/v1/orders/[orderNo]/tracking/route.ts": "lib/api/authed.ts",
+  };
+
+  /* The driver app. Authenticated by a verified Firebase token resolved to an
+     active roster driver by its verified phone (`resolveDriver`), not to a
+     customer — so the module must still verify a token and resolve a driver. */
+  const DRIVER_AUTHENTICATED: Record<string, string> = {
+    "app/api/v1/driver/shipments/route.ts": "lib/api/tracking.ts",
+    "app/api/v1/driver/shipments/[shipmentId]/start/route.ts": "lib/api/tracking.ts",
+    "app/api/v1/driver/shipments/[shipmentId]/location/route.ts": "lib/api/tracking.ts",
+    "app/api/v1/driver/shipments/[shipmentId]/deliver/route.ts": "lib/api/tracking.ts",
   };
 
   const handlers = walk(join(ROOT, "app/api"))
@@ -161,6 +173,14 @@ test("no route handler reads admin data without gating itself", () => {
 
   for (const rel of handlers) {
     if (PUBLIC_BY_DESIGN.has(rel) || SECRET_OR_SIGNATURE.has(rel)) continue;
+
+    const driverModule = DRIVER_AUTHENTICATED[rel];
+    if (driverModule) {
+      const src = read(driverModule);
+      assert.match(src, /await verify\(token\)/, `${rel}: ${driverModule} no longer verifies a token`);
+      assert.match(src, /resolveDriver\(decoded\)/, `${rel}: ${driverModule} no longer resolves a driver`);
+      continue;
+    }
 
     const authModule = CUSTOMER_AUTHENTICATED[rel];
     if (authModule) {

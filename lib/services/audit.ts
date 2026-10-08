@@ -22,7 +22,7 @@ import { db } from "@/lib/db";
 /** Anything that can be given to a Prisma write — the client or a transaction. */
 export type DbClient = PrismaClient | Prisma.TransactionClient;
 
-export type AuditActorType = "admin" | "customer" | "system";
+export type AuditActorType = "admin" | "customer" | "system" | "driver";
 
 export interface AuditEntry {
   actorType: AuditActorType;

@@ -50,8 +50,16 @@ export async function advanceShipment(params: {
   shipmentId: string;
   to: ShipmentStatus;
   actor: { id: string; email: string };
+  /** Who is acting, for the audit trail. Ops by default; the driver app passes "driver". */
+  actorType?: "admin" | "driver";
+  /**
+   * Only move the shipment if it is still assigned to this driver — checked in
+   * the same guarded update, so a reassignment between the driver's check and
+   * this write cannot let the previous driver move it.
+   */
+  requireDriverId?: string;
 }): Promise<AdvanceResult> {
-  const { shipmentId, to, actor } = params;
+  const { shipmentId, to, actor, actorType = "admin", requireDriverId } = params;
 
   const shipment = await db.shipment.findUnique({
     where: { id: shipmentId },
@@ -94,7 +102,7 @@ export async function advanceShipment(params: {
     /* Guarded on the status we read. If anything moved the row in between, this
        matches zero rows and we report the race rather than overwriting it. */
     const updated = await tx.shipment.updateMany({
-      where: { id: shipmentId, status: from },
+      where: { id: shipmentId, status: from, ...(requireDriverId ? { driverId: requireDriverId } : {}) },
       data: {
         status: to,
         ...(to === "out_for_delivery" ? { dispatchedAt: now, deliveryCode } : {}),
@@ -103,6 +111,13 @@ export async function advanceShipment(params: {
     });
 
     if (updated.count === 0) return { ok: false, reason: "raced" } as const;
+
+    /* A finished delivery has no live position. Removed in the same
+       transaction, so there is no moment where a delivered or cancelled
+       shipment still exposes where its driver is. */
+    if (to === "delivered" || to === "cancelled") {
+      await tx.shipmentLiveLocation.deleteMany({ where: { shipmentId } });
+    }
 
     /* A cancelled shipment's goods go back on the shelf. Recorded separately
        from the status change because it is a different kind of loss to
@@ -120,7 +135,7 @@ export async function advanceShipment(params: {
     }
 
     await recordAudit(tx, {
-      actorType: "admin",
+      actorType,
       actorId: actor.id,
       action: "shipment.status_changed",
       entityType: "shipment",
@@ -267,8 +282,11 @@ export async function confirmDelivery(params: {
   shipmentId: string;
   code: string;
   actor: { id: string; email: string };
+  actorType?: "admin" | "driver";
+  /** As in `advanceShipment`: only if still assigned to this driver. */
+  requireDriverId?: string;
 }): Promise<ConfirmResult> {
-  const { shipmentId, code, actor } = params;
+  const { shipmentId, code, actor, actorType = "admin", requireDriverId } = params;
 
   /* Fail closed. A limiter outage must not open a million-value brute force on
      a credential that stands between goods and the wrong person. */
@@ -279,7 +297,7 @@ export async function confirmDelivery(params: {
 
   const shipment = await db.shipment.findUnique({
     where: { id: shipmentId },
-    select: { id: true, status: true, deliveryCode: true, orderId: true, sequence: true },
+    select: { id: true, status: true, deliveryCode: true, orderId: true, sequence: true, driverId: true },
   });
 
   /* Every rejection below returns the same thing and does the same comparison
@@ -288,19 +306,21 @@ export async function confirmDelivery(params: {
   const expected = shipment?.deliveryCode ?? null;
   const matches = constantTimeEquals(code, expected);
 
-  if (!shipment || shipment.status !== "out_for_delivery" || !matches) {
+  const driverOk = requireDriverId === undefined || shipment?.driverId === requireDriverId;
+  if (!shipment || shipment.status !== "out_for_delivery" || !matches || !driverOk) {
     return { ok: false, reason: "rejected" };
   }
 
   return db.$transaction(async (tx) => {
     const updated = await tx.shipment.updateMany({
-      where: { id: shipmentId, status: "out_for_delivery" },
+      where: { id: shipmentId, status: "out_for_delivery", ...(requireDriverId ? { driverId: requireDriverId } : {}) },
       data: { status: "delivered", deliveredAt: new Date() },
     });
     if (updated.count === 0) return { ok: false, reason: "rejected" } as const;
+    await tx.shipmentLiveLocation.deleteMany({ where: { shipmentId } });
 
     await recordAudit(tx, {
-      actorType: "admin",
+      actorType,
       actorId: actor.id,
       action: "shipment.status_changed",
       entityType: "shipment",

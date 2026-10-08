@@ -235,8 +235,8 @@ model ProductImage {
   sha256    String? @db.Char(64)
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@index([productId, sortOrder])
   @@unique([productId, sha256])
+  @@index([productId, sortOrder])
   @@map("product_images")
 }
 
@@ -627,14 +627,20 @@ model Professional {
 /// terms and none of them is confirmed. This is the minimum needed to answer
 /// "who took it", which is what proof of delivery rests on.
 model Driver {
-  id        String     @id @default(uuid()) @db.Uuid
-  name      String
+  id            String                 @id @default(uuid()) @db.Uuid
+  name          String
   /// How dispatch reaches them, and how a customer's call gets routed.
-  phone     String     @unique
-  isActive  Boolean    @default(true) @map("is_active")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime   @updatedAt @map("updated_at")
-  shipments Shipment[]
+  phone         String                 @unique
+  /// The Firebase account that signed in with this driver's verified phone,
+  /// pinned on first use. A driver is recognised by the `phone_number` claim
+  /// Firebase verified, never by a phone a profile form could hold; once
+  /// pinned, a different account presenting the same number is refused.
+  firebaseUid   String?                @unique @map("firebase_uid")
+  isActive      Boolean                @default(true) @map("is_active")
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  shipments     Shipment[]
+  liveLocations ShipmentLiveLocation[]
 
   @@index([isActive])
   @@map("drivers")
@@ -673,35 +679,37 @@ model Vehicle {
 /// contract step — deriving order state from its shipments — is a later release,
 /// per the expand/migrate/contract rule in CLAUDE.md.
 model Shipment {
-  id           String         @id @default(uuid()) @db.Uuid
-  orderId      String         @map("order_id") @db.Uuid
+  id              String                   @id @default(uuid()) @db.Uuid
+  orderId         String                   @map("order_id") @db.Uuid
   /// 1-based, stable. Renders as "Shipment 1 of 2" and orders the dispatch board.
-  sequence     Int
-  speedClass   SpeedClass     @map("speed_class")
+  sequence        Int
+  speedClass      SpeedClass               @map("speed_class")
   /// This shipment carries the express run the customer chose and paid for (E7).
   /// `speedClass` says how goods travel (bike or truck); it is written the same
   /// whether express was bought or not, so it cannot say this.
-  expressRun   Boolean        @default(false) @map("express_run")
-  status       ShipmentStatus @default(pending)
-  warehouseId  String?        @map("warehouse_id") @db.Uuid
+  expressRun      Boolean                  @default(false) @map("express_run")
+  status          ShipmentStatus           @default(pending)
+  warehouseId     String?                  @map("warehouse_id") @db.Uuid
   /// When we told the customer it would arrive. Null until slots exist.
-  promisedAt   DateTime?      @map("promised_at")
-  dispatchedAt DateTime?      @map("dispatched_at")
-  deliveredAt  DateTime?      @map("delivered_at")
+  promisedAt      DateTime?                @map("promised_at")
+  dispatchedAt    DateTime?                @map("dispatched_at")
+  deliveredAt     DateTime?                @map("delivered_at")
   /// Shared with the driver at the gate to confirm handover.
-  deliveryCode String?        @map("delivery_code")
+  deliveryCode    String?                  @map("delivery_code")
   /// Who is carrying it, and in what. Both null until dispatch — a shipment in
   /// the warehouse has no driver, and pretending otherwise would make the
   /// dispatch board show work as already assigned.
-  driverId     String?        @map("driver_id") @db.Uuid
-  vehicleId    String?        @map("vehicle_id") @db.Uuid
-  createdAt    DateTime       @default(now()) @map("created_at")
-  updatedAt    DateTime       @updatedAt @map("updated_at")
-  order        Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  warehouse    Warehouse?     @relation(fields: [warehouseId], references: [id])
-  driver       Driver?        @relation(fields: [driverId], references: [id])
-  vehicle      Vehicle?       @relation(fields: [vehicleId], references: [id])
-  items        ShipmentItem[]
+  driverId        String?                  @map("driver_id") @db.Uuid
+  vehicleId       String?                  @map("vehicle_id") @db.Uuid
+  createdAt       DateTime                 @default(now()) @map("created_at")
+  updatedAt       DateTime                 @updatedAt @map("updated_at")
+  order           Order                    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse?               @relation(fields: [warehouseId], references: [id])
+  driver          Driver?                  @relation(fields: [driverId], references: [id])
+  vehicle         Vehicle?                 @relation(fields: [vehicleId], references: [id])
+  items           ShipmentItem[]
+  liveLocation    ShipmentLiveLocation?
+  locationSamples ShipmentLocationSample[]
 
   @@unique([orderId, sequence])
   @@index([status])
@@ -984,6 +992,7 @@ enum AuditActor {
   admin
   customer
   system
+  driver
 
   @@map("audit_actor")
 }
@@ -1044,4 +1053,60 @@ model StockMovement {
   @@index([variantId, warehouseId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
   @@map("stock_movements")
+}
+
+/// Where the driver carrying an out-for-delivery shipment last said they were.
+///
+/// One row per shipment, overwritten in place: the customer's map needs the
+/// latest position, not a history, so a delivery writes one row however long it
+/// runs. Written only by the driver assigned to the shipment, only while it is
+/// `out_for_delivery`, and deleted in the same transaction that delivers or
+/// cancels it — a finished delivery has no position to leak.
+///
+/// The route columns cache the last Routes API answer for this shipment, so
+/// every customer poll does not become a billed route request. They are
+/// recomputed only when the cache is old or the driver has moved away from it
+/// (lib/tracking/route-policy.ts).
+model ShipmentLiveLocation {
+  shipmentId      String    @id @map("shipment_id") @db.Uuid
+  driverId        String    @map("driver_id") @db.Uuid
+  latitude        Float
+  longitude       Float
+  accuracyM       Float?    @map("accuracy_m")
+  /// Only when the device reported one; the marker does not rotate without it.
+  headingDeg      Float?    @map("heading_deg")
+  speedMps        Float?    @map("speed_mps")
+  /// When the device took the fix.
+  recordedAt      DateTime  @map("recorded_at")
+  /// When the server accepted it. Drives the update rate limit.
+  receivedAt      DateTime  @map("received_at")
+  lastSampledAt   DateTime? @map("last_sampled_at")
+  routeComputedAt DateTime? @map("route_computed_at")
+  routeOriginLat  Float?    @map("route_origin_lat")
+  routeOriginLng  Float?    @map("route_origin_lng")
+  routeDistanceM  Int?      @map("route_distance_m")
+  routeDurationS  Int?      @map("route_duration_s")
+  routePolyline   String?   @map("route_polyline")
+  /// Routes API requests made for this shipment — cost monitoring.
+  routeCalls      Int       @default(0) @map("route_calls")
+  shipment        Shipment  @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  driver          Driver    @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+  @@map("shipment_live_locations")
+}
+
+/// A sampled breadcrumb of a delivery's path — at most one per
+/// `SAMPLE_EVERY_MS`, not every GPS fix — kept so "the driver never came near
+/// my address" can be answered. Never shown to customers.
+model ShipmentLocationSample {
+  id         String   @id @default(uuid()) @db.Uuid
+  shipmentId String   @map("shipment_id") @db.Uuid
+  latitude   Float
+  longitude  Float
+  recordedAt DateTime @map("recorded_at")
+  shipment   Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, recordedAt])
+  @@map("shipment_location_samples")
 }

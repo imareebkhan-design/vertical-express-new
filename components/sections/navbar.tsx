@@ -14,7 +14,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
-import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
+import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
@@ -70,9 +70,8 @@ export function Navbar() {
   const scrolled = useScrolled(16);
   const { count, summary } = useCart();
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  const { pincode, city: area, hasChosen, checking, error, confirm } = useDeliveryPincode();
-  const [pincodeInput, setPincodeInput] = useState("");
-  const [editingPincode, setEditingPincode] = useState(false);
+  /* The location sheet is the shell's (one instance for every page). */
+  const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const pathname = usePathname();
 
   const totalDisplay = summary.subtotalPaise > 0
@@ -100,38 +99,22 @@ export function Navbar() {
 
           {/* Site Chip (Pincode + Area Only — No delivery speed promise in header) */}
           <div className="relative shrink-0">
-            {editingPincode ? (
-              <div className="flex h-11 items-center gap-2 rounded-full border border-line bg-paper px-4 shadow-card">
-                <MapPin className="size-4 text-ink-500" aria-hidden />
-                <input
-                  autoFocus
-                  value={pincodeInput}
-                  maxLength={6}
-                  disabled={checking}
-                  onChange={(e) => setPincodeInput(e.target.value.replace(/\D/g, ""))}
-                  onBlur={() => {
-                    if (pincodeInput) void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
-                    else setEditingPincode(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter" || !pincodeInput) return;
-                    void confirm(pincodeInput).then((ok) => { if (ok) setEditingPincode(false); });
-                  }}
-                  className="w-16 border-b border-ink bg-transparent text-[13px] font-bold focus:outline-none"
-                  aria-label="Delivery pincode"
-                />
-                {error ? <span className="text-[11px] font-semibold text-danger">{error}</span> : null}
-              </div>
-            ) : (
-              <button
-                onClick={() => { setPincodeInput(pincode ?? ""); setEditingPincode(true); }}
-                className="inline-flex h-11 items-center gap-2.5 rounded-full bg-paper px-4 text-[13px] font-bold text-ink shadow-card hover:bg-hush transition-colors cursor-pointer"
-              >
-                <MapPin className="size-4 text-ink-500" aria-hidden />
-                <span>{hasChosen ? `${pincode} · ${area}` : "Choose delivery pincode"}</span>
-                <ChevronDown className="size-3.5 text-ink-500" aria-hidden />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openLocationModal}
+              className="inline-flex h-11 max-w-[260px] items-center gap-2.5 rounded-full bg-paper px-4 text-left text-ink shadow-card hover:bg-hush transition-colors cursor-pointer"
+            >
+              <MapPin className="size-4 flex-none text-ink-500" aria-hidden />
+              {hasChosenLocation ? (
+                <span className="flex min-w-0 flex-col leading-tight">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-ink-500">Deliver to</span>
+                  <span className="truncate text-[13px] font-bold">{locationLabel}</span>
+                </span>
+              ) : (
+                <span className="text-[13px] font-bold">Where should we deliver?</span>
+              )}
+              <ChevronDown className="size-3.5 flex-none text-ink-500" aria-hidden />
+            </button>
           </div>
 
           {/* Actions: Account + Cart */}

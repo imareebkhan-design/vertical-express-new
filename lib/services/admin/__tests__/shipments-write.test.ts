@@ -269,7 +269,7 @@ test("the write is guarded on the status it read, in one statement", () => {
   ).replace(/\/\*[\s\S]*?\*\//g, " ");
   assert.match(
     src,
-    /updateMany\(\{\s*where:\s*\{\s*id:\s*shipmentId,\s*status:\s*from\s*\}/,
+    /updateMany\(\{\s*where:\s*\{\s*id:\s*shipmentId,\s*status:\s*from\b/,
     "the shipment write is no longer guarded on the status it read"
   );
 });
