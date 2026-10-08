@@ -387,6 +387,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
                     className="group flex flex-col items-center no-underline"
                   >
                     <ProductPanel
+                      use="category"
                       categorySlug={cat.slug}
                       label={cat.name}
                       className="ve-cat-tile aspect-square w-full rounded-[20px]"

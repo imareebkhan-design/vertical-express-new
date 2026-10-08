@@ -69,30 +69,39 @@ const FINISH_SCENE: MerchImage = {
  * here falls back to the category's line drawing. Provenance:
  * docs/ASSET_PROVENANCE.md.
  */
-export const CATEGORY_IMAGERY: Readonly<Record<string, MerchImage>> = {
-  cement: { src: "/merchandising/category-tiles/cement.webp", alt: "Sacks of cement" },
-  tiling: { src: "/merchandising/category-tiles/tiling.webp", alt: "Ceramic floor and wall tiles" },
-  painting: { src: "/merchandising/category-tiles/painting.webp", alt: "Paint tin, roller and brush" },
-  waterproofing: { src: "/merchandising/category-tiles/waterproofing.webp", alt: "Bucket of waterproofing coating with a brush" },
-  "plywood-mdf-hdhmr": { src: "/merchandising/category-tiles/plywood-mdf-hdhmr.webp", alt: "Stack of plywood and laminated board" },
-  fevicol: { src: "/merchandising/category-tiles/fevicol.webp", alt: "Wood glue bottle and adhesive tub" },
-  "hinges-channels-handles": { src: "/merchandising/category-tiles/hinges-channels-handles.webp", alt: "Hinges, a drawer channel and a cabinet handle" },
-  "kitchen-systems-accessories": { src: "/merchandising/category-tiles/kitchen-systems-accessories.webp", alt: "Pull-out kitchen basket" },
-  "wardrobe-bed-fittings": { src: "/merchandising/category-tiles/wardrobe-bed-fittings.webp", alt: "Wardrobe rail, cabinet hinges and bed gas lifts" },
-  "door-locks-hardware": { src: "/merchandising/category-tiles/door-locks-hardware.webp", alt: "Lever door handle with mortise lock" },
-  "general-hardware-tools": { src: "/merchandising/category-tiles/general-hardware-tools.webp", alt: "Hammer, spanner and screwdrivers" },
-  "wires-mcb-distribution-boards": { src: "/merchandising/category-tiles/wires-mcb-distribution-boards.webp", alt: "Coils of electrical wire and MCBs" },
-  "switches-sockets": { src: "/merchandising/category-tiles/switches-sockets.webp", alt: "Modular switch plate with a socket" },
-  "conduits-gi-boxes": { src: "/merchandising/category-tiles/conduits-gi-boxes.webp", alt: "PVC conduit fittings and a junction box" },
-  lighting: { src: "/merchandising/category-tiles/lighting.webp", alt: "LED bulb, panel light and tube light" },
-  "ceiling-fans-exhaust": { src: "/merchandising/category-tiles/ceiling-fans-exhaust.webp", alt: "Ceiling fan" },
-  "home-appliances-power-backup": { src: "/merchandising/category-tiles/home-appliances-power-backup.webp", alt: "Home inverter and battery" },
-  "cpvc-pipes-overhead-tanks": { src: "/merchandising/category-tiles/cpvc-pipes-overhead-tanks.webp", alt: "Water tank and CPVC pipe fittings" },
-  "sanitary-bath-fittings": { src: "/merchandising/category-tiles/sanitary-bath-fittings.webp", alt: "Shower head and basin mixer" },
-  "kitchen-sinks-faucets": { src: "/merchandising/category-tiles/kitchen-sinks-faucets.webp", alt: "Stainless steel sink and kitchen faucet" },
+export type CategoryIllustration = MerchImage & {
+  /**
+   * Always "category-illustration": generated, brand-neutral and representative
+   * of the category. Never a photograph of a specific SKU — a product's own
+   * photo comes from `product_images`, with its source and licence recorded.
+   */
+  kind: "category-illustration";
 };
 
-export function categoryImage(slug: string): MerchImage | null {
+export const CATEGORY_IMAGERY: Readonly<Record<string, CategoryIllustration>> = {
+  cement: { src: "/merchandising/category-tiles/cement.webp", alt: "Sacks of cement", kind: "category-illustration" },
+  tiling: { src: "/merchandising/category-tiles/tiling.webp", alt: "Ceramic floor and wall tiles", kind: "category-illustration" },
+  painting: { src: "/merchandising/category-tiles/painting.webp", alt: "Paint tin, roller and brush", kind: "category-illustration" },
+  waterproofing: { src: "/merchandising/category-tiles/waterproofing.webp", alt: "Bucket of waterproofing coating with a brush", kind: "category-illustration" },
+  "plywood-mdf-hdhmr": { src: "/merchandising/category-tiles/plywood-mdf-hdhmr.webp", alt: "Stack of plywood and laminated board", kind: "category-illustration" },
+  fevicol: { src: "/merchandising/category-tiles/fevicol.webp", alt: "Wood glue bottle and adhesive tub", kind: "category-illustration" },
+  "hinges-channels-handles": { src: "/merchandising/category-tiles/hinges-channels-handles.webp", alt: "Hinges, a drawer channel and a cabinet handle", kind: "category-illustration" },
+  "kitchen-systems-accessories": { src: "/merchandising/category-tiles/kitchen-systems-accessories.webp", alt: "Pull-out kitchen basket", kind: "category-illustration" },
+  "wardrobe-bed-fittings": { src: "/merchandising/category-tiles/wardrobe-bed-fittings.webp", alt: "Wardrobe rail, cabinet hinges and bed gas lifts", kind: "category-illustration" },
+  "door-locks-hardware": { src: "/merchandising/category-tiles/door-locks-hardware.webp", alt: "Lever door handle with mortise lock", kind: "category-illustration" },
+  "general-hardware-tools": { src: "/merchandising/category-tiles/general-hardware-tools.webp", alt: "Hammer, spanner and screwdrivers", kind: "category-illustration" },
+  "wires-mcb-distribution-boards": { src: "/merchandising/category-tiles/wires-mcb-distribution-boards.webp", alt: "Coils of electrical wire and MCBs", kind: "category-illustration" },
+  "switches-sockets": { src: "/merchandising/category-tiles/switches-sockets.webp", alt: "Modular switch plate with a socket", kind: "category-illustration" },
+  "conduits-gi-boxes": { src: "/merchandising/category-tiles/conduits-gi-boxes.webp", alt: "PVC conduit fittings and a junction box", kind: "category-illustration" },
+  lighting: { src: "/merchandising/category-tiles/lighting.webp", alt: "LED bulb, panel light and tube light", kind: "category-illustration" },
+  "ceiling-fans-exhaust": { src: "/merchandising/category-tiles/ceiling-fans-exhaust.webp", alt: "Ceiling fan", kind: "category-illustration" },
+  "home-appliances-power-backup": { src: "/merchandising/category-tiles/home-appliances-power-backup.webp", alt: "Home inverter and battery", kind: "category-illustration" },
+  "cpvc-pipes-overhead-tanks": { src: "/merchandising/category-tiles/cpvc-pipes-overhead-tanks.webp", alt: "Water tank and CPVC pipe fittings", kind: "category-illustration" },
+  "sanitary-bath-fittings": { src: "/merchandising/category-tiles/sanitary-bath-fittings.webp", alt: "Shower head and basin mixer", kind: "category-illustration" },
+  "kitchen-sinks-faucets": { src: "/merchandising/category-tiles/kitchen-sinks-faucets.webp", alt: "Stainless steel sink and kitchen faucet", kind: "category-illustration" },
+};
+
+export function categoryImage(slug: string): CategoryIllustration | null {
   return CATEGORY_IMAGERY[slug] ?? null;
 }
 

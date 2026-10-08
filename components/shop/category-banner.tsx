@@ -38,7 +38,7 @@ export function CategoryBanner({
           </p>
         </div>
 
-        <ProductPanel categorySlug={slug} label={name} className="hidden size-36 flex-none rounded-[22px] lg:flex" glyphClassName="size-20" />
+        <ProductPanel use="category" categorySlug={slug} label={name} className="hidden size-36 flex-none rounded-[22px] lg:flex" glyphClassName="size-20" />
       </div>
     </section>
   );
@@ -79,7 +79,7 @@ export function ShopByAttribute({
             href={`/category/${slug}?${lead.label.toLowerCase()}=${encodeURIComponent(value)}`}
             className="rounded-[20px] bg-paper p-4 no-underline shadow-card transition-shadow hover:shadow-card-hover"
           >
-            <ProductPanel categorySlug={slug} label={value} className="mb-3 h-20 w-full rounded-[14px]" glyphClassName="size-8" />
+            <ProductPanel use="category" categorySlug={slug} label={value} className="mb-3 h-20 w-full rounded-[14px]" glyphClassName="size-8" />
             <p className="text-[13px] font-bold leading-[17px] text-ink">{value}</p>
           </Link>
         ))}

@@ -336,6 +336,13 @@ export function CategoryGlyph({
 interface ProductPanelProps {
   /** Drives both the tint and the drawing. */
   categorySlug: string;
+  /**
+   * "category": the panel stands for the category itself (tiles, headers).
+   * "product" (default): it stands in for a product with no photograph of its
+   * own, so the illustration is labelled as representative — it must never
+   * read as a photo of that exact item.
+   */
+  use?: "category" | "product";
   /** Described to assistive tech; the drawing itself is decorative. */
   label: string;
   className?: string;
@@ -345,6 +352,7 @@ interface ProductPanelProps {
 export function ProductPanel({
   categorySlug,
   label,
+  use = "product",
   className,
   glyphClassName = "size-2/5",
 }: ProductPanelProps) {
@@ -355,15 +363,26 @@ export function ProductPanel({
      unbranded, representative product on a neutral well, the same picture the
      category tile uses. The drawing appears only if the picture fails. */
   if (picture) {
+    const standIn = use === "product";
     return (
       <div
         role="img"
-        aria-label={label}
-        className={cn("relative flex items-center justify-center overflow-hidden bg-chip-soft", className)}
+        aria-label={standIn ? `${label} — representative image, not a photo of this item` : label}
+        className={cn("@container relative flex items-center justify-center overflow-hidden bg-chip-soft", className)}
+        data-illustration={picture.kind}
       >
         <CutoutPicture image={{ ...picture, alt: "" }}>
           <CategoryGlyph name={glyph} className={glyphClassName} />
         </CutoutPicture>
+        {standIn ? (
+          /* Only where it fits; tiny thumbnails (cart lines) carry it in the label alone. */
+          <span
+            aria-hidden
+            className="absolute bottom-1.5 left-1.5 hidden rounded-full bg-paper/85 px-1.5 py-px text-[9.5px] font-semibold text-ink-500 @min-[140px]:block"
+          >
+            Representative image
+          </span>
+        ) : null}
       </div>
     );
   }

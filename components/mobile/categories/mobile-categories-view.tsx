@@ -81,7 +81,7 @@ export function MobileCategoriesView({
           <div className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
             {group.categories.map((c) => (
               <Link key={c.slug} href={`/category/${c.slug}`} className="no-underline">
-                <ProductPanel categorySlug={c.slug} label={c.name} className="aspect-square w-full rounded-[18px]" glyphClassName="size-8" />
+                <ProductPanel use="category" categorySlug={c.slug} label={c.name} className="aspect-square w-full rounded-[18px]" glyphClassName="size-8" />
                 <div className="mt-1.5 h-[26px] overflow-hidden text-center text-[11px] font-semibold leading-[13px] text-ink">
                   {c.name}
                 </div>
