@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import type { Category } from "@/prisma/generated/client/client";
 import { CATEGORY_GROUPS, ProductPanel } from "@/components/ui/product-panel";
+import { unlistedCategories, type IndexableCategory } from "@/lib/category-index";
 
 /**
  * The app's categories screen, built to the `Categories` artboard.
@@ -20,17 +20,19 @@ import { CATEGORY_GROUPS, ProductPanel } from "@/components/ui/product-panel";
 export function MobileCategoriesView({
   categories,
 }: {
-  /* Accepted so the route's data contract is unchanged, but the tree renders
-     from CATEGORY_GROUPS: the design fixes the order, the grouping and the
-     display names, none of which the Category rows carry. */
-  categories?: Category[];
+  /* The tree renders from CATEGORY_GROUPS — the design fixes the order, the
+     grouping and the display names. The rows add only categories the design
+     does not list yet (lib/category-index.ts). */
+  categories?: readonly IndexableCategory[];
 }) {
-  void categories;
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
 
-  const groups = activeGroup
-    ? CATEGORY_GROUPS.filter((g) => g.title === activeGroup)
-    : CATEGORY_GROUPS;
+  const extra = unlistedCategories(
+    categories ?? [],
+    new Set(CATEGORY_GROUPS.flatMap((g) => g.categories.map((c) => c.slug)))
+  );
+  const tree = CATEGORY_GROUPS.map((g) => ({ ...g, categories: [...g.categories, ...(extra.get(g.title) ?? [])] }));
+  const groups = activeGroup ? tree.filter((g) => g.title === activeGroup) : tree;
 
   return (
     <div className="flex flex-col bg-canvas">

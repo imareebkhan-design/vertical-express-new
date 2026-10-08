@@ -15,6 +15,7 @@ import { PageLoader } from "@/components/page-loader";
 // Mobile Components
 import { MobileCategoriesView } from "@/components/mobile/categories/mobile-categories-view";
 import { ProductPanel } from "@/components/ui/product-panel";
+import { unlistedCategories } from "@/lib/category-index";
 
 interface CategoriesSwitcherProps {
   /** Carries `_count.products`, which the tiles render. */
@@ -31,6 +32,13 @@ interface GroupDefinition {
     iconSvg: React.ReactNode;
   }[];
 }
+
+/** For categories appended from the data (lib/category-index.ts); the curated ones keep their own. */
+const UNLISTED_ICON = (
+  <svg className="size-12 stroke-[1.4] fill-none stroke-current" viewBox="0 0 24 24">
+    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+  </svg>
+);
 
 const GROUPS: GroupDefinition[] = [
   {
@@ -295,12 +303,18 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
   );
 
   const filteredGroups = useMemo(() => {
+    const listed = new Set(GROUPS.flatMap((g) => g.categories.map((c) => c.slug)));
+    const extra = unlistedCategories(categories, listed);
     return GROUPS.map((group) => {
       if (activeFilter && group.title !== activeFilter) {
         return null;
       }
+      const all = [
+        ...group.categories,
+        ...(extra.get(group.title) ?? []).map((c) => ({ ...c, iconSvg: UNLISTED_ICON })),
+      ];
       /* An empty or inactive category is an empty shelf: left out, not shown with a zero. */
-      const matchedCategories = group.categories.filter(
+      const matchedCategories = all.filter(
         (c) => (countBySlug[c.slug] ?? 0) > 0 && c.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       if (matchedCategories.length === 0) return null;
@@ -309,7 +323,7 @@ export function CategoriesSwitcher({ categories }: CategoriesSwitcherProps) {
         categories: matchedCategories,
       };
     }).filter(Boolean) as GroupDefinition[];
-  }, [activeFilter, searchQuery, countBySlug]);
+  }, [activeFilter, searchQuery, countBySlug, categories]);
 
   if (!ready) {
     return <PageLoader />;
