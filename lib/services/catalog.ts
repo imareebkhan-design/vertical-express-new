@@ -3,6 +3,7 @@ import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { unstable_cache } from "next/cache";
+import { expandedSearchTerms } from "@/lib/search-terms";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
 
 /** Serializable product card payload shared by PLP, search, deals, wishlist. */
@@ -315,23 +316,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
     },
   });
 
-  const expandedTerms = [primaryTerm];
-  for (const rec of synonymRecords) {
-    if (tokens.includes(rec.word)) {
-      expandedTerms.push(...rec.synonyms.split(",").map(s => s.trim().toLowerCase()));
-    }
-    const list = rec.synonyms.split(",").map(s => s.trim().toLowerCase());
-    for (const token of tokens) {
-      if (list.includes(token)) {
-        expandedTerms.push(rec.word);
-        expandedTerms.push(...list);
-      }
-    }
-  }
-
-  // Deduplicate synonym terms, leaving out the primary query term
-  const synonymsList = Array.from(new Set(expandedTerms))
-    .filter((t) => t && t !== primaryTerm);
+  const synonymsList = expandedSearchTerms(primaryTerm, synonymRecords).filter(t => t !== primaryTerm);
 
   // 2. Build dynamic PostgreSQL filter queries and args to prevent injection
   const conditions = [
@@ -348,11 +333,11 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   let argIndex = 5;
 
   const searchCond = `(
-    LOWER(p.title) LIKE LOWER($4) OR
-    LOWER(b.name) LIKE LOWER($4) OR
-    LOWER(c.name) LIKE LOWER($4) OR
+    (CASE WHEN char_length($1) <= 3 THEN $1 = ANY(regexp_split_to_array(LOWER(p.title), '[^a-z0-9]+')) ELSE LOWER(p.title) LIKE LOWER($4) END) OR
+    (CASE WHEN char_length($1) <= 3 THEN $1 = ANY(regexp_split_to_array(LOWER(b.name), '[^a-z0-9]+')) ELSE LOWER(b.name) LIKE LOWER($4) END) OR
+    (CASE WHEN char_length($1) <= 3 THEN $1 = ANY(regexp_split_to_array(LOWER(c.name), '[^a-z0-9]+')) ELSE LOWER(c.name) LIKE LOWER($4) END) OR
     EXISTS (SELECT 1 FROM product_variants pv WHERE pv.product_id = p.id AND LOWER(pv.sku) LIKE LOWER($4)) OR
-    similarity(p.title, $1) >= 0.18 OR
+    (char_length($1) > 3 AND similarity(p.title, $1) >= 0.18) OR
     EXISTS (
       SELECT 1 FROM unnest($3::text[]) term 
       WHERE LOWER(p.title) LIKE ('%' || term || '%') 

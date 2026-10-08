@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { expandedSearchTerms, matchesSearchName } from "@/lib/search-terms";
 
 export interface SearchSuggestions {
   products: { slug: string; title: string; brandName: string; imageUrl: string | null; pricePaise: number }[];
@@ -27,32 +28,25 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
     },
   });
 
-  const expandedTerms = [primaryTerm];
-  for (const rec of synonymRecords) {
-    if (tokens.includes(rec.word)) {
-      expandedTerms.push(...rec.synonyms.split(",").map(s => s.trim().toLowerCase()));
-    }
-    const list = rec.synonyms.split(",").map(s => s.trim().toLowerCase());
-    for (const token of tokens) {
-      if (list.includes(token)) {
-        expandedTerms.push(rec.word);
-        expandedTerms.push(...list);
-      }
-    }
-  }
+  const deduplicatedTerms = expandedSearchTerms(primaryTerm, synonymRecords);
 
-  const deduplicatedTerms = Array.from(new Set(expandedTerms))
-    .filter(Boolean);
-
-  // 2. Fetch products matching any of the terms
+  // Filter short terms at the database before LIMIT: post-filtering a capped
+  // result could let unrelated "Accessories" rows crowd out the actual ACC.
+  const matchingIds = await db.$queryRaw<{ id: string }[]>`
+    SELECT p.id FROM products p
+    JOIN brands b ON b.id = p.brand_id JOIN categories c ON c.id = p.category_id
+    WHERE p.status = 'published' AND EXISTS (
+      SELECT 1 FROM unnest(${deduplicatedTerms}::text[]) term
+      WHERE CASE WHEN char_length(term) <= 3 THEN
+        term = ANY(regexp_split_to_array(lower(p.title || ' ' || b.name || ' ' || c.name), '[^a-z0-9]+'))
+      ELSE lower(p.title) LIKE '%' || term || '%'
+        OR lower(b.name) LIKE '%' || term || '%'
+        OR lower(c.name) LIKE '%' || term || '%' END
+    )`;
   const products = await db.product.findMany({
     where: {
       status: "published",
-      OR: deduplicatedTerms.flatMap((term) => [
-        { title: { contains: term, mode: "insensitive" } },
-        { brand: { name: { contains: term, mode: "insensitive" } } },
-        { category: { name: { contains: term, mode: "insensitive" } } },
-      ]),
+      id: { in: matchingIds.map(p => p.id) },
     },
     /* `ratingCount` is always zero (ISS-034), so this ranked nothing. Deals
        first, then newest — the order it actually produced. */
@@ -73,7 +67,6 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
         name: { contains: term, mode: "insensitive" },
       })),
     },
-    take: 3,
     select: { slug: true, name: true },
   });
 
@@ -85,7 +78,6 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
         name: { contains: term, mode: "insensitive" },
       })),
     },
-    take: 3,
     select: { slug: true, name: true },
   });
 
@@ -108,7 +100,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
 
   return {
     products: uniqueProducts,
-    categories: categories.slice(0, 3),
-    brands: brands.slice(0, 3),
+    categories: categories.filter(c => deduplicatedTerms.some(t => matchesSearchName(c.name, t))).slice(0, 3),
+    brands: brands.filter(b => deduplicatedTerms.some(t => matchesSearchName(b.name, t))).slice(0, 3),
   };
 }
