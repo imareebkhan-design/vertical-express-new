@@ -138,6 +138,9 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
         </div>
       ))}
 
+      {/* No priced product in the listing (e.g. a catalog-only shelf): a
+          0–0 price filter would filter nothing and read as a ₹0 price. */}
+      {(facets.priceRange.maxPaise > 0 || searchParams.has("minPrice") || searchParams.has("maxPrice")) && (
       <div>
         <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-neutral-400">Price (₹)</h3>
         <div className="flex items-center gap-2">
@@ -161,6 +164,7 @@ export function FilterSidebar({ facets }: { facets: CatalogFacets }) {
           Apply price
         </Button>
       </div>
+      )}
     </aside>
   );
 }
