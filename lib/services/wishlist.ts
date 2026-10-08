@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { CatalogItem } from "@/lib/services/catalog";
+import { toItem, type CatalogItem } from "@/lib/services/catalog";
+import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
 
 import { getAuthUserId } from "@/lib/auth/current-user";
 
@@ -53,7 +54,7 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
 
   const productIds = wl.items.map((i) => i.productId);
   const products = await db.product.findMany({
-    where: { id: { in: productIds }, status: "published" },
+    where: { id: { in: productIds }, status: { in: [...VISIBLE_PRODUCT_STATUSES] } },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
@@ -68,33 +69,5 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
     },
   });
 
-  return products
-    .map((p): CatalogItem | null => {
-      const variant = p.variants[0];
-      if (!variant) return null;
-      const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
-      return {
-        id: p.id,
-        slug: p.slug,
-        title: p.title,
-        brandName: p.brand.name,
-        categorySlug: p.category.slug,
-        categoryIsBulk: p.category.isBulk,
-        deliverySpeed: p.deliverySpeed ?? null,
-        imageUrl: p.images[0]?.url ?? null,
-        unitLabel: p.unitLabel,
-        variantId: variant.id,
-        pricePaise: variant.pricePaise,
-        compareAtPaise: variant.compareAtPaise,
-        hasBulkTiers: variant.bulkTiers.length > 0,
-        /* The wishlist card does not show a grade rail; the field is on
-           CatalogItem so every surface has the same shape. */
-        gradeLabel: null,
-        attributes: {},
-        ratingAvg: Number(p.ratingAvg),
-        ratingCount: p.ratingCount,
-        inStock: available > 0,
-      };
-    })
-    .filter((x): x is CatalogItem => x !== null);
+  return products.map(toItem).filter((x): x is CatalogItem => x !== null);
 }

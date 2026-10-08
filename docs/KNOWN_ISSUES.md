@@ -3855,6 +3855,19 @@ now names an order number that never got a row; this is harmless, and easier to 
 
 ---
 
+## Catalog-only visibility — 8 October 2026
+
+**Status:** FIXED LOCALLY on `catalog/catalog-only`; staging pending. The 979 approved catalogue products were invisible because the model had no way to show a product without selling it (`published` requires a priced variant). Added `ProductStatus.catalog_only` (migration `20261008120000_product_status_catalog_only`): visible in listings, search, suggestions, PDP and `/api/v1` with `purchasable: false`, null price/variant and the single label `PRICE_ON_REQUEST_LABEL` ("Price on request"); never purchasable. Guard `catalogOnlyReason` requires an exact provenance photo (licence + sha256) and active brand/category, so category illustrations can never qualify. Web and Expo render from the same payload.
+
+Defects found and fixed on the way:
+- `addItem` checked only that the variant was active, so a **draft** product's variant could be added to a cart by a crafted request. It now refuses any product that is not `published`, and `getCartSummary` (which checkout builds orders from) drops such lines.
+- Typeahead suggestions printed `p.variants[0]?.pricePaise ?? 0`, i.e. **₹0** for a product without a default variant; now null. The mobile PDP recorded ₹0 into "recently viewed" the same way.
+- The mobile-web and Expo PDPs dereferenced `variants[0]` without a check and would crash on a product with no variants.
+
+Tests: `lib/services/__tests__/catalog-only.test.ts` (9), `lib/services/admin/__tests__/catalog-only-activation.test.ts` (4), Expo `src/lib/__tests__/catalog-visibility.test.ts` (6). Rollback: set catalog_only rows back to draft (audit rows `catalogue.product_catalog_only` list them); the enum value can remain.
+
+---
+
 ## Homepage visual correctness — 8 October 2026 local repair
 
 **Status:** FIXED LOCALLY; browser-verified 8 Oct (new banner and "Explore by project" render, old wording absent, phone width checked); deployment pending. Homepage now uses neutral catalogue wording instead of an unconfirmed launch offer/citywide delivery claim, and editorial cards say “Explore by project” instead of “Trending in Srinagar”. Carousel gestures require horizontal movement to dominate vertical movement, preventing diagonal page scrolls from selecting slides. Cancelled gestures remain ignored. Fifteen targeted UI tests, typecheck and lint PASS. No asset publication or cloud changes. Workspace report: `docs/catalog/homerun-reference-2026-10-08/EXECUTION_PROGRESS.md`.

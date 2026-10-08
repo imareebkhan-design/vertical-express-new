@@ -20,8 +20,10 @@ export interface Product {
   id: string;
   title: string;
   brandLine: string;
-  price: number;
-  compareAt: number;
+  /** Rupees. Null for a catalog-only product: the card shows
+   *  PRICE_ON_REQUEST_LABEL and offers no Add to Cart. Never 0 as a stand-in. */
+  price: number | null;
+  compareAt: number | null;
   unit: string;
   /** Delivery speed for this product. Derived from Category.isBulk. */
   speed?: "express" | "scheduled" | "leadtime" | "seasonal";

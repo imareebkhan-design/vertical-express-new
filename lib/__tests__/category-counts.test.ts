@@ -67,10 +67,12 @@ test("which tiles show comes from the categories query", () => {
   );
 
   const catalog = rendered("lib/services/catalog.ts");
+  /* Counts every *visible* product (published or catalog-only, 8 Oct 2026):
+     a shelf of catalog-only products is browsable and earns its tile. */
   assert.match(
     catalog,
-    /_count:\s*\{\s*select:\s*\{\s*products:\s*\{\s*where:\s*\{\s*status:\s*"published"\s*\}/,
-    "listCategories no longer counts published products per category"
+    /_count:\s*\{\s*select:\s*\{\s*products:\s*\{\s*where:\s*\{\s*status:\s*\{\s*in:\s*\[\.\.\.VISIBLE_PRODUCT_STATUSES\]\s*\}\s*\}/,
+    "listCategories no longer counts visible products per category"
   );
 
   const home = rendered("app/page.tsx");

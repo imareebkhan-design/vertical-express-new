@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
+import { isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 
@@ -37,7 +38,7 @@ export function OrderedMost({ items }: { items: CatalogItem[] }) {
 
         {/* 2-Column Grid */}
         <div className="mt-6 grid grid-cols-1 gap-3.5 lg:grid-cols-2">
-          {items.slice(0, 6).map((item) => (
+          {items.filter(isPurchasableItem).slice(0, 6).map((item) => (
             <OrderedMostCard key={item.id} item={item} />
           ))}
         </div>
@@ -46,7 +47,7 @@ export function OrderedMost({ items }: { items: CatalogItem[] }) {
   );
 }
 
-function OrderedMostCard({ item }: { item: CatalogItem }) {
+function OrderedMostCard({ item }: { item: PurchasableCatalogItem }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
 

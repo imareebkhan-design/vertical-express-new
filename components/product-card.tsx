@@ -9,6 +9,7 @@ import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 interface ProductCardProps {
   product: Product;
@@ -34,12 +35,16 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
   const soldOut = product.inStock === false;
 
   const showImage = !isGenericPlaceholder(product.image) && !imageFailed;
-  const hasDiscount = product.compareAt > product.price;
-  const discount = hasDiscount
-    ? Math.round(((product.compareAt - product.price) / product.compareAt) * 100)
-    : 0;
+  /* Catalog-only: no price, no discount, no cart controls. The cart service
+     refuses these products as well; this is the honest face of that rule. */
+  const price = product.price;
+  const compareAt = product.compareAt;
+  const onRequest = price == null;
+  const hasDiscount = price != null && compareAt != null && compareAt > price;
+  const discount = hasDiscount ? Math.round(((compareAt - price) / compareAt) * 100) : 0;
 
   const handleAdd = async () => {
+    if (onRequest) return;
     const ok = await addItem(product.id, qty, product.title);
     if (ok) {
       setAdded(true);
@@ -112,13 +117,17 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           </MaybeLink>
         </h3>
 
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-lg font-extrabold">{formatINR(product.price)}</span>
-          {hasDiscount && (
-            <s className="text-sm font-semibold text-neutral-400">{formatINR(product.compareAt)}</s>
-          )}
-          <span className="text-[11px] font-semibold text-neutral-400">{product.unit}</span>
-        </div>
+        {onRequest ? (
+          <p className="mt-2 text-sm font-extrabold text-ink-700">{PRICE_ON_REQUEST_LABEL}</p>
+        ) : (
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-lg font-extrabold">{formatINR(price)}</span>
+            {hasDiscount && (
+              <s className="text-sm font-semibold text-neutral-400">{formatINR(compareAt)}</s>
+            )}
+            <span className="text-[11px] font-semibold text-neutral-400">{product.unit}</span>
+          </div>
+        )}
 
 
         {soldOut && (
@@ -127,6 +136,18 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           </p>
         )}
 
+        {onRequest ? (
+          <div className="mt-auto pt-4">
+            {href && (
+              <Link
+                href={href}
+                className="flex h-9 items-center justify-center rounded-full border border-neutral-200 text-xs font-extrabold uppercase tracking-wider text-ink transition-colors hover:bg-surface-soft"
+              >
+                View details
+              </Link>
+            )}
+          </div>
+        ) : (
         <div className="mt-auto flex items-center gap-2 pt-4">
           <div
             className={`flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40 ${
@@ -169,6 +190,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             {soldOut ? "Sold out" : added ? <><Check className="size-3.5" /> Added</> : "Add"}
           </motion.button>
         </div>
+        )}
       </div>
     </motion.article>
   );

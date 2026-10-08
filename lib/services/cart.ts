@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { isPurchasableStatus } from "@/lib/catalog-visibility";
 
 const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
 
@@ -153,7 +154,11 @@ export async function getCartSummary(
   const lines: CartLine[] = [];
   for (const item of items) {
     const v = item.variant;
-    
+    /* A line whose product is not for sale (catalog-only, draft, archived) is
+       left out. Checkout builds the order from this summary, so this is what
+       keeps such a line from ever being ordered or priced. */
+    if (!isPurchasableStatus(v.product.status)) continue;
+
     // Look up warehouse-scoped inventory
     const inv = v.inventory.find((i) => i.warehouseId === warehouseId);
     const available = inv ? Math.max(0, inv.qtyOnHand - inv.qtyReserved) : 0;
@@ -235,9 +240,14 @@ export async function addItem(
   // Guard: variant must exist and be active.
   const variant = await db.productVariant.findFirst({
     where: { id: variantId, isActive: true },
-    select: { id: true },
+    select: { id: true, product: { select: { status: true } } },
   });
   if (!variant) throw new Error("Variant not found");
+  /* Only a published product is for sale. Catalog-only products are shown
+     without a price, and drafts not at all; neither may enter a cart, however
+     the variant id was obtained (lib/catalog-visibility.ts). Classified as
+     NOT_FOUND by lib/cart-errors.ts on the web and /api/v1 alike. */
+  if (!isPurchasableStatus(variant.product.status)) throw new Error("Product not for sale");
 
   const warehouseId = await resolveWarehouseId(userId);
   const inv = await db.inventory.findUnique({

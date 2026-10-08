@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/lib/services/catalog";
 import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { discountPercent } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 /**
  * PDP purchase panel: variant selector, tier-aware pricing, qty stepper,
@@ -37,7 +38,10 @@ export function PdpActions({ product }: { product: ProductDetail }) {
     return applicable?.pricePaise ?? variant.pricePaise;
   }, [variant, qty]);
 
-  if (!variant) return null;
+  // Catalog-only (or nothing sellable): state it plainly, offer no cart control.
+  if (!product.purchasable || !variant) {
+    return <p className="text-xl font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>;
+  }
 
   /* The selected variant's own stock. Per variant rather than per product,
      because a 50 kg bag being sold out says nothing about the 25 kg one — and

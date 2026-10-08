@@ -74,6 +74,7 @@ export function PaymentStatusChip({ status }: { status: PaymentStatus }) {
 
 const PRODUCT_STATUS: Record<ProductStatus, { tone: StatusTone; label: string }> = {
   draft: { tone: "neutral", label: "Draft" },
+  catalog_only: { tone: "info", label: "Catalogue only" },
   published: { tone: "ok", label: "Published" },
   archived: { tone: "neutral", label: "Archived" },
 };

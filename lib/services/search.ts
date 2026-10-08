@@ -1,9 +1,10 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { expandedSearchTerms, matchesSearchName } from "@/lib/search-terms";
+import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
 
 export interface SearchSuggestions {
-  products: { slug: string; title: string; brandName: string; imageUrl: string | null; pricePaise: number }[];
+  products: { slug: string; title: string; brandName: string; imageUrl: string | null; /** Null when the product has no price to show (catalog-only). Never 0. */ pricePaise: number | null }[];
   categories: { slug: string; name: string }[];
   brands: { slug: string; name: string }[];
 }
@@ -35,7 +36,8 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
   const matchingIds = await db.$queryRaw<{ id: string }[]>`
     SELECT p.id FROM products p
     JOIN brands b ON b.id = p.brand_id JOIN categories c ON c.id = p.category_id
-    WHERE p.status = 'published' AND EXISTS (
+    WHERE (p.status = 'published' OR (p.status = 'catalog_only' AND EXISTS (
+      SELECT 1 FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary))) AND EXISTS (
       SELECT 1 FROM unnest(${deduplicatedTerms}::text[]) term
       WHERE CASE WHEN char_length(term) <= 3 THEN
         term = ANY(regexp_split_to_array(lower(p.title || ' ' || b.name || ' ' || c.name), '[^a-z0-9]+'))
@@ -45,7 +47,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
     )`;
   const products = await db.product.findMany({
     where: {
-      status: "published",
+      status: { in: [...VISIBLE_PRODUCT_STATUSES] },
       id: { in: matchingIds.map(p => p.id) },
     },
     /* `ratingCount` is always zero (ISS-034), so this ranked nothing. Deals
@@ -95,7 +97,8 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
       title: p.title,
       brandName: p.brand.name,
       imageUrl: p.images[0]?.url ?? null,
-      pricePaise: p.variants[0]?.pricePaise ?? 0,
+      // A missing price is null, not ₹0; catalog-only never exposes one.
+      pricePaise: p.status === "published" ? (p.variants[0]?.pricePaise ?? null) : null,
     }));
 
   return {

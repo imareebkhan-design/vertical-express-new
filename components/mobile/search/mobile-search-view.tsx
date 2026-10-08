@@ -27,6 +27,7 @@ import { SearchCategoryChips } from "@/components/shop/search-category-chips";
 import { searchCategoryHref } from "@/lib/search-url";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { formatPaise } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 interface MobileSearchViewProps {
   initialQuery: string;
@@ -457,7 +458,7 @@ export function MobileSearchView({
                               <div className="flex-1 min-w-0">
                                 <h4 className="truncate text-xs font-bold text-ink leading-tight">{p.title}</h4>
                                 <p className="text-[9px] text-ink/50 mt-0.5 leading-none">
-                                  {p.brandName} • {formatPaise(p.pricePaise)}
+                                  {p.brandName} • {p.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(p.pricePaise)}
                                 </p>
                               </div>
                             </Link>

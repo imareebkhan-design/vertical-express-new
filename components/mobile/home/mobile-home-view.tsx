@@ -16,6 +16,7 @@ import { HeroBanners } from "@/components/merchandising/hero-banners";
 import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
 import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
 import type { DealProduct } from "@/lib/merchandising/deal";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 /**
  * The phone-web home screen.
@@ -216,7 +217,7 @@ export function MobileHomeView({
                   {item.title}
                 </div>
                 <div className="mt-0.5 text-[14.5px] font-extrabold tabular-nums tracking-[-0.02em] text-ink">
-                  {formatPaise(item.pricePaise)}
+                  {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
                 </div>
               </Link>
             ))}

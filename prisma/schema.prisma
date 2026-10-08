@@ -825,6 +825,8 @@ enum CategoryGroup {
 
 enum ProductStatus {
   draft
+  /// Visible in the catalogue, not purchasable (lib/catalog-visibility.ts).
+  catalog_only
   published
   archived
 }

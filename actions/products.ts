@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { unpublishableReason } from "@/lib/services/admin/publish-guard";
+import { catalogOnlyReason, unpublishableReason } from "@/lib/services/admin/publish-guard";
 import { setVariantPrice } from "@/lib/services/admin/variant-pricing";
 import { parseRupeeInput } from "@/lib/money";
 import { log } from "@/lib/observability";
@@ -34,7 +34,7 @@ const schema = z.object({
     .max(160)
     .regex(/^[a-z0-9-]+$/, "The slug may use lowercase letters, numbers and hyphens only"),
   brandId: z.string().uuid(),
-  status: z.enum(["draft", "published", "archived"]),
+  status: z.enum(["draft", "catalog_only", "published", "archived"]),
   /** Empty string means "inherit from the category", which is right for most rows. */
   deliverySpeed: z.enum(["express", "scheduled", ""]),
 });
@@ -56,8 +56,8 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
   });
   if (!before) return fail("NOT_FOUND", "Product not found");
 
-  if (status === "published") {
-    const why = await unpublishableReason(db, id);
+  if (status === "published" || status === "catalog_only") {
+    const why = status === "published" ? await unpublishableReason(db, id) : await catalogOnlyReason(db, id);
     if (why) return fail("VALIDATION", why);
   }
 

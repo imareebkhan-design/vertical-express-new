@@ -29,6 +29,7 @@ import { trackProductView, type RecentlyViewedItem } from "@/components/shop/rec
 import { PdpPromises } from "@/components/shop/pdp-promises";
 import { speedClassFor } from "@/components/ui/speed-chip";
 import { etaPhrase } from "@/lib/order-display";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -46,7 +47,9 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
   const [, startWishlist] = useTransition();
 
   // Variant state
-  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
+  /* Undefined for a catalog-only product (no variants are exposed): the view
+     then shows PRICE_ON_REQUEST_LABEL and no cart controls. */
+  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants.at(0);
   const [selectedVariant, setSelectedVariant] = useState(defaultVariant);
 
   // Gallery states
@@ -71,10 +74,10 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
   const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>([]);
 
   const saved = wishlistIds.has(product.id);
-  const discount = discountPercent(selectedVariant.pricePaise, selectedVariant.compareAtPaise);
+  const discount = selectedVariant ? discountPercent(selectedVariant.pricePaise, selectedVariant.compareAtPaise) : null;
 
   // Cart item matching selected variant
-  const cartItem = summary?.lines?.find((l) => l.variantId === selectedVariant.id);
+  const cartItem = selectedVariant ? summary?.lines?.find((l) => l.variantId === selectedVariant.id) : undefined;
 
   // Track product view on mount
   useEffect(() => {
@@ -82,7 +85,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
       slug: product.slug,
       title: product.title,
       imageUrl: product.images[0]?.url ?? null,
-      pricePaise: defaultVariant?.pricePaise ?? 0,
+      pricePaise: defaultVariant?.pricePaise ?? null,
       brandName: product.brandName,
     });
 
@@ -153,7 +156,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
   };
 
   const handleAddToCart = () => {
-    if (isPending) return;
+    if (isPending || !selectedVariant) return;
     triggerHaptic("medium");
 
     startTransition(async () => {
@@ -287,6 +290,9 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           <h1 className="text-base font-extrabold text-ink mt-1 leading-snug">
             {product.title}
           </h1>
+          {!selectedVariant ? (
+            <p className="mt-2 text-base font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+          ) : (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-base font-extrabold text-ink">
               {formatPaise(selectedVariant.pricePaise)}
@@ -302,9 +308,12 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
               </span>
             )}
           </div>
-          <span className="text-[10px] text-ink/40 font-semibold mt-1 block">
-            Inclusive of all taxes
-          </span>
+          )}
+          {selectedVariant && (
+            <span className="text-[10px] text-ink/40 font-semibold mt-1 block">
+              Inclusive of all taxes
+            </span>
+          )}
         </div>
 
         {/* Variant Selector */}
@@ -320,7 +329,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
                   onClick={() => handleVariantSelect(v)}
                   className={cn(
                     "rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95",
-                    selectedVariant.id === v.id
+                    selectedVariant?.id === v.id
                       ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
                       : "border-mist/20 bg-white text-ink/70"
                   )}
@@ -529,7 +538,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
                   </h4>
                   <p className="truncate text-xs font-bold text-ink mt-0.5 leading-tight">{item.title}</p>
                   <p className="text-[10px] font-extrabold text-ink mt-1 leading-none">
-                    {formatPaise(item.pricePaise)}
+                    {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
                   </p>
                 </div>
               </Link>
@@ -539,6 +548,11 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
       )}
 
       {/* Sticky Bottom Buy Drawer/CTA bar */}
+      {!selectedVariant ? (
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 shadow-2xl">
+        <p className="text-sm font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+      </div>
+      ) : (
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">
         <div>
           <span className="text-[10px] font-extrabold text-ink/40 uppercase block leading-none">Total Price</span>
@@ -580,6 +594,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           </button>
         )}
       </div>
+      )}
 
       {/* Lightbox Pinch Zoom Swiper Overlay */}
       <AnimatePresence>

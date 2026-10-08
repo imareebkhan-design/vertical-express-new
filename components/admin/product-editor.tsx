@@ -132,6 +132,7 @@ export function ProductEditor({
         <Field label="Status">
           <select value={form.status} onChange={(e) => set("status")(e.target.value)} className={field}>
             <option value="draft">Draft</option>
+            <option value="catalog_only">Catalogue only — shown, not for sale</option>
             <option value="published">Published</option>
             <option value="archived">Archived</option>
           </select>

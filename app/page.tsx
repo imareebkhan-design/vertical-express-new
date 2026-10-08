@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { isPurchasableItem } from "@/lib/catalog-visibility";
 import { getCatalogItem, getDeals, listProducts, listCategories, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
 import { DEAL_OF_THE_DAY } from "@/lib/merchandising/home";
 import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
@@ -53,7 +54,7 @@ export default async function Home() {
       categories={categories}
       categoryCounts={categoryCounts}
       rooms={rooms}
-      dealProduct={dealProduct}
+      dealProduct={dealProduct && isPurchasableItem(dealProduct) ? dealProduct : null}
     />
   );
 }

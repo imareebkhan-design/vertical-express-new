@@ -5,6 +5,7 @@ import type { CatalogItem } from "@/lib/services/catalog";
 import { formatPaise, discountPercent } from "@/lib/money";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
+import { PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
 
 /**
  * Dense one-column row for spec-driven categories — cement, wire, ply, pipe.
@@ -15,7 +16,10 @@ import { AddToCartButton } from "@/components/shop/add-to-cart-button";
  * do not use the grid. See lib/catalog-presentation.ts.
  */
 export function CatalogRow({ item }: { item: CatalogItem }) {
-  const off = discountPercent(item.pricePaise, item.compareAtPaise);
+  /* Catalog-only: no price, unit, stock or cart control — its unit label is a
+     schema default, not a confirmed selling unit. */
+  const sellable = isPurchasableItem(item) ? item : null;
+  const off = sellable ? discountPercent(sellable.pricePaise, sellable.compareAtPaise) : null;
 
   return (
     <article className="flex items-center gap-4 rounded-[22px] bg-paper border border-line p-3.5 shadow-card sm:gap-5 sm:p-4">
@@ -51,17 +55,19 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
             {item.title}
           </Link>
         </h3>
+        {sellable ? (
+        <>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="text-[11px] font-semibold text-ink-500">{item.unitLabel}</p>
         </div>
 
         <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <span className="text-base font-extrabold tabular-nums">
-            {formatPaise(item.pricePaise)}
+            {formatPaise(sellable.pricePaise)}
           </span>
-          {item.compareAtPaise && item.compareAtPaise > item.pricePaise && (
+          {sellable.compareAtPaise && sellable.compareAtPaise > sellable.pricePaise && (
             <s className="text-xs font-semibold tabular-nums text-ink-300">
-              {formatPaise(item.compareAtPaise)}
+              {formatPaise(sellable.compareAtPaise)}
             </s>
           )}
           {off && (
@@ -75,10 +81,23 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
             </span>
           )}
         </div>
+        </>
+        ) : (
+          <p className="mt-2 text-sm font-extrabold text-ink-700">{PRICE_ON_REQUEST_LABEL}</p>
+        )}
       </div>
 
       <div className="flex flex-none flex-col items-end justify-between gap-3 self-stretch py-0.5">
-        <AddToCartButton variantId={item.variantId} title={item.title} disabled={!item.inStock} />
+        {sellable ? (
+          <AddToCartButton variantId={sellable.variantId} title={item.title} disabled={!item.inStock} />
+        ) : (
+          <Link
+            href={`/product/${item.slug}`}
+            className="rounded-full border border-line px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wider text-ink hover:bg-canvas"
+          >
+            View
+          </Link>
+        )}
       </div>
     </article>
   );

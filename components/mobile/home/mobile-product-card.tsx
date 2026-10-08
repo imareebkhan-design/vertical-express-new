@@ -13,6 +13,7 @@ import { useCart } from "@/hooks/use-cart";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
 
 const MotionImage = motion(Image);
 
@@ -26,20 +27,22 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   const [, startWishlist] = useTransition();
 
   const saved = wishlistIds.has(item.id);
-  const discount = discountPercent(item.pricePaise, item.compareAtPaise);
+  // Catalog-only cards carry no variant or price and never reach the cart.
+  const sellable = isPurchasableItem(item) ? item : null;
+  const discount = sellable ? discountPercent(sellable.pricePaise, sellable.compareAtPaise) : null;
 
   // Find if item is already in cart
-  const cartItem = summary?.lines?.find((l) => l.variantId === item.variantId);
+  const cartItem = sellable ? summary?.lines?.find((l) => l.variantId === sellable.variantId) : undefined;
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!item.inStock || isPending) return;
+    if (!sellable || !item.inStock || isPending) return;
 
     triggerHaptic("medium");
 
     startTransition(async () => {
-      await addToCart({ variantId: item.variantId, qty: 1 });
+      await addToCart({ variantId: sellable.variantId, qty: 1 });
       await refresh();
     });
   };
@@ -169,15 +172,19 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
 
       {/* Pricing & Add Button */}
       <div className="mt-3 flex items-end justify-between gap-2 pt-2 border-t border-mist/20">
+        {!sellable ? (
+          <p className="text-[11px] font-extrabold text-ink/70 leading-tight">{PRICE_ON_REQUEST_LABEL}</p>
+        ) : (
         <div>
-          <p className="text-xs font-extrabold text-ink leading-tight">{formatPaise(item.pricePaise)}</p>
-          {item.compareAtPaise && (
-            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(item.compareAtPaise)}</p>
+          <p className="text-xs font-extrabold text-ink leading-tight">{formatPaise(sellable.pricePaise)}</p>
+          {sellable.compareAtPaise && (
+            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(sellable.compareAtPaise)}</p>
           )}
         </div>
+        )}
 
         {/* Button / Quantity Selector */}
-        {cartItem && item.inStock ? (
+        {!sellable ? null : cartItem && item.inStock ? (
           <div className="flex h-8 items-center bg-brand-deep text-white rounded-xl px-1">
             <button
               type="button"

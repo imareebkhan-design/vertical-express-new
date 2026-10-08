@@ -41,11 +41,13 @@ export function CatalogGrid({
           productId={item.id}
           wishlisted={wishlistedIds?.has(item.id) ?? false}
           product={{
-            id: item.variantId,
+            /* Catalog-only cards have no variant or price; the card renders the
+               price-on-request state and never calls the cart. */
+            id: item.variantId ?? "",
             title: item.title,
             brandLine: item.brandName,
-            price: paiseToRupees(item.pricePaise),
-            compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
+            price: item.pricePaise == null ? null : paiseToRupees(item.pricePaise),
+            compareAt: item.pricePaise == null ? null : paiseToRupees(item.compareAtPaise ?? item.pricePaise),
             unit: item.unitLabel,
             categorySlug: item.categorySlug,
             image: item.imageUrl ?? undefined,

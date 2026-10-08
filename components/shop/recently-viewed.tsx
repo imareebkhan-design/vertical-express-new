@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { formatPaise } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 export interface RecentlyViewedItem {
   slug: string;
   title: string;
   imageUrl: string | null;
-  pricePaise: number;
+  /** Null for catalog-only products — shown as the price-on-request label. */
+  pricePaise: number | null;
   brandName: string;
 }
 
@@ -87,7 +89,7 @@ export function RecentlyViewedSection({ currentSlug }: { currentSlug?: string })
                 {item.title}
               </h3>
               <p className="mt-1 text-sm font-extrabold text-ink">
-                {formatPaise(item.pricePaise)}
+                {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
               </p>
             </div>
           </Link>

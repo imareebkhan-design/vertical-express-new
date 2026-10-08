@@ -71,7 +71,7 @@ export function previewEnrichment(input: unknown, contextInput: unknown) {
     const product = products.get(r.slug);
     if (!product) add("slug", "Product is absent from the reviewed snapshot");
     else {
-      if (product.status !== "draft") add("slug", "Only existing drafts may be enriched");
+      if (product.status !== "draft" && product.status !== "catalog_only") add("slug", "Only existing drafts or catalog-only products may be enriched");
       if (product.existingSkus.length) add("slug", "Product already has variants; reconcile before enrichment");
       const mapped = context.categoryTaxes[product.category];
       if (!mapped) add("hsn", "Category has no explicit tax mapping; fallback is not accepted");

@@ -7,6 +7,7 @@ import { Loader2, Search } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import type { SearchSuggestions } from "@/lib/services/search";
 import { cn } from "@/lib/utils";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 const EMPTY: SearchSuggestions = { products: [], categories: [], brands: [] };
 
@@ -141,7 +142,9 @@ export function SearchBox({ className }: { className?: string }) {
                     <span className="block truncate text-sm font-bold text-ink">{p.title}</span>
                     <span className="block text-xs font-semibold text-neutral-400">{p.brandName}</span>
                   </span>
-                  <span className="text-sm font-extrabold">{formatPaise(p.pricePaise)}</span>
+                  <span className="text-sm font-extrabold">
+                    {p.pricePaise == null ? <span className="text-xs text-ink-500">{PRICE_ON_REQUEST_LABEL}</span> : formatPaise(p.pricePaise)}
+                  </span>
                 </Link>
               ))}
             </div>

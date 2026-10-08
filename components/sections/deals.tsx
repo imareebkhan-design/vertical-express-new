@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
+import { isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { useState } from "react";
@@ -26,7 +27,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
 
         {/* 4-Column Grid */}
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {items.slice(0, 4).map((item) => (
+          {items.filter(isPurchasableItem).slice(0, 4).map((item) => (
             <DealCard key={item.id} item={item} />
           ))}
         </div>
@@ -35,7 +36,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
   );
 }
 
-function DealCard({ item }: { item: CatalogItem }) {
+function DealCard({ item }: { item: PurchasableCatalogItem }) {
   const { addItem } = useCart();
   const [added, setAdded] = useState(false);
 

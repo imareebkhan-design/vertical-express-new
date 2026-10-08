@@ -1,0 +1,1345 @@
+{
+ "batch": "catalog-only-1",
+ "date": "2026-10-08",
+ "rule": "ATTACHED_AND_WORKING exact manufacturer photo (HTTP 200) and no P0/P1 identity/contents flag on any view",
+ "evidence": [
+  "docs/catalog/catalogue-recovery-2026-10-08/image-recovery.csv",
+  "docs/catalog/readiness-2026-10/image-review.csv"
+ ],
+ "safeForCatalogOnly": 263,
+ "reviewRequired": 0,
+ "products": [
+  {
+   "slug": "xp-agrikut-sumo",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-blue-paper-film-roll",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-carbon-hole-saw",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-chaff-cutter-gear-drive",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-conventional-spray-gun-xp-sg-990",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-cove-ovlo-profile-bits",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-drill-chuck",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-flush-trim-bits",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-hard-cloth-roll",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-hvlp-spray-gun-xp-sg-827",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-002-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-004-electric-planer-82-x-1mm-600w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-007-router-8-12mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-026a-angle-grinder-125-mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-030-orbital-sander-93-x-185mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-034-rotary-hammer-26mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-037-blower-600w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-038-electric-mixer-120mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-044-electric-trimmer-6-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-045a-chain-saw-450mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-046a-brush-cutter-2-stroke-52cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-050-electric-planer-90-x-2mm-850w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-051-marble-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-054-demolition-hammer-5kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-055-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-058a-chain-saw-450mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-059a-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-065a-demolition-hammer-16kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-067-drill-machine-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-072-rotary-hammer-20mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-075-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-079-concrete-vibrator-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-082-hot-air-gun-2000w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-083-impact-drill-1-5-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ic-084-blower-550w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-maize-thresher",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-ovolo-bits",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-rabbeting-slot-bits",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-router-bit-set-87-pcs",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-s-2101-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2102-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2103-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2105-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2110-angle-grinder-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2115-angle-grinder-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2121-marble-cutter-110mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2125-marble-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2126-wood-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2128-wall-chaser-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2129-wall-chaser-133mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2130-concrete-cutter-400mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2141-electric-trimmer-6-6-35-8mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2151-rotary-hammer-26mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2154-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2155-demolition-hammer-11kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2156-demolition-hammer-16kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2162-impact-drill-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2171-cut-off-machine-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2189-gasoline-brush-cutter-43cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2191-diamond-core-drill-140mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2192-diamond-core-drill-225mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2193-diamond-core-drill-305mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2194-diamond-core-drill-20-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2196-magnetic-drill-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-s-2197-magnetic-drill-50mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-sgw-flap-disc",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-soft-cloth-roll",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-straight-bits",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-1121-slot-cutter",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-1139-demolition-hammer-11kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-1144-circular-saw-185mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-1151-electrical-polisher-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-bc-50-4-stroke-back-pack",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-bd-13-bench-drill-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-bd-16-bench-drill-3-16mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-bg-150-bench-grinder-150mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-bg-200-bench-grinder-200mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-fc-12-floor-polisher",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-mig-270a-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-mig-300a-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-pw-572-pressure-washer",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-pw-575-pressure-washer",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-pw-579-cordless-pressure-washer",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-router-bit-set-12-pcs-new-type",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xp-tc-600-manual-tile-cutter",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-tig-250a-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-vc-12l-vacuum-cleaner",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-vc-15l-vacuum-cleaner",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-vc-35l-vacuum-cleaner",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-vc-50l-vacuum-cleaner",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-200a-arc-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-200b-inverter-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-250a-arc-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-250hq-dual-volt-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-300a-arc-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xp-wm-400a-arc-welding-machine",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpc-ab-01-cordless-air-blower",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpc-ct-01-brushless-combo-kit-lithium-ion",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpc-dl-03-4-in-1-laser-distance-meter",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpc-iw-05-brushless-impact-wrench-800nm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpc-sl-01-16-green-lines-laser",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-8204-electric-planer-82-x-1mm-650w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-bc-35b-backpack-brush-cutter",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-bc2b-backpack-brush-cutter-2-stroke-43cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-bc2s-brush-cutter-2-stroke-43-cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-bc4b-backpack-brush-cutter-4-stroke-31-cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-bc4s-brush-cutter-4-stroke-31cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-cs18-chain-saw-450mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-cs22-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-ps26-pole-saw-32-6cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpg-sumo-22-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpr-120-agriculture-reaper-petrol-diesel",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xps-703-battery-sprayer",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xps-825-4-stroke",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-400-angle-grinder-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-401-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-402-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-403-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-404-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-405-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-407-angle-grinder-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-408-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-409-angle-grinder-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-410-straight-grinder-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-411-marble-cutter-110mm",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xpt-412-marble-cutter-110mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-413-marble-cutter-110mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-414-marble-cutter-125mm",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xpt-415-marble-cutter-150mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-416-marble-cutter-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-417-marble-cutter-125mm",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xpt-418-wall-chaser-42mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-419-marble-cutter-125mm",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xpt-419a-dust-proof-marble-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-419w-marble-cutter-125mm",
+   "worstSeverity": "P2",
+   "notes": [
+    "PERFORMANCE_REVIEW"
+   ]
+  },
+  {
+   "slug": "xp-xpt-421-drill-machine-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-422-impact-drill-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-424-drill-machine-6-5mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-425-drill-machine-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-425a-drill-machine-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-426-die-grinder-25mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-427-impact-drill-1-5-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-427a-impact-drill-13mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-428-drill-machine-3mm-16mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-429-screw-driver-drill-0-8mm-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-431-screw-driver-drill-10mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-433-rotary-hammer-20mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-434-rotary-hammer-26mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-435-rotary-hammer-26mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-436-demolition-hammer-5kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-437-demolition-hammer-5kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-438a-demolition-hammer-16kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-439-demolition-hammer-11kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-440-blower-500w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-442-electric-planer-82-x-1mm-500w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-443a-circular-saw-185mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-444-trimmer-6-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-445-electric-planer-82-x-1mm-650-w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-446-electric-mixer-160mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-446a-electric-mixer-160mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-447-concrete-vibrator-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-447a-concrete-vibrator-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-448-mixer-150mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-450-concrete-vibrator-35mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-451-sander-110-x-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-452-electric-planer-82-x-2mm-710w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-453-router-8-12mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-454-jig-saw-65mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-455-electric-planer-82-x-1mm-650w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-456-electric-planer-110-x-3mm-1200w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-457-electric-chain-saw-405mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-458-belt-sander-100-x-610mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-459-router-8-12mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-460-electric-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-461-chain-saw-450mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-462-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-464-jig-saw-85mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-465-router-8-12mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-467-gasoline-concrete-cutter-405mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-468-chain-saw-450mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-469-chain-saw-550mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-470-chain-saw-600mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-471-chain-saw-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-472-cut-off-machine-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-474-cut-off-machine-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-475a-cut-off-machine-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-476-cut-off-machine-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-477a-miter-saw-255mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-478-sliding-miter-saw-255mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-478a-sliding-miter-saw",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-479a-miter-saw-305mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-481a-miter-saw-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-489-hot-air-gun-2000w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-490-core-drill-90mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-490a-core-drill-119mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-491-core-drill-200mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-491a-core-drill-220mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-492-core-drill-168mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-493-core-drill-255mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-495-demolition-hammer-16kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-496-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-501-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-502-brushless-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-503-marble-cutter-110mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-504-marble-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-505-angle-grinder-100mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-511-rotary-hammer-32mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-512-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-512a-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-515-demolition-hammer-7kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-519a-demolition-hammer-24kg",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-521-electric-spray-gun-700w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-522-floor-base-spray-gun-800w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-523-heat-gun-2000w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-524-spray-gun-450w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-525-electric-drill-10-mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-527-impact-drill-13-mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-533-impact-wrench-400nm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-534-impact-wrench-450nm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-540-vacuum-blower-650w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-541-electric-blower-800w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-542-electric-blower-650w",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-544-trimmer-6-6-35-8mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-546-mixer-drill-120mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-547-mixer-drill-120mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-551-rotary-sander-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-553-orbital-sander-93-x-185mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-554-dry-wall-sander-225mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-555-polisher-180mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-556-reciprocating-saw-115mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-557-jig-saw-100-80mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-558-belt-sander-76-x-533mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-559-rotary-sander",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-560-marble-cutter-125mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-565-concrete-saw-355mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-566-concrete-saw-400mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-567-ring-saw-410-mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-568-electric-chain-saw-405mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-569-ring-saw-610mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-581-hedge-trimmer-25-4cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-582-earth-auger-52cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-583-water-pump-52cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-584-blower",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-585-chain-saw-12-300mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-587-gasoline-concrete-cutter-350mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-590-rotary-hammer-26mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-591-rotary-hammer-28mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-594-rotary-hammer-50mm",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-wp-2-water-pump-196-cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpt-wp-3-water-pump-212-cc",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-1150d-br-perimum",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-1150d-premium",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-1150p-br-premium",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-1150p-gold",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-750t",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-750t-micro",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-750t-pto-gold",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-750t-pto-italian",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xpw-750t-pto-premium",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xtra-power-caulking-gun-103",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xtra-power-caulking-gun-205",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xtra-power-caulking-gun-207",
+   "worstSeverity": "NONE",
+   "notes": []
+  },
+  {
+   "slug": "xp-xtra-power-caulking-gun-303",
+   "worstSeverity": "NONE",
+   "notes": []
+  }
+ ],
+ "heldForReview": []
+}

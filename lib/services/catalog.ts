@@ -4,6 +4,7 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { unstable_cache } from "next/cache";
 import { expandedSearchTerms } from "@/lib/search-terms";
+import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
 
 /** Serializable product card payload shared by PLP, search, deals, wishlist. */
@@ -19,8 +20,11 @@ export interface CatalogItem {
   deliverySpeed: "express" | "scheduled" | null;
   imageUrl: string | null;
   unitLabel: string;
-  variantId: string;
-  pricePaise: number;
+  /** False for catalog-only products: no variant, no price, never in a cart.
+   *  The card shows PRICE_ON_REQUEST_LABEL (lib/catalog-visibility.ts). */
+  purchasable: boolean;
+  variantId: string | null;
+  pricePaise: number | null;
   compareAtPaise: number | null;
   hasBulkTiers: boolean;
   /** The product's own Grade attribute, when it carries one. */
@@ -102,9 +106,30 @@ export interface CatalogResult {
 const PER_PAGE_DEFAULT = 24;
 const PER_PAGE_MAX = 48;
 
+/**
+ * What the storefront may list: purchasable products with an active default
+ * variant, plus catalog-only products that carry their primary photo. A price
+ * filter can only ever match something with a price, so it excludes catalog-only.
+ */
+function visibleWhere(minPaise?: number, maxPaise?: number): Prisma.ProductWhereInput {
+  const priced = minPaise != null || maxPaise != null;
+  const purchasable: Prisma.ProductWhereInput = {
+    status: "published",
+    variants: {
+      some: {
+        isDefault: true,
+        isActive: true,
+        ...(priced ? { pricePaise: { gte: minPaise ?? 0, lte: maxPaise ?? 2_000_000_000 } } : {}),
+      },
+    },
+  };
+  if (priced) return purchasable;
+  return { OR: [purchasable, { status: "catalog_only", images: { some: { isPrimary: true } } }] };
+}
+
 function buildWhere(q: CatalogQuery): Prisma.ProductWhereInput {
   return {
-    status: "published",
+    AND: [visibleWhere(q.minPaise, q.maxPaise)],
     ...(q.categorySlug ? { category: { slug: q.categorySlug } } : {}),
     ...(q.dealsOnly ? { isDeal: true } : {}),
     ...(q.brandSlugs?.length ? { brand: { slug: { in: q.brandSlugs } } } : {}),
@@ -117,15 +142,6 @@ function buildWhere(q: CatalogQuery): Prisma.ProductWhereInput {
           ],
         }
       : {}),
-    variants: {
-      some: {
-        isDefault: true,
-        isActive: true,
-        ...(q.minPaise != null || q.maxPaise != null
-          ? { pricePaise: { gte: q.minPaise ?? 0, lte: q.maxPaise ?? 2_000_000_000 } }
-          : {}),
-      },
-    },
   };
 }
 
@@ -175,11 +191,14 @@ function gradeOf(specs: unknown): string | null {
   return typeof row?.value === "string" && row.value.trim() ? row.value.trim() : null;
 }
 
-function toItem(p: ProductWithRefs): CatalogItem | null {
-  const variant = p.variants[0];
-  if (!variant) return null;
-  const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
-  return {
+type CardSource = Omit<ProductWithRefs, "brand" | "category"> & {
+  brand: { name: string };
+  category: { slug: string; isBulk: boolean };
+};
+
+/** The one card mapper: listings, search, related, deals and the wishlist all use it. */
+export function toItem(p: CardSource): CatalogItem | null {
+  const base = {
     id: p.id,
     slug: p.slug,
     title: p.title,
@@ -189,16 +208,41 @@ function toItem(p: ProductWithRefs): CatalogItem | null {
     deliverySpeed: p.deliverySpeed ?? null,
     imageUrl: p.images[0]?.url ?? null,
     unitLabel: p.unitLabel,
-    variantId: variant.id,
-    pricePaise: variant.pricePaise,
-    compareAtPaise: variant.compareAtPaise,
-    hasBulkTiers: variant.bulkTiers.length > 0,
     gradeLabel: gradeOf(p.specs),
     attributes: attributesOf(p.specs),
     ratingAvg: Number(p.ratingAvg),
     ratingCount: p.ratingCount,
+  };
+  if (p.status === "catalog_only") {
+    /* The photo is the listing; without it the product stays hidden. Any
+       variant it may already have is deliberately not exposed: no price,
+       stock or variant id reaches a client until it is published. */
+    if (!base.imageUrl) return null;
+    return { ...base, purchasable: false, variantId: null, pricePaise: null, compareAtPaise: null, hasBulkTiers: false, inStock: false };
+  }
+  if (p.status !== "published") return null;
+  const variant = p.variants[0];
+  if (!variant) return null;
+  const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
+  return {
+    ...base,
+    purchasable: true,
+    variantId: variant.id,
+    pricePaise: variant.pricePaise,
+    compareAtPaise: variant.compareAtPaise,
+    hasBulkTiers: variant.bulkTiers.length > 0,
     inStock: available > 0,
   };
+}
+
+/** Price order with unpriced (catalog-only) cards always last. */
+function byPrice(a: number | null, b: number | null, dir: 1 | -1): number {
+  if (a == null || b == null) return (a == null ? 1 : 0) - (b == null ? 1 : 0);
+  return (a - b) * dir;
+}
+
+function discountOf(item: CatalogItem): number {
+  return item.compareAtPaise && item.pricePaise != null ? (item.compareAtPaise - item.pricePaise) / item.compareAtPaise : 0;
 }
 
 export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
@@ -270,11 +314,9 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
 
     if (priceSort) {
       items.sort((a, b) => {
-        if (q.sort === "price_asc") return a.pricePaise - b.pricePaise;
-        if (q.sort === "price_desc") return b.pricePaise - a.pricePaise;
-        const dA = a.compareAtPaise ? (a.compareAtPaise - a.pricePaise) / a.compareAtPaise : 0;
-        const dB = b.compareAtPaise ? (b.compareAtPaise - b.pricePaise) / b.compareAtPaise : 0;
-        return dB - dA;
+        if (q.sort === "price_asc") return byPrice(a.pricePaise, b.pricePaise, 1);
+        if (q.sort === "price_desc") return byPrice(a.pricePaise, b.pricePaise, -1);
+        return discountOf(b) - discountOf(a);
       });
     }
     if (windowed) items = items.slice((page - 1) * perPage, page * perPage);
@@ -319,8 +361,11 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   const synonymsList = expandedSearchTerms(primaryTerm, synonymRecords).filter(t => t !== primaryTerm);
 
   // 2. Build dynamic PostgreSQL filter queries and args to prevent injection
+  /* Visibility mirrors visibleWhere(): catalog-only needs its primary photo.
+     The price-filter conditions below require a default variant, so they
+     exclude catalog-only exactly as visibleWhere() does. */
   const conditions = [
-    "p.status = 'published'",
+    "(p.status = 'published' OR (p.status = 'catalog_only' AND EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary)))",
   ];
 
   const queryArgs: unknown[] = [
@@ -422,7 +467,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   } else if (q.sort === "price_asc") {
     orderByClause = "ORDER BY (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) ASC, search_score DESC";
   } else if (q.sort === "price_desc") {
-    orderByClause = "ORDER BY (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) DESC, search_score DESC";
+    orderByClause = "ORDER BY (SELECT price_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true) DESC NULLS LAST, search_score DESC";
   } else if (q.sort === "discount") {
     orderByClause = "ORDER BY (SELECT (compare_at_paise - price_paise)::float / compare_at_paise FROM product_variants pv WHERE pv.product_id = p.id AND pv.is_default = true AND compare_at_paise > 0) DESC NULLS LAST, search_score DESC";
   }
@@ -497,7 +542,8 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
     ? await db.product.findMany({
         where: { id: { in: productIds } },
         include: {
-          category: { select: { isBulk: true } },
+          brand: { select: { name: true } },
+          category: { select: { slug: true, isBulk: true } },
           images: { where: { isPrimary: true }, take: 1 },
           variants: {
             where: { isDefault: true },
@@ -515,32 +561,10 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
 
   for (const row of rows) {
     const p = detailsMap.get(row.id);
-    if (!p) continue;
-    const variant = p.variants[0];
-    if (!variant) continue;
-    const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
-
-    items.push({
-      id: p.id,
-      slug: p.slug,
-      title: p.title,
-      brandName: row.brand_name,
-      categorySlug: row.category_slug,
-      categoryIsBulk: p.category.isBulk,
-      deliverySpeed: p.deliverySpeed ?? null,
-      imageUrl: p.images[0]?.url ?? null,
-      unitLabel: p.unitLabel,
-      variantId: variant.id,
-      pricePaise: variant.pricePaise,
-      compareAtPaise: variant.compareAtPaise,
-      hasBulkTiers: variant.bulkTiers.length > 0,
-    gradeLabel: gradeOf(p.specs),
-    attributes: attributesOf(p.specs),
-      ratingAvg: Number(p.ratingAvg),
-      ratingCount: p.ratingCount,
-      inStock: available > 0,
-    });
+    const item = p ? toItem(p) : null;
+    if (item) items.push(item);
   }
+
 
   // 6. Query facets dynamically scoped to matched product IDs
   const allMatchedSql = `
@@ -621,6 +645,8 @@ export interface ProductDetail {
   ratingAvg: number;
   ratingCount: number;
   images: { url: string; alt: string }[];
+  /** False for catalog-only: `variants` is then empty and no price is shown. */
+  purchasable: boolean;
   variants: {
     id: string;
     name: string;
@@ -637,7 +663,7 @@ export interface ProductDetail {
 
 export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
   const p = await db.product.findFirst({
-    where: { slug, status: "published" },
+    where: { slug, status: { in: [...VISIBLE_PRODUCT_STATUSES] } },
     include: {
       brand: true,
       category: true,
@@ -650,6 +676,9 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     },
   });
   if (!p) return null;
+  const purchasable = p.status === "published";
+  // Same rule as the card: a catalog-only product without its photo stays hidden.
+  if (!purchasable && !p.images.some((i) => i.isPrimary)) return null;
 
   const specs = Array.isArray(p.specs)
     ? (p.specs as { label: string; value: string }[])
@@ -671,7 +700,8 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     ratingAvg: Number(p.ratingAvg),
     ratingCount: p.ratingCount,
     images: p.images.map((i) => ({ url: i.url, alt: i.alt })),
-    variants: p.variants.map((v) => ({
+    purchasable,
+    variants: (purchasable ? p.variants : []).map((v) => ({
       id: v.id,
       name: v.name,
       sku: v.sku,
@@ -693,7 +723,7 @@ async function getRelatedProductsRaw(
 ): Promise<CatalogItem[]> {
   const rows = await db.product.findMany({
     where: {
-      status: "published",
+      AND: [visibleWhere()],
       category: { slug: categorySlug },
       slug: { not: excludeSlug },
     },
@@ -775,7 +805,7 @@ export const getDeals = unstable_cache(
 
 export async function listProductSlugs(): Promise<string[]> {
   const rows = await db.product.findMany({
-    where: { status: "published" },
+    where: visibleWhere(),
     select: { slug: true },
   });
   return rows.map((r) => r.slug);
@@ -798,7 +828,7 @@ async function listCategoriesRaw() {
   return db.category.findMany({
     where: { isActive: true },
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }],
-    include: { _count: { select: { products: { where: { status: "published" } } } } },
+    include: { _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } } },
   });
 }
 
@@ -912,13 +942,13 @@ export async function brandsInCategory(categorySlug: string) {
   const rows = await db.brand.findMany({
     where: {
       isActive: true,
-      products: { some: { status: "published", category: { slug: categorySlug } } },
+      products: { some: { status: { in: [...VISIBLE_PRODUCT_STATUSES] }, category: { slug: categorySlug } } },
     },
     select: {
       slug: true,
       name: true,
       _count: {
-        select: { products: { where: { status: "published", category: { slug: categorySlug } } } },
+        select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] }, category: { slug: categorySlug } } } },
       },
     },
   });
@@ -945,12 +975,12 @@ export async function brandsForSearchEntry(
   const brands = await db.brand.findMany({
     where: {
       isActive: true,
-      products: { some: { status: "published" } },
+      products: { some: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } },
     },
     select: {
       slug: true,
       name: true,
-      _count: { select: { products: { where: { status: "published" } } } },
+      _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } },
     },
   });
 
@@ -1201,7 +1231,7 @@ export async function listRooms() {
               group: true,
               imageUrl: true,
               isBulk: true,
-              _count: { select: { products: { where: { status: "published" } } } },
+              _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } },
             },
           },
         },

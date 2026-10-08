@@ -31,7 +31,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 **brands** — `slug unique`, `name unique`, `logo_url`, `is_active`. Index: `slug`.
 
 **products**
-- `slug text unique`, `title`, `brand_id fk`, `category_id fk`, `subcategory_id fk null`, `vendor_id fk null` (future), `description text`, `specs jsonb` (key/value list), `unit_label text` ("per bag"), `status enum(draft, published, archived)`, `is_deal bool`, `rating_avg numeric(2,1) default 0`, `rating_count int default 0`, `search tsvector` (generated: title+brand+category), `seo_title/seo_description`
+- `slug text unique`, `title`, `brand_id fk`, `category_id fk`, `subcategory_id fk null`, `vendor_id fk null` (future), `description text`, `specs jsonb` (key/value list), `unit_label text` ("per bag"), `status enum(draft, catalog_only, published, archived)` (catalog_only: migration `20261008120000_product_status_catalog_only`, visible but never purchasable — rules in `lib/catalog-visibility.ts`), `is_deal bool`, `rating_avg numeric(2,1) default 0`, `rating_count int default 0`, `search tsvector` (generated: title+brand+category), `seo_title/seo_description`
 - Validation: title 3–160; slug kebab. Index: `slug`, `(category_id, status)`, `(brand_id, status)`, `GIN(search)`, `trgm(title)`.
 
 **product_images** — N:1 products; `product_id fk`, `url`, `alt`, `sort_order`, `is_primary bool`. Index: `(product_id, sort_order)`. Provenance (migration `20261006120000_product_image_provenance`, all nullable): `source_url`, `licence`, `width`, `height`, `sha256 char(64)`; unique `(product_id, sha256)` so an image import re-run is a no-op (rows without a sha256 are unconstrained).
