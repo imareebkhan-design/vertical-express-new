@@ -10,6 +10,7 @@ import type { ProductDetail } from "@/lib/services/catalog";
 import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { discountPercent } from "@/lib/money";
 import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { ProductEnquiry } from "@/components/shop/product-enquiry";
 
 /**
  * PDP purchase panel: variant selector, tier-aware pricing, qty stepper,
@@ -40,7 +41,14 @@ export function PdpActions({ product }: { product: ProductDetail }) {
 
   // Catalog-only (or nothing sellable): state it plainly, offer no cart control.
   if (!product.purchasable || !variant) {
-    return <p className="text-xl font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>;
+    return (
+      <div className="space-y-4">
+        <p className="text-xl font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+        {/* Only a catalog-only product invites an enquiry; a sellable product that is
+            momentarily without a variant shows the price label alone. */}
+        {!product.purchasable && <ProductEnquiry productId={product.id} productTitle={product.title} />}
+      </div>
+    );
   }
 
   /* The selected variant's own stock. Per variant rather than per product,

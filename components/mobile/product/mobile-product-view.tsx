@@ -31,6 +31,7 @@ import { PdpPromises } from "@/components/shop/pdp-promises";
 import { speedClassFor } from "@/components/ui/speed-chip";
 import { etaPhrase } from "@/lib/order-display";
 import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { ProductEnquiry } from "@/components/shop/product-enquiry";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -292,7 +293,14 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
             {product.title}
           </h1>
           {!selectedVariant ? (
-            <p className="mt-2 text-base font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+            <>
+              <p className="mt-2 text-base font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+              {!product.purchasable && (
+                <div className="mt-3">
+                  <ProductEnquiry productId={product.id} productTitle={product.title} />
+                </div>
+              )}
+            </>
           ) : (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-base font-extrabold text-ink">
@@ -422,10 +430,14 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           Shared with the web PDP, which is the point: one promise, one wording,
           on both surfaces.
         */}
-        <PdpPromises
-          speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
-          categorySlug={product.categorySlug}
-        />
+        {/* Dispatch and returns describe buying it; a catalog-only product cannot
+            be bought yet (same rule as the desktop PDP in product-switcher). */}
+        {product.purchasable && (
+          <PdpPromises
+            speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+            categorySlug={product.categorySlug}
+          />
+        )}
 
         {/* Accordions */}
         <div className="space-y-2">

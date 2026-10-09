@@ -24,8 +24,7 @@ import {
   Receipt,
   UserCog,
   SlidersHorizontal,
-  PlusSquare,
-} from "lucide-react";
+  PlusSquare, MessageSquareText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -74,6 +73,7 @@ const GROUPS: { heading: string; items: { href: string; label: string; icon: typ
     items: [
       { href: "/admin/customers", label: "Customers", icon: Users },
       { href: "/admin/support", label: "Support", icon: LifeBuoy },
+      { href: "/admin/enquiries", label: "Enquiries", icon: MessageSquareText },
     ],
   },
   {

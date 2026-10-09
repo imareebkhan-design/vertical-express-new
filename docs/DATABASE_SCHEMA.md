@@ -254,3 +254,12 @@ loses the record of which orders bought express; export it first if any exist.
 
 **Rollback.** Revert the code first, then `ALTER TABLE "addresses" DROP COLUMN "place_id";`.
 Nothing else reads the column.
+
+## `product_enquiries` (migration `20261009200000_product_enquiries`, 9 Oct 2026)
+
+"Enquire about this product" on catalog-only listings. One row per enquiry: `enquiry_no` (unique, `ENQ-YYYYMMDD-XXXXXXXX`),
+`product_id` → products (RESTRICT), `product_title` / `brand_name` snapshots read from the database at submission,
+optional `user_id` (signed-in customer), `name`, `phone`, optional `quantity` / `message`, `status`
+(`ProductEnquiryStatus`: new, contacted, quoted, closed, spam), `admin_notes`, timestamps. RLS enabled, no
+anon/authenticated grants. Admin status changes write `audit_logs` (`product_enquiry.status_changed`). Additive;
+rollback = leave the table, roll the app back.

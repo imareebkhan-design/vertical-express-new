@@ -189,6 +189,7 @@ model Product {
   expressEligible Boolean                 @default(false) @map("express_eligible")
   images          ProductImage[]
   variants        ProductVariant[]
+  enquiries       ProductEnquiry[]
   brand           Brand                   @relation(fields: [brandId], references: [id])
   category        Category                @relation(fields: [categoryId], references: [id])
   expressPincodes ProductExpressPincode[]
@@ -1115,4 +1116,41 @@ model ShipmentLocationSample {
 
   @@index([shipmentId, recordedAt])
   @@map("shipment_location_samples")
+}
+
+/// A customer's question about one catalog-only product ("Enquire about this
+/// product"). Title and brand are snapshots taken from the database at
+/// submission, never from the client. Reviewed in the admin enquiry queue;
+/// no notification channel exists yet (owner decision, 9 Oct 2026).
+model ProductEnquiry {
+  id           String               @id @default(uuid()) @db.Uuid
+  enquiryNo    String               @unique @map("enquiry_no")
+  productId    String               @map("product_id") @db.Uuid
+  productTitle String               @map("product_title")
+  brandName    String               @map("brand_name")
+  /// Linked when the customer was signed in; null for a guest.
+  userId       String?              @map("user_id") @db.Uuid
+  name         String
+  phone        String
+  /// Free text, e.g. "2 units" or "1 box of 10".
+  quantity     String?
+  message      String?
+  status       ProductEnquiryStatus @default(new)
+  adminNotes   String?              @map("admin_notes")
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+  product      Product              @relation(fields: [productId], references: [id])
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([productId])
+  @@index([phone, productId, createdAt])
+  @@map("product_enquiries")
+}
+
+enum ProductEnquiryStatus {
+  new
+  contacted
+  quoted
+  closed
+  spam
 }
