@@ -1,10 +1,18 @@
 /**
  * Staging-only checkout QA fixture. Dry run unless --apply.
  *
- *   VE_ALLOW_REMOTE_DB=1 DATABASE_URL=<staging> npx tsx scripts/qa-staging-fixture.mts \
+ *   VE_ALLOW_REMOTE_DB=1 DATABASE_URL=<staging> npm run -s qa:fixture -- \
  *     --expect-ref=gjhxhmcsuhxcmrvtkggz --category=painting --warehouse-id=<uuid> \
  *     --price-paise=19900 --stock=20 [--apply]
  *   ... --expect-ref=gjhxhmcsuhxcmrvtkggz --remove --apply     # archive (never delete)
+ *
+ * Rehearse first on a disposable local database (VE_TEST_DATABASE=1, localhost):
+ *   ... --expect-ref=local-test ...
+ *
+ * Run it through `npm run qa:fixture`, not bare `tsx`: the services it imports
+ * start with `import "server-only"`, which only Next's bundler resolves. The npm
+ * script puts the committed no-op stub (test-support/stubs) on NODE_PATH, the
+ * same way the test runner does.
  *
  * Refuses: any ref other than staging, a URL whose ref differs from --expect-ref,
  * the production ref, and a live payment gateway. Prices/stock are synthetic QA

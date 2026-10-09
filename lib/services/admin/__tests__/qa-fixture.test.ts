@@ -6,7 +6,8 @@ import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { publicProductWhere } from "@/lib/catalog-policy";
 import { upsertQaFixture, archiveQaFixture } from "../qa-fixture";
 import { QA_FIXTURE_PRODUCT_SLUG, QA_FIXTURE_APPROVER, isQaFixtureSlug } from "@/lib/catalog/qa-fixture-ids";
-import { qaTargetRefusal, STAGING_REF } from "@/lib/catalog/qa-target";
+import { qaTargetRefusal, STAGING_REF, LOCAL_TEST_REF } from "@/lib/catalog/qa-target";
+import { spawnSync } from "node:child_process";
 
 /**
  * The staging checkout QA fixture: sellable through the real gate, labelled as
@@ -37,6 +38,23 @@ after(async () => {
 });
 
 const isPublic = async () => !!(await db.product.findFirst({ where: { slug: QA_FIXTURE_PRODUCT_SLUG, AND: [publicProductWhere()] }, select: { id: true } }));
+
+/** Runs the committed `npm run qa:fixture` exactly as an operator would. */
+function runScript(args: string[], env: Record<string, string | undefined> = {}) {
+  const r = spawnSync("npm", ["run", "-s", "qa:fixture", "--", ...args], {
+    env: { ...process.env, NODE_PATH: undefined, ...env },
+    encoding: "utf8",
+    timeout: 120_000,
+  });
+  return { status: r.status, out: `${r.stdout}${r.stderr}` };
+}
+
+test("npm run qa:fixture resolves its imports as committed (dry run on the disposable DB writes nothing)", () => {
+  const r = runScript([`--expect-ref=${LOCAL_TEST_REF}`, `--category=${categorySlug}`, `--warehouse-id=${warehouseId}`, "--price-paise=19900", "--stock=20"]);
+  assert.equal(r.status, 0, r.out);
+  assert.match(r.out, /QA fixture is sellable \(published\)/);
+  assert.match(r.out, /DRY RUN — rolled back/);
+});
 
 test("created through the real gate: published, sellable, labelled synthetic", async () => {
   const r = await db.$transaction((tx) => upsertQaFixture(tx, { categorySlug, warehouseId, pricePaise: 19900, stock: 20 }));
@@ -79,4 +97,24 @@ test("the script refuses anything but staging", () => {
   assert.ok(qaTargetRefusal(STAGING, undefined, {}));
   assert.ok(qaTargetRefusal("postgresql://me@localhost/x", STAGING_REF, {}));
   assert.ok(qaTargetRefusal(STAGING, STAGING_REF, { PAYMENT_GATEWAY: "razorpay-live" }));
+});
+
+test("local-test rehearsal: only a local database explicitly marked disposable", () => {
+  const LOCAL = "postgresql://me@localhost:5432/ve_test";
+  const STAGING = `postgresql://postgres.${STAGING_REF}:pw@aws-0-ap-south-1.pooler.supabase.com:6543/postgres`;
+  const PROD = "postgresql://postgres.gsfslnxvwmrgulzqypdp:pw@aws-1-ap-south-1.pooler.supabase.com:6543/postgres";
+  const marked = { VE_TEST_DATABASE: "1" };
+  assert.equal(qaTargetRefusal(LOCAL, LOCAL_TEST_REF, marked), null);
+  assert.equal(qaTargetRefusal("postgresql://me@127.0.0.1/ve_test", LOCAL_TEST_REF, marked), null);
+  assert.ok(qaTargetRefusal(LOCAL, LOCAL_TEST_REF, {}), "unmarked local database");
+  assert.ok(qaTargetRefusal(STAGING, LOCAL_TEST_REF, marked), "staging is not a rehearsal target");
+  assert.ok(qaTargetRefusal(PROD, LOCAL_TEST_REF, marked), "production is not a rehearsal target");
+  assert.ok(qaTargetRefusal("postgresql://me@db.example.com/x", LOCAL_TEST_REF, marked), "remote non-Supabase host");
+  assert.ok(qaTargetRefusal(LOCAL, LOCAL_TEST_REF, { ...marked, PAYMENT_GATEWAY: "razorpay-live" }));
+});
+
+test("the script itself refuses an unmarked target before touching the database", () => {
+  const r = runScript([`--expect-ref=${LOCAL_TEST_REF}`, "--category=x", "--warehouse-id=x", "--price-paise=1", "--stock=1"], { VE_TEST_DATABASE: "" });
+  assert.notEqual(r.status, 0);
+  assert.match(r.out, /requires VE_TEST_DATABASE=1/);
 });
