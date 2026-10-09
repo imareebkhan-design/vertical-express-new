@@ -1,4 +1,5 @@
 import type { Prisma } from "@/prisma/generated/client/client";
+import { QA_FIXTURE_PREFIX, isLiveCommerce } from "@/lib/catalog/qa-fixture-ids";
 
 /** Customer-visible photos require a recorded identity decision, not provenance alone. */
 export function approvedImageWhere(): Prisma.ProductImageWhereInput {
@@ -28,7 +29,10 @@ export function catalogIdentityWhere(): Prisma.ProductWhereInput {
 }
 
 export function publicProductWhere(): Prisma.ProductWhereInput {
-  return { ...catalogIdentityWhere(), status: { in: ["catalog_only", "published"] } };
+  const base: Prisma.ProductWhereInput = { ...catalogIdentityWhere(), status: { in: ["catalog_only", "published"] } };
+  /* The staging QA fixture can never be shown or sold where real money moves,
+     even if a staging copy reached that database. */
+  return isLiveCommerce() ? { ...base, NOT: { slug: { startsWith: QA_FIXTURE_PREFIX } } } : base;
 }
 
 /** Listings need a real default variant for sellable records; catalogue-only never prices one. */
