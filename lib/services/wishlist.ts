@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { toItem, type CatalogItem } from "@/lib/services/catalog";
-import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
+import { catalogListingWhere, approvedImageWhere } from "@/lib/catalog-policy";
 
 import { getAuthUserId } from "@/lib/auth/current-user";
 
@@ -54,11 +54,11 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
 
   const productIds = wl.items.map((i) => i.productId);
   const products = await db.product.findMany({
-    where: { id: { in: productIds }, status: { in: [...VISIBLE_PRODUCT_STATUSES] } },
+    where: { id: { in: productIds }, AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+      images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {

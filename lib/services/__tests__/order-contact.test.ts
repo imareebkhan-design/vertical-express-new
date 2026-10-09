@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 import { placeOrder } from "@/lib/services/checkout";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 
@@ -36,7 +37,7 @@ async function scratchPhoneCustomer() {
      places a real order, so an arbitrary pick drains and the third test fails
      with OUT_OF_STOCK — which says nothing about what it is testing. */
   const inventory = await db.inventory.findFirstOrThrow({
-    where: { variant: { isActive: true }, qtyOnHand: { gt: 50 } },
+    where: { variant: { isActive: true, product: { status: "published", AND: [catalogListingWhere()] } }, qtyOnHand: { gt: 50 } },
     orderBy: { qtyOnHand: "desc" },
     select: { variantId: true },
   });

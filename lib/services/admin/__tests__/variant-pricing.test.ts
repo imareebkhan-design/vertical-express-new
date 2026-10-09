@@ -16,6 +16,8 @@ import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "@/lib/services/cart";
 import { placeOrder, computeTotals } from "@/lib/services/checkout";
 import { setVariantPrice, priceProblem, MAX_STORED_PAISE } from "@/lib/services/admin/variant-pricing";
+import { approveTestProductsCreatedSince } from "../../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const PINCODE = "999968";
 const STATE = "Jammu & Kashmir";
@@ -56,10 +58,11 @@ before(async () => {
     data: { userId: USER, name: "Price Buyer", phone: "9876543210", line1: "Plot 68", city: "Srinagar", state: STATE, pincode: PINCODE, isDefault: true },
   })).id;
   productId = (await db.product.create({
-    data: { title: `${TAG} item`, slug: `${TAG.toLowerCase()}-item`, categoryId: category.id, brandId: brand.id },
+    data: { status: "published", title: `${TAG} item`, slug: `${TAG.toLowerCase()}-item`, categoryId: category.id, brandId: brand.id },
   })).id;
   variantId = (await db.productVariant.create({ data: { productId, name: "Unit", sku: `${TAG}-item`, pricePaise: 20000, compareAtPaise: 25000 } })).id;
   await db.inventory.create({ data: { variantId, warehouseId, qtyOnHand: 100 } });
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 beforeEach(async () => {
@@ -170,19 +173,23 @@ test("an unknown variant is reported, not created", async () => {
 });
 
 test("a placed order keeps the price it was placed at", async () => {
+  await approveTestProductsCreatedSince(SUITE_START); // owner re-review after a price edit (offer changes revoke approval)
   await addItem(USER, null, variantId, 2);
   const placed = await placeOrder({ userId: USER, addressId, paymentMethod: "cod", idempotencyKey: randomUUID(), expectedTotalPaise: await quote() });
   await setVariantPrice(change(30000, null, { pricePaise: 20000, compareAtPaise: 25000 }), ADMIN);
+  await approveTestProductsCreatedSince(SUITE_START); // owner re-review after a price edit (offer changes revoke approval)
   const order = await db.order.findUniqueOrThrow({ where: { orderNo: placed.orderNo }, include: { items: true } });
   assert.equal(order.totalPaise, 40000);
   assert.equal(order.items[0].unitPricePaise, 20000);
 });
 
 test("an open cart shows the new price, and a checkout still showing the old total is refused", async () => {
+  await approveTestProductsCreatedSince(SUITE_START); // owner re-review after a price edit (offer changes revoke approval)
   await addItem(USER, null, variantId, 1);
   const shown = await quote();
   assert.equal(shown, 20000);
   await setVariantPrice(change(21500, null, { pricePaise: 20000, compareAtPaise: 25000 }), ADMIN);
+  await approveTestProductsCreatedSince(SUITE_START); // owner re-review after a price edit (offer changes revoke approval)
   assert.equal((await getCartSummary(USER, null)).subtotalPaise, 21500, "the cart resolves the price on read");
   const before = await db.order.count({ where: { userId: USER } });
   await assert.rejects(

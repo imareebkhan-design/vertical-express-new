@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
+import { catalogListingWhere } from "@/lib/catalog-policy";
+
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in";
@@ -15,7 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Dynamic Categories
     const categories = await db.category.findMany({
-      where: { isActive: true },
+      where: { isActive: true, products: { some: catalogListingWhere() } },
       select: { slug: true, updatedAt: true },
     });
 
@@ -28,7 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Dynamic Products
     const products = await db.product.findMany({
-      where: { status: "published" },
+      where: catalogListingWhere(),
       select: { slug: true, updatedAt: true },
     });
 

@@ -18,6 +18,8 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const TEST_PINCODE = "999907";
 const TEST_USER = randomUUID();
@@ -79,7 +81,7 @@ before(async () => {
   addressId = address.id;
 
   const product = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Coupon Test Switch",
       slug: `coupon-switch-${Date.now()}`,
       description: "Fixture",
@@ -97,6 +99,7 @@ before(async () => {
   await db.coupon.create({
     data: { code: COUPON_CODE, type: "flat", value: 25000, minOrderPaise: 0, isActive: true },
   });
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

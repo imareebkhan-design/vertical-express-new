@@ -12,7 +12,7 @@ import { rupeesToPaise } from "@/lib/money";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
 import { attributeConfigFor } from "@/lib/catalog-attributes";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
   const slugs = await listCategorySlugs();

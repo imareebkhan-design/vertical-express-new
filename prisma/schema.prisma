@@ -166,7 +166,14 @@ model Product {
   /// Overrides the category's speed for this one product. Null means the
   /// category decides, which is right for almost everything.
   deliverySpeed   DeliverySpeed?          @map("delivery_speed")
-  status          ProductStatus           @default(published)
+  status          ProductStatus           @default(draft)
+  /// Explicit review; provenance or an imported title never establishes identity.
+  identityConfirmed Boolean               @default(false) @map("identity_confirmed")
+  identityApprovedAt DateTime?             @map("identity_approved_at")
+  identityApprovedBy String?               @map("identity_approved_by")
+  identityApprovalReason String?           @map("identity_approval_reason")
+  /// Owner-supplied commercial review, validated against the final persisted state.
+  commercialReview Json?                  @map("commercial_review")
   isDeal          Boolean                 @default(false) @map("is_deal")
   ratingAvg       Decimal                 @default(0) @map("rating_avg") @db.Decimal(2, 1)
   ratingCount     Int                     @default(0) @map("rating_count")
@@ -238,11 +245,32 @@ model ProductImage {
   height    Int?
   /// SHA-256 of the delivered file — makes a re-run of an image import a no-op.
   sha256    String? @db.Char(64)
+  sourceVerified Boolean @default(false) @map("source_verified")
+  identityApproved Boolean @default(false) @map("identity_approved")
+  approvalStatus ImageApprovalStatus @default(REVIEW_REQUIRED) @map("approval_status")
+  severity ImageReviewSeverity?
+  approvalReason String? @map("approval_reason")
+  approvedAt DateTime? @map("approved_at")
+  approvedBy String? @map("approved_by")
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, sha256])
   @@index([productId, sortOrder])
   @@map("product_images")
+}
+
+enum ImageApprovalStatus {
+  APPROVED_EXACT
+  APPROVED_WITH_LIMITATION
+  REVIEW_REQUIRED
+  REJECTED
+}
+
+enum ImageReviewSeverity {
+  P0
+  P1
+  P2
+  P3
 }
 
 model ProductVariant {

@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { isPurchasableStatus } from "@/lib/catalog-visibility";
+import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
+import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
 
 const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
 
@@ -130,7 +132,7 @@ export async function getCartSummary(
   if (!cart) return EMPTY;
 
   const items = await db.cartItem.findMany({
-    where: { cartId: cart.id },
+    where: { cartId: cart.id, variant: { isActive: true, product: { status: "published", AND: [catalogListingWhere()] } } },
     orderBy: { createdAt: "asc" },
     include: {
       variant: {
@@ -140,7 +142,7 @@ export async function getCartSummary(
           product: {
             include: {
               brand: { select: { name: true } },
-              images: { where: { isPrimary: true }, take: 1 },
+              images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
               category: { select: { slug: true, isBulk: true } },
             },
           },
@@ -152,12 +154,15 @@ export async function getCartSummary(
   const warehouseId = await resolveWarehouseId(userId);
 
   const lines: CartLine[] = [];
+  const readiness = new Map<string, boolean>();
   for (const item of items) {
     const v = item.variant;
     /* A line whose product is not for sale (catalog-only, draft, archived) is
        left out. Checkout builds the order from this summary, so this is what
        keeps such a line from ever being ordered or priced. */
     if (!isPurchasableStatus(v.product.status)) continue;
+    if (!readiness.has(v.productId)) readiness.set(v.productId, (await validateCommercialReadiness(db, v.productId)).length === 0);
+    if (!readiness.get(v.productId)) continue;
 
     // Look up warehouse-scoped inventory
     const inv = v.inventory.find((i) => i.warehouseId === warehouseId);
@@ -239,8 +244,8 @@ export async function addItem(
 
   // Guard: variant must exist and be active.
   const variant = await db.productVariant.findFirst({
-    where: { id: variantId, isActive: true },
-    select: { id: true, product: { select: { status: true } } },
+    where: { id: variantId, isActive: true, product: { status: "published", AND: [catalogListingWhere()] } },
+    select: { id: true, productId: true, product: { select: { status: true } } },
   });
   if (!variant) throw new Error("Variant not found");
   /* Only a published product is for sale. Catalog-only products are shown
@@ -248,6 +253,7 @@ export async function addItem(
      the variant id was obtained (lib/catalog-visibility.ts). Classified as
      NOT_FOUND by lib/cart-errors.ts on the web and /api/v1 alike. */
   if (!isPurchasableStatus(variant.product.status)) throw new Error("Product not for sale");
+  if ((await validateCommercialReadiness(db, variant.productId)).length) throw new Error("Product not for sale");
 
   const warehouseId = await resolveWarehouseId(userId);
   const inv = await db.inventory.findUnique({

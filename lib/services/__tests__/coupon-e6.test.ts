@@ -19,6 +19,8 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const PINCODE = "999916";
 const STATE = "Jammu & Kashmir";
@@ -80,7 +82,7 @@ before(async () => {
 
   const mk = async (key: keyof typeof variants, categoryId: string, pricePaise: number) => {
     const p = await db.product.create({
-      data: { title: `${TAG} ${key}`, slug: `${TAG.toLowerCase()}-${key}`, categoryId, brandId: brand.id },
+      data: { status: "published", title: `${TAG} ${key}`, slug: `${TAG.toLowerCase()}-${key}`, categoryId, brandId: brand.id },
     });
     productIds.push(p.id);
     const v = await db.productVariant.create({ data: { productId: p.id, name: "Unit", sku: `${TAG}-${key}`, pricePaise } });
@@ -90,6 +92,7 @@ before(async () => {
   await mk("cheap", other.id, 30000); // ₹300 — under the ₹500 free-delivery threshold
   await mk("cement", cement.id, 32000); // 28% GST
   await mk("fitting", other.id, 11800); // 18% GST (or the category's rate)
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 beforeEach(async () => {

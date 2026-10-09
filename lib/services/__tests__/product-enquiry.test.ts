@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { createProductEnquiry, setProductEnquiryStatus, listProductEnquiries } from "../product-enquiries";
 import { submitProductEnquiry, ENQUIRY_LIMITS } from "../product-enquiry-submit";
 import { handleProductEnquiry } from "@/lib/api/product-enquiry";
+import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
 
 /**
  * Product enquiries ("Enquire about this product").
@@ -26,10 +27,13 @@ before(async () => {
   ids.offCat = (await db.category.create({ data: { slug: `enq-off-${tag}`, name: `ENQ off ${tag}`, isActive: false } })).id;
   ids.brand = (await db.brand.create({ data: { slug: `enq-brand-${tag}`, name: `ENQ Brand ${tag}` } })).id;
   for (const [k, status, cat] of [
-    ["co", "catalog_only", ids.cat], ["draft", "draft", ids.cat], ["pub", "published", ids.cat], ["offcat", "catalog_only", ids.offCat],
+    ["co", "catalog_only", ids.cat], ["unapproved", "catalog_only", ids.cat], ["draft", "draft", ids.cat], ["pub", "published", ids.cat], ["offcat", "catalog_only", ids.offCat],
   ] as const) {
     p[k] = (await db.product.create({ data: { slug: `enq-${tag}-${k}`, title: `Enquiry Probe ${tag} ${k}`, brandId: ids.brand!, categoryId: cat!, status } })).id;
   }
+  /* Only "co" gets a (synthetic, test-only) identity + photo approval. "unapproved"
+     is catalog_only too but has no recorded approval, so it is not public. */
+  await approveSyntheticProductForSale(p.co, { allowUntaxed: true });
   await db.user.create({ data: { id: ADMIN, phone: `+9197${String(Date.now()).slice(-8)}`, email: `enq_${tag}@example.com` } });
 });
 
@@ -38,6 +42,7 @@ after(async () => {
   const enq = await db.productEnquiry.findMany({ where: { productId: { in: productIds } }, select: { id: true } });
   await db.auditLog.deleteMany({ where: { entityType: "product_enquiry", entityId: { in: enq.map((e) => e.id) } } });
   await db.productEnquiry.deleteMany({ where: { productId: { in: productIds } } });
+  await db.productImage.deleteMany({ where: { productId: { in: productIds } } });
   await db.product.deleteMany({ where: { id: { in: productIds } } });
   await db.brand.deleteMany({ where: { id: ids.brand } });
   await db.category.deleteMany({ where: { id: { in: [ids.cat!, ids.offCat!] } } });
@@ -59,12 +64,12 @@ test("a catalog-only product accepts an enquiry; title and brand are DB snapshot
   assert.match(row.enquiryNo, /^ENQ-\d{8}-[0-9A-F]{8}$/);
 });
 
-test("draft, published, inactive-category and unknown products are refused", async () => {
-  for (const id of [p.draft, p.pub, p.offcat, randomUUID()]) {
+test("unapproved catalog-only, draft, published, inactive-category and unknown products are refused", async () => {
+  for (const id of [p.unapproved, p.draft, p.pub, p.offcat, randomUUID()]) {
     const r = await createProductEnquiry({ productId: id, name: "Asha", phone: phone() });
     assert.deepEqual(r, { ok: false, reason: "NOT_ENQUIRABLE" });
   }
-  assert.equal(await db.productEnquiry.count({ where: { productId: { in: [p.draft, p.pub, p.offcat] } } }), 0);
+  assert.equal(await db.productEnquiry.count({ where: { productId: { in: [p.unapproved, p.draft, p.pub, p.offcat] } } }), 0);
 });
 
 test("a resubmission within the window returns the same enquiry, no second row", async () => {

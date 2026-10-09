@@ -16,6 +16,8 @@ import { db } from "@/lib/db";
 import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
 import { getOrderTracking } from "../tracking";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const TEST_PINCODE = "999905";
 const TEST_USER = randomUUID();
@@ -77,7 +79,7 @@ before(async () => {
   addressId = address.id;
 
   const heavy = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Split Test Cement",
       slug: `split-cement-${Date.now()}`,
       description: "Heavy fixture",
@@ -92,7 +94,7 @@ before(async () => {
   bulkVariantId = heavyVariant.id;
 
   const small = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Split Test Switch",
       slug: `split-switch-${Date.now()}`,
       description: "Small fixture",
@@ -112,6 +114,7 @@ before(async () => {
       { variantId: smallVariantId, warehouseId, qtyOnHand: 200 },
     ],
   });
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

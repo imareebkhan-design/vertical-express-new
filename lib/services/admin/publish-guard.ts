@@ -1,6 +1,8 @@
 import "server-only";
 import type { DbClient } from "@/lib/services/audit";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
+import { catalogIdentityWhere } from "@/lib/catalog-policy";
+import { validateCommercialReadiness } from "./commercial-readiness";
 
 /**
  * Whether a product may be published, and if not, why.
@@ -11,8 +13,7 @@ import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
  * are exactly that until real variants are added. Returns null when publishable.
  */
 export async function unpublishableReason(client: DbClient, productId: string): Promise<string | null> {
-  const priced = await client.productVariant.count({ where: { productId, isActive: true, pricePaise: { gt: 0 } } });
-  return priced > 0 ? null : "A product needs at least one active variant with a price before it can be published";
+  return (await sellableReasons(client, productId))[0] ?? null;
 }
 
 /**
@@ -42,6 +43,8 @@ export async function catalogOnlyReason(client: DbClient, productId: string): Pr
   }
   if (!product.brand.isActive) return "The product's brand is inactive";
   if (!product.category.isActive) return "The product's category is inactive";
+  const approved = await client.product.findFirst({ where: { id: productId, AND: [catalogIdentityWhere()] }, select: { id: true } });
+  if (!approved) return "Confirmed identity and explicit primary photo approval are required";
   return null;
 }
 
@@ -96,5 +99,5 @@ export async function sellableReasons(client: DbClient, productId: string): Prom
   if (!photo?.licence || !photo.sha256) reasons.push("No approved exact product photo as the primary image");
   if (!p.brand.isActive) reasons.push("The brand is inactive");
   if (!p.category.isActive) reasons.push("The category is inactive");
-  return reasons;
+  return [...new Set([...reasons, ...await validateCommercialReadiness(client, productId)])];
 }

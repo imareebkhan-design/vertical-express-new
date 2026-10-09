@@ -7,6 +7,7 @@ import {
   expressEligibleProductIds,
   expressFeePaise,
 } from "@/lib/services/express-delivery";
+import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
 import { SETTING_KEYS } from "@/lib/services/settings";
 
 /**
@@ -69,6 +70,7 @@ async function scratchProduct(opts: {
       isActive: true,
     },
   });
+  await approveSyntheticProductForSale(product.id, { allowUntaxed: true });
   return { productId: product.id, variantId: variant.id };
 }
 

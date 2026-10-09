@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { listProducts } from "../catalog";
 import { getSuggestions } from "../search";
 import { handleSearchClosest } from "@/lib/api/v1";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { CATEGORY_TAX_CONFIGS } from "../tax";
+const syntheticCategorySlugs: string[] = [];
+const SUITE_START = new Date();
 let categoryId1: string;
 let categoryId2: string;
 let brandId1: string;
@@ -44,6 +48,9 @@ before(async () => {
     },
   });
   categoryId2 = cat2.id;
+  CATEGORY_TAX_CONFIGS[cat1.slug] = CATEGORY_TAX_CONFIGS.tiling;
+  CATEGORY_TAX_CONFIGS[cat2.slug] = CATEGORY_TAX_CONFIGS.cement;
+  syntheticCategorySlugs.push(cat1.slug, cat2.slug);
 
   // 2. Create test brands
   const br1 = await db.brand.create({
@@ -59,7 +66,7 @@ before(async () => {
   // 3. Create test products
   // Product 1: exact matches "OPC Cement Bag"
   const p1 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "OPC Cement Bag",
       slug: `opc-cement-test-${Date.now()}`,
       description: "Original OPC Cement Bag",
@@ -74,7 +81,7 @@ before(async () => {
 
   // Product 2: title starts with "Cement ReadyMix"
   const p2 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Cement ReadyMix Plaster",
       slug: `cement-readymix-test-${Date.now()}`,
       description: "Starts with cement",
@@ -89,7 +96,7 @@ before(async () => {
 
   // Product 3: contains Distemper paint but matches category or synonym "paint"
   const p3 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Acrylic Distemper",
       slug: `distemper-test-${Date.now()}`,
       description: "Wall paint",
@@ -129,9 +136,11 @@ before(async () => {
       ],
     });
   }
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {
+  for (const slug of syntheticCategorySlugs) delete CATEGORY_TAX_CONFIGS[slug];
   // Cleanup test data
   if (variant1Id || variant2Id || variant3Id) {
     await db.inventory.deleteMany({

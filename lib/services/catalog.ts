@@ -2,9 +2,8 @@ import "server-only";
 import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
-import { unstable_cache } from "next/cache";
 import { expandedSearchTerms } from "@/lib/search-terms";
-import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
+import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
 
 /** Serializable product card payload shared by PLP, search, deals, wishlist. */
@@ -112,19 +111,7 @@ const PER_PAGE_MAX = 48;
  * filter can only ever match something with a price, so it excludes catalog-only.
  */
 function visibleWhere(minPaise?: number, maxPaise?: number): Prisma.ProductWhereInput {
-  const priced = minPaise != null || maxPaise != null;
-  const purchasable: Prisma.ProductWhereInput = {
-    status: "published",
-    variants: {
-      some: {
-        isDefault: true,
-        isActive: true,
-        ...(priced ? { pricePaise: { gte: minPaise ?? 0, lte: maxPaise ?? 2_000_000_000 } } : {}),
-      },
-    },
-  };
-  if (priced) return purchasable;
-  return { OR: [purchasable, { status: "catalog_only", images: { some: { isPrimary: true } } }] };
+  return catalogListingWhere(minPaise, maxPaise);
 }
 
 function buildWhere(q: CatalogQuery): Prisma.ProductWhereInput {
@@ -274,7 +261,7 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
         include: {
           brand: true,
           category: { select: { slug: true, isBulk: true } },
-          images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
           variants: {
             where: { isDefault: true },
             include: {
@@ -364,18 +351,18 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   /* Visibility mirrors visibleWhere(): catalog-only needs its primary photo.
      The price-filter conditions below require a default variant, so they
      exclude catalog-only exactly as visibleWhere() does. */
-  const conditions = [
-    "(p.status = 'published' OR (p.status = 'catalog_only' AND EXISTS (SELECT 1 FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary)))",
-  ];
+  const eligible = await db.product.findMany({ where: visibleWhere(q.minPaise, q.maxPaise), select: { id: true } });
+  const conditions = ["p.id = ANY($5::uuid[])"];
 
   const queryArgs: unknown[] = [
     primaryTerm,             // $1
     `${primaryTerm}%`,       // $2
     synonymsList,            // $3 (text[])
     `%${primaryTerm}%`,      // $4
+    eligible.map((p) => p.id), // $5: authoritative eligibility, not a second SQL policy
   ];
 
-  let argIndex = 5;
+  let argIndex = 6;
 
   const searchCond = `(
     (CASE WHEN char_length($1) <= 3 THEN $1 = ANY(regexp_split_to_array(LOWER(p.title), '[^a-z0-9]+')) ELSE LOWER(p.title) LIKE LOWER($4) END) OR
@@ -540,11 +527,11 @@ export async function listProducts(q: CatalogQuery): Promise<CatalogResult> {
   const productIds = rows.map((r) => r.id);
   const details = productIds.length
     ? await db.product.findMany({
-        where: { id: { in: productIds } },
+        where: { id: { in: productIds }, AND: [catalogListingWhere()] },
         include: {
           brand: { select: { name: true } },
           category: { select: { slug: true, isBulk: true } },
-          images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
           variants: {
             where: { isDefault: true },
             include: {
@@ -663,11 +650,11 @@ export interface ProductDetail {
 
 export async function getProductBySlug(slug: string): Promise<ProductDetail | null> {
   const p = await db.product.findFirst({
-    where: { slug, status: { in: [...VISIBLE_PRODUCT_STATUSES] } },
+    where: { slug, AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: true,
-      images: { orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
+      images: { where: approvedImageWhere(), orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }] },
       variants: {
         where: { isActive: true },
         orderBy: { isDefault: "desc" },
@@ -734,7 +721,7 @@ async function getRelatedProductsRaw(
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -747,21 +734,18 @@ async function getRelatedProductsRaw(
   return rows.map(toItem).filter((x): x is CatalogItem => x !== null);
 }
 
-export const getRelatedProducts = unstable_cache(
-  async (categorySlug: string, excludeSlug: string, take = 6) => getRelatedProductsRaw(categorySlug, excludeSlug, take),
-  ["catalog-related-products"],
-  { revalidate: 300, tags: ["catalog"] }
-);
+// Approval revocation must affect the next read, including recommendation rails.
+export const getRelatedProducts = getRelatedProductsRaw;
 
 async function getDealsRaw(take = 8): Promise<CatalogItem[]> {
   const rows = await db.product.findMany({
-    where: { status: "published", isDeal: true },
+    where: { status: "published", isDeal: true, AND: [catalogListingWhere()] },
     orderBy: { updatedAt: "desc" },
     take,
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -780,11 +764,11 @@ async function getDealsRaw(take = 8): Promise<CatalogItem[]> {
  */
 export async function getCatalogItem(slug: string): Promise<CatalogItem | null> {
   const row = await db.product.findFirst({
-    where: { slug, status: "published" },
+    where: { slug, status: "published", AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -797,11 +781,7 @@ export async function getCatalogItem(slug: string): Promise<CatalogItem | null> 
   return row ? toItem(row) : null;
 }
 
-export const getDeals = unstable_cache(
-  async (take = 8) => getDealsRaw(take),
-  ["catalog-deals"],
-  { revalidate: 300, tags: ["catalog"] }
-);
+export const getDeals = getDealsRaw;
 
 export async function listProductSlugs(): Promise<string[]> {
   const rows = await db.product.findMany({
@@ -812,7 +792,7 @@ export async function listProductSlugs(): Promise<string[]> {
 }
 
 export async function getCategoryBySlug(slug: string) {
-  return db.category.findFirst({ where: { slug, isActive: true } });
+  return db.category.findFirst({ where: { slug, isActive: true, products: { some: catalogListingWhere() } } });
 }
 
 /**
@@ -826,23 +806,19 @@ export async function getCategoryBySlug(slug: string) {
  */
 async function listCategoriesRaw() {
   return db.category.findMany({
-    where: { isActive: true },
+    where: { isActive: true, products: { some: catalogListingWhere() } },
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }],
-    include: { _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } } },
+    include: { _count: { select: { products: { where: catalogListingWhere() } } } },
   });
 }
 
 /** A category plus how many published products it holds. */
 export type CategoryWithCount = Awaited<ReturnType<typeof listCategoriesRaw>>[number];
 
-export const listCategories = unstable_cache(
-  async () => listCategoriesRaw(),
-  ["catalog-categories"],
-  { revalidate: 600, tags: ["catalog"] }
-);
+export const listCategories = listCategoriesRaw;
 
 export async function listCategorySlugs(): Promise<string[]> {
-  const rows = await db.category.findMany({ where: { isActive: true }, select: { slug: true } });
+  const rows = await db.category.findMany({ where: { isActive: true, products: { some: catalogListingWhere() } }, select: { slug: true } });
   return rows.map((r) => r.slug);
 }
 
@@ -903,11 +879,11 @@ export async function mostOrderedInCategory(
   if (productIds.length === 0) return [];
 
   const rowsFull = await db.product.findMany({
-    where: { id: { in: productIds }, status: "published" },
+    where: { id: { in: productIds }, status: "published", AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -942,13 +918,13 @@ export async function brandsInCategory(categorySlug: string) {
   const rows = await db.brand.findMany({
     where: {
       isActive: true,
-      products: { some: { status: { in: [...VISIBLE_PRODUCT_STATUSES] }, category: { slug: categorySlug } } },
+      products: { some: { AND: [catalogListingWhere()], category: { slug: categorySlug } } },
     },
     select: {
       slug: true,
       name: true,
       _count: {
-        select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] }, category: { slug: categorySlug } } } },
+        select: { products: { where: { AND: [catalogListingWhere()], category: { slug: categorySlug } } } },
       },
     },
   });
@@ -975,12 +951,12 @@ export async function brandsForSearchEntry(
   const brands = await db.brand.findMany({
     where: {
       isActive: true,
-      products: { some: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } },
+      products: { some: catalogListingWhere() },
     },
     select: {
       slug: true,
       name: true,
-      _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } },
+      _count: { select: { products: { where: catalogListingWhere() } } },
     },
   });
 
@@ -1068,10 +1044,8 @@ export async function closestInStock(
  * seeded first is precisely the habit this replaces.
  */
 /**
- * Exported only so lib/services/__tests__/bought-with.test.ts can drive it
- * against a real database. `unstable_cache` needs a Next request context and
- * throws outside one, so the wrapped export below is untestable directly — and
- * the logic worth testing (what counts as evidence) is all in here.
+ * Keep the raw export for existing service callers and regression tests.
+ * Results are read fresh so revoked approvals cannot survive in a data cache.
  */
 export async function boughtWithProductRaw(slug: string, take = 6): Promise<CatalogItem[]> {
   const product = await db.product.findUnique({ where: { slug }, select: { id: true } });
@@ -1115,11 +1089,11 @@ export async function boughtWithProductRaw(slug: string, take = 6): Promise<Cata
     .map(([id]) => id);
 
   const rows = await db.product.findMany({
-    where: { id: { in: topIds }, status: "published" },
+    where: { id: { in: topIds }, status: "published", AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -1139,11 +1113,7 @@ export async function boughtWithProductRaw(slug: string, take = 6): Promise<Cata
     .filter((x): x is CatalogItem => x !== null);
 }
 
-export const boughtWithProduct = unstable_cache(
-  async (slug: string, take = 6) => boughtWithProductRaw(slug, take),
-  ["catalog-bought-with"],
-  { revalidate: 300, tags: ["catalog"] }
-);
+export const boughtWithProduct = boughtWithProductRaw;
 
 /**
  * What actually sold across the catalogue in the last `days` — the evidence
@@ -1184,11 +1154,11 @@ export async function mostOrderedRecently(days = 7, limit = 6): Promise<CatalogI
   if (productIds.length === 0) return [];
 
   const full = await db.product.findMany({
-    where: { id: { in: productIds }, status: "published" },
+    where: { id: { in: productIds }, status: "published", AND: [catalogListingWhere()] },
     include: {
       brand: true,
       category: { select: { slug: true, isBulk: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+          images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -1222,6 +1192,7 @@ export async function listRooms() {
       slug: true,
       name: true,
       categories: {
+        where: { category: { isActive: true, products: { some: catalogListingWhere() } } },
         orderBy: { sortOrder: "asc" },
         select: {
           category: {
@@ -1231,7 +1202,7 @@ export async function listRooms() {
               group: true,
               imageUrl: true,
               isBulk: true,
-              _count: { select: { products: { where: { status: { in: [...VISIBLE_PRODUCT_STATUSES] } } } } },
+              _count: { select: { products: { where: catalogListingWhere() } } },
             },
           },
         },

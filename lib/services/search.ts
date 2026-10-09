@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { expandedSearchTerms, matchesSearchName } from "@/lib/search-terms";
-import { VISIBLE_PRODUCT_STATUSES } from "@/lib/catalog-visibility";
+import { catalogListingWhere, approvedImageWhere } from "@/lib/catalog-policy";
 
 export interface SearchSuggestions {
   products: { slug: string; title: string; brandName: string; imageUrl: string | null; /** Null when the product has no price to show (catalog-only). Never 0. */ pricePaise: number | null }[];
@@ -33,11 +33,11 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
 
   // Filter short terms at the database before LIMIT: post-filtering a capped
   // result could let unrelated "Accessories" rows crowd out the actual ACC.
+  const eligible = await db.product.findMany({ where: catalogListingWhere(), select: { id: true } });
   const matchingIds = await db.$queryRaw<{ id: string }[]>`
     SELECT p.id FROM products p
     JOIN brands b ON b.id = p.brand_id JOIN categories c ON c.id = p.category_id
-    WHERE (p.status = 'published' OR (p.status = 'catalog_only' AND EXISTS (
-      SELECT 1 FROM product_images pi WHERE pi.product_id = p.id AND pi.is_primary))) AND EXISTS (
+    WHERE p.id = ANY(${eligible.map((p) => p.id)}::uuid[]) AND EXISTS (
       SELECT 1 FROM unnest(${deduplicatedTerms}::text[]) term
       WHERE CASE WHEN char_length(term) <= 3 THEN
         term = ANY(regexp_split_to_array(lower(p.title || ' ' || b.name || ' ' || c.name), '[^a-z0-9]+'))
@@ -47,7 +47,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
     )`;
   const products = await db.product.findMany({
     where: {
-      status: { in: [...VISIBLE_PRODUCT_STATUSES] },
+      AND: [catalogListingWhere()],
       id: { in: matchingIds.map(p => p.id) },
     },
     /* `ratingCount` is always zero (ISS-034), so this ranked nothing. Deals
@@ -56,7 +56,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
     take: 12, // Take extra to allow for deduplication
     include: {
       brand: { select: { name: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+      images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: { where: { isDefault: true }, take: 1, select: { pricePaise: true } },
     },
   });
@@ -65,6 +65,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
   const categories = await db.category.findMany({
     where: {
       isActive: true,
+      products: { some: catalogListingWhere() },
       OR: deduplicatedTerms.map((term) => ({
         name: { contains: term, mode: "insensitive" },
       })),
@@ -76,6 +77,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
   const brands = await db.brand.findMany({
     where: {
       isActive: true,
+      products: { some: catalogListingWhere() },
       OR: deduplicatedTerms.map((term) => ({
         name: { contains: term, mode: "insensitive" },
       })),

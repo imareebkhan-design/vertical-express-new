@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import type { Prisma, ProductEnquiryStatus } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
+import { publicProductWhere } from "@/lib/catalog-policy";
 
 /**
  * Product enquiries — "Enquire about this product" on catalog-only listings.
@@ -17,9 +18,10 @@ import { recordAudit } from "@/lib/services/audit";
  * the storefront would not show as catalog-only right now.
  */
 
-/** Products a customer may enquire about: the same set the storefront shows as catalog-only. */
+/** Products a customer may enquire about: exactly the public catalog-only set
+ *  (lib/catalog-policy.ts — recorded identity + primary photo approval, active taxonomy). */
 export function enquirableProductWhere(): Prisma.ProductWhereInput {
-  return { status: "catalog_only", brand: { isActive: true }, category: { isActive: true } };
+  return { AND: [publicProductWhere(), { status: "catalog_only" }] };
 }
 
 /** A double tap or a resubmitted form within this window returns the first enquiry. */

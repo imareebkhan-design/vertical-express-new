@@ -10,6 +10,7 @@
  */
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { catalogOnlyBatchSchema } from "@/lib/catalog-only-batch";
 
 const PRODUCTION_REF = "gsfslnxvwmrgulzqypdp";
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
@@ -42,8 +43,9 @@ if (prodRefs.has(target)) refuse(`${target} is the production project`);
 
 const bytes = readFileSync(batchPath);
 const sha = createHash("sha256").update(bytes).digest("hex");
-const batch = JSON.parse(bytes.toString("utf8")) as { batch: string; products: { slug: string }[] };
-const slugs = batch.products.map((p) => p.slug);
+const parsed = catalogOnlyBatchSchema.safeParse(JSON.parse(bytes.toString("utf8")));
+if (!parsed.success) refuse("batch must contain unique slugs and each reviewed imageSha256; legacy slug-only batches require re-review");
+const batch = parsed.data;
 
 const { planCatalogOnly, applyCatalogOnly } = await import("@/lib/services/admin/catalog-only-activation");
 const { db } = await import("@/lib/db");
@@ -56,10 +58,10 @@ const summary = (p: Awaited<ReturnType<typeof planCatalogOnly>>) => ({
   activateCategories: p.activateCategories.map((c) => c.slug),
 });
 try {
-  console.log(JSON.stringify({ target, batch: batch.batch, batchPath, batchSha256: sha, slugs: slugs.length, mode: apply ? "apply" : "dry-run" }));
+  console.log(JSON.stringify({ target, batch: batch.batch, batchPath, batchSha256: sha, slugs: batch.products.length, mode: apply ? "apply" : "dry-run" }));
   const plan = apply
-    ? await applyCatalogOnly(slugs, { batch: batch.batch, batchSha256: sha })
-    : await planCatalogOnly(slugs);
+    ? await applyCatalogOnly(batch.products, { batch: batch.batch, batchSha256: sha })
+    : await planCatalogOnly(batch.products);
   console.log(JSON.stringify(summary(plan), null, 1));
 } finally {
   await db.$disconnect();

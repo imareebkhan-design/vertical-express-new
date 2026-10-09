@@ -11,6 +11,12 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 ---
 
+## Catalogue safety gate — 9 October 2026
+
+**FIXED locally; rollout belongs to the release integrator.** Provenance alone previously qualified catalogue-only photographs, while some customer readers and purchase paths relied on status alone. `lib/catalog-policy.ts` now requires explicit identity/image evidence and active taxonomy across those readers. Publication, cart and transactional checkout also enforce owner commercial review. Database constraints and invalidation triggers prevent reusing approval after identity, image or offer changes. Persistent catalogue caches were removed so revoked approval does not remain visible until a cache expires.
+
+Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
+
 ## ISS-089 — Mobile web OTP verifier attachment and resend cooldown
 
 **1 October 2026 · MEDIUM · Auth · FIXED locally; real SMS verification open.**

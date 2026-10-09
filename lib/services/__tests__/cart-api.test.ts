@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
+import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 import { handleAddCartItem } from "@/lib/api/cart-items";
 import { POST } from "@/app/api/v1/cart/items/route";
 import type { CartSummary } from "@/lib/services/cart";
@@ -51,6 +52,7 @@ let warehouseId: string;
 let stockedVariantId: string;
 let emptyVariantId: string;
 let productId: string;
+let catalogueFixture: Awaited<ReturnType<typeof createApprovedCatalogueFixture>>;
 const provisioned: string[] = [];
 
 /** Accepts exactly one token, mapping it to one uid. Everything else is a 401. */
@@ -84,8 +86,6 @@ function errorOf(body: Record<string, unknown>) {
 }
 
 before(async () => {
-  const category = await db.category.findFirstOrThrow({ select: { id: true } });
-  const brand = await db.brand.findFirstOrThrow({ select: { id: true } });
 
   const warehouse = await db.warehouse.create({
     data: { name: "ZZZ Cart API Warehouse", city: "Srinagar", pincode: "190001" },
@@ -122,24 +122,10 @@ before(async () => {
   });
   userId = user.id;
 
-  const tag = randomUUID().slice(0, 8);
-  const product = await db.product.create({
-    data: {
-      slug: `zzz-cart-api-${tag}`,
-      title: "ZZZ Cart API Cement, 50 kg Bag",
-      brandId: brand.id,
-      categoryId: category.id,
-      unitLabel: "per bag",
-      status: "published",
-      variants: {
-        create: [
-          { sku: `ZZZ-CART-API-${tag}-A`, name: "50 kg", pricePaise: 38500, isDefault: true },
-          { sku: `ZZZ-CART-API-${tag}-B`, name: "25 kg", pricePaise: 20000 },
-        ],
-      },
-    },
-    include: { variants: { orderBy: { name: "asc" } } },
-  });
+  catalogueFixture = await createApprovedCatalogueFixture({ variants: [
+    { name: "50 kg", pricePaise: 38500 }, { name: "25 kg", pricePaise: 20000 },
+  ] });
+  const product = catalogueFixture.product;
   productId = product.id;
 
   const stocked = product.variants.find((v) => v.name === "50 kg")!;
@@ -158,7 +144,8 @@ before(async () => {
 after(async () => {
   await db.cartItem.deleteMany({ where: { variant: { productId } } });
   await db.cart.deleteMany({ where: { userId: { in: [userId, ...provisioned] } } });
-  await db.product.deleteMany({ where: { id: productId } });
+  await db.inventory.deleteMany({ where: { variant: { productId } } });
+  if (catalogueFixture) await catalogueFixture.cleanup();
   await db.serviceablePincode.deleteMany({ where: { pincode: TEST_PINCODE } });
   await db.warehouse.deleteMany({ where: { id: warehouseId } });
   await db.address.deleteMany({ where: { userId } });

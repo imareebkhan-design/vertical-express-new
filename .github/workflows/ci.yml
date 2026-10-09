@@ -82,6 +82,10 @@ jobs:
 
       - name: Seed
         run: npx prisma db seed
+      # Seeded demo products are synthetic: record test-only approvals so tests that
+      # read the seed see them under the explicit-approval policy (lib/catalog-policy.ts).
+      - name: Approve seeded synthetic catalogue for tests
+        run: NODE_PATH=./test-support/stubs node --conditions=react-server --import ./test-support/db-guard.mjs --import tsx test-support/approve-seed-catalogue.mts
 
       - name: Typecheck
         run: npx tsc --noEmit

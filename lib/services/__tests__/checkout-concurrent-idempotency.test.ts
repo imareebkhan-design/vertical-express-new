@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
 import { placeOrder } from "../checkout";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * A double-tapped "Pay" — the same checkout submitted several times at once.
@@ -68,6 +70,7 @@ before(async () => {
       select: { id: true },
     })
   ).id;
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

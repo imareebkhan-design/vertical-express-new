@@ -5,6 +5,8 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { addItem, updateItemQty } from "@/lib/services/cart";
 import { handleCheckoutTotals, handlePlaceOrder } from "@/lib/api/v1";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * The native app's placement, when the cart moved after its quote.
@@ -118,6 +120,7 @@ before(async () => {
       },
     })
   ).id;
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

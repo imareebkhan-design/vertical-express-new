@@ -18,6 +18,7 @@ import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
+import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
 
@@ -25,7 +26,7 @@ const TEST_PINCODE = "999903";
 const TEST_USER = randomUUID();
 
 let warehouseId: string;
-let productId: string;
+let catalogueFixture: Awaited<ReturnType<typeof createApprovedCatalogueFixture>>;
 let variantId: string;
 let addressId: string;
 
@@ -64,6 +65,7 @@ const countingTransaction: TransactionFn = (...args) => {
 const realFetch = globalThis.fetch;
 let txnDepthAtGatewayCall: number | null = null;
 let gatewayShouldFail = false;
+let duringGateway: (() => Promise<void>) | null = null;
 let lastGatewayBody: Record<string, unknown> | null = null;
 
 function stubFetch(): void {
@@ -77,6 +79,7 @@ function stubFetch(): void {
     if (gatewayShouldFail) {
       return new Response("gateway down", { status: 502 });
     }
+    await duringGateway?.();
     return new Response(JSON.stringify({ id: `order_test_${randomUUID().slice(0, 8)}` }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -99,11 +102,6 @@ before(async () => {
   stubFetch();
   db.$transaction = countingTransaction as unknown as typeof db.$transaction;
 
-  const category = await db.category.findFirst({ select: { id: true } });
-  const brand = await db.brand.findFirst({ select: { id: true } });
-  if (!category || !brand) {
-    throw new Error("No categories/brands found in seed to attach test product to.");
-  }
 
   await db.user.create({
     data: {
@@ -136,21 +134,8 @@ before(async () => {
   });
   addressId = address.id;
 
-  const product = await db.product.create({
-    data: {
-      title: "Txn Test Cement",
-      slug: `txn-test-cement-${Date.now()}`,
-      description: "Fixture for ISS-003",
-      categoryId: category.id,
-      brandId: brand.id,
-    },
-  });
-  productId = product.id;
-
-  const variant = await db.productVariant.create({
-    data: { productId, name: "50kg Bag", sku: `SKU-TXN-${Date.now()}`, pricePaise: 46500 },
-  });
-  variantId = variant.id;
+  catalogueFixture = await createApprovedCatalogueFixture({ variants: [{ name: "50kg Bag", pricePaise: 46500 }] });
+  variantId = catalogueFixture.variant.id;
 
   await db.inventory.create({
     data: { variantId, warehouseId, qtyOnHand: 20 },
@@ -175,9 +160,8 @@ after(async () => {
   await db.serviceablePincode.deleteMany({ where: { pincode: TEST_PINCODE } });
   if (variantId) {
     await db.inventory.deleteMany({ where: { variantId } });
-    await db.productVariant.delete({ where: { id: variantId } });
   }
-  if (productId) await db.product.delete({ where: { id: productId } });
+  if (catalogueFixture) await catalogueFixture.cleanup();
   if (warehouseId) await db.warehouse.delete({ where: { id: warehouseId } });
   await db.user.deleteMany({ where: { id: TEST_USER } });
 });
@@ -262,4 +246,25 @@ test("the Razorpay order's receipt is the order number, so the dashboard can be 
   assert.equal(sent.receipt, result.orderNo, "receipt used to be the literal \"pending\" on every order");
   const row = await db.order.findUniqueOrThrow({ where: { orderNo: result.orderNo }, select: { totalPaise: true } });
   assert.equal(sent.amount, row.totalPaise);
+});
+
+test("approval revoked during the gateway wait refuses the order without spending stock", async () => {
+  gatewayShouldFail = false;
+  await addItem(TEST_USER, null, variantId, 1);
+  const inventory = await db.inventory.findUniqueOrThrow({ where: { variantId_warehouseId: { variantId, warehouseId } } });
+  const idempotencyKey = `txn-revoked-${randomUUID()}`;
+  duringGateway = async () => {
+    await db.productImage.updateMany({ where: { productId: catalogueFixture.product.id },
+      data: { identityApproved: false, approvalStatus: "REVIEW_REQUIRED" } });
+  };
+  try {
+    await assert.rejects(placeOrder({ userId: TEST_USER, addressId, paymentMethod: "razorpay-test", idempotencyKey }), /OUT_OF_STOCK/);
+    assert.equal(await db.order.count({ where: { idempotencyKey } }), 0);
+    assert.equal((await db.inventory.findUniqueOrThrow({ where: { id: inventory.id } })).qtyOnHand, inventory.qtyOnHand);
+    assert.equal(await db.cartItem.count({ where: { cart: { userId: TEST_USER }, variantId } }), 1, "refusal preserves the basket");
+  } finally {
+    duringGateway = null;
+    await db.productImage.updateMany({ where: { productId: catalogueFixture.product.id },
+      data: { identityApproved: true, approvalStatus: "APPROVED_EXACT" } });
+  }
 });
