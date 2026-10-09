@@ -25,6 +25,8 @@ import {
   handleUpdateAddress,
 } from "@/lib/api/v1";
 import { handleOrderTracking } from "@/lib/api/tracking";
+import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
+import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
 
 const TOKEN = "journey-token";
 const UID = `uid-journey-${randomUUID().slice(0, 8)}`;
@@ -63,7 +65,13 @@ const SITE = {
 
 before(async () => {
   process.env.PAYMENT_GATEWAY = "dummy";
-  const category = await db.category.findFirst({ where: { isBulk: false }, select: { id: true } });
+  /* A product must be genuinely sellable under the catalogue gate (lib/catalog-policy.ts):
+     a category with a confirmed HSN/GST mapping, then a full synthetic (test-only)
+     identity, photo and commercial approval — never the untaxed shortcut. */
+  const category = await db.category.findFirst({
+    where: { isBulk: false, slug: { in: Object.keys(CATEGORY_TAX_CONFIGS) } },
+    select: { id: true },
+  });
   const brand = await db.brand.findFirst({ select: { id: true } });
   if (!category || !brand) throw new Error("Seed must provide a non-bulk category and a brand.");
   userId = (await db.user.create({ data: { id: randomUUID(), firebaseUid: UID, phone: `+9196${String(Math.random()).slice(2, 10)}`, profile: { create: {} } } })).id;
@@ -74,6 +82,7 @@ before(async () => {
   })).id;
   variantId = (await db.productVariant.create({ data: { productId, name: "Tube", sku: `JRN-${Date.now()}`, pricePaise: 19900 } })).id;
   await db.inventory.create({ data: { variantId, warehouseId, qtyOnHand: 50 } });
+  await approveSyntheticProductForSale(productId);
 });
 
 after(async () => {
@@ -93,6 +102,7 @@ after(async () => {
   await db.serviceablePincode.deleteMany({ where: { pincode: { in: [SERVED, NOT_SERVED] } } });
   await db.inventory.deleteMany({ where: { variantId } });
   await db.productVariant.deleteMany({ where: { id: variantId } });
+  await db.productImage.deleteMany({ where: { productId } });
   await db.product.deleteMany({ where: { id: productId } });
   await db.warehouse.deleteMany({ where: { id: warehouseId } });
   await db.user.deleteMany({ where: { id: userId } });

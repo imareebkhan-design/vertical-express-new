@@ -105,7 +105,21 @@ test("no route handler reads admin data without gating itself", () => {
        storefront shows a signed-out visitor. No customer identity, no order
        belonging to anyone. */
     "app/api/v1/categories/[slug]/route.ts",
+    /* "Enquire about this product" — a public WRITE on purpose (guests can ask
+       about a catalog-only product). It returns only the new enquiry number and
+       reads nothing admin or per-customer. Abuse limits are asserted below. */
+    "app/api/v1/products/[slug]/enquiry/route.ts",
   ]);
+
+  /* The one public write must keep its fail-closed per-phone and per-IP limits
+     and must not read admin data; otherwise it is an open spam channel. */
+  {
+    const handler = read("lib/api/product-enquiry.ts");
+    const submit = read("lib/services/product-enquiry-submit.ts");
+    assert.match(handler, /submitProductEnquiry\(/, "the enquiry route must go through the shared submit path");
+    assert.equal((submit.match(/failClosed: true/g) ?? []).length, 2, "both enquiry limits must fail closed");
+    assert.doesNotMatch(handler + submit, /listProductEnquiries|getAdminUser|adminNotes/, "the public enquiry path must not read admin data");
+  }
   const SECRET_OR_SIGNATURE = new Set([
     "app/api/cron/cleanup-orders/route.ts",
     "app/api/webhooks/razorpay/route.ts",
