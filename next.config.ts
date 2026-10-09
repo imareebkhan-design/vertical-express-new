@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
+import { siteIsIndexable } from "./lib/site-indexing";
 
 /**
  * Origin of a configured URL, or null when it is unset or unparseable.
@@ -191,6 +192,9 @@ export function securityHeaders(isDev: boolean) {
     // Superseded by frame-ancestors above, kept for browsers that predate it.
     { key: "X-Frame-Options", value: "DENY" },
     ...(isDev ? [] : [{ key: "Strict-Transport-Security", value: "max-age=31536000" }]),
+    /* Every response from a non-production site, whatever a page's own metadata
+       says (lib/site-indexing.ts). */
+    ...(siteIsIndexable() ? [] : [{ key: "X-Robots-Tag", value: "noindex, nofollow" }]),
   ];
 }
 

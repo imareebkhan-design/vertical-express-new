@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 import { catalogListingWhere } from "@/lib/catalog-policy";
+import { isQaFixtureSlug } from "@/lib/catalog/qa-fixture-ids";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true },
     });
 
-    const productRoutes = products.map((p) => ({
+    /* The synthetic staging checkout item is never advertised. */
+    const productRoutes = products.filter((p) => !isQaFixtureSlug(p.slug)).map((p) => ({
       url: `${siteUrl}/product/${p.slug}`,
       lastModified: p.updatedAt,
       changeFrequency: "weekly" as const,

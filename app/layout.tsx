@@ -15,6 +15,7 @@ const jakarta = Plus_Jakarta_Sans({
 
 import { SiteJsonLd } from "@/components/seo/site-jsonld";
 import { CANONICAL_HOST_SCRIPT } from "@/lib/canonical-host";
+import { siteIsIndexable } from "@/lib/site-indexing";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in"),
@@ -56,11 +57,13 @@ export const metadata: Metadata = {
     description:
       "Construction materials for contractors and homeowners in Srinagar. Cement, ply, wires, paint and hardware, delivered to your site.",
   },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
-  },
+  robots: siteIsIndexable()
+    ? {
+        index: true,
+        follow: true,
+        googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1 },
+      }
+    : { index: false, follow: false },
   icons: {
     icon: "/logo-icon.png",
   },
