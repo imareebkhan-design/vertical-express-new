@@ -65,6 +65,7 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
   try {
     await db.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM products WHERE id = ${id}::uuid FOR UPDATE`;
+      const lockedBefore = await tx.product.findUniqueOrThrow({ where: { id }, select: { status: true } });
       await tx.product.update({
         where: { id },
         data: {
@@ -75,15 +76,15 @@ export async function adminSaveProduct(input: unknown): Promise<ActionResult<nul
           deliverySpeed: deliverySpeed === "" ? null : deliverySpeed,
         },
       });
-      if (status === "published" && before.status !== "published") {
+      if (status === "published" && lockedBefore.status !== "published") {
         const reasons = await sellableReasons(tx, id);
         if (reasons.length) throw new GateRefused(reasons.join("; "));
         await recordAudit(tx, {
           actorType: "admin", actorId: admin.id, action: "catalogue.product_published",
-          entityType: "product", entityId: id, before: { status: before.status }, after: { status },
+          entityType: "product", entityId: id, before: { status: lockedBefore.status }, after: { status },
         });
       } else if (status === "published") {
-        // Already published: the existing variant rule still holds on every save.
+        // Already published products must satisfy the same complete readiness gate.
         const why = await unpublishableReason(tx, id);
         if (why) throw new GateRefused(why);
       } else if (status === "catalog_only") {

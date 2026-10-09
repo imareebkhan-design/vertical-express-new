@@ -2,6 +2,7 @@ import "server-only";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
+import { assertCheckoutCatalogue } from "@/lib/services/checkout-catalogue";
 import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";
 import type { CouponRefusal } from "@/lib/coupon-refusal";
 import { checkServiceability } from "@/lib/services/serviceability";
@@ -404,6 +405,7 @@ export async function placeOrder(params: {
   let order;
   try {
     order = await db.$transaction(async (tx) => {
+      await assertCheckoutCatalogue(tx, cart.lines);
       // Prepare line items with full financial snapshots
       let remainingDiscount = totals.discountPaise;
       const orderItemsData = cart.lines.map((l, idx) => {

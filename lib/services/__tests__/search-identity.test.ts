@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { listProducts } from "../catalog";
 import { getSuggestions } from "../search";
+import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
 
 const suffix = `${Date.now()}-${process.pid}`;
 const productIds: string[] = [];
@@ -24,10 +25,12 @@ test("ACC and TMT retain product identity in results and suggestions, while draf
   const accessories = await db.category.create({ data: { name: `Kitchen Accessories ${suffix}`, slug: `accessories-identity-${suffix}` } });
   const building = await db.category.create({ data: { name: `Building Supplies ${suffix}`, slug: `building-identity-${suffix}` } });
   categoryIds.push(accessories.id, building.id);
-  const create = async (name: string, brandId: string, categoryId: string, status: "published" | "draft" = "published") => {
+  const create = async (name: string, brandId: string, categoryId: string, status: "catalog_only" | "draft" = "catalog_only") => {
     const p = await db.product.create({ data: { title: name, slug: `identity-${productIds.length}-${suffix}`, brandId, categoryId, status,
       variants: { create: { sku: `identity-${productIds.length}-${suffix}`, name: "Test unit", pricePaise: 10000, isDefault: true } } } });
-    productIds.push(p.id); return p;
+    productIds.push(p.id);
+    if (status === "catalog_only") await approveSyntheticProductForSale(p.id, { allowUntaxed: true });
+    return p;
   };
   const cement = await create("Gold Cement", brand.id, building.id);
   const basket = await create("Kitchen Pull Out Basket", other.id, accessories.id);

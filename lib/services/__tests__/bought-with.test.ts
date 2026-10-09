@@ -1,9 +1,10 @@
-import { test } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { boughtWithProductRaw as boughtWithProduct } from "@/lib/services/catalog";
 import { storageGuidanceFor } from "@/lib/storage-guidance";
 import { db } from "@/lib/db";
+import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 
 /**
  * "Bought with this" must be evidence, not a shelf.
@@ -21,6 +22,15 @@ import { db } from "@/lib/db";
  * a real database and must leave it as it found it.
  */
 const P = "zzz-bw-";
+const fixtures: Awaited<ReturnType<typeof createApprovedCatalogueFixture>>[] = [];
+before(async () => {
+  fixtures.push(await createApprovedCatalogueFixture());
+  fixtures.push(await createApprovedCatalogueFixture());
+});
+after(async () => {
+  await cleanup();
+  for (const fixture of fixtures) await fixture.cleanup();
+});
 
 async function cleanup() {
   const orders = await db.order.findMany({
@@ -69,7 +79,7 @@ test("nothing is claimed when nothing has been bought together", async (t) => {
   await cleanup();
 
   const product = await db.product.findFirst({
-    where: { status: "published" },
+    where: { id: fixtures[0].product.id, status: "published" },
     select: { slug: true },
   });
   assert.ok(product, "no products to test against");
@@ -87,7 +97,7 @@ test("a real basket produces a companion, and never the product itself", async (
 
   const variants = await db.productVariant.findMany({
     take: 2,
-    where: { isDefault: true, product: { status: "published" } },
+    where: { id: { in: fixtures.map(f => f.variant.id) }, isDefault: true, product: { status: "published" } },
     select: { id: true, product: { select: { id: true, slug: true } } },
   });
   assert.equal(variants.length, 2, "need two published products");
@@ -116,7 +126,7 @@ test("a cancelled basket is not evidence", async (t) => {
 
   const variants = await db.productVariant.findMany({
     take: 2,
-    where: { isDefault: true, product: { status: "published" } },
+    where: { id: { in: fixtures.map(f => f.variant.id) }, isDefault: true, product: { status: "published" } },
     select: { id: true, product: { select: { slug: true } } },
   });
   const [a, b] = variants;

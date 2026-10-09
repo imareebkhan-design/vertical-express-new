@@ -22,6 +22,8 @@ import {
 } from "@/lib/api/v1";
 import { handleAddCartItem } from "@/lib/api/cart-items";
 import { readFileSync } from "node:fs";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * The customer journey over HTTP: cart → address → totals → order → payment
@@ -131,6 +133,7 @@ before(async () => {
     },
   });
   addressId = created.id;
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

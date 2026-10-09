@@ -17,6 +17,8 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
 import { handleValidateCoupon } from "@/lib/api/v1";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const TOKEN = "token-coupon-v1";
 const UID = `uid-coupon-v1-${randomUUID().slice(0, 8)}`;
@@ -105,6 +107,7 @@ before(async () => {
     },
   });
 
+  await approveTestProductsCreatedSince(SUITE_START);
   await addItem(userId, null, variantId, 1);
 });
 

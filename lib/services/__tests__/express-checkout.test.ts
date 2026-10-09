@@ -24,6 +24,8 @@ import { resolveExpressOption } from "../express-delivery";
 import { SETTING_KEYS } from "../settings";
 import { getDispatchBoard, getShipmentsForOrder, getShipmentsOnTheRoad } from "../shipments";
 import { adminGetOrder } from "../admin/manage";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const TAG = randomUUID().slice(0, 8);
 const USER = randomUUID();
@@ -94,6 +96,7 @@ before(async () => {
   await makeProduct("sheet", { bulk: true, eligible: true, pricePaise: 26000 }); // truck, wrongly flagged eligible
   couponId = (await db.coupon.create({ data: { code: `ZZZE7FREE${TAG}`.toUpperCase(), type: "free_delivery", value: 0, perUserLimit: 100 } })).id;
   await setFee(EXPRESS_FEE);
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

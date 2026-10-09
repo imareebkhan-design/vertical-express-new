@@ -1,5 +1,21 @@
 # Vertical Express — Database Design (Phase 4)
 
+## Catalogue approval update — 9 October 2026
+
+The Prisma schema and named migrations are authoritative; older Phase 4 descriptions below predate Firebase authentication and the PostgREST RLS lockdown. Application users link to Firebase through `firebase_uid`; admin authorization requires a verified email on `ADMIN_EMAILS`, not merely `users.role`.
+
+Products default to `draft`. Public catalogue readers share `lib/catalog-policy.ts`: active brand/category, explicit product identity approval with actor/time/reason, and an explicitly approved primary image. `catalog_only` records can be browsed but never purchased. Published records additionally require a priced default variant, configured active-warehouse inventory and an owner commercial review; admin creation/import/save and cart/checkout apply the complete commercial validator.
+
+Product identity fields: `identity_confirmed`, `identity_approved_at`, `identity_approved_by`, `identity_approval_reason`. Image fields: `source_verified`, `identity_approved`, `approval_status`, `severity`, `approved_at`, `approved_by`, `approval_reason`. Provenance or a checksum alone is insufficient. Database checks require metadata and a valid SHA-256, reject P0/P1 approval, and permit explicit P2/P3 limitations. Approval statuses are `APPROVED_EXACT`, `APPROVED_WITH_LIMITATION`, `REVIEW_REQUIRED`, `REJECTED`.
+
+Image approval is revoked on changes to product association, URL, checksum, source URL or licence. Source URL/licence changes deliberately require re-review because provenance or usage permission may have changed. Caption, dimensions and sort metadata alone preserve approval. Product identity edits revoke identity approval. Commercial review is a JSON snapshot of owner metadata, unit/pack, delivery class, HSN/GST and each active variant's SKU, pack, name, default flag, selling price and optional MRP. Material product/variant changes clear that review; current tax mapping must still match at validation. Ordinary stock changes do not revoke identity/image/commercial approvals.
+
+New migrations: `20261008170000_catalogue_explicit_approval`, `20261008171000_catalogue_commercial_review`, `20261009100000_catalogue_commercial_invalidation`, `20261009110000_catalogue_variant_set_review`. Active variant insertion/deletion also revokes commercial review. No historical owner approvals are backfilled. Applied only to the isolated local test database during this work. Release integrator must plan schema deployment and evidence-backed approval separately. Rollback retains the additive schema and fail-closed gate; undo a release through a reviewed corrective change or scoped, audited reversal of an approval batch, not dropping columns or broadly demoting catalogue-only products. The 263-row legacy slug-only batch is rejected by activation until exact reviewed hashes are supplied.
+
+Approval-sensitive catalogue services and pages do not use persistent result/route caches. Category counts, room shelves, search, recommendations, product pages and sitemap read the current central policy. This deliberately trades additional database reads for immediate enforcement on the next request.
+
+`test-support/catalogue-fixtures.ts` is test-only and refuses non-local or non-disposable databases. It does not grant production approval. No staging fixture bypass, staged product activation or production deployment is included in this gate.
+
 PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `created_at/updated_at timestamptz` on every table (omitted below for brevity), money as **integer paise**, soft-delete via `deleted_at` only where noted. RLS: user-owned tables policy `user_id = auth.uid()`; catalog tables are public-read, admin-write.
 
 ## Identity

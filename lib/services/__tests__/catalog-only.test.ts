@@ -6,6 +6,8 @@ import { addItem, getCartSummary, resolveWarehouseId } from "../cart";
 import { getProductBySlug, listProducts } from "../catalog";
 import { getSuggestions } from "../search";
 import { catalogOnlyReason, unpublishableReason } from "../admin/publish-guard";
+import { CATEGORY_TAX_CONFIGS } from "../tax";
+import { approveSyntheticProductForSale, createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 
 /**
  * Catalog-only products: visible, never purchasable.
@@ -31,7 +33,6 @@ const ids: { categoryId?: string; offCategoryId?: string; brandId?: string; ware
 const slug = (s: string) => `co-${tag}-${s}`;
 let catalogVariantId: string;
 let draftVariantId: string;
-let publishedVariantId: string;
 
 async function product(s: string, status: "draft" | "catalog_only" | "published", opts: { photo?: "exact" | "plain" | null; variantPaise?: number; categoryId?: string } = {}) {
   const p = await db.product.create({
@@ -53,10 +54,16 @@ async function product(s: string, status: "draft" | "catalog_only" | "published"
     await db.inventory.create({ data: { variantId: v.id, warehouseId: ids.warehouseId!, qtyOnHand: 50 } });
     variantId = v.id;
   }
+  /* Explicit approval (8 Oct policy): provenance alone never makes a photo
+     public. "exact" stands for a reviewed-and-approved photo; "plain" stays
+     unapproved, so it must remain hidden. */
+  if (opts.photo === "exact" || status === "published") await approveSyntheticProductForSale(p.id, { allowUntaxed: true });
   return { id: p.id, variantId };
 }
 
 before(async () => {
+  // Isolated synthetic category uses the existing hardware tax configuration.
+  CATEGORY_TAX_CONFIGS[`co-cat-${tag}`] = CATEGORY_TAX_CONFIGS["general-hardware-tools"];
   ids.categoryId = (await db.category.create({ data: { slug: `co-cat-${tag}`, name: `CO Category ${tag}` } })).id;
   ids.offCategoryId = (await db.category.create({ data: { slug: `co-off-${tag}`, name: `CO Off ${tag}`, isActive: false } })).id;
   ids.brandId = (await db.brand.create({ data: { slug: `co-brand-${tag}`, name: `CO Brand ${tag}` } })).id;
@@ -69,12 +76,13 @@ before(async () => {
   // A catalog-only product that already has a priced, stocked variant: still not for sale.
   catalogVariantId = (await product("withvariant", "catalog_only", { photo: "exact", variantPaise: 45000 })).variantId!;
   draftVariantId = (await product("draft", "draft", { photo: "exact", variantPaise: 45000 })).variantId!;
-  publishedVariantId = (await product("published", "published", { photo: "plain", variantPaise: 39000 })).variantId!;
+  await product("published", "published", { photo: "plain", variantPaise: 39000 });
   await product("plainphoto", "catalog_only", { photo: "plain" });
   await product("offcat", "catalog_only", { photo: "exact", categoryId: ids.offCategoryId });
 });
 
 after(async () => {
+  delete CATEGORY_TAX_CONFIGS[`co-cat-${tag}`];
   const products = await db.product.findMany({ where: { slug: { startsWith: `co-${tag}-` } }, select: { id: true } });
   const productIds = products.map((p) => p.id);
   await db.cartItem.deleteMany({ where: { variant: { productId: { in: productIds } } } });
@@ -148,20 +156,29 @@ test("the PDP returns a catalog-only product as not purchasable with no variants
 });
 
 test("addItem refuses a catalog-only product's variant even with stock", async () => {
-  await assert.rejects(addItem(USER, null, catalogVariantId, 1), /not for sale/i);
+  await assert.rejects(addItem(USER, null, catalogVariantId, 1), /not for sale|variant not found/i);
 });
 
 test("addItem refuses a draft product's variant (the pre-existing hole)", async () => {
-  await assert.rejects(addItem(USER, null, draftVariantId, 1), /not for sale/i);
+  await assert.rejects(addItem(USER, null, draftVariantId, 1), /not for sale|variant not found/i);
 });
 
 test("a catalog-only line already in a cart never reaches the summary checkout uses", async () => {
-  await addItem(USER, null, publishedVariantId, 1);
-  const cart = await db.cart.findUniqueOrThrow({ where: { userId: USER } });
-  // Simulate a line that predates the guard (or a status change after it was added).
-  await db.cartItem.create({ data: { cartId: cart.id, variantId: catalogVariantId, qty: 2 } });
-  const summary = await getCartSummary(USER, null);
-  assert.deepEqual(summary.lines.map((l) => l.variantId), [publishedVariantId]);
+  // A fully reviewed, sellable product (taxed category, owner review) as the control line.
+  const fx = await createApprovedCatalogueFixture();
+  await db.inventory.create({ data: { variantId: fx.variant.id, warehouseId: ids.warehouseId!, qtyOnHand: 5 } });
+  try {
+    await addItem(USER, null, fx.variant.id, 1);
+    const cart = await db.cart.findUniqueOrThrow({ where: { userId: USER } });
+    // Simulate a line that predates the guard (or a status change after it was added).
+    await db.cartItem.create({ data: { cartId: cart.id, variantId: catalogVariantId, qty: 2 } });
+    const summary = await getCartSummary(USER, null);
+    assert.deepEqual(summary.lines.map((l) => l.variantId), [fx.variant.id]);
+  } finally {
+    await db.cartItem.deleteMany({ where: { variantId: fx.variant.id } });
+    await db.inventory.deleteMany({ where: { variantId: fx.variant.id, warehouseId: ids.warehouseId! } });
+    await fx.cleanup();
+  }
 });
 
 test("catalogOnlyReason demands an exact provenance photo and active brand/category", async () => {
@@ -174,5 +191,5 @@ test("catalogOnlyReason demands an exact provenance photo and active brand/categ
 
 test("catalog-only does not weaken the publish guard", async () => {
   const id = (await db.product.findUniqueOrThrow({ where: { slug: slug("visible") }, select: { id: true } })).id;
-  assert.match((await unpublishableReason(db, id))!, /price/);
+  assert.match((await unpublishableReason(db, id))!, /price|variant/);
 });

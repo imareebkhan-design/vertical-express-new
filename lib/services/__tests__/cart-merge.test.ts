@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { mergeGuestCart, mergeGuestCartSafely, completeSignInCart } from "../cart-merge";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { getCartSummary } from "../cart";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * E8 — a guest's cart at sign-in.
@@ -90,6 +92,7 @@ before(async () => {
   await variant("b", 50);
   await variant("c", 3); // little stock
   await variant("d", 0); // none
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

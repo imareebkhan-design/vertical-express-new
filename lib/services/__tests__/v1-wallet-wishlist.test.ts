@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { handleGetWallet, handleGetWishlist, handleToggleWishlist } from "@/lib/api/v1";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * Wallet and wishlist, over `/api/v1`.
@@ -71,10 +73,16 @@ before(async () => {
     select: { id: true },
   });
   productId = product.id;
+  // A published offer is public only when commercially complete, which includes a stock record (zero is allowed).
+  const warehouse = await db.warehouse.findFirstOrThrow({ where: { isActive: true }, select: { id: true } });
+  const variant = await db.productVariant.findFirstOrThrow({ where: { productId }, select: { id: true } });
+  await db.inventory.create({ data: { variantId: variant.id, warehouseId: warehouse.id, qtyOnHand: 0 } });
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {
   await db.wishlistItem.deleteMany({ where: { productId } });
+  await db.inventory.deleteMany({ where: { variant: { productId } } });
   await db.wishlist.deleteMany({ where: { user: { firebaseUid: { in: [UID_A, UID_B] } } } });
   await db.walletTransaction.deleteMany({ where: { wallet: { user: { firebaseUid: UID_A } } } });
   await db.wallet.deleteMany({ where: { user: { firebaseUid: UID_A } } });

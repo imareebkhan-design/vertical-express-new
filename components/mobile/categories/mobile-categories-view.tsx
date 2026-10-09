@@ -31,7 +31,11 @@ export function MobileCategoriesView({
     categories ?? [],
     new Set(CATEGORY_GROUPS.flatMap((g) => g.categories.map((c) => c.slug)))
   );
-  const tree = CATEGORY_GROUPS.map((g) => ({ ...g, categories: [...g.categories, ...(extra.get(g.title) ?? [])] }));
+  const visible = new Set((categories ?? []).filter(c => c.isActive && c._count.products > 0).map(c => c.slug));
+  const tree = CATEGORY_GROUPS.map((g) => ({
+    ...g,
+    categories: [...g.categories.filter(c => visible.has(c.slug)), ...(extra.get(g.title) ?? [])],
+  })).filter(g => g.categories.length > 0);
   const groups = activeGroup ? tree.filter((g) => g.title === activeGroup) : tree;
 
   return (
@@ -56,7 +60,7 @@ export function MobileCategoriesView({
 
       {/* Group filter — the active pill fills ink. */}
       <div className="flex gap-[7px] overflow-x-auto px-4 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {CATEGORY_GROUPS.map((g) => {
+        {tree.map((g) => {
           const on = activeGroup === g.title;
           return (
             <button
@@ -75,6 +79,8 @@ export function MobileCategoriesView({
           );
         })}
       </div>
+
+      {tree.length === 0 && <p className="px-4 pt-5 text-sm text-ink-700">No categories are available yet.</p>}
 
       {groups.map((group) => (
         <section key={group.title} className="px-4 pt-5">

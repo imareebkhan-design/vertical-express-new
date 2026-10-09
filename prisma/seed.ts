@@ -192,6 +192,9 @@ async function main() {
         categoryId: categoryIds.get(p.category)!,
         unitLabel: p.unitLabel,
         isDeal: !!p.isDeal,
+        /* Explicit: the column default is now `draft` (20261008170000), so a
+           seed that relied on the old `published` default came up empty. */
+        status: "published",
         specs: p.specs ?? undefined,
         /* Carries no delivery time and no bulk-pricing claim.
          *

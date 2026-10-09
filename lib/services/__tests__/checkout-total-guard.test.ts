@@ -15,6 +15,8 @@ import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { classifyPlaceOrderError, isTotalChangedError } from "@/lib/checkout-errors";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 const PINCODE = "999918";
 const STATE = "Jammu & Kashmir";
@@ -53,10 +55,11 @@ before(async () => {
     data: { userId: USER, name: "E8 Buyer", phone: "9876543210", line1: "Plot 8", city: "Srinagar", state: STATE, pincode: PINCODE, isDefault: true },
   })).id;
   productId = (await db.product.create({
-    data: { title: `${TAG} item`, slug: `${TAG.toLowerCase()}-item`, categoryId: category.id, brandId: brand.id },
+    data: { status: "published", title: `${TAG} item`, slug: `${TAG.toLowerCase()}-item`, categoryId: category.id, brandId: brand.id },
   })).id;
   variantId = (await db.productVariant.create({ data: { productId, name: "Unit", sku: `${TAG}-item`, pricePaise: 20000 } })).id;
   await db.inventory.create({ data: { variantId, warehouseId, qtyOnHand: 100 } });
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 beforeEach(async () => {

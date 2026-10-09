@@ -4,7 +4,7 @@ import { getCatalogItem, getDeals, listProducts, listCategories, listRooms, most
 import { DEAL_OF_THE_DAY } from "@/lib/merchandising/home";
 import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 /* The root layout already sets the full metadata for this URL — title,
  * description, canonical, Open Graph, Twitter and robots. Duplicating it here

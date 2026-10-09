@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { listCategories } from "@/lib/services/catalog";
 import { CategoriesSwitcher } from "@/components/mobile/categories/categories-switcher";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "All Categories",

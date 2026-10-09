@@ -8,7 +8,7 @@ import {
 } from "@/lib/services/catalog";
 import { ProductSwitcher } from "@/components/mobile/product/product-switcher";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export async function generateStaticParams() {
   const slugs = await listProductSlugs();

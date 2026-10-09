@@ -2,7 +2,7 @@ import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { applyRangeImport, planRangeImport, type RangeCatalogue } from "@/lib/services/admin/catalogue-range-import";
-import { unpublishableReason } from "@/lib/services/admin/publish-guard";
+import { sellableReasons, unpublishableReason } from "@/lib/services/admin/publish-guard";
 import { getProductBySlug, brandsForSearchEntry } from "@/lib/services/catalog";
 import { getSuggestions } from "@/lib/services/search";
 
@@ -112,7 +112,7 @@ test("a slug already used with a different brand is a conflict, and nothing is w
 
 test("a range cannot be published and is invisible to customers", async () => {
   const p = await db.product.findFirstOrThrow({ where: { slug: `${RUN}-a` } });
-  assert.match((await unpublishableReason(db, p.id)) ?? "", /active variant with a price/);
+  assert.notEqual(await unpublishableReason(db, p.id), null, "a range with no variant cannot be published");
   assert.equal(await getProductBySlug(`${RUN}-a`), null);
   const s = await getSuggestions(`${RUN} Zebrand`);
   assert.equal(s.products.length + s.brands.length, 0);
@@ -141,13 +141,17 @@ test("an expansion product keeps the manufacturer's spec table as specs and its 
   assert.equal(JSON.stringify(p.specs).includes("xtrapowertools"), false, "provenance never reaches customer-visible specs");
 });
 
-test("the guard allows a product once it has an active priced variant", async () => {
+/* Since the commercial readiness gate (8 Oct), a priced variant is necessary but no longer
+   sufficient: identity, an approved photo, stock, tax and an owner review are also required. */
+test("a priced variant alone does not make a range sellable", async () => {
   const p = await db.product.findFirstOrThrow({ where: { slug: `${RUN}-b` } });
   await db.productVariant.create({ data: { productId: p.id, sku: `${RUN}-sku-0`, name: "free", pricePaise: 0 } });
   assert.notEqual(await unpublishableReason(db, p.id), null, "a zero price is not a price");
   await db.productVariant.create({ data: { productId: p.id, sku: `${RUN}-sku-1`, name: "inactive", pricePaise: 100, isActive: false } });
   assert.notEqual(await unpublishableReason(db, p.id), null, "an inactive variant cannot be bought");
   await db.productVariant.create({ data: { productId: p.id, sku: `${RUN}-sku-2`, name: "priced", pricePaise: 100 } });
-  assert.equal(await unpublishableReason(db, p.id), null);
+  const reasons = await sellableReasons(db, p.id);
+  assert.ok(reasons.some((r) => /identity|photo|image/i.test(r)), `approval still required: ${reasons.join(" | ")}`);
+  assert.ok(reasons.some((r) => /commercial review/i.test(r)), "an owner commercial review is still required");
   await db.productVariant.deleteMany({ where: { productId: p.id } });
 });

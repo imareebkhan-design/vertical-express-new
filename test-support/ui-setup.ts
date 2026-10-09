@@ -22,6 +22,10 @@ for (const key of Object.getOwnPropertyNames(dom.window)) {
 }
 g.window = dom.window;
 g.document = dom.window.document;
+// Node may expose its own incomplete Web Storage object. UI tests must use
+// the same storage implementation as the jsdom window under test.
+Object.defineProperty(globalThis, "localStorage", { value: dom.window.localStorage, configurable: true });
+Object.defineProperty(globalThis, "sessionStorage", { value: dom.window.sessionStorage, configurable: true });
 /* Node has its own navigator; the DOM's is the one components expect. */
 Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
 g.IS_REACT_ACT_ENVIRONMENT = true;

@@ -18,6 +18,8 @@ import {
   handleReorder,
 } from "@/lib/api/v1";
 import type { ParsedGeocode } from "@/lib/geocode-parse";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+const SUITE_START = new Date();
 
 /**
  * The Round 2 endpoints: who the customer is (and whether they are new),
@@ -119,6 +121,7 @@ before(async () => {
     });
   siteA = (await mkSite("Hyderpora Site", true)).id;
   siteB = (await mkSite("Rajbagh House", false)).id;
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {

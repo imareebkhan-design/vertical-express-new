@@ -2,6 +2,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { handleListBrands, handleListProducts } from "@/lib/api/v1";
 import { db } from "@/lib/db";
+import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
+import { CATEGORY_TAX_CONFIGS } from "../tax";
+
+async function approveSearchFixtures(categorySlug: string, products: { id: string }[]) {
+  CATEGORY_TAX_CONFIGS[categorySlug] = CATEGORY_TAX_CONFIGS["general-hardware-tools"];
+  const warehouse = await db.warehouse.findFirstOrThrow({ where: { isActive: true } });
+  for (const p of products) {
+    const variants = await db.productVariant.findMany({ where: { productId: p.id } });
+    await db.inventory.createMany({ data: variants.map(v => ({ variantId: v.id, warehouseId: warehouse.id, qtyOnHand: 0 })) });
+    await approveSyntheticProductForSale(p.id);
+  }
+}
 
 const request = (path: string) => new Request(`http://localhost/api/v1/${path}`);
 
@@ -59,6 +71,7 @@ test("minPrice/maxPrice on /api/v1/products filter by rupees, converted to paise
   const priceyVariant = await db.productVariant.create({
     data: { productId: pricey.id, sku: `SKU-PRICEY-${Date.now()}`, name: "Unit", pricePaise: 90000, isDefault: true },
   });
+  await approveSearchFixtures(cat.slug, [cheap, pricey]);
 
   try {
     // ₹500–₹800 (50000–80000 paise) should exclude both ₹100 and ₹900 items.
@@ -76,6 +89,8 @@ test("minPrice/maxPrice on /api/v1/products filter by rupees, converted to paise
     const { data: priceyOnly } = await priceyResponse.json() as { data: { items: { id: string }[] } };
     assert.deepEqual(priceyOnly.items.map((i) => i.id), [pricey.id]);
   } finally {
+    delete CATEGORY_TAX_CONFIGS[cat.slug];
+    await db.inventory.deleteMany({ where: { variantId: { in: [cheapVariant.id, priceyVariant.id] } } });
     await db.productVariant.deleteMany({ where: { id: { in: [cheapVariant.id, priceyVariant.id] } } });
     await db.product.deleteMany({ where: { id: { in: [cheap.id, pricey.id] } } });
     await db.brand.delete({ where: { id: brand.id } });
@@ -101,6 +116,7 @@ test("comma-separated brand param on /api/v1/products returns the union", async 
   const variantB = await db.productVariant.create({
     data: { productId: productB.id, sku: `SKU-B-${Date.now()}`, name: "Unit", pricePaise: 10000, isDefault: true },
   });
+  await approveSearchFixtures(cat.slug, [productA, productB]);
 
   try {
     const response = await handleListProducts(request(`products?brand=${brandA.slug},${brandB.slug}`));
@@ -108,6 +124,8 @@ test("comma-separated brand param on /api/v1/products returns the union", async 
     const ids = data.items.map((i) => i.id).sort();
     assert.deepEqual(ids, [productA.id, productB.id].sort());
   } finally {
+    delete CATEGORY_TAX_CONFIGS[cat.slug];
+    await db.inventory.deleteMany({ where: { variantId: { in: [variantA.id, variantB.id] } } });
     await db.productVariant.deleteMany({ where: { id: { in: [variantA.id, variantB.id] } } });
     await db.product.deleteMany({ where: { id: { in: [productA.id, productB.id] } } });
     await db.brand.deleteMany({ where: { id: { in: [brandA.id, brandB.id] } } });
