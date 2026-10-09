@@ -6,7 +6,7 @@ import { locationLookupResult, type LocatedPincode } from "@/lib/location-lookup
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 import { headers } from "next/headers";
 import { getClientIp, rateLimit } from "@/lib/services/rate-limit";
-import { placesInput, lookupPlace } from "@/lib/services/places";
+import { placesInput, lookupPlace, type PlaceSuggestion } from "@/lib/services/places";
 import { checkServiceability } from "@/lib/services/serviceability";
 import type { ResolvedAddress } from "@/lib/geocode-parse";
 import { formattedFor, labelFor, type DeliveryCandidate } from "@/lib/location/delivery-candidate";
@@ -95,7 +95,6 @@ export async function locateForDelivery(lat: unknown, lng: unknown): Promise<Act
   return succeed(candidate(found.address, lat, lng, null, found.serviceability.serviceable));
 }
 
-export type PlaceSuggestion = { id: string; text: string };
 
 /**
  * Manual search. `suggest` autocompletes (biased to Srinagar, not restricted —
@@ -112,8 +111,17 @@ export async function searchDeliveryPlaces(
   const result = await lookupPlace(parsed.data);
   if (result.kind === "unavailable") return fail("UNAVAILABLE", "Address search is unavailable. Enter your pincode instead.");
   if (result.kind === "suggestions") return succeed({ suggestions: result.suggestions });
-  if (!result.address) return fail("NOT_FOUND", "That place has no pincode. Try a nearby landmark or enter your pincode.");
-  const service = await checkServiceability(result.address.pincode);
   const placeId = parsed.data.action === "resolve" ? parsed.data.placeId : null;
-  return succeed({ candidate: candidate(result.address, result.coordinate.latitude, result.coordinate.longitude, placeId, service.serviceable) });
+  const { latitude: lat, longitude: lng } = result.coordinate;
+  if (!result.address) {
+    /* A locality-level place ("Hyderpora, Srinagar" — the commonest search
+       here) carries no postal code in its details. Its coordinate is exact,
+       so the pincode is one reverse lookup away; the app has done this since
+       it shipped, and the web said "no pincode" instead. */
+    const found = await lookUpLocation(who.id, lat, lng);
+    if (found.kind !== "found") return fail("NOT_FOUND", "We couldn't find a pincode for that place. Try a nearby landmark or enter your pincode.");
+    return succeed({ candidate: candidate(found.address, lat, lng, placeId, found.serviceability.serviceable) });
+  }
+  const service = await checkServiceability(result.address.pincode);
+  return succeed({ candidate: candidate(result.address, lat, lng, placeId, service.serviceable) });
 }

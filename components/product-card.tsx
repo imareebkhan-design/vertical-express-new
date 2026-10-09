@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
@@ -78,7 +79,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
               alt={product.title}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="aspect-square w-full bg-white object-contain p-4 transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]"
+              className={cn("aspect-square w-full", PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE, "transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]")}
             />
           ) : (
             <ProductPanel

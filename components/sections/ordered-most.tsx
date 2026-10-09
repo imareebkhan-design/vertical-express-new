@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useState } from "react";
 import Link from "next/link";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
@@ -74,14 +76,17 @@ function OrderedMostCard({ item }: { item: PurchasableCatalogItem }) {
       <Link
         href={`/product/${item.slug}`}
         aria-label={item.title}
-        className="relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-chip-soft no-underline"
+        className={cn(
+          "relative flex size-[92px] shrink-0 items-center justify-center overflow-hidden rounded-[16px] no-underline",
+          isGenericPlaceholder(item.imageUrl) ? "bg-chip-soft" : PRODUCT_PHOTO_SURFACE
+        )}
       >
         {!isGenericPlaceholder(item.imageUrl) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.imageUrl ?? ""}
             alt=""
-            className="size-full object-contain p-2 transition-transform duration-200 group-hover:scale-105"
+            className={cn(PRODUCT_PHOTO, "transition-transform duration-200 group-hover:scale-105")}
           />
         ) : (
           <ProductPanel categorySlug={item.categorySlug} label={item.title} className="size-full" />

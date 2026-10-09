@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Link from "next/link";
 import { Bell, Plus, Search } from "lucide-react";
 import { CategoryGlyph } from "./category-glyph";
@@ -87,10 +89,10 @@ export function OrderAgainRail({ items, totalOrders, onAdd }: OrderAgainRailProp
               aria-label={`${item.title}, last ordered ${lastOrderedLabel(item)}`}
               className="block no-underline"
             >
-              <div className="flex h-[82px] w-full items-center justify-center overflow-hidden rounded-[16px] bg-tile">
+              <div className={cn("flex h-[82px] w-full items-center justify-center overflow-hidden rounded-[16px]", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={item.imageUrl} alt="" className="size-full object-contain p-2" />
+                  <img src={item.imageUrl} alt="" className={PRODUCT_PHOTO} />
                 ) : (
                   <CategoryGlyph name="bag" className="size-9" />
                 )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, MapPin, ChevronDown } from "lucide-react";
@@ -203,9 +205,9 @@ export function MobileHomeView({
                 className="rounded-[20px] bg-paper p-2 no-underline shadow-card"
               >
                 {!isGenericPlaceholder(item.imageUrl) ? (
-                  <div className="flex h-24 w-full items-center justify-center overflow-hidden rounded-[18px] bg-chip-soft">
+                  <div className={cn("flex h-24 w-full items-center justify-center overflow-hidden rounded-[18px]", PRODUCT_PHOTO_SURFACE)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={item.imageUrl ?? ""} alt="" className="size-full object-contain p-2" />
+                    <img src={item.imageUrl ?? ""} alt="" className={PRODUCT_PHOTO} />
                   </div>
                 ) : (
                   <ProductPanel categorySlug={item.categorySlug} label={item.title} className="h-24 w-full rounded-[18px]" />

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, Minus, Plus, Trash2 } from "lucide-react";
@@ -92,11 +94,14 @@ export function CartView() {
               >
                 <Link
                   href={`/product/${line.productSlug}`}
-                  className="size-20 shrink-0 overflow-hidden rounded-panel bg-tile sm:size-24"
+                  className={cn(
+                    "size-20 shrink-0 overflow-hidden rounded-panel sm:size-24",
+                    line.imageUrl && !isGenericPlaceholder(line.imageUrl) ? PRODUCT_PHOTO_SURFACE : "bg-tile"
+                  )}
                 >
                   {line.imageUrl && !isGenericPlaceholder(line.imageUrl) ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={line.imageUrl} alt={line.title} className="size-full object-contain p-2" />
+                    <img src={line.imageUrl} alt={line.title} className={PRODUCT_PHOTO} />
                   ) : (
                     <ProductPanel categorySlug={line.categorySlug} label={line.title} className="size-full" />
                   )}

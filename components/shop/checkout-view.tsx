@@ -1,5 +1,6 @@
 "use client";
 
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { useEffect, useRef, useState, useTransition } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -187,8 +188,13 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
 
   const openRazorpay = async (
     orderNo: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
+      return;
+    }
     await loadRazorpayScript();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Razorpay = (window as any).Razorpay;
@@ -202,6 +208,8 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
       currency: "INR",
       name: "Vertical Express",
       order_id: rzp.orderId,
+      /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+      ...(timeout !== null ? { timeout } : {}),
       prefill: { email: email ?? undefined },
       theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -299,7 +307,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
             </div>
           )}
           {addresses.length === 0 ? (
-            <Link href="/account/addresses">
+            <Link href="/account/addresses?add=1&next=/checkout">
               <Button variant="outline">
                 <Plus className="size-4" /> Add a delivery address
               </Button>
@@ -334,7 +342,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
                 </label>
               ))}
               <Link
-                href="/account/addresses"
+                href="/account/addresses?add=1&next=/checkout"
                 className="inline-flex items-center gap-1 text-xs font-bold text-brand-deep hover:underline"
               >
                 <Plus className="size-3.5" /> Add another address
@@ -592,6 +600,7 @@ function PayOption({
       type="button"
       onClick={onSelect}
       disabled={disabled}
+      aria-pressed={active}
       className={cn(
         "flex w-full items-center gap-3 rounded-card border-2 p-3 text-left transition-all duration-200",
         active ? "border-brand-deep bg-surface-soft/20" : "border-neutral-200 hover:border-brand-deep",

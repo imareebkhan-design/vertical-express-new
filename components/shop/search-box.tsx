@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -132,10 +133,10 @@ export function SearchBox({ className }: { className?: string }) {
                   onClick={() => setOpen(false)}
                   className="flex items-center gap-3 rounded-full px-2 py-2 hover:bg-surface"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-chip bg-tile">
+                  <span className={cn("grid size-10 shrink-0 place-items-center overflow-hidden rounded-chip", p.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
                     {p.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imageUrl} alt="" className="size-full object-contain p-1" />
+                      <img src={p.imageUrl} alt="" className={PRODUCT_PHOTO} />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">

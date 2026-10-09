@@ -1,4 +1,5 @@
 import "server-only";
+import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
 import { withApiUser, withApiPublic, readJson, type ApiDeps } from "@/lib/api/authed";
@@ -398,6 +399,7 @@ export async function handleListAddresses(request: Request, deps: ApiDeps = {}):
         accessNote: a.accessNote,
         latitude: a.latitude,
         longitude: a.longitude,
+        placeId: a.placeId,
         city: a.city,
         state: a.state,
         pincode: a.pincode,
@@ -680,6 +682,7 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
                 orderId: result.gatewayOrderId,
                 amountPaise: result.amountPaise ?? 0,
                 keyId: razorpayKeyId(),
+                ...(result.placedAt ? paymentTermsFor(result.placedAt) : { payBy: null, payWithinSeconds: null }),
               }
             : null,
       });
@@ -785,12 +788,15 @@ function orderDto(o: OrderWithDetails, opts: { detail: boolean }) {
     events: o.statusEvents.map((e) => ({ status: e.toStatus, note: e.note, at: e.createdAt.toISOString() })),
     /* Only while awaiting payment, so a device can resume a payment it lost
        track of (an idempotent retry returns no Razorpay details). */
+    /* Not once the payment window has closed (lib/payment-window.ts): the
+       expiry job may not have swept the order yet, but it can no longer be paid. */
     razorpay:
-      o.status === "pending_payment" && payment?.gatewayOrderId
+      o.status === "pending_payment" && payment?.gatewayOrderId && checkoutTimeoutSeconds(paymentTermsFor(o.placedAt)) !== "closed"
         ? {
             orderId: payment.gatewayOrderId,
             amountPaise: payment.amountPaise,
             keyId: razorpayKeyId(),
+            ...paymentTermsFor(o.placedAt),
           }
         : null,
   };

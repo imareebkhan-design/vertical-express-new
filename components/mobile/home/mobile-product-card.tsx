@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -112,7 +113,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
         </div>
 
         {/* Product Image Container */}
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-mist/10 mb-3">
+        <div className={cn("relative aspect-square w-full overflow-hidden rounded-xl mb-3", isGenericPlaceholder(item.imageUrl) ? "bg-mist/10" : PRODUCT_PHOTO_SURFACE)}>
           {!isGenericPlaceholder(item.imageUrl) ? (
             <MotionImage
               src={item.imageUrl ?? ""}
@@ -120,7 +121,10 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               layoutId={`img-${item.id}`}
               fill
               className={cn(
-                "object-cover transition-transform group-hover:scale-105",
+                /* contain, never cover: a cover crop cuts the product (lib/product-media.ts) */
+                PRODUCT_PHOTO,
+                "transition-transform group-hover:scale-105",
+                /* catalog-only cards make no stock claim, so only a sellable product greys out */
                 soldOut && "opacity-40 grayscale"
               )}
               sizes="(max-width: 768px) 50vw, 33vw"

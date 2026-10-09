@@ -213,7 +213,7 @@ export function ProductEditor({
                 <img
                   src={img.url}
                   alt={img.alt}
-                  className="h-[100px] w-full rounded-field bg-chip-soft object-cover"
+                  className="h-[100px] w-full rounded-field bg-white object-contain"
                 />
                 <figcaption className="mt-1 text-[11px] font-semibold text-ink-500">
                   {img.isPrimary ? "Primary" : img.alt || "No alt text"}

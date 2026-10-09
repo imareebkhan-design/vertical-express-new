@@ -218,6 +218,8 @@ export interface PlaceOrderResult {
   requiresPaymentConfirmation: boolean;
   gatewayOrderId?: string | null;
   amountPaise?: number;
+  /** When the order was placed — the payment window runs from here (lib/payment-window.ts). */
+  placedAt?: Date;
 }
 
 /* What an idempotent replay needs to hand back. */
@@ -225,6 +227,7 @@ const REPLAY_SELECT = {
   orderNo: true,
   status: true,
   totalPaise: true,
+  placedAt: true,
   payments: { orderBy: { createdAt: "desc" }, take: 1, select: { gatewayOrderId: true, amountPaise: true } },
 } satisfies Prisma.OrderSelect;
 
@@ -242,6 +245,7 @@ function replayResult(existing: Prisma.OrderGetPayload<{ select: typeof REPLAY_S
     orderNo: existing.orderNo,
     status: existing.status,
     requiresPaymentConfirmation: awaiting,
+    placedAt: existing.placedAt,
     ...(awaiting && payment?.gatewayOrderId
       ? { gatewayOrderId: payment.gatewayOrderId, amountPaise: payment.amountPaise ?? existing.totalPaise }
       : {}),
@@ -462,6 +466,7 @@ export async function placeOrder(params: {
             accessNote: address.accessNote,
             latitude: address.latitude,
             longitude: address.longitude,
+            placeId: address.placeId,
             city: address.city,
             state: address.state,
             pincode: address.pincode,
@@ -605,6 +610,7 @@ export async function placeOrder(params: {
     requiresPaymentConfirmation: order.status === "pending_payment",
     gatewayOrderId,
     amountPaise: totals.totalPaise,
+    placedAt: order.placedAt,
   };
 }
 
@@ -665,9 +671,9 @@ export function isDeadOrder(status: string): boolean {
   return (DEAD_ORDER_STATES as readonly string[]).includes(status);
 }
 
-/** What the customer is told when their payment lands on an expired order. */
-export const LATE_PAYMENT_MESSAGE =
-  "This order expired before your payment completed. Your payment has been recorded and will be reviewed for a refund. Please do not pay again.";
+/* What the customer is told when their payment lands on an expired order —
+   kept import-free in lib/payment-window.ts so the order page can say it too. */
+export { LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
 
 export type SettleOutcome =
   | "confirmed"

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -442,13 +444,13 @@ export function MobileSearchView({
                               }}
                               className="flex items-center gap-3 border-b border-mist/10 pb-2.5"
                             >
-                              <div className="relative size-10 overflow-hidden rounded-lg bg-surface border border-mist/20">
+                              <div className={cn("relative size-10 overflow-hidden rounded-lg border border-mist/20", p.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-surface")}>
                                 {p.imageUrl ? (
                                   <Image
                                     src={p.imageUrl}
                                     alt={p.title}
                                     fill
-                                    className="object-contain p-1"
+                                    className={PRODUCT_PHOTO}
                                     sizes="40px"
                                   />
                                 ) : (

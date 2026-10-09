@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -77,10 +79,10 @@ export function ConfirmationSwitcher({ order, shipments }: ConfirmationSwitcherP
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {order.items.map((item: any) => (
                 <li key={item.id} className="flex gap-3">
-                  <span className="size-14 shrink-0 overflow-hidden rounded-[14px] bg-civil-soft border border-line">
+                  <span className={cn("size-14 shrink-0 overflow-hidden rounded-[14px] border border-line", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-civil-soft")}>
                     {item.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.imageUrl} alt={item.title} className="size-full object-contain p-1.5" />
+                      <img src={item.imageUrl} alt={item.title} className={PRODUCT_PHOTO} />
                     )}
                   </span>
                   <div className="min-w-0 flex-1">

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Image from "next/image";
 import { Trash2 } from "lucide-react";
 import { SpeedChip } from "@/components/ui/speed-chip";
@@ -74,9 +76,9 @@ export function CartShipmentGroups({
           <ul className="divide-y divide-mist/10">
             {group.lines.map((line) => (
               <li key={line.itemId} className="flex gap-3 p-4">
-                <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border border-mist/15 bg-mist/5">
+                <div className={cn("relative size-16 shrink-0 overflow-hidden rounded-xl border border-mist/15", line.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {line.imageUrl ? (
-                    <Image src={line.imageUrl} alt={line.title} fill className="object-contain p-1" sizes="64px" />
+                    <Image src={line.imageUrl} alt={line.title} fill className={PRODUCT_PHOTO} sizes="64px" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-[10px] text-ink/20">VE</div>
                   )}

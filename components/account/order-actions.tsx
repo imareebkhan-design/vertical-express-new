@@ -1,5 +1,6 @@
 "use client";
 
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -80,13 +81,18 @@ export function OrderActions({
 
   const openRazorpay = async (
     orderNumber: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
     await loadRazorpayScript();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Razorpay = (window as any).Razorpay;
     if (!Razorpay) {
       setError("Couldn't load payment window.");
+      return;
+    }
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
       return;
     }
     const rz = new Razorpay({
@@ -96,6 +102,8 @@ export function OrderActions({
       name: "Vertical Express",
       order_id: rzp.orderId,
       prefill: { email: email ?? undefined },
+      /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+      ...(timeout !== null ? { timeout } : {}),
       theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async (r: any) => {

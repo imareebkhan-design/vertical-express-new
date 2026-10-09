@@ -1,5 +1,6 @@
 "use client";
 
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -23,6 +24,8 @@ import { saveAddress, removeAddress } from "@/actions/address";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
+import { AddressLocation } from "@/components/location/address-location";
+import { pinnedFromAddress, pinnedFromPlace, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { ExpressChoice } from "@/components/shop/checkout/express-choice";
 import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
@@ -111,7 +114,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   const idempotencyKey = useRef<string>(generateUUID());
 
   const selected = addresses.find((a) => a.id === selectedAddressId);
-  const { pincode: chosenPincode } = useDeliveryPincode();
+  const { pincode: chosenPincode, city: chosenCity, place: chosenPlace } = useDeliveryPincode();
+  /* The map half of the address (see lib/location/address-pin.ts); `manual` is the no-map escape hatch. */
+  const [pinned, setPinned] = useState<PinnedLocation | null>(null);
+  const [manual, setManual] = useState(false);
 
   /* ISS-081: `totals` answers exactly the address, coupon and delivery choice
      on screen, or is null — the moment any of them changes, until the server
@@ -183,8 +189,13 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   // Launch Razorpay gateway window
   const openRazorpay = async (
     orderNo: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
+      return;
+    }
     try {
       await loadRazorpayScript();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -200,6 +211,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         currency: "INR",
         name: "Vertical Express",
         order_id: rzp.orderId,
+        /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+        ...(timeout !== null ? { timeout } : {}),
         prefill: { email: email ?? undefined },
         theme: { color: "#EDAF1C" },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -357,6 +370,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       pincode: selected?.pincode || chosenPincode || "",
       isDefault: false,
     });
+    setPinned(pinnedFromPlace(chosenPlace, chosenPincode, chosenCity));
+    setManual(false);
     setIsAddressFormOpen(true);
   };
 
@@ -371,11 +386,15 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       line1: addr.line1,
       line2: addr.line2 || "",
       landmark: addr.landmark || "",
+      accessNote: addr.accessNote || "",
       city: addr.city,
       state: addr.state,
       pincode: addr.pincode,
       isDefault: addr.isDefault,
     });
+    const pin = pinnedFromAddress(addr);
+    setPinned(pin);
+    setManual(pin === null);
     setIsAddressFormOpen(true);
   };
 
@@ -383,14 +402,19 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     e.preventDefault();
     setAddressFormError(null);
 
-    if (addressForm.pincode.length !== 6) {
+    if (!manual && !pinned) {
+      setAddressFormError("Set the delivery location first, or enter the address without the map.");
+      return;
+    }
+    if (manual && addressForm.pincode.length !== 6) {
       setAddressFormError("Please enter a valid 6-digit pincode");
       return;
     }
+    const payload = manual || !pinned ? { ...addressForm, latitude: null, longitude: null, placeId: null } : withPinnedLocation(addressForm, pinned);
 
     triggerHaptic("medium");
     startSavingAddress(async () => {
-      const res = await saveAddress(addressForm, editingAddressId || undefined);
+      const res = await saveAddress(payload, editingAddressId || undefined);
       if (!res.ok) {
         setAddressFormError(res.error.message);
         return;
@@ -400,7 +424,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       // Next.js server actions revalidatePath('/checkout') updates route, but we sync locally to avoid reload latency
       const savedAddress = {
         id: res.data.id,
-        ...addressForm,
+        ...payload,
       };
 
       setAddresses((prev) => {
@@ -411,7 +435,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           updated = [...prev, savedAddress];
         }
         // Sync default states
-        if (addressForm.isDefault) {
+        if (payload.isDefault) {
           updated = updated.map((a) => (a.id === savedAddress.id ? a : { ...a, isDefault: false }));
         }
         return updated;
@@ -656,6 +680,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             <div className="space-y-2">
               {/* Online Payment */}
               <button
+                type="button"
+                aria-pressed={paymentMethod === "online"}
                 onClick={() => {
                   triggerHaptic("light");
                   setPaymentMethod("online");
@@ -674,6 +700,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
               {/* COD */}
               <button
+                type="button"
+                aria-pressed={paymentMethod === "cod"}
                 onClick={() => {
                   if (!totals.codAllowed) return;
                   triggerHaptic("light");
@@ -798,6 +826,23 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             </div>
           )}
 
+          {/* Delivery location — the map half of the address */}
+          {manual ? (
+            <p className="text-xs font-semibold text-ink/70">
+              Entering the address by hand — the driver won&apos;t have a map pin.{" "}
+              <button type="button" onClick={() => setManual(false)} className="font-bold text-ink underline underline-offset-2">
+                Use the map instead
+              </button>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <AddressLocation value={pinned} onChange={setPinned} />
+              <button type="button" onClick={() => setManual(true)} className="text-[11px] font-bold text-ink/50 underline underline-offset-2">
+                Can&apos;t find it? Enter the address without the map
+              </button>
+            </div>
+          )}
+
           {/* Address Label */}
           <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
@@ -857,7 +902,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           {/* Address Line 1 */}
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
-              Address Line 1 (Flat, Plot, Site No.)
+              House / flat / floor
             </label>
             <input
               type="text"
@@ -869,7 +914,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             />
           </div>
 
-          {/* Address Line 2 */}
+          {/* Street / area — from the map pin unless typed by hand */}
+          {manual ? (
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
               Address Line 2 (Street, Area)
@@ -882,8 +928,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
             />
           </div>
+          ) : null}
 
-          {/* Landmark & Pincode */}
+          {/* Landmark, delivery instructions, and the pincode when typed by hand */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
@@ -897,6 +944,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            {manual ? (
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
                 Pincode
@@ -911,6 +959,21 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
+              Delivery instructions (optional)
+            </label>
+            <input
+              type="text"
+              maxLength={240}
+              value={addressForm.accessNote ?? ""}
+              onChange={(e) => setAddressForm((f) => ({ ...f, accessNote: e.target.value }))}
+              placeholder="e.g. Truck can reach the rear gate"
+              className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+            />
           </div>
 
           {/* Default Address Checkbox */}

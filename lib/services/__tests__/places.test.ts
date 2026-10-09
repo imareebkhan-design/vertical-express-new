@@ -81,10 +81,10 @@ test("a malformed body is rejected before it reaches Google", async () => {
 test("suggestions come back through, verbatim from the lookup", async () => {
   const res = await json(
     await handlePlaces(req({ action: "suggest", query: "Hyderpora", session: SESSION }), { verify }, async () =>
-      ({ kind: "suggestions" as const, suggestions: [{ id: "abc", text: "Hyderpora, Srinagar" }] }))
+      ({ kind: "suggestions" as const, suggestions: [{ id: "abc", text: "Hyderpora, Srinagar", main: "Hyderpora", secondary: "Srinagar" }] }))
   );
   assert.equal(res.status, 200);
-  assert.deepEqual(res.body.data.suggestions, [{ id: "abc", text: "Hyderpora, Srinagar" }]);
+  assert.deepEqual(res.body.data.suggestions, [{ id: "abc", text: "Hyderpora, Srinagar", main: "Hyderpora", secondary: "Srinagar" }]);
 });
 
 test("a resolved place carries its coordinate and address through", async () => {
@@ -162,4 +162,53 @@ test("a body that does not match the expected shape is unavailable, not a crash"
   process.env.GOOGLE_PLACES_API_KEY = "test-key";
   const result = await lookupPlace({ action: "resolve", placeId: "abc", session: SESSION }, fakeFetch(200, { nonsense: true }));
   assert.equal(result.kind, "unavailable");
+});
+
+/** Captures the request so the body Google receives can be checked. */
+function capturingFetch(body: unknown) {
+  const sent: { url: string; init: RequestInit }[] = [];
+  const impl = (async (url: string, init: RequestInit) => {
+    sent.push({ url, init });
+    return { ok: true, status: 200, json: async () => body };
+  }) as unknown as typeof fetch;
+  return { sent, impl };
+}
+
+test("suggestions carry Google's two-line split, and only the fields the dropdown shows are asked for", async () => {
+  process.env.GOOGLE_PLACES_API_KEY = "test-key";
+  const { sent, impl } = capturingFetch({
+    suggestions: [
+      { placePrediction: { placeId: "p1", text: { text: "19 Raj Niwas Marg, Civil Lines, Delhi" }, structuredFormat: { mainText: { text: "19 Raj Niwas Marg" }, secondaryText: { text: "Civil Lines, Delhi" } } } },
+      { placePrediction: { placeId: "p2", text: { text: "Rajbagh, Srinagar" } } },
+    ],
+  });
+  const result = await lookupPlace({ action: "suggest", query: "19 Raj", session: SESSION }, impl);
+  assert.equal(result.kind, "suggestions");
+  assert.deepEqual(result.kind === "suggestions" ? result.suggestions : null, [
+    { id: "p1", text: "19 Raj Niwas Marg, Civil Lines, Delhi", main: "19 Raj Niwas Marg", secondary: "Civil Lines, Delhi" },
+    { id: "p2", text: "Rajbagh, Srinagar", main: "Rajbagh, Srinagar", secondary: null },
+  ]);
+  const headers = sent[0].init.headers as Record<string, string>;
+  assert.equal(headers["X-Goog-FieldMask"], "suggestions.placePrediction.placeId,suggestions.placePrediction.text.text,suggestions.placePrediction.structuredFormat");
+  const body = JSON.parse(String(sent[0].init.body));
+  assert.equal(body.sessionToken, SESSION);
+  assert.ok(body.locationBias, "a bias");
+  assert.equal(body.locationRestriction, undefined, "never a restriction: serviceability decides delivery, not the search box");
+  assert.deepEqual(body.locationBias.circle.center, { latitude: 34.0837, longitude: 74.7973 }, "Srinagar by default");
+});
+
+test("a shared device position tightens the bias around the customer", async () => {
+  process.env.GOOGLE_PLACES_API_KEY = "test-key";
+  const { sent, impl } = capturingFetch({ suggestions: [] });
+  await lookupPlace({ action: "suggest", query: "Rajbagh", session: SESSION, near: { lat: 34.07, lng: 74.83 } }, impl);
+  const body = JSON.parse(String(sent[0].init.body));
+  assert.deepEqual(body.locationBias.circle.center, { latitude: 34.07, longitude: 74.83 });
+});
+
+test("resolve asks for coordinates and address parts only, inside the same session", async () => {
+  process.env.GOOGLE_PLACES_API_KEY = "test-key";
+  const { sent, impl } = capturingFetch(REAL_RESOLVE_RESPONSE);
+  await lookupPlace({ action: "resolve", placeId: "abc", session: SESSION }, impl);
+  assert.match(sent[0].url, new RegExp(`sessionToken=${SESSION}`));
+  assert.equal((sent[0].init.headers as Record<string, string>)["X-Goog-FieldMask"], "location,addressComponents");
 });

@@ -1,5 +1,8 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
 import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -100,7 +103,12 @@ export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherPro
           </div>
         )}
 
-        {cancelled && order.cancelledReason && (
+        {isLatePaid(order) ? (
+          <div role="status" className="mb-8 rounded-card border border-brand/40 bg-brand/15 p-4 text-sm font-bold text-ink">
+            {LATE_PAYMENT_MESSAGE}
+          </div>
+        ) : null}
+        {cancelled && order.cancelledReason && !isLatePaid(order) && (
           <div className="mb-8 rounded-card border border-neutral-200 bg-surface/60 p-4 text-sm font-bold text-neutral-600">
             This order was cancelled. {order.cancelledReason}
           </div>
@@ -113,10 +121,10 @@ export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherPro
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {order.items.map((item: any) => (
               <li key={item.id} className="flex gap-3">
-                <span className="size-14 shrink-0 overflow-hidden rounded-lg bg-tile">
+                <span className={cn("size-14 shrink-0 overflow-hidden rounded-lg", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.title} className="size-full object-contain p-1.5" />
+                    <img src={item.imageUrl} alt={item.title} className={PRODUCT_PHOTO} />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">

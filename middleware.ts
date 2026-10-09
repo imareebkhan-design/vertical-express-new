@@ -34,8 +34,10 @@ export function middleware(request: NextRequest) {
     url.pathname = "/login";
     url.search = "";
     /* Carry the destination so sign-in returns the customer to the checkout
-       they were in the middle of, not to the home page. */
-    url.searchParams.set("next", pathname);
+       they were in the middle of, not to the home page — query included, so
+       "/account/addresses?add=1&next=/checkout" comes back as itself. It always
+       starts with the protected path, and login re-checks it (safeNextPath). */
+    url.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 

@@ -91,6 +91,10 @@ model Address {
   /// Customer-confirmed delivery pin; absent for manual/legacy addresses.
   latitude   Float?
   longitude  Float?
+  /// Google place id of the pin, when it came from address search. The one
+  /// Places field Google's terms allow keeping indefinitely; lets the place be
+  /// re-resolved later without asking the customer again.
+  placeId    String?      @map("place_id")
   isDefault  Boolean      @default(false) @map("is_default")
   deletedAt  DateTime?    @map("deleted_at")
   createdAt  DateTime     @default(now()) @map("created_at")
