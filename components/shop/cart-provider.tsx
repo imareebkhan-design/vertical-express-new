@@ -32,6 +32,14 @@ interface CartContextValue {
    * 1–3 s (W-B1-G2).
    */
   loaded: boolean;
+  /**
+   * The cart could not be read (server error, network failure, timeout) and no
+   * authoritative cart is on screen. Screens show an error with Retry instead
+   * of a skeleton that never ends — a failed read used to leave `loaded` false
+   * forever (staging, 10 Oct: every server action was refused and the cart
+   * page spun indefinitely).
+   */
+  loadFailed: boolean;
   count: number;
   pending: boolean;
   lastAddedTitle: string | null;
@@ -46,6 +54,20 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
+/** A cart read that has not answered by now is treated as failed (reads only:
+ *  a write is never abandoned, because it may still land). */
+export const CART_READ_TIMEOUT_MS = 15_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error("Cart read timed out")), ms);
+    /* Node (tests) only: an unanswered read must not keep the process alive. */
+    (timer as { unref?: () => void }).unref?.();
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 /** Server-backed cart. Initial state hydrates from the DB; mutations call
  *  server actions and reconcile with the authoritative returned summary. */
 export interface CartActions {
@@ -56,10 +78,19 @@ export interface CartActions {
   getMyWishlistIds: typeof import("@/actions/wishlist").getMyWishlistIds;
 }
 
-export function CartStateProvider({ children, actions }: { children: React.ReactNode; actions: CartActions }) {
+export function CartStateProvider({
+  children,
+  actions,
+  readTimeoutMs = CART_READ_TIMEOUT_MS,
+}: {
+  children: React.ReactNode;
+  actions: CartActions;
+  readTimeoutMs?: number;
+}) {
   const { getCart, addToCart, updateCartItem, removeCartItem, getMyWishlistIds } = actions;
   const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
   const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [optimisticCount, setOptimisticCount] = useState<number | null>(null);
   const [lastAddedTitle, setLastAddedTitle] = useState<string | null>(null);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
@@ -84,18 +115,24 @@ export function CartStateProvider({ children, actions }: { children: React.React
     const request = ++cartRequest.current;
     const owner = identity.current;
     try {
-      const s = await getCart();
+      const s = await withTimeout(getCart(), readTimeoutMs);
       if (owner !== identity.current || request !== cartRequest.current) return;
       setSummary(s);
       setOptimisticCount(null);
       setLoaded(true);
+      setLoadFailed(false);
     } catch {
-      /* Nothing changes: after a sign-in/out `loaded` is already false, so
-         checkout stays blocked until an authoritative read succeeds, and the
-         previous customer's cart is never resurrected; otherwise the last
-         authoritative cart stays on screen. */
+      /* The cart on screen does not change: after a sign-in/out `loaded` is
+         already false, so checkout stays blocked until an authoritative read
+         succeeds, and the previous customer's cart is never resurrected;
+         otherwise the last authoritative cart stays on screen. What changes is
+         that the failure is reported, so a screen without a cart can say so
+         and offer Retry instead of loading forever. */
+      if (owner !== identity.current || request !== cartRequest.current) return;
+      setOptimisticCount(null);
+      setLoadFailed(true);
     }
-  }, [getCart]);
+  }, [getCart, readTimeoutMs]);
 
   /* After a write's answer: show it if it is the newest; if not, and no other
      write is still out, read the cart once so the screen matches the server. */
@@ -128,6 +165,7 @@ export function CartStateProvider({ children, actions }: { children: React.React
       identity.current++;
       setSummary(EMPTY_SUMMARY);
       setLoaded(false);
+      setLoadFailed(false);
       setOptimisticCount(null);
       setWishlistIds(new Set());
       setLastAddedTitle(null);
@@ -175,20 +213,25 @@ export function CartStateProvider({ children, actions }: { children: React.React
       const owner = identity.current;
       const request = ++cartRequest.current;
       setOptimisticCount((c) => (c ?? summary.count) + qty);
-      if (title) {
-        setLastAddedTitle(title);
-        if (lastAddedTimer.current) clearTimeout(lastAddedTimer.current);
-        lastAddedTimer.current = setTimeout(() => setLastAddedTitle(null), 2500);
-      }
       writes.current++;
-      let result: Awaited<ReturnType<typeof addToCart>>;
+      /* A thrown action (refused request, network failure) is a failed add,
+         not an exception for the button to swallow: the caller gets `false`,
+         the optimistic count is rolled back, and nothing says "added". */
+      let result: Awaited<ReturnType<typeof addToCart>> | null;
       try {
         result = await addToCart({ variantId, qty });
+      } catch {
+        result = null;
       } finally {
         writes.current--;
       }
       if (owner !== identity.current) return false;
-      if (result.ok) {
+      if (result?.ok) {
+        if (title) {
+          setLastAddedTitle(title);
+          if (lastAddedTimer.current) clearTimeout(lastAddedTimer.current);
+          lastAddedTimer.current = setTimeout(() => setLastAddedTitle(null), 2500);
+        }
         const data = result.data;
         settleWrite(owner, request, () => {
           setSummary(data);
@@ -229,13 +272,15 @@ export function CartStateProvider({ children, actions }: { children: React.React
         startTransition(async () => {
           if (owner !== identity.current) return;
           writes.current++;
-          let result: Awaited<ReturnType<typeof updateCartItem>>;
+          let result: Awaited<ReturnType<typeof updateCartItem>> | null;
           try {
             result = await updateCartItem({ itemId, qty: clamped });
+          } catch {
+            result = null;
           } finally {
             writes.current--;
           }
-          if (!result.ok) {
+          if (!result?.ok) {
             if (owner === identity.current) await refresh();
             return;
           }
@@ -255,13 +300,15 @@ export function CartStateProvider({ children, actions }: { children: React.React
     });
     startTransition(async () => {
       writes.current++;
-      let result: Awaited<ReturnType<typeof removeCartItem>>;
+      let result: Awaited<ReturnType<typeof removeCartItem>> | null;
       try {
         result = await removeCartItem({ itemId });
+      } catch {
+        result = null;
       } finally {
         writes.current--;
       }
-      if (!result.ok) {
+      if (!result?.ok) {
         if (owner === identity.current) await refresh();
         return;
       }
@@ -274,6 +321,7 @@ export function CartStateProvider({ children, actions }: { children: React.React
     () => ({
       summary,
       loaded,
+      loadFailed,
       count: optimisticCount ?? summary.count,
       pending,
       lastAddedTitle,
@@ -284,7 +332,7 @@ export function CartStateProvider({ children, actions }: { children: React.React
       wishlistIds,
       setWishlisted,
     }),
-    [summary, loaded, optimisticCount, pending, lastAddedTitle, addItem, updateItem, removeItem, refresh, wishlistIds, setWishlisted]
+    [summary, loaded, loadFailed, optimisticCount, pending, lastAddedTitle, addItem, updateItem, removeItem, refresh, wishlistIds, setWishlisted]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

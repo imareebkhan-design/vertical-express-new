@@ -25,6 +25,7 @@ import { CouponRevisedNotice } from "@/components/shop/checkout/coupon-revised-n
 import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevision } from "@/lib/coupon-refusal";
 import { isTotalChangedError } from "@/lib/checkout-errors";
 import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
+import { CartLoadError } from "@/components/shop/cart-load-error";
 
 type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
@@ -42,7 +43,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
      confirmation has nowhere to go. */
   const [contactEmail, setContactEmail] = useState("");
   const router = useRouter();
-  const { summary, loaded, refresh } = useCart();
+  const { summary, loaded, loadFailed, refresh } = useCart();
   const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");
   // Prototype: Pay-on-delivery is the default/primary method until a live
   // payment gateway is wired. Online pay stays available via the test gateway.
@@ -105,7 +106,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
     if (totals) shownTotalRef.current = totals.totalPaise;
   }, [totals]);
 
-  if (!loaded) return <CartLoading />;
+  if (!loaded) return loadFailed ? <CartLoadError onRetry={refresh} /> : <CartLoading />;
   if (summary.lines.length === 0) {
     return (
       <div className="rounded-card border border-hairline-border bg-white p-8 text-center shadow-card">

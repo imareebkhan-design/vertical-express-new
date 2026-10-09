@@ -13,12 +13,13 @@ import { CartLoading } from "@/components/shop/cart-loading";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { SpeedChip } from "@/components/ui/speed-chip";
 import { groupCartByShipment } from "@/lib/cart-shipments";
+import { CartLoadError } from "@/components/shop/cart-load-error";
 
 /** Full cart page body — reads the live server cart from context. */
 export function CartView() {
-  const { summary, loaded, updateItem, removeItem, pending } = useCart();
+  const { summary, loaded, loadFailed, refresh, updateItem, removeItem, pending } = useCart();
 
-  if (!loaded) return <CartLoading />;
+  if (!loaded) return loadFailed ? <CartLoadError onRetry={refresh} /> : <CartLoading />;
   if (summary.lines.length === 0) {
     return (
       <EmptyState

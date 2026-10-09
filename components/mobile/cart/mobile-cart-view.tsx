@@ -8,9 +8,10 @@ import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { CartShipmentGroups } from "@/components/mobile/cart/cart-shipment-groups";
+import { CartLoadError } from "@/components/shop/cart-load-error";
 
 export function MobileCartView() {
-  const { summary, loaded, refresh, updateItem, removeItem, pending } = useCart();
+  const { summary, loaded, loadFailed, refresh, updateItem, removeItem, pending } = useCart();
   const [refreshing, setRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -90,6 +91,7 @@ export function MobileCartView() {
   };
 
   /* Not "Your cart is empty" before the cart has arrived (W-B1-G2). */
+  if (mounted && !loaded && loadFailed) return <CartLoadError onRetry={refresh} />;
   if (!mounted || !loaded) return <CartSkeleton />;
 
   const isEmpty = !summary || summary.lines.length === 0;

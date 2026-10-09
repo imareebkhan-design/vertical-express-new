@@ -14,6 +14,7 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 import { SiteJsonLd } from "@/components/seo/site-jsonld";
+import { CANONICAL_HOST_SCRIPT } from "@/lib/canonical-host";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in"),
@@ -70,6 +71,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
+      <head>
+        {/* Before anything hydrates: `host.` → `host` (lib/canonical-host.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: CANONICAL_HOST_SCRIPT }} />
+      </head>
       <body className={`${jakarta.variable} antialiased`}>
         <SiteJsonLd siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in"} />
         {/* Skip to main content — accessibility / keyboard nav */}
