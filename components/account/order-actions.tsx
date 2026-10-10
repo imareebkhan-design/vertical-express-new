@@ -1,6 +1,6 @@
 "use client";
 
-import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -121,7 +121,7 @@ export function OrderActions({
         router.refresh();
       },
       modal: {
-        ondismiss: () => setError("Payment modal was closed."),
+        ondismiss: () => setError(PAYMENT_DISMISSED_MESSAGE),
       },
     });
     rz.open();

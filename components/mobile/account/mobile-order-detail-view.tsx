@@ -1,7 +1,7 @@
 "use client";
 
 import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
-import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
+import { isLatePaid, LATE_PAYMENT_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -128,7 +128,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         },
         modal: {
           ondismiss: () => {
-            setError("Payment was closed. Tap Complete Payment to retry.");
+            setError(PAYMENT_DISMISSED_MESSAGE);
           },
         },
       };

@@ -72,6 +72,16 @@ export function checkoutTimeoutSeconds(
 export const PAYMENT_WINDOW_CLOSED_MESSAGE =
   "The time to pay for this order has run out, so it will be cancelled and nothing will be charged. Please place a new order.";
 
+/**
+ * What the customer is told when they close the Razorpay window. Closing it is
+ * not proof that nothing was paid — a UPI app or bank page can take the money
+ * and leave the window open (seen on iOS, 10 Oct). So no "you have not been
+ * charged": the order is saved, and paying again from it is safe because every
+ * retry path asks Razorpay first (retryOrderPayment / GET /api/v1/orders/:no).
+ */
+export const PAYMENT_DISMISSED_MESSAGE =
+  "Payment window closed. Your order is saved. If money already left your account, do not pay again — it will show on this order within a few minutes. Otherwise you can complete payment from the order.";
+
 /** What the customer is told when their payment lands on an expired order — at payment time and on the order page. */
 export const LATE_PAYMENT_MESSAGE =
   "This order expired before your payment completed. Your payment has been recorded and will be reviewed for a refund. Please do not pay again.";

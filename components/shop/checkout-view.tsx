@@ -1,6 +1,6 @@
 "use client";
 
-import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { useEffect, useRef, useState, useTransition } from "react";
 import React from "react";
 import { useRouter } from "next/navigation";
@@ -229,7 +229,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
         router.push(`/checkout/confirmation/${orderNo}`);
       },
       modal: {
-        ondismiss: () => setError("Payment was cancelled. Your order is awaiting payment."),
+        ondismiss: () => setError(PAYMENT_DISMISSED_MESSAGE),
       },
     });
     rz.open();

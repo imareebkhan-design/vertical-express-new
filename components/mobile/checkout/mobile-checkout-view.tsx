@@ -1,6 +1,6 @@
 "use client";
 
-import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -234,7 +234,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         },
         modal: {
           ondismiss: () => {
-            setError("Payment was cancelled. Your order is pending payment.");
+            setError(PAYMENT_DISMISSED_MESSAGE);
           },
         },
       };
