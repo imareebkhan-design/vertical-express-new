@@ -140,3 +140,10 @@ test("copy: an unknown state is never 'not charged' and offers Check payment sta
   assert.equal(describePaymentStatus("failed").action, "pay");
   assert.equal(describePaymentStatus("late").action, "none");
 });
+
+test("copy promises no refund it cannot prove: only 'late' (a captured payment) mentions refunds", () => {
+  for (const s of ["paid", "pending", "failed", "unpaid", "expired", null] as const) {
+    assert.doesNotMatch(describePaymentStatus(s).message, /refund|returns? it automatically/i, String(s));
+  }
+  assert.match(describePaymentStatus("late").message, /refund/i);
+});

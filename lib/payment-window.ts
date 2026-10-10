@@ -70,7 +70,7 @@ export function checkoutTimeoutSeconds(
 
 /** What the customer is told instead of a Checkout that could not finish in time. */
 export const PAYMENT_WINDOW_CLOSED_MESSAGE =
-  "The time to pay for this order has run out, so it will be cancelled and nothing will be charged. Please place a new order.";
+  "The time to pay for this order has run out, so it will be cancelled. Please place a new order.";
 
 /**
  * What the customer is told when they close the Razorpay window. Closing it is

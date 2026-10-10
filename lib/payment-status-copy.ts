@@ -13,9 +13,9 @@ export interface PaymentStatusCopy {
 export const PAYMENT_NOT_COMPLETED_MESSAGE =
   "Payment not completed. Your order is saved — you can pay for it now.";
 export const PAYMENT_FAILED_MESSAGE =
-  "The payment didn't go through. If your bank deducted money for this attempt, it returns it automatically. You can try again.";
+  "The payment didn't go through. You can try again, or check My Orders first if your bank shows a deduction.";
 export const ORDER_EXPIRED_MESSAGE =
-  "This order expired before a payment was confirmed. If money was deducted, it is recorded and will be reviewed for a refund — please don't pay again. Place a new order to buy these items.";
+  "This order expired before a payment was completed, so it was cancelled. Place a new order to buy these items.";
 
 /**
  * What to show for a server payment state. `null` (the check itself failed or
