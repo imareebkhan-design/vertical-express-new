@@ -82,6 +82,15 @@ export const PAYMENT_WINDOW_CLOSED_MESSAGE =
 export const PAYMENT_DISMISSED_MESSAGE =
   "Payment window closed. Your order is saved. If money already left your account, do not pay again — it will show on this order within a few minutes. Otherwise you can complete payment from the order.";
 
+/**
+ * What the customer is told whenever the server cannot yet establish whether a
+ * payment was taken (state "pending": bank approved but not captured, an
+ * attempt still in flight, or Razorpay could not be asked). Paired with a
+ * "Check payment status" action and a link to the order — never with Checkout.
+ */
+export const PAYMENT_PENDING_MESSAGE =
+  "We're checking your payment status. If money was deducted, please don't pay again yet.";
+
 /** What the customer is told when their payment lands on an expired order — at payment time and on the order page. */
 export const LATE_PAYMENT_MESSAGE =
   "This order expired before your payment completed. Your payment has been recorded and will be reviewed for a refund. Please do not pay again.";

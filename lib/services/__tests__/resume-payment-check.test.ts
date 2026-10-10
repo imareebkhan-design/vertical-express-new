@@ -79,7 +79,7 @@ const get = (orderNo: string, findCaptured: (gw: string) => Promise<CapturedLook
   handleGetOrder(
     new Request("http://localhost/x", { headers: { authorization: `Bearer ${token}` } }),
     orderNo,
-    { verify, findCaptured }
+    { verify, findCaptured, listAttempts: async () => [] }
   );
 
 const body = async (res: Response) => ((await res.json()) as { data: { status: string; razorpay: unknown } }).data;
@@ -170,11 +170,15 @@ test("an authorized payment awaiting capture: no checkout offered, nothing settl
   assert.equal((await state(o.id)).payments[0].status, "created");
 });
 
-test("no gateway configured in this process: behaves as before (checkout details offered)", async () => {
+/* Changed 10 Oct (payment safety): a Razorpay order that cannot be asked about
+   is unverifiable, so no second checkout is offered — the client shows
+   "don't pay again yet" with Check payment status. Production cannot boot
+   without the gateway (assertPaymentConfig), so this only affects dev/test. */
+test("no gateway configured in this process: unverifiable, so no checkout details are offered", async () => {
   const o = await pendingOrder();
   const d = await body(await get(o.orderNo, async () => { throw new PaymentConfigError("RAZORPAY_NOT_ACTIVE"); }));
   assert.equal(d.status, "pending_payment");
-  assert.ok(d.razorpay, "details offered");
+  assert.equal(d.razorpay, null, "no checkout while unverifiable");
 });
 
 test("another customer's order: not found, and Razorpay is never asked", async () => {

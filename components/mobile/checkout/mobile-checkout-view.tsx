@@ -1,6 +1,6 @@
 "use client";
 
-import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,6 +22,7 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import type { AddressFormValues } from "@/components/account/address-form";
 import { saveAddress, removeAddress } from "@/actions/address";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
+import { checkPaymentStatus } from "@/actions/orders";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import { AddressLocation } from "@/components/location/address-location";
@@ -36,6 +37,8 @@ import { QuotePending } from "@/components/mobile/checkout/quote-pending";
 import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
 import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevision } from "@/lib/coupon-refusal";
 import { isTotalChangedError } from "@/lib/checkout-errors";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
+import type { PaymentStateName } from "@/lib/payment-status-copy";
 
 interface MobileCheckoutViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -68,6 +71,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
   // Totals & Placing states
   const [error, setError] = useState<string | null>(null);
+  /* Set when Checkout closed or its callback could not be verified: the server
+     (checkPaymentStatus) says what happened, never the browser. */
+  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const rzOpen = useRef(false); // one Razorpay window at a time
   const [placing, startPlacing] = useTransition();
   /* E8: bumped when placement is refused because the cart moved, so the quote
      is asked again even if the lines on screen look the same. */
@@ -225,8 +232,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             signature: response.razorpay_signature,
           });
 
+          rzOpen.current = false;
           if (!confirm.ok) {
-            setError(confirm.error.message);
+            setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
             return;
           }
           await refresh();
@@ -234,12 +242,14 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         },
         modal: {
           ondismiss: () => {
-            setError(PAYMENT_DISMISSED_MESSAGE);
+            rzOpen.current = false;
+            setPaymentCheck({ orderNo, initial: null });
           },
         },
       };
 
       const rz = new Razorpay(options);
+      rzOpen.current = true;
       rz.open();
     } catch {
       setError("Payment system load failed. Try placing again.");
@@ -312,6 +322,11 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       }
 
       // If Razorpay gateway returned details, open online payment overlay
+      /* A replay whose payment may already be on its way: no Checkout, no confirmation. */
+      if (!res.data.razorpay && res.data.paymentState && res.data.paymentState !== "unpaid" && res.data.paymentState !== "failed") {
+        setPaymentCheck({ orderNo: res.data.orderNo, initial: res.data.paymentState });
+        return;
+      }
       if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
         await openRazorpay(res.data.orderNo, res.data.razorpay);
         return;
@@ -476,6 +491,20 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
       <div className="p-4 space-y-4">
         {/* Error Banner */}
+        {paymentCheck && (
+          <PaymentStatusNotice
+            key={paymentCheck.orderNo}
+            orderNo={paymentCheck.orderNo}
+            check={checkPaymentStatus}
+            initialState={paymentCheck.initial}
+            onPaid={() => {
+              void refresh();
+              router.push(`/checkout/confirmation/${paymentCheck.orderNo}`);
+            }}
+            onPay={() => router.push(`/account/orders/${paymentCheck.orderNo}`)}
+            orderHref={`/account/orders/${paymentCheck.orderNo}`}
+          />
+        )}
         {error && (
           <div role="alert" className="flex items-center gap-2 rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             <AlertCircle className="size-4.5 shrink-0" />

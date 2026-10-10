@@ -1,4 +1,5 @@
 import "server-only";
+import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
 import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
@@ -46,7 +47,6 @@ import {
   getOrderByIdempotencyKey,
   listOrders,
   reorder,
-  reconcileWithGateway,
   type CapturedLookup,
   type OrderWithDetails,
 } from "@/lib/services/orders";
@@ -663,7 +663,7 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
 
     try {
       const method: PaymentMethodId = body.data.paymentMethod === "cod" ? "cod" : activeGateway();
-      const result = await placeOrder({
+      const result = await gatePlaceOrderReplay(userId, await placeOrder({
         userId,
         addressId: body.data.addressId,
         paymentMethod: method,
@@ -672,10 +672,11 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
         couponCode: body.data.couponCode,
         wantsExpress: body.data.wantsExpress,
         expectedTotalPaise: body.data.expectedTotalPaise,
-      });
+      }));
       return apiOk({
         orderNo: result.orderNo,
         status: result.status,
+        paymentState: result.paymentState ?? null,
         razorpay:
           result.requiresPaymentConfirmation && result.gatewayOrderId
             ? {
@@ -707,7 +708,11 @@ export async function handleFindOrderByKey(request: Request, deps: ApiDeps = {})
     if (!key.success) return apiFail("VALIDATION", "Invalid idempotency key", { field: "idempotencyKey" });
     const order = await getOrderByIdempotencyKey(userId, key.data);
     if (!order) return apiFail("NOT_FOUND", "No order for that attempt");
-    return apiOk(orderDto(order, { detail: true }));
+    /* The app resumes a lost attempt from this answer, so it is gated like the
+       order detail: checkout details only when nothing was paid or is in flight. */
+    const status = await paymentStatusFor(order);
+    const fresh = status.orderStatus !== order.status ? ((await getOrderByIdempotencyKey(userId, key.data)) ?? order) : order;
+    return apiOk({ ...orderDto(fresh, { detail: true }), ...(status.canPay ? {} : { razorpay: null }), paymentState: status.state });
   });
 }
 
@@ -825,26 +830,27 @@ export async function handleListOrders(request: Request, deps: ApiDeps = {}): Pr
 export async function handleGetOrder(
   request: Request,
   orderNo: string,
-  deps: ApiDeps & { findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null> } = {}
+  deps: ApiDeps & {
+    findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
+    listAttempts?: (gatewayOrderId: string) => Promise<string[]>;
+  } = {}
 ): Promise<NextResponse> {
   return withApiUser(request, "ord-get", deps, async ({ userId }) => {
     let order = await getOrderByNo(userId, orderNo);
     if (!order) return apiFail("NOT_FOUND", "Order not found");
-    /* E5: this is where the app gets the details to "Complete payment". Before
-       handing them out, ask Razorpay whether the first attempt already went
-       through (lost callback, late webhook). Paid → the order comes back
-       confirmed. Cannot tell → no payment details, and the app says "check
-       again in a minute; do not pay again" instead of inviting a second payment. */
-    let paymentCheckUnavailable = false;
-    if (order.status === "pending_payment" && order.payments[0]?.gatewayOrderId) {
-      const check = await reconcileWithGateway(order, { context: "retry", findCaptured: deps.findCaptured });
-      if (check === "settled" || check === "late") {
-        order = (await getOrderByNo(userId, orderNo)) ?? order;
-      } else if (check === "unknown" || check === "authorized") {
-        paymentCheckUnavailable = true;
-      }
-    }
-    const dto = { ...orderDto(order, { detail: true }), ...(paymentCheckUnavailable ? { razorpay: null } : {}) };
+    /* E5 + payment safety: this is where the app gets the details to "Complete
+       payment" and where it checks a payment after Checkout closes. The server
+       decides (paymentStatusFor): paid → the order comes back confirmed; checkout
+       details only when nothing was paid and nothing is in flight (`canPay`);
+       otherwise none, and `paymentState: "pending"` tells the app to say "don't
+       pay again yet" with a Check-status action. */
+    const status = await paymentStatusFor(order, { findCaptured: deps.findCaptured, listAttempts: deps.listAttempts });
+    if (status.orderStatus !== order.status) order = (await getOrderByNo(userId, orderNo)) ?? order;
+    const dto = {
+      ...orderDto(order, { detail: true }),
+      ...(status.canPay ? {} : { razorpay: null }),
+      paymentState: status.state,
+    };
     const tracked = await getShipmentsForOrder(userId, orderNo);
     return apiOk({
       ...dto,

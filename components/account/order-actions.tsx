@@ -1,11 +1,12 @@
 "use client";
 
-import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
-import { useState, useTransition } from "react";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CreditCard, FileText, Loader2, RotateCcw, XCircle } from "lucide-react";
-import { cancelOrder, reorder, retryOrderPayment } from "@/actions/orders";
+import { cancelOrder, reorder, retryOrderPayment, checkPaymentStatus } from "@/actions/orders";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import { confirmRazorpayPayment } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
@@ -63,12 +64,20 @@ export function OrderActions({
     });
   };
 
+  const rzOpen = useRef(false);
+  const [paymentCheck, setPaymentCheck] = useState(false);
+
   const doRetryPayment = () => {
+    if (rzOpen.current) return; // one Razorpay window at a time
     setError(null);
+    setPaymentCheck(false);
     startTransition(async () => {
       const res = await retryOrderPayment(orderNo);
       if (!res.ok) {
-        setError(res.error.message);
+        /* "Pending" (approved / in flight / unverifiable) is not an error to
+           retry past: show the server's status with Check payment status. */
+        if (res.error.code === "UNAVAILABLE") setPaymentCheck(true);
+        else setError(res.error.message);
         return;
       }
       if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
@@ -107,6 +116,7 @@ export function OrderActions({
       theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async (r: any) => {
+        rzOpen.current = false;
         const confirm = await confirmRazorpayPayment({
           orderNo: orderNumber,
           razorpayOrderId: rzp.orderId,
@@ -114,21 +124,38 @@ export function OrderActions({
           signature: r.razorpay_signature,
         });
         if (!confirm.ok) {
-          setError(confirm.error.message);
+          setPaymentCheck(true); // unverified is not unpaid: ask the server
           return;
         }
         await refresh();
         router.refresh();
       },
       modal: {
-        ondismiss: () => setError(PAYMENT_DISMISSED_MESSAGE),
+        ondismiss: () => {
+          rzOpen.current = false;
+          setPaymentCheck(true);
+        },
       },
     });
+    rzOpen.current = true;
     rz.open();
   };
 
   return (
     <div className="flex flex-col gap-3">
+      {paymentCheck && (
+        <PaymentStatusNotice
+          orderNo={orderNo}
+          check={checkPaymentStatus}
+          onPaid={() => {
+            setPaymentCheck(false);
+            void refresh();
+            router.refresh();
+          }}
+          onPay={doRetryPayment}
+          orderHref={`/account/orders/${orderNo}`}
+        />
+      )}
       <div className="flex flex-wrap gap-3">
         {isPendingPayment && (
           <Button onClick={doRetryPayment} disabled={pending} className="bg-brand-deep text-white hover:opacity-90">

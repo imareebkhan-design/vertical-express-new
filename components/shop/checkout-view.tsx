@@ -26,6 +26,9 @@ import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevis
 import { isTotalChangedError } from "@/lib/checkout-errors";
 import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
 import { CartLoadError } from "@/components/shop/cart-load-error";
+import type { ActionResult } from "@/lib/validators";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
+import type { PaymentStateName } from "@/lib/payment-status-copy";
 
 type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
@@ -34,10 +37,20 @@ type PayMethod = "online" | "cod";
 export type CheckoutActions = Pick<
   typeof CheckoutActionsModule,
   "getCheckoutTotals" | "placeOrder" | "confirmRazorpayPayment" | "validateCoupon"
->;
+> & {
+  /** The server's payment state for an order (actions/orders.ts). Without it, a closed window falls back to a message. */
+  checkPaymentStatus?: (orderNo: string) => Promise<ActionResult<{ state: PaymentStateName }>>;
+};
 
 export function CheckoutView({ addresses, email, actions }: { addresses: Address[]; email: string | null; actions: CheckoutActions }) {
-  const { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } = actions;
+  const { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon, checkPaymentStatus } = actions;
+  /* Set when Checkout closed, its callback could not be verified, or a replayed
+     order may already be paying: the server is asked what happened. */
+  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const askServer = (orderNo: string, initial: PaymentStateName | null = null) => {
+    if (checkPaymentStatus) setPaymentCheck({ orderNo, initial });
+    else setError(PAYMENT_DISMISSED_MESSAGE);
+  };
   /* Only asked for when the account has none. A phone sign-in carries no
      email, which is the market's default, and without one the order
      confirmation has nowhere to go. */
@@ -178,6 +191,12 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
       }
       // Online gateway active → open Razorpay Checkout; otherwise straight to
       // confirmation (dummy/COD). Inert unless real Razorpay keys are configured.
+      /* A replay of an order whose payment may already be on its way: no Checkout,
+         no confirmation page — show what the server says. */
+      if (!res.data.razorpay && res.data.paymentState && res.data.paymentState !== "unpaid" && res.data.paymentState !== "failed") {
+        askServer(res.data.orderNo, res.data.paymentState);
+        return;
+      }
       if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
         await openRazorpay(res.data.orderNo, res.data.razorpay);
         return;
@@ -222,14 +241,15 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
           signature: r.razorpay_signature,
         });
         if (!confirm.ok) {
-          setError(confirm.error.message);
+          /* Unverified is not unpaid: ask the server, which asks Razorpay. */
+          askServer(orderNo);
           return;
         }
         await refresh();
         router.push(`/checkout/confirmation/${orderNo}`);
       },
       modal: {
-        ondismiss: () => setError(PAYMENT_DISMISSED_MESSAGE),
+        ondismiss: () => askServer(orderNo),
       },
     });
     rz.open();
@@ -548,6 +568,22 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
           {/* Beside the button that produced it, and announced: a refusal such
               as "your total changed" used to appear under the payment card,
               out of sight of the button and silent to a screen reader. */}
+          {paymentCheck && checkPaymentStatus && (
+            <div className="mt-4">
+              <PaymentStatusNotice
+                key={paymentCheck.orderNo}
+                orderNo={paymentCheck.orderNo}
+                check={checkPaymentStatus}
+                initialState={paymentCheck.initial}
+                onPaid={() => {
+                  void refresh();
+                  router.push(`/checkout/confirmation/${paymentCheck.orderNo}`);
+                }}
+                onPay={() => router.push(`/account/orders/${paymentCheck.orderNo}`)}
+                orderHref={`/account/orders/${paymentCheck.orderNo}`}
+              />
+            </div>
+          )}
           {error && (
             <p role="alert" className="mt-4 text-sm font-bold text-danger">
               {error}

@@ -255,7 +255,7 @@ export type GatewayCheck = "settled" | "late" | "not_captured" | "authorized" | 
 export async function reconcileWithGateway(
   order: { id: string; orderNo: string },
   opts: {
-    context: "expiry" | "retry" | "cancel";
+    context: "expiry" | "retry" | "cancel" | "status";
     findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
   }
 ): Promise<GatewayCheck> {
@@ -315,6 +315,7 @@ export async function reconcileWithGateway(
         expiry: "Payment captured at Razorpay before the payment window closed (found by the expiry check)",
         retry: "Payment captured at Razorpay; confirmed when the customer returned to pay (found by the gateway check)",
         cancel: "Payment captured at Razorpay; confirmed when the customer asked to cancel, so the order was not cancelled (found by the gateway check)",
+        status: "Payment captured at Razorpay; confirmed when the customer checked the payment status (found by the gateway check)",
       }[opts.context],
     });
     return outcome === "late_recorded" || outcome === "late_already_recorded" ? "late" : "settled";

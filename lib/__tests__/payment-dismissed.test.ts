@@ -23,11 +23,11 @@ test("the dismiss message never claims nothing was charged, and warns against pa
   assert.match(PAYMENT_DISMISSED_MESSAGE, /order is saved/i);
 });
 
-test("every Razorpay ondismiss in the web uses the shared message", () => {
+test("every Razorpay ondismiss in the web asks the server (or, with no status action, shows the shared message)", () => {
   for (const file of VIEWS) {
     const src = readFileSync(join(process.cwd(), file), "utf8");
     const handlers = [...src.matchAll(/ondismiss:/g)].map((m) => src.slice(m.index, m.index + 160));
     assert.ok(handlers.length >= 1, `${file} opens Razorpay without an ondismiss handler`);
-    for (const h of handlers) assert.match(h, /PAYMENT_DISMISSED_MESSAGE/, `${file}: ${h}`);
+    for (const h of handlers) assert.match(h, /askServer|setPaymentCheck|PAYMENT_DISMISSED_MESSAGE/, `${file}: ${h}`);
   }
 });

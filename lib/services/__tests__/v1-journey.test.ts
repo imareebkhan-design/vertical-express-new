@@ -428,7 +428,16 @@ test("payment confirmation: a forged signature, and someone else's order, are re
 test("a pending order exposes what a device needs to resume payment, and nothing once paid", async () => {
   const rzp = `order_${randomUUID().slice(0, 12)}`;
   const orderNo = await pendingOrder(userA, 40000, rzp);
-  const pending = await json(await handleGetOrder(req("GET", "/x", { token: TOKEN_A }), orderNo, { verify }));
+  /* Razorpay reports no attempt on the order (verifiably unpaid): the resume
+     details are offered. An unverifiable order offers none (payment-status.test.ts). */
+  const pending = await json(
+    await handleGetOrder(req("GET", "/x", { token: TOKEN_A }), orderNo, {
+      verify,
+      findCaptured: async () => null,
+      listAttempts: async () => [],
+    })
+  );
+  assert.equal(pending.body.data.paymentState, "unpaid");
   assert.equal(pending.body.data.razorpay.orderId, rzp);
   assert.equal(pending.body.data.razorpay.amountPaise, 40000);
 });

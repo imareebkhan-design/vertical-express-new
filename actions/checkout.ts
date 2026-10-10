@@ -15,6 +15,7 @@ import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
 import { classifyPlaceOrderError } from "@/lib/checkout-errors";
 import { getOrderByNo } from "@/lib/services/orders";
 import { sendOrderConfirmationEmail } from "@/lib/services/email";
+import { gatePlaceOrderReplay, type PaymentState } from "@/lib/services/payment-status";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -96,6 +97,8 @@ export async function validateCoupon(code: string, pincode: string): Promise<Act
 }
 
 interface PlaceOrderData {
+  /** Only on a replayed attempt: the server's payment state (lib/services/payment-status.ts). */
+  paymentState: PaymentState | null;
   orderNo: string;
   /** `payBy`: when the order stops accepting payment (lib/payment-window.ts). */
   razorpay: { orderId: string; amountPaise: number; keyId: string; payBy: string | null; payWithinSeconds: number | null } | null;
@@ -135,7 +138,7 @@ export async function placeOrder(input: {
   }
 
   try {
-    const result = await placeOrderService({
+    const result = await gatePlaceOrderReplay(userId, await placeOrderService({
       userId,
       addressId: input.addressId,
       paymentMethod: method,
@@ -148,17 +151,20 @@ export async function placeOrder(input: {
         typeof input.expectedTotalPaise === "number" && Number.isSafeInteger(input.expectedTotalPaise)
           ? input.expectedTotalPaise
           : undefined,
-    });
+    }));
     revalidatePath("/cart");
     revalidatePath("/account/orders");
 
     // P1-1: order-confirmation email for immediately-confirmed orders (COD/dummy).
     // Pending-payment (Razorpay) orders are emailed after payment is verified.
-    if (!result.requiresPaymentConfirmation) {
+    if (!result.requiresPaymentConfirmation && !result.replayed) {
       await emailOrderConfirmation(userId, result.orderNo, userEmail);
     }
     return succeed({
       orderNo: result.orderNo,
+      /* Set on a replay: "pending" means a payment may already be on its way —
+         the client shows the pending state, never Checkout or the confirmation. */
+      paymentState: result.paymentState ?? null,
       // Razorpay checkout inputs (present only when the online gateway is active
       // and the order awaits payment). Dummy/COD → null, client skips the modal.
       razorpay:

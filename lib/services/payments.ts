@@ -53,6 +53,14 @@ export interface PaymentProvider {
    * caller must never treat "could not find out" as "not paid" (ISS-074).
    */
   findCapturedPayment(gatewayOrderId: string): Promise<CapturedLookup | null>;
+  /**
+   * The status of every payment attempt on a gateway order ("created" = in
+   * flight, e.g. a UPI request awaiting approval; "authorized"; "captured";
+   * "failed"; "refunded"). Lets a caller tell "nobody paid" from "a payment is
+   * still on its way" — both of which findCapturedPayment reports as null.
+   * Throws when the gateway cannot be asked, like findCapturedPayment.
+   */
+  listPaymentAttempts(gatewayOrderId: string): Promise<string[]>;
 }
 
 /** Thrown when the payment gateway is misconfigured for the current environment. */
@@ -134,6 +142,11 @@ class DummyPaymentProvider implements PaymentProvider {
     if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
     return null;
   }
+
+  async listPaymentAttempts(): Promise<string[]> {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return [];
+  }
 }
 
 /** Pay-on-delivery — no gateway; collected at doorstep. */
@@ -169,6 +182,10 @@ class CodPaymentProvider implements PaymentProvider {
   /** No gateway: cash is never captured online. */
   async findCapturedPayment(): Promise<CapturedLookup | null> {
     return null;
+  }
+
+  async listPaymentAttempts(): Promise<string[]> {
+    return [];
   }
 }
 
@@ -306,6 +323,28 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
    * cancel yet", never as "not paid". The status is carried; the body is not.
    */
   async findCapturedPayment(gatewayOrderId: string): Promise<CapturedLookup | null> {
+    const items = await this.orderPayments(gatewayOrderId);
+    const found =
+      items.find((p) => p.status === "captured") ?? items.find((p) => p.status === "authorized");
+    if (!found) return null;
+    if (typeof found.id !== "string" || !Number.isInteger(found.amount)) {
+      throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    }
+    return {
+      gatewayPaymentId: found.id,
+      amountPaise: found.amount as number,
+      status: found.status === "captured" ? "captured" : "authorized",
+    };
+  }
+
+  async listPaymentAttempts(gatewayOrderId: string): Promise<string[]> {
+    const items = await this.orderPayments(gatewayOrderId);
+    if (items.some((p) => typeof p.status !== "string")) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    return items.map((p) => p.status as string);
+  }
+
+  /** GET /v1/orders/:id/payments — every attempt on one Razorpay order. Throws on any failure. */
+  private async orderPayments(gatewayOrderId: string): Promise<{ id?: string; status?: string; amount?: number }[]> {
     const { keyId, keySecret } = this.creds();
     const res = await fetch(
       `https://api.razorpay.com/v1/orders/${encodeURIComponent(gatewayOrderId)}/payments`,
@@ -319,17 +358,7 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
     if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
     const data = (await res.json()) as { items?: { id?: string; status?: string; amount?: number }[] };
     if (!Array.isArray(data.items)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
-    const found =
-      data.items.find((p) => p.status === "captured") ?? data.items.find((p) => p.status === "authorized");
-    if (!found) return null;
-    if (typeof found.id !== "string" || !Number.isInteger(found.amount)) {
-      throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
-    }
-    return {
-      gatewayPaymentId: found.id,
-      amountPaise: found.amount as number,
-      status: found.status === "captured" ? "captured" : "authorized",
-    };
+    return data.items;
   }
 }
 

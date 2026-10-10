@@ -10,12 +10,13 @@ import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { CheckoutView } from "@/components/shop/checkout-view";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
+import { checkPaymentStatus } from "@/actions/orders";
 import { PageLoader } from "@/components/page-loader";
 
 // Mobile Components
 import { MobileCheckoutView } from "@/components/mobile/checkout/mobile-checkout-view";
 
-const checkoutActions = { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon };
+const checkoutActions = { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon, checkPaymentStatus };
 
 interface CheckoutSwitcherProps {
   addresses: (AddressFormValues & { id: string })[];

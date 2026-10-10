@@ -1,9 +1,9 @@
 "use client";
 
 import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
-import { isLatePaid, LATE_PAYMENT_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
+import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
-import React, { useState, useTransition, useEffect } from "react";
+import React, { useRef, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
-import { cancelOrder, retryOrderPayment } from "@/actions/orders";
+import { cancelOrder, retryOrderPayment, checkPaymentStatus } from "@/actions/orders";
 import { confirmRazorpayPayment } from "@/actions/checkout";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
@@ -26,6 +26,8 @@ import { cn } from "@/lib/utils";
 import { CONTACT } from "@/lib/data";
 import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
 import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
+import type { PaymentStateName } from "@/lib/payment-status-copy";
 
 interface MobileOrderDetailViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +48,10 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /* Set when Checkout closed or its callback could not be verified: the server
+     (checkPaymentStatus) says what happened, never the browser. */
+  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const rzOpen = useRef(false); // one Razorpay window at a time
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   useEffect(() => {
@@ -119,8 +125,9 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
             signature: response.razorpay_signature,
           });
 
+          rzOpen.current = false;
           if (!confirm.ok) {
-            setError(confirm.error.message);
+            setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
             return;
           }
           triggerHaptic("heavy");
@@ -128,12 +135,14 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         },
         modal: {
           ondismiss: () => {
-            setError(PAYMENT_DISMISSED_MESSAGE);
+            rzOpen.current = false;
+            setPaymentCheck({ orderNo, initial: null });
           },
         },
       };
 
       const rz = new Razorpay(options);
+      rzOpen.current = true;
       rz.open();
     } catch {
       setError("Payment checkout configuration failed.");
@@ -141,12 +150,15 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   };
 
   const handleRetryPayment = () => {
+    if (rzOpen.current) return;
     setError(null);
+    setPaymentCheck(null);
     triggerHaptic("medium");
     startTransition(async () => {
       const res = await retryOrderPayment(order.orderNo);
       if (!res.ok) {
-        setError(res.error.message);
+        if (res.error.code === "UNAVAILABLE") setPaymentCheck({ orderNo: order.orderNo, initial: "pending" });
+        else setError(res.error.message);
         return;
       }
 
@@ -216,6 +228,20 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
 
       <div className="p-4 space-y-4">
         {/* Error Banner */}
+        {paymentCheck && (
+          <PaymentStatusNotice
+            key={paymentCheck.orderNo}
+            orderNo={paymentCheck.orderNo}
+            check={checkPaymentStatus}
+            initialState={paymentCheck.initial}
+            onPaid={() => {
+              setPaymentCheck(null);
+              router.refresh();
+            }}
+            onPay={handleRetryPayment}
+            orderHref={`/account/orders/${paymentCheck.orderNo}`}
+          />
+        )}
         {error && (
           <div className="rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             {error}

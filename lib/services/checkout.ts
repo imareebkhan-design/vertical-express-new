@@ -221,6 +221,8 @@ export interface PlaceOrderResult {
   amountPaise?: number;
   /** When the order was placed — the payment window runs from here (lib/payment-window.ts). */
   placedAt?: Date;
+  /** True when this is an idempotent replay of an existing order (no new order was created). */
+  replayed?: boolean;
 }
 
 /* What an idempotent replay needs to hand back. */
@@ -247,6 +249,7 @@ function replayResult(existing: Prisma.OrderGetPayload<{ select: typeof REPLAY_S
     status: existing.status,
     requiresPaymentConfirmation: awaiting,
     placedAt: existing.placedAt,
+    replayed: true,
     ...(awaiting && payment?.gatewayOrderId
       ? { gatewayOrderId: payment.gatewayOrderId, amountPaise: payment.amountPaise ?? existing.totalPaise }
       : {}),
@@ -718,8 +721,8 @@ export async function settleCapturedPayment(params: {
   eventId?: string | null;
   raw?: Prisma.InputJsonValue;
   /** "*_check": found by asking the gateway — at the payment-window expiry
-      (ISS-074), when the customer returns to pay, or asks to cancel (E5). */
-  source: "client" | "webhook" | "expiry_check" | "retry_check" | "cancel_check";
+      (ISS-074), when the customer returns to pay, asks to cancel (E5), or checks the payment status. */
+  source: "client" | "webhook" | "expiry_check" | "retry_check" | "cancel_check" | "status_check";
   note?: string;
 }): Promise<SettleOutcome> {
   const { paymentId, orderId, orderNo, amountPaise, gatewayPaymentId, eventId, raw, source, note } = params;

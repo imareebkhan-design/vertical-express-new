@@ -1,14 +1,14 @@
 "use server";
 
-import { checkoutTimeoutSeconds, paymentTermsFor, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { paymentTermsFor, PAYMENT_PENDING_MESSAGE, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import {
   cancelOrder as cancelService,
   reorder as reorderService,
   getOrderByNo,
-  reconcileWithGateway,
 } from "@/lib/services/orders";
+import { paymentStatusFor, type PaymentStatusView } from "@/lib/services/payment-status";
 import { LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 import { cancelErrorResult } from "@/lib/order-display";
@@ -59,36 +59,22 @@ export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
     return fail("CONFLICT", "This order is not awaiting payment");
   }
 
-  /* E5: the first payment may have gone through with its confirmation lost
-     (browser closed, network dropped) and its webhook not yet here. Ask
-     Razorpay before offering the checkout again. */
-  const check = await reconcileWithGateway(order, { context: "retry" });
-  if (check === "settled") {
+  /* E5 + payment safety (10 Oct): ask Razorpay before offering Checkout again.
+     Checkout is offered only when the server can establish that nothing was
+     paid and nothing is in flight (paymentStatusFor → canPay); an approved,
+     in-flight or unverifiable payment is never followed by a second attempt.
+     The payment window is part of the same decision ("expired"). */
+  const status = await paymentStatusFor(order);
+  if (status.state === "paid") {
     revalidatePath("/account/orders");
     revalidatePath(`/account/orders/${orderNo}`);
     /* No checkout details: the screen refreshes and shows the paid order. */
     return succeed({ orderNo: order.orderNo, razorpay: null });
   }
-  if (check === "late") return fail("CONFLICT", LATE_PAYMENT_MESSAGE);
-  if (check === "authorized") {
-    return fail(
-      "UNAVAILABLE",
-      "Your bank has approved a payment for this order and it is still being completed. Please don't pay again — check back in a few minutes."
-    );
-  }
-  if (check === "unknown") {
-    return fail(
-      "UNAVAILABLE",
-      "We couldn't confirm this payment with the bank just now. If you've already paid, please don't pay again — check back in a few minutes."
-    );
-  }
-
-  /* After the gateway check, so a payment whose callback was lost still
-     settles; before handing out Checkout, so a window that has closed — but
-     not yet been swept by the expiry job — cannot take a payment. The client
-     refuses too; this does not rely on it. */
+  if (status.state === "late") return fail("CONFLICT", LATE_PAYMENT_MESSAGE);
+  if (status.state === "pending") return fail("UNAVAILABLE", PAYMENT_PENDING_MESSAGE);
+  if (status.state === "expired") return fail("CONFLICT", PAYMENT_WINDOW_CLOSED_MESSAGE);
   const terms = paymentTermsFor(order.placedAt);
-  if (checkoutTimeoutSeconds(terms) === "closed") return fail("CONFLICT", PAYMENT_WINDOW_CLOSED_MESSAGE);
 
   const payment = order.payments[0];
   const gatewayOrderId = payment?.gatewayOrderId ?? null;
@@ -104,4 +90,23 @@ export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
         }
       : null,
   });
+}
+
+/**
+ * "Check payment status" — the authoritative answer for one of the customer's
+ * own orders (ownership: getOrderByNo scopes by user). Asks Razorpay when the
+ * order is still awaiting payment and settles a capture it finds through the
+ * same compare-and-set path as the webhook. Safe to call repeatedly.
+ */
+export async function checkPaymentStatus(orderNo: string): Promise<ActionResult<PaymentStatusView>> {
+  const userId = await getAuthUserId();
+  if (!userId) return fail("UNAUTHENTICATED", "Please log in");
+  const order = await getOrderByNo(userId, orderNo);
+  if (!order) return fail("NOT_FOUND", "Order not found");
+  const status = await paymentStatusFor(order);
+  if (status.state === "paid" || status.state === "late") {
+    revalidatePath("/account/orders");
+    revalidatePath(`/account/orders/${orderNo}`);
+  }
+  return succeed(status);
 }
