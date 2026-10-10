@@ -240,6 +240,27 @@ should(
 );
 
 should(
+  "RESEND_API_KEY and EMAIL_FROM are set",
+  present("RESEND_API_KEY") && present("EMAIL_FROM"),
+  "Without them every order confirmation and status email is skipped with only a log line " +
+    "(lib/services/email.ts) — customers who paid hear nothing. Staging runs without them by design."
+);
+
+should(
+  "CRON_SECRET is set",
+  present("CRON_SECRET"),
+  "The scheduler cannot authenticate to /api/cron/cleanup-orders, so unpaid online orders are never " +
+    "auto-cancelled and their reserved stock never returns."
+);
+
+should(
+  "NEXT_PUBLIC_SITE_URL is the production host (search engines may index it)",
+  /^https:\/\/(www\.)?verticalexpress\.in\/?$/.test(siteUrl),
+  "Any other host is served noindex with robots.txt Disallow: / (lib/site-indexing.ts). Correct for staging " +
+    "and previews; on the production backend it would hide the shop from search."
+);
+
+should(
   "SENTRY_DSN or NEXT_PUBLIC_SENTRY_DSN is set",
   present("SENTRY_DSN") || present("NEXT_PUBLIC_SENTRY_DSN"),
   "Sentry is wired but has no DSN, so nothing reports an error in production (ISS-012)."
