@@ -2,6 +2,7 @@ import "server-only";
 import { PAYMENT_WINDOW_MINUTES } from "@/lib/payment-window";
 import { db } from "@/lib/db";
 import { isCancellable } from "@/lib/order-flow";
+import { IN_WAREHOUSE, LEFT_WAREHOUSE } from "@/lib/shipment-flow";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { settleCapturedPayment } from "@/lib/services/checkout";
@@ -95,27 +96,103 @@ export async function listOrders(userId: string, page = 1, perPage = 10) {
   return { orders, total, page, perPage };
 }
 
-/** Helper to safely release/restock inventory for an order, scoped to its warehouse. */
+async function restock(tx: Prisma.TransactionClient, variantId: string, qty: number, warehouseId?: string | null) {
+  if (qty <= 0) return;
+  const inv = await tx.inventory.findFirst({
+    where: {
+      variantId,
+      ...(warehouseId ? { warehouseId } : {}),
+    },
+  });
+  if (inv) {
+    await tx.inventory.update({
+      where: { id: inv.id },
+      data: { qtyOnHand: { increment: qty } },
+    });
+  }
+}
+
+/**
+ * Release/restock what an order still holds, scoped to its warehouse.
+ *
+ * Only goods still in the warehouse come back (ISS-090). Quantities in a
+ * shipment that is no longer `pending`/`packed` are skipped: a cancelled
+ * shipment already returned its own goods (`releaseShipmentInventory`), and
+ * one out for delivery or delivered is not on the shelf. An order line with
+ * no shipment (orders from before the split) is released whole.
+ *
+ * Callers hold the order row lock (the compare-and-set on `orders.status`),
+ * and `advanceShipment` takes the same lock, so no shipment changes state
+ * between this read and the order commit.
+ */
 export async function releaseOrderInventory(
   tx: Prisma.TransactionClient,
   orderId: string,
   warehouseId?: string | null
 ) {
-  const items = await tx.orderItem.findMany({ where: { orderId } });
+  const items = await tx.orderItem.findMany({
+    where: { orderId },
+    include: {
+      shipmentItems: { where: { shipment: { status: { notIn: [...IN_WAREHOUSE] } } }, select: { qty: true } },
+    },
+  });
   for (const item of items) {
-    const inv = await tx.inventory.findFirst({
-      where: {
-        variantId: item.variantId,
-        ...(warehouseId ? { warehouseId } : {}),
-      },
-    });
-    if (inv) {
-      await tx.inventory.update({
-        where: { id: inv.id },
-        data: { qtyOnHand: { increment: item.qty } },
-      });
-    }
+    const notOnShelf = item.shipmentItems.reduce((n, s) => n + s.qty, 0);
+    await restock(tx, item.variantId, item.qty - notOnShelf, warehouseId);
   }
+}
+
+/**
+ * Whether any of this order's goods have left the warehouse. An order is
+ * cancellable only before dispatch (`ORDER_FLOW`: "cancelling after dispatch
+ * is a driver problem, not a button"), but `Order.status` does not follow its
+ * shipments, so a `confirmed` order can have one on the road. Call inside the
+ * cancel transaction, after the order row is locked.
+ */
+export async function hasDispatchedShipment(tx: Prisma.TransactionClient, orderId: string): Promise<boolean> {
+  const n = await tx.shipment.count({ where: { orderId, status: { in: [...LEFT_WAREHOUSE] } } });
+  return n > 0;
+}
+
+/**
+ * Restock one shipment's goods — only what that shipment carries, not the
+ * whole order's. Cancelling the express half of a mixed order released the
+ * cement too (ISS-090).
+ */
+export async function releaseShipmentInventory(
+  tx: Prisma.TransactionClient,
+  shipmentId: string,
+  warehouseId?: string | null
+) {
+  const items = await tx.shipmentItem.findMany({
+    where: { shipmentId },
+    select: { qty: true, orderItem: { select: { variantId: true } } },
+  });
+  for (const item of items) {
+    await restock(tx, item.orderItem.variantId, item.qty, warehouseId);
+  }
+}
+
+/**
+ * A cancelled order's shipments that have not left are cancelled with it.
+ *
+ * Until ISS-090 no order-cancel path touched shipments, so a cancelled order
+ * kept its `pending` shipment: it stayed on the dispatch board as work to pack,
+ * the app called it "Being prepared", and cancelling that shipment by hand
+ * later released the order's stock a second time. Stock is released once, by
+ * the order cancel (call this after `releaseOrderInventory`, which skips goods
+ * of shipments already cancelled); this only moves the shipment rows.
+ *
+ * Only `pending` and `packed`: an order can be cancelled only before dispatch
+ * (`ORDER_FLOW`), and a shipment on the road is a driver's problem, not a row
+ * to rewrite.
+ */
+export async function cancelOpenShipments(tx: Prisma.TransactionClient, orderId: string): Promise<number> {
+  const { count } = await tx.shipment.updateMany({
+    where: { orderId, status: { in: [...IN_WAREHOUSE] } },
+    data: { status: "cancelled" },
+  });
+  return count;
 }
 
 /**
@@ -197,12 +274,16 @@ export async function cancelOrder(
       data: { status: "cancelled", cancelledReason: reason },
     });
     if (moved.count !== 1) throw new Error("NOT_CANCELLABLE");
+    /* Goods on the road are not cancelled from an app; the throw rolls the
+       status change back. */
+    if (await hasDispatchedShipment(tx, order.id)) throw new Error("NOT_CANCELLABLE");
     await tx.orderStatusEvent.create({
       data: { orderId: order.id, fromStatus: order.status, toStatus: "cancelled", note: reason, actorUserId: userId },
     });
     // Restock to the specific warehouse where stock was reserved.
     await releaseOrderInventory(tx, order.id, order.warehouseId);
     await releaseCouponRedemption(tx, order.id);
+    await cancelOpenShipments(tx, order.id);
   });
 }
 
@@ -480,6 +561,10 @@ export async function cleanupExpiredPendingOrders(
         });
 
         if (updated.count > 0) {
+          /* An unpaid order's shipment cannot be dispatched (`advanceShipment`
+             refuses), so this holds only for rows from before that guard. The
+             throw rolls back; the catch below rotates the order. */
+          if (await hasDispatchedShipment(tx, order.id)) throw new Error("SHIPMENT_DISPATCHED");
           await tx.orderStatusEvent.create({
             data: {
               orderId: order.id,
@@ -491,6 +576,7 @@ export async function cleanupExpiredPendingOrders(
 
           await releaseOrderInventory(tx, order.id, order.warehouseId);
           await releaseCouponRedemption(tx, order.id);
+          await cancelOpenShipments(tx, order.id);
           cancelledCount++;
         }
       });

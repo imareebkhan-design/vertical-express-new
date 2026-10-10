@@ -27,6 +27,20 @@ import type { ShipmentStatus } from "@/prisma/generated/client/client";
  * `Order.status` authoritative for now, and shipments are recorded alongside it.
  */
 
+/** Shipments whose goods are still in the warehouse: an order cancel closes these and restocks them. */
+export const IN_WAREHOUSE: readonly ShipmentStatus[] = ["pending", "packed"];
+
+/** Shipments whose goods have left: never restocked by an order cancel, and they block one. */
+export const LEFT_WAREHOUSE: readonly ShipmentStatus[] = ["out_for_delivery", "delivered"];
+
+/**
+ * An order in one of these states has no shipment anyone should be moving or
+ * loading: unpaid is not work yet, cancelled or refunded is not work at all.
+ * The dispatch board, the Today count and `advanceShipment` all read this one
+ * list, so they cannot disagree about what is work.
+ */
+export const INACTIVE_ORDER_STATES = ["pending_payment", "cancelled", "refund_initiated", "refunded"] as const;
+
 /** Allowed forward transitions. Absent means terminal. */
 export const SHIPMENT_FLOW: Record<ShipmentStatus, ShipmentStatus[]> = {
   pending: ["packed", "cancelled"],

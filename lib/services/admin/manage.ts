@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
-import { releaseOrderInventory } from "@/lib/services/orders";
+import { cancelOpenShipments, hasDispatchedShipment, releaseOrderInventory } from "@/lib/services/orders";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
 import { canTransitionOrder } from "@/lib/order-flow";
@@ -75,6 +75,9 @@ export async function advanceOrderStatus(
       },
     });
     if (moved.count !== 1) throw new Error("STATUS_CHANGED");
+    /* Cancelling after dispatch is a driver's job, not a status change: the
+       goods are on a vehicle and restocking them here would invent stock. */
+    if (to === "cancelled" && (await hasDispatchedShipment(tx, orderId))) throw new Error("SHIPMENT_DISPATCHED");
     await tx.orderStatusEvent.create({
       data: {
         orderId,
@@ -88,6 +91,7 @@ export async function advanceOrderStatus(
     if (to === "cancelled") {
       await releaseOrderInventory(tx, orderId, order.warehouseId);
       await releaseCouponRedemption(tx, orderId);
+      await cancelOpenShipments(tx, orderId);
       // Stock moved. Recorded separately from the status change because it is a
       // different kind of loss to investigate.
       await recordAudit(tx, {

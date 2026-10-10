@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
+import { INACTIVE_ORDER_STATES } from "@/lib/shipment-flow";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 
 /**
@@ -130,7 +131,7 @@ export type TrackedShipment = OrderShipments["shipments"][number];
  */
 export async function getDispatchBoard() {
   const shipments = await db.shipment.findMany({
-    where: { status: { in: ["pending", "packed"] } },
+    where: { status: { in: ["pending", "packed"] }, order: { status: { notIn: [...INACTIVE_ORDER_STATES] } } },
     orderBy: [{ createdAt: "asc" }],
     select: {
       id: true,

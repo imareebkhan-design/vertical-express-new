@@ -17,6 +17,51 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-090 — Cancelled orders kept live shipments; cancels released stock twice
+
+**11 October 2026 · HIGH · Fulfilment/Inventory · FIXED locally; staging deployment pending.** Found during payment walkthrough D.
+
+**Root cause.** Order status and shipment status were kept separately and no cancel path joined them:
+1. No order-cancel path (customer `cancelOrder`, the 15-minute expiry cron, admin `advanceOrderStatus`) touched the
+   order's shipments. Staging had 5 cancelled orders with `pending` shipments, all on the dispatch board and the Today
+   "to pack" count; the app showed "Being prepared" under a cancelled order. Unpaid orders' shipments were on the
+   board too.
+2. A shipment cancel ran `releaseOrderInventory(orderId)`: the WHOLE order's stock came back for one shipment, and a
+   later order cancel returned it again.
+3. An order cancel restocked every line, including goods already out for delivery or delivered (`Order.status` does
+   not follow its shipments, so a `confirmed` order can have a shipment on the road).
+4. The order-state check and the shipment write did not share a lock: a shipment cancel and an order cancel running
+   together each missed the other's uncommitted write and returned the same goods twice (reproduced in a test).
+
+**Fix.** What an order still holds is derived, inside the cancelling transaction, from rows written with the status
+changes themselves: order lines minus `ShipmentItem` quantities in shipments no longer `pending`/`packed`. No schema
+change and no new table. (`StockMovement` was checked and cannot serve: checkout and every cancel path write no rows to
+it — only manual adjustments and product creation do.)
+- `cancelOpenShipments` closes `pending`/`packed` shipments in the same transaction as each order cancel.
+- `releaseShipmentInventory` restocks only the cancelled shipment's own items, into its own warehouse (falling back
+  to the order's warehouse for legacy rows with none).
+- `releaseOrderInventory` skips quantities in cancelled, out-for-delivery and delivered shipments.
+- An order with a shipment out for delivery or delivered cannot be cancelled (`SHIPMENT_DISPATCHED` for admin,
+  `NOT_CANCELLABLE` for the customer; the cron rolls back and rotates). This enforces the existing `ORDER_FLOW` rule
+  ("cancelling after dispatch is a driver problem"); a failed delivery is still returned by cancelling the shipment,
+  which restocks it once.
+- `advanceShipment` locks the order row (`SELECT … FOR UPDATE`) and re-checks it under the lock; every order cancel
+  writes that row first (compare-and-set), so the two serialise. Lock order is order → shipment → inventory everywhere.
+- `INACTIVE_ORDER_STATES` (`lib/shipment-flow.ts`): unpaid, cancelled and refunded orders' shipments are off the
+  dispatch board and the Today count, and `advanceShipment` refuses them (`order_not_active`).
+- Retries are no-ops: order cancels are compare-and-set on status; a cancelled shipment is terminal.
+- Data migration `20261011120000_cancel_shipments_of_dead_orders` closes the existing rows (shipment status only; stock
+  is not touched because the order cancel already released it).
+
+**Tests.** `cancel-closes-shipments.test.ts` (6) and `shipment-cancel-stock.test.ts` (10): full cancel, one shipment,
+mixed orders, shipment-then-order, repeated cancels, concurrent shipment+order cancel (5 rounds), concurrent double
+order cancel, expiry cron (run twice), second warehouse, goods on the road, failed-delivery return. Each asserts every
+inventory row in both warehouses. All failed before the fix; the race test fails 3/3 without the row lock.
+
+**Remaining gaps (not in scope, not fixed).** Stock changes from checkout and cancels still write no `StockMovement`
+row, so the ledger cannot explain sales or restocks. Restocking with no warehouse (legacy orders from before
+warehouses) still picks the first inventory row (ISS-004 territory).
+
 ## ISS-089 — Mobile web OTP verifier attachment and resend cooldown
 
 **1 October 2026 · MEDIUM · Auth · FIXED locally; real SMS verification open.**
@@ -31,6 +76,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (local; staging pending) |
 | ISS-089 | Mobile web OTP step detached reCAPTCHA; successful resend did not restart cooldown | MEDIUM | Auth | FIXED (local; real SMS unverified) |
 | ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | FIXED |
 | ISS-002 | Dummy payment gateway confirms orders with no money | CRITICAL | Payments | FIXED |

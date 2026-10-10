@@ -3,12 +3,13 @@ import { randomInt, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import type { ShipmentStatus } from "@/prisma/generated/client/client";
 import { recordAudit } from "@/lib/services/audit";
-import { releaseOrderInventory } from "@/lib/services/orders";
+import { releaseShipmentInventory } from "@/lib/services/orders";
 import { rateLimit } from "@/lib/services/rate-limit";
 import {
   canTransitionShipment,
   CODE_ISSUED_AT,
   generateDeliveryCode,
+  INACTIVE_ORDER_STATES,
 } from "@/lib/shipment-flow";
 
 /**
@@ -38,7 +39,7 @@ import {
 
 export type AdvanceResult =
   | { ok: true; status: ShipmentStatus; deliveryCode: string | null }
-  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" | "no_driver" };
+  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" | "no_driver" | "order_not_active" };
 
 /**
  * Move one shipment to `to`.
@@ -70,9 +71,17 @@ export async function advanceShipment(params: {
       warehouseId: true,
       sequence: true,
       driverId: true,
+      order: { select: { status: true, warehouseId: true } },
     },
   });
   if (!shipment) return { ok: false, reason: "not_found" };
+  /* Goods move only for an order that is paid for (or cash on delivery, which
+     confirms at placement) and still alive. A shipment of an unpaid order is
+     not work yet; one of a cancelled order is not work at all — and cancelling
+     it here would release stock the order cancel already released. */
+  if ((INACTIVE_ORDER_STATES as readonly string[]).includes(shipment.order.status)) {
+    return { ok: false, reason: "order_not_active" };
+  }
   if (!canTransitionShipment(shipment.status, to)) {
     return { ok: false, reason: "illegal_transition" };
   }
@@ -99,6 +108,17 @@ export async function advanceShipment(params: {
   const now = new Date();
 
   return db.$transaction(async (tx) => {
+    /* Lock the order row and re-read its status under the lock. Every order
+       cancel changes that row first (a compare-and-set), so a shipment move and
+       an order cancel are serialised: whichever commits second sees the first.
+       Without this, a shipment cancel and an order cancel running together each
+       missed the other's uncommitted write and the goods came back twice. */
+    const [locked] = await tx.$queryRaw<{ status: string }[]>`
+      SELECT status::text AS status FROM orders WHERE id = ${shipment.orderId}::uuid FOR UPDATE`;
+    if (!locked || (INACTIVE_ORDER_STATES as readonly string[]).includes(locked.status)) {
+      return { ok: false, reason: "order_not_active" } as const;
+    }
+
     /* Guarded on the status we read. If anything moved the row in between, this
        matches zero rows and we report the race rather than overwriting it. */
     const updated = await tx.shipment.updateMany({
@@ -123,7 +143,7 @@ export async function advanceShipment(params: {
        from the status change because it is a different kind of loss to
        investigate — the same split the admin order cancellation makes. */
     if (to === "cancelled") {
-      await releaseOrderInventory(tx, shipment.orderId, shipment.warehouseId);
+      await releaseShipmentInventory(tx, shipmentId, shipment.warehouseId ?? shipment.order.warehouseId);
       await recordAudit(tx, {
         actorType: "admin",
         actorId: actor.id,

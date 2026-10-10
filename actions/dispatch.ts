@@ -42,6 +42,7 @@ const ADVANCE_MESSAGE: Record<string, string> = {
   illegal_transition: "That move is not allowed from where the shipment is now",
   raced: "Somebody else moved this shipment a moment ago — reload the board",
   no_driver: "Assign a driver before the goods leave",
+  order_not_active: "This order is unpaid or cancelled — nothing in it should be moved",
 };
 
 const CONFIRM_MESSAGE: Record<string, string> = {

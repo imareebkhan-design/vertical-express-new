@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { INACTIVE_ORDER_STATES } from "@/lib/shipment-flow";
 import type { OrderStatus } from "@/prisma/generated/client/client";
 
 /**
@@ -126,7 +127,9 @@ export async function getOpsToday(): Promise<OpsToday> {
     db.inventory.count({ where: { qtyOnHand: { lte: 0 } } }),
     /* Anything packed or still pending has not left. `out_for_delivery` has,
        and `delivered`/`cancelled` are done. */
-    db.shipment.count({ where: { status: { in: ["pending", "packed"] } } }),
+    db.shipment.count({
+      where: { status: { in: ["pending", "packed"] }, order: { status: { notIn: [...INACTIVE_ORDER_STATES] } } },
+    }),
     db.order.aggregate({
       where: { paymentMethod: "cod", status: { in: ["confirmed", "packed", "out_for_delivery"] } },
       _sum: { totalPaise: true },
