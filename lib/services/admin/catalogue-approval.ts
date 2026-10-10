@@ -156,3 +156,44 @@ export async function approvalBatchView(batch: string) {
   const order = new Map(slugs.map((s, i) => [s, i]));
   return products.sort((a, b) => (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0));
 }
+
+export interface BatchApprovalItem {
+  productId: string;
+  imageId: string;
+  expectedImageSha256: string;
+  expectedProductUpdatedAt: string;
+  /** Required for a pack-sensitive title (validateApprovalInput). */
+  packDecision?: string | null;
+}
+
+/**
+ * The owner approves several products at once from one screen of photos:
+ * identity CONFIRMED + photo APPROVED_EXACT for each ticked product, with one
+ * evidence note. Each product goes through recordCatalogueApproval unchanged —
+ * its own validation, sha256/updatedAt check against what the screen showed,
+ * transaction and audit row — so a bulk decision is exactly N single decisions.
+ * Anything the owner left unticked, or wants to approve with a limitation or
+ * reject, stays on the one-by-one form.
+ */
+export async function recordBatchApproval(
+  adminUserId: string,
+  items: BatchApprovalItem[],
+  evidence: string
+): Promise<{ approved: string[]; failed: { productId: string; message: string }[] }> {
+  const approved: string[] = [];
+  const failed: { productId: string; message: string }[] = [];
+  for (const it of items) {
+    const r = await recordCatalogueApproval(adminUserId, {
+      ...it,
+      identity: "CONFIRMED",
+      image: "APPROVED_EXACT",
+      severity: null,
+      packDecision: it.packDecision ?? null,
+      evidence,
+      limitations: null,
+    });
+    if (r.ok) approved.push(it.productId);
+    else failed.push({ productId: it.productId, message: r.message });
+  }
+  return { approved, failed };
+}

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { recordCatalogueApproval, type ApprovalInput } from "@/lib/services/admin/catalogue-approval";
+import { recordCatalogueApproval, recordBatchApproval, type ApprovalInput, type BatchApprovalItem } from "@/lib/services/admin/catalogue-approval";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -33,4 +33,28 @@ export async function adminRecordCatalogueApproval(input: ApprovalInput): Promis
   if (!r.ok) return fail(r.code, r.message);
   revalidatePath("/admin/catalogue-approvals");
   return succeed({ public: r.public });
+}
+
+/** The signed-in admin approves several products at once (each recorded as its own decision). */
+export async function adminRecordBatchApproval(input: {
+  items: BatchApprovalItem[];
+  evidence: string;
+}): Promise<ActionResult<{ approved: string[]; failed: { productId: string; message: string }[] }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admins only");
+  const items = Array.isArray(input?.items) ? input.items.slice(0, 50) : [];
+  if (items.length === 0) return fail("VALIDATION", "Tick at least one product");
+  for (const it of items) {
+    if (!UUID.test(String(it?.productId)) || !UUID.test(String(it?.imageId))) return fail("VALIDATION", "Unknown product or image");
+    if (!/^[a-f0-9]{64}$/.test(String(it.expectedImageSha256)) || Number.isNaN(Date.parse(String(it.expectedProductUpdatedAt)))) {
+      return fail("VALIDATION", "Reload the page and review again");
+    }
+  }
+  const r = await recordBatchApproval(
+    admin.id,
+    items.map((it) => ({ ...it, packDecision: it.packDecision == null ? null : String(it.packDecision).slice(0, 500) })),
+    String(input.evidence ?? "").slice(0, 1000)
+  );
+  revalidatePath("/admin/catalogue-approvals");
+  return succeed(r);
 }

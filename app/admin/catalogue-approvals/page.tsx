@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { APPROVAL_BATCHES, PACK_SENSITIVE, approvalBatchView } from "@/lib/services/admin/catalogue-approval";
 import { BoundApprovalForm } from "@/components/admin/approval-form-bound";
+import { BoundBulkApproval } from "@/components/admin/bulk-approval-bound";
 
 export const metadata: Metadata = { title: "Catalogue approvals | Operations", robots: { index: false } };
 export const dynamic = "force-dynamic";
@@ -34,6 +35,16 @@ export default async function CatalogueApprovals({ searchParams }: { searchParam
           </Link>
         ))}
       </nav>
+      <BoundBulkApproval
+        rows={products.flatMap((p) => {
+          const img = p.images.find((i) => i.isPrimary);
+          if (!img || !img.sha256 || p.identityApprovedAt) return [];
+          return [{
+            productId: p.id, imageId: img.id, sha256: img.sha256, updatedAt: p.updatedAt.toISOString(),
+            title: p.title, brand: p.brand.name, url: img.url, packSensitive: PACK_SENSITIVE.test(p.title),
+          }];
+        })}
+      />
       <ol className="space-y-6">
         {products.map((p) => {
           const primary = p.images.find((i) => i.isPrimary);

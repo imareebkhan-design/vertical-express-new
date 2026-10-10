@@ -4,7 +4,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { db } from "@/lib/db";
 import { publicProductWhere } from "@/lib/catalog-policy";
-import { recordCatalogueApproval, APPROVAL_BATCHES, type ApprovalInput } from "../catalogue-approval";
+import { recordCatalogueApproval, recordBatchApproval, APPROVAL_BATCHES, type ApprovalInput } from "../catalogue-approval";
 
 /**
  * Owner approval recording. One decision per product, by the signed-in admin,
@@ -134,4 +134,29 @@ test("batches carry slugs only — no decisions — and cover the 263 candidates
   assert.equal(new Set(all).size, 263);
   const raw = readFileSync(new URL("../../../catalog/approval-batches.json", import.meta.url), "utf8");
   assert.doesNotMatch(raw, /APPROVED|CONFIRMED|approvedBy/);
+});
+
+test("bulk approval = N single decisions: each validated, sha-checked, made public and audited; failures reported, not hidden", async () => {
+  p.f = await make("f", `Caulking Gun ${tag}`);
+  p.g = await make("g", `Hole Saw Set 5 pcs ${tag}`);
+  p.h = await make("h", `Spanner Set 8 pcs ${tag}`);
+  p.s = await make("s", `Chisel ${tag}`);
+  const item = (x: P, packDecision?: string) => ({ productId: x.id, imageId: x.imageId, expectedImageSha256: x.sha, expectedProductUpdatedAt: x.updatedAt, packDecision });
+  const r = await recordBatchApproval(ADMIN, [
+    item(p.f),
+    item(p.g), // kit without a pack decision → refused
+    item(p.h, "8 spanners in a roll"),
+    { ...item(p.s), expectedImageSha256: sha("not-what-the-screen-showed") }, // stale screen → refused
+  ], "Checked each photo and model against the manufacturer catalogue");
+  assert.deepEqual(r.approved.sort(), [p.f.id, p.h.id].sort());
+  assert.deepEqual(r.failed.map((f) => f.productId).sort(), [p.g.id, p.s.id].sort());
+  assert.equal(await isPublic(p.f.id), true);
+  assert.equal(await isPublic(p.h.id), true);
+  assert.equal(await isPublic(p.g.id), false);
+  assert.equal(await isPublic(p.s.id), false);
+  const audits = await db.auditLog.count({ where: { entityType: "product", entityId: { in: [p.f.id, p.h.id] } } });
+  assert.equal(audits, 2, "one audit row per approved product");
+  const h = await db.product.findUniqueOrThrow({ where: { id: p.h.id }, select: { identityApprovedBy: true, identityApprovalReason: true } });
+  assert.equal(h.identityApprovedBy, ADMIN);
+  assert.match(h.identityApprovalReason ?? "", /8 spanners in a roll/);
 });
