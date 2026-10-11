@@ -34,6 +34,14 @@ launch products). Adding a code is an owner decision. A licence change already r
 `catalogue-approval-policy.test.ts` "in production a photo also needs attested reuse rights" (fails without the rule;
 checks URL, listing, search, suggestions, wishlist, counts and rooms).
 
+**Hardened 12 Oct 2026.** "Production" is no longer inferred from `PAYMENT_GATEWAY` alone. `lib/deploy-env.ts`
+`strictCatalogue()` reads an explicit `VE_DEPLOY_ENV` and fails closed: live money, `production`, a contradictory
+`staging` (not razorpay-test + `ALLOW_TEST_GATEWAY=1` + rzp_test_ key), `development` on a production build, or an
+unset/unknown value on a production build all apply the rights rule and hide the QA fixture. Staging declares
+`VE_DEPLOY_ENV=staging` in `apphosting.yaml` (BUILD + RUNTIME, with its public payment values) so its catalogue is
+unchanged. Preflight fails on a missing or inconsistent declaration. Tests: `deploy-env.test.ts` (10, incl. the
+staging config file itself) + a DB-level test across declarations; the fail-open variant fails 2.
+
 ## ISS-092 — Catalogue approval said "now public" for products that stayed hidden
 
 **11 October 2026 · LOW · Admin / Catalogue · FIXED; live on staging (`build-2026-10-11-004`).**
@@ -133,7 +141,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-003 | Razorpay HTTP call executes inside DB transaction | HIGH | Checkout | FIXED |
 | ISS-004 | Inventory decrement not scoped to warehouse | HIGH | Inventory | FIXED |
 | ISS-005 | Payment capture amount never verified | HIGH | Payments | FIXED |
-| ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | BLOCKED (OWNER) |
+| ISS-006 | Authentication uses email OTP, not phone | HIGH | Auth | FIXED (Firebase phone + Google; real SMS unverified) |
 | ISS-007 | Entire catalog is fictional | CRITICAL | Data | BLOCKED (OWNER) |
 | ISS-008 | Fabricated public claims live in production | HIGH | Content/Legal | FIXED |
 | ISS-009 | Fulfilment loop — runs end to end; slots and order-state derivation remain | CRITICAL | Operations | PARTIAL |
@@ -455,7 +463,14 @@ flags for review.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Authentication |
-| **Status** | OPEN — needs an SMS provider (D) |
+| **Status** | FIXED — superseded by Firebase phone OTP + Google (re-checked 12 Oct 2026); real SMS unverified |
+
+**Update 12 Oct 2026 (Claude Code, from code).** The live sign-in no longer uses this path. `/login` renders
+`SignInForm` (desktop) or `MobileSignInView` (phone), both on `useFirebaseSignIn` (Firebase phone OTP + Google); the
+app signs in with Firebase too, and sign-out uses `lib/auth/sign-out-client`. The Supabase OTP code described below —
+`actions/auth.ts` (`sendOtp`/`verifyOtp`/`signOut`), `components/auth/login-form.tsx`, `lib/services/auth-provider.ts`
+— is imported by nothing live; remove it in a cleanup change. Still open: real SMS to a live number (ISS-089) and the
+production Firebase project's SMS quota/billing. The text below is the original finding.
 
 **Description.** `getOtpChannel()` returns `"phone"` only if `AUTH_OTP_CHANNEL === "phone"`;
 it defaults to `"email"`, and `.env.example` sets `AUTH_OTP_CHANNEL="email"`. The login

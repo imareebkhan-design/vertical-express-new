@@ -38,6 +38,7 @@ import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PrismaClient } from "@/prisma/generated/client/client";
+import { deployEnvProblem, strictCatalogue } from "@/lib/deploy-env";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -143,6 +144,24 @@ if (gateway === "razorpay-live") {
     false,
     `The gateway is "${gateway || "unset"}". The dummy gateway confirms orders with no money taken (ISS-002). ` +
       "Production must be razorpay-live."
+  );
+}
+
+/* The deployment declares what it is (lib/deploy-env.ts). Undeclared or
+   contradictory backends apply production catalogue rules — safe, but a staging
+   backend in that state hides its unattested photos and QA item, and a
+   production one with a test gateway is a misconfiguration. */
+{
+  const problem = deployEnvProblem(process.env);
+  must(
+    `VE_DEPLOY_ENV is declared and consistent${process.env.VE_DEPLOY_ENV ? ` ("${process.env.VE_DEPLOY_ENV}")` : ""}`,
+    problem === null,
+    `${problem}. Set VE_DEPLOY_ENV=production (with razorpay-live) or staging (with razorpay-test, ALLOW_TEST_GATEWAY=1, an rzp_test_ key).`
+  );
+  should(
+    "Production catalogue rules apply (attested image licences only)",
+    strictCatalogue(process.env),
+    "Expected on staging; on a production backend this means it is declared as something else."
   );
 }
 

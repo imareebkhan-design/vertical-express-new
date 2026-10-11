@@ -146,3 +146,30 @@ test("in production a photo also needs attested reuse rights; staging is unchang
   await assertVisibility(true);
 });
 
+test("the gate follows the deployment declaration and fails closed", async () => {
+  /* ISS-093 hardening: an undeclared production-mode server and a declared
+     production backend both apply the rights rule; a consistent staging
+     backend does not. The fixture's licence ("test-fixture-only") is not attested. */
+  const keys = ["NODE_ENV", "VE_DEPLOY_ENV", "PAYMENT_GATEWAY", "ALLOW_TEST_GATEWAY", "RAZORPAY_KEY_ID"] as const;
+  const saved = Object.fromEntries(keys.map((k) => [k, process.env[k]]));
+  const set = (vals: Partial<Record<(typeof keys)[number], string>>) => {
+    const env = process.env as Record<string, string | undefined>; // NODE_ENV is typed read-only
+    for (const k of keys) { if (vals[k] === undefined) delete env[k]; else env[k] = vals[k]; }
+  };
+  const staging = { NODE_ENV: "production", VE_DEPLOY_ENV: "staging", PAYMENT_GATEWAY: "razorpay-test", ALLOW_TEST_GATEWAY: "1", RAZORPAY_KEY_ID: "rzp_test_x" };
+  await db.productImage.update({ where: { id: imageId }, data: { isPrimary: true } });
+  try {
+    set(staging);
+    await assertVisibility(true);                                   // declared staging: unchanged
+    set({ ...staging, VE_DEPLOY_ENV: undefined });
+    await assertVisibility(false);                                  // undeclared deployed server: strict
+    set({ ...staging, ALLOW_TEST_GATEWAY: undefined });
+    await assertVisibility(false);                                  // contradictory staging: strict
+    set({ NODE_ENV: "production", VE_DEPLOY_ENV: "production", PAYMENT_GATEWAY: "razorpay-live", RAZORPAY_KEY_ID: "rzp_live_x" });
+    await assertVisibility(false);                                  // production: strict
+  } finally {
+    set(saved as Partial<Record<(typeof keys)[number], string>>);
+  }
+  await assertVisibility(true);
+});
+

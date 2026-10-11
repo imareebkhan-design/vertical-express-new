@@ -71,18 +71,31 @@ env:
       - BUILD
       - RUNTIME
 
+  # --- Which deployment this is (lib/deploy-env.ts). Staging, declared explicitly:
+  # an undeclared or contradictory backend applies PRODUCTION catalogue rules
+  # (attested image licences only, no QA fixture). BUILD too: static pages query
+  # the catalogue at build time. A production backend sets "production".
+  - variable: VE_DEPLOY_ENV
+    value: staging
+    availability:
+      - BUILD
+      - RUNTIME
+
   # --- Razorpay: TEST mode only. The key id is public; the secret is a secret.
   - variable: PAYMENT_GATEWAY
     value: razorpay-test
     availability:
+      - BUILD
       - RUNTIME
   - variable: ALLOW_TEST_GATEWAY
     value: "1"
     availability:
+      - BUILD
       - RUNTIME
   - variable: RAZORPAY_KEY_ID
     value: "rzp_test_Ted08j3HWqN0s4"
     availability:
+      - BUILD
       - RUNTIME
   - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
     value: "rzp_test_Ted08j3HWqN0s4"

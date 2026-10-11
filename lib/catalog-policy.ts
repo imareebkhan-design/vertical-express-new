@@ -1,5 +1,6 @@
 import type { Prisma } from "@/prisma/generated/client/client";
-import { QA_FIXTURE_PREFIX, isLiveCommerce } from "@/lib/catalog/qa-fixture-ids";
+import { QA_FIXTURE_PREFIX } from "@/lib/catalog/qa-fixture-ids";
+import { strictCatalogue } from "@/lib/deploy-env";
 
 /**
  * Licence codes that record attested reuse rights for a product photo.
@@ -11,10 +12,11 @@ export const ATTESTED_IMAGE_LICENCES = ["manufacturer-official-dealer-use"] as c
 
 /** Customer-visible photos require a recorded identity decision, not provenance alone. */
 export function approvedImageWhere(): Prisma.ProductImageWhereInput {
-  /* Where real money moves, an approval is not enough: the photo must also carry
-     attested reuse rights. A staging approval recorded with rights unconfirmed can
-     therefore never become a production listing on its own (owner, 11 Oct 2026). */
-  const rights: Prisma.ProductImageWhereInput = isLiveCommerce() ? { licence: { in: [...ATTESTED_IMAGE_LICENCES] } } : {};
+  /* In production an approval is not enough: the photo must also carry attested
+     reuse rights, so a staging approval recorded with rights unconfirmed can never
+     become a production listing on its own (owner, 11 Oct 2026). `strictCatalogue`
+     fails closed: an undeclared or contradictory deployment counts as production. */
+  const rights: Prisma.ProductImageWhereInput = strictCatalogue() ? { licence: { in: [...ATTESTED_IMAGE_LICENCES] } } : {};
   return {
     ...rights,
     sourceVerified: true,
@@ -45,7 +47,7 @@ export function publicProductWhere(): Prisma.ProductWhereInput {
   const base: Prisma.ProductWhereInput = { ...catalogIdentityWhere(), status: { in: ["catalog_only", "published"] } };
   /* The staging QA fixture can never be shown or sold where real money moves,
      even if a staging copy reached that database. */
-  return isLiveCommerce() ? { ...base, NOT: { slug: { startsWith: QA_FIXTURE_PREFIX } } } : base;
+  return strictCatalogue() ? { ...base, NOT: { slug: { startsWith: QA_FIXTURE_PREFIX } } } : base;
 }
 
 /** Listings need a real default variant for sellable records; catalogue-only never prices one. */
