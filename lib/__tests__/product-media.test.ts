@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO } from "@/lib/product-media";
 
 /**
  * Every web surface frames an exact product photo the same way
@@ -59,3 +61,19 @@ test("the product pages frame photos square on white, not in a tinted panel", ()
   assert.match(phone, /product\.images\.length > 0 \? PRODUCT_PHOTO_SURFACE : "bg-tile"/);
   assert.doesNotMatch(phone, /snap-center p-6/, "the slide's own padding");
 });
+
+test("a fixed photo size is never overridden by the shared rule", () => {
+  /* REGRESSION (11 Oct 2026): catalog-row wrote cn("size-[76px] sm:size-[92px]",
+     PRODUCT_PHOTO). tailwind-merge keeps the LAST conflicting class, so
+     PRODUCT_PHOTO's size-full removed size-[76px]: below 640px the photo had no
+     size and drew at its natural 1000 x 1000, out of its frame and off the
+     phone screen (the cement list). The fixed size must come after the rule. */
+  assert.doesNotMatch(cn("size-[76px]", PRODUCT_PHOTO), /size-\[76px\]/, "the trap this guards against");
+  assert.match(cn(PRODUCT_PHOTO, "size-[76px]"), /size-\[76px\]/);
+  for (const { file, tag } of photoTags()) {
+    const call = tag.match(/cn\(([\s\S]*?)\bPRODUCT_PHOTO\b/);
+    if (!call) continue;
+    assert.doesNotMatch(call[1], /(?:^|[\s"'])(?:[a-z]+:)?(?:size|w|h)-(?:\[|\d)/, `${file}: a fixed size before PRODUCT_PHOTO is discarded by cn()`);
+  }
+});
+

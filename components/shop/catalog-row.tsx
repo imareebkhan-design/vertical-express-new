@@ -37,7 +37,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
           <img
             src={item.imageUrl}
             alt=""
-            className={cn("size-[76px] sm:size-[92px]", PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE)}
+            className={cn(PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE, "size-[76px] sm:size-[92px]")}
           />
         ) : (
           <ProductPanel
