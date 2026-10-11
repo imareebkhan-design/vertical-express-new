@@ -17,6 +17,25 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-091 — Phone list rows drew product photos at full size, off the screen; two app screens cropped photos
+
+**11 October 2026 · MEDIUM · Catalogue presentation · FIXED; web live on staging (`build-2026-10-11-002`), app fix in workspace `e08e727` (no build yet).**
+
+Web: `catalog-row.tsx` wrote `cn("size-[76px] sm:size-[92px]", PRODUCT_PHOTO, …)`. `cn` is tailwind-merge, which keeps the
+LAST conflicting class, so `PRODUCT_PHOTO`'s `size-full` removed `size-[76px]`. Above 640 px the `sm:` size applied, so
+desktop looked right; below 640 px the photo had no size and drew at its natural size (1000 × 1000 for the cement
+packs), out of its frame and off the phone screen, in every row-layout category (cement, plywood, wires, CPVC, general
+hardware …). The fixed size now follows the rule. Measured at 390 px (CDP device emulation): before, 1000 × 1000; after,
+76 × 76, page width 390, 0 photos outside their frame (local preview and staging).
+
+App: the home product tile and the order thumbnail used `contentFit="cover"`, which cut the top and bottom off a tall
+bag and the sides off a wide one, packaging text included. Both now contain the photo on the white media surface
+(`mobile/src/lib/product-media.ts`), like the PDP and cards.
+
+Tests: `lib/__tests__/product-media.test.ts` (proves the tailwind-merge trap and scans every product photo for a fixed
+size placed before `PRODUCT_PHOTO`; failed before the fix); `mobile/src/lib/__tests__/product-media.test.ts` (no
+`cover` on either screen). Evidence: workspace `docs/evidence/staging-cement-images-2026-10-11/`.
+
 ## ISS-090 — Cancelled orders kept live shipments; cancels released stock twice
 
 **11 October 2026 · HIGH · Fulfilment/Inventory · FIXED; live on staging (`build-2026-10-11-001`), not production.** Found during payment walkthrough D.
@@ -76,6 +95,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-091 | Phone list rows drew product photos at full size off screen; two app screens cropped photos | MEDIUM | Catalogue presentation | FIXED (web staging; app in workspace) |
 | ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (staging; not production) |
 | ISS-089 | Mobile web OTP step detached reCAPTCHA; successful resend did not restart cooldown | MEDIUM | Auth | FIXED (local; real SMS unverified) |
 | ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | FIXED |
