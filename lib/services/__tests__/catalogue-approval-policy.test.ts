@@ -121,3 +121,28 @@ test("draft/archived and a missing primary image stay hidden", async () => {
   await db.productImage.update({ where: { id: imageId }, data: { isPrimary: false } });
   await assertVisibility(false);
 });
+
+test("in production a photo also needs attested reuse rights; staging is unchanged", async () => {
+  /* Owner, 11 Oct 2026: unconfirmed image rights must not silently become a
+     production listing. This fixture's licence ("test-fixture-only") is not an
+     attested code, so the same approved product disappears where money is live. */
+  await db.productImage.update({ where: { id: imageId }, data: { isPrimary: true } });
+  await assertVisibility(true); // staging baseline: approved product is visible
+  const previous = process.env.PAYMENT_GATEWAY;
+  try {
+    process.env.PAYMENT_GATEWAY = "razorpay-live";
+    await assertVisibility(false);
+    /* A licence change revokes the image approval (invalidate_catalogue_image_review),
+       so attesting rights forces a fresh approval — re-record it, as the owner would. */
+    await db.productImage.update({ where: { id: imageId }, data: { licence: "manufacturer-official-dealer-use" } });
+    assert.equal((await db.productImage.findUniqueOrThrow({ where: { id: imageId } })).approvalStatus, "REVIEW_REQUIRED");
+    await db.productImage.update({ where: { id: imageId }, data: imageApproval });
+    await assertVisibility(true);
+  } finally {
+    if (previous === undefined) delete process.env.PAYMENT_GATEWAY; else process.env.PAYMENT_GATEWAY = previous;
+    await db.productImage.update({ where: { id: imageId }, data: { licence: "test-fixture-only" } });
+    await db.productImage.update({ where: { id: imageId }, data: imageApproval });
+  }
+  await assertVisibility(true);
+});
+

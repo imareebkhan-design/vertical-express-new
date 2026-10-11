@@ -17,6 +17,23 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-093 — An approved photo with unconfirmed reuse rights could become a production listing
+
+**11 October 2026 · HIGH · Catalogue / Legal · FIXED in code (production-only rule); staging behaviour unchanged.**
+
+The public gate (`approvedImageWhere`) accepted any approved photo, whatever its licence. The cement ranges were
+approved on staging (batch C01, agent-assisted) with licence "independent licence not attested": the manufacturers'
+terms grant viewing for information only (Ambuja) or reserve images (ACC), so dealer reuse is not established. Nothing
+stopped such an approval from being repeated in production and listed. Owner requirement (11 Oct): missing usage
+permission must not silently become production approval.
+
+Fix: when payments are live (`isLiveCommerce()`), a photo is public only if its licence is in
+`ATTESTED_IMAGE_LICENCES` (today `manufacturer-official-dealer-use`, the owner's dealer-rights code carried by the 260
+launch products). Adding a code is an owner decision. A licence change already revokes the image approval
+(`invalidate_catalogue_image_review`), so attesting rights forces a fresh human approval. Test:
+`catalogue-approval-policy.test.ts` "in production a photo also needs attested reuse rights" (fails without the rule;
+checks URL, listing, search, suggestions, wishlist, counts and rooms).
+
 ## ISS-092 — Catalogue approval said "now public" for products that stayed hidden
 
 **11 October 2026 · LOW · Admin / Catalogue · FIXED; live on staging (`build-2026-10-11-004`).**
@@ -106,6 +123,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-093 | An approved photo with unconfirmed reuse rights could become a production listing | HIGH | Catalogue/Legal | FIXED (code; production-only) |
 | ISS-092 | Catalogue approval said "now public" for products that stayed hidden | LOW | Admin/Catalogue | FIXED (staging) |
 | ISS-091 | Phone list rows drew product photos at full size off screen; two app screens cropped photos | MEDIUM | Catalogue presentation | FIXED (web staging; app in workspace) |
 | ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (staging; not production) |

@@ -1,9 +1,22 @@
 import type { Prisma } from "@/prisma/generated/client/client";
 import { QA_FIXTURE_PREFIX, isLiveCommerce } from "@/lib/catalog/qa-fixture-ids";
 
+/**
+ * Licence codes that record attested reuse rights for a product photo.
+ * `manufacturer-official-dealer-use` is the owner's dealer-rights decision for the
+ * launch catalogue. Free-text licences such as "independent licence not attested"
+ * (the cement ranges, 11 Oct 2026) are not here. Adding a code is an owner decision.
+ */
+export const ATTESTED_IMAGE_LICENCES = ["manufacturer-official-dealer-use"] as const;
+
 /** Customer-visible photos require a recorded identity decision, not provenance alone. */
 export function approvedImageWhere(): Prisma.ProductImageWhereInput {
+  /* Where real money moves, an approval is not enough: the photo must also carry
+     attested reuse rights. A staging approval recorded with rights unconfirmed can
+     therefore never become a production listing on its own (owner, 11 Oct 2026). */
+  const rights: Prisma.ProductImageWhereInput = isLiveCommerce() ? { licence: { in: [...ATTESTED_IMAGE_LICENCES] } } : {};
   return {
+    ...rights,
     sourceVerified: true,
     identityApproved: true,
     approvalStatus: { in: ["APPROVED_EXACT", "APPROVED_WITH_LIMITATION"] },
