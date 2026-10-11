@@ -1,5 +1,5 @@
 {
- "source": "docs/release/image-review/approval-batches.csv (workspace) \u2014 slugs only; no decision is recorded here",
+ "source": "docs/release/image-review/approval-batches.csv (workspace) \u2014 slugs only; no decision is recorded here \u2014 C01 = the 8 draft cement ranges that have an image (owner review on staging, 11 Oct 2026); approving records identity/image only and does not change draft status",
  "batches": {
   "B01": [
    "xp-xtra-power-caulking-gun-103",
@@ -285,6 +285,16 @@
    "xp-soft-cloth-roll",
    "xp-straight-bits",
    "xp-xp-router-bit-set-12-pcs-new-type"
+  ],
+  "C01": [
+   "ve-range-acc-concrete-xtra-strong-cement-f29d1a450e",
+   "ve-range-acc-f2r-superfast-cement-b10ba1642b",
+   "ve-range-acc-gold-water-shield-cement-172d3a1dc0",
+   "ve-range-acc-suraksha-power-cement-de67f754a5",
+   "ve-range-ambuja-cement-a2f9b78928",
+   "ve-range-ambuja-kawach-cement-c920dee87e",
+   "ve-range-ambuja-plus-cement-548089a03b",
+   "ve-range-ultratech-cement-947cb4b73c"
   ]
  }
 }

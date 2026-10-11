@@ -129,9 +129,14 @@ test("the action takes the approver from the session, never from the payload", (
 });
 
 test("batches carry slugs only — no decisions — and cover the 263 candidates", () => {
-  const all = Object.values(APPROVAL_BATCHES).flat();
+  const all = Object.entries(APPROVAL_BATCHES).filter(([b]) => b.startsWith("B")).flatMap(([, slugs]) => slugs);
   assert.equal(all.length, 263);
   assert.equal(new Set(all).size, 263);
+  /* C01: the 8 draft cement ranges with an image, reviewed on staging (11 Oct 2026). */
+  const cement = APPROVAL_BATCHES.C01;
+  assert.equal(cement.length, 8);
+  assert.ok(cement.every((s) => s.startsWith("ve-range-") && s.includes("cement")));
+  assert.equal(new Set([...all, ...cement]).size, 271, "no slug in two batches");
   const raw = readFileSync(new URL("../../../catalog/approval-batches.json", import.meta.url), "utf8");
   assert.doesNotMatch(raw, /APPROVED|CONFIRMED|approvedBy/);
 });
