@@ -17,6 +17,17 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-092 — Catalogue approval said "now public" for products that stayed hidden
+
+**11 October 2026 · LOW · Admin / Catalogue · FIXED; live on staging (`build-2026-10-11-004`).**
+
+`recordCatalogueApproval` returned `public: identityOk && imageOk`, ignoring the product's status and whether its brand
+and category are active. Approving the draft cement ranges (batch C01) showed "Recorded — the product is now public
+(catalog-only)" although each stayed `draft` with an inactive brand and its page returned 404. The public gate itself
+was right; only the message was wrong, which would mislead an operator into thinking a product had gone live. The
+result now asks `publicProductWhere()` inside the same transaction. Test: `catalogue-approval.test.ts` "approving a
+draft reports it as hidden, because it is" (failed before the fix).
+
 ## ISS-091 — Phone list rows drew product photos at full size, off the screen; two app screens cropped photos
 
 **11 October 2026 · MEDIUM · Catalogue presentation · FIXED; web live on staging (`build-2026-10-11-002`), app fix in workspace `e08e727` (no build yet).**
@@ -95,6 +106,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-092 | Catalogue approval said "now public" for products that stayed hidden | LOW | Admin/Catalogue | FIXED (staging) |
 | ISS-091 | Phone list rows drew product photos at full size off screen; two app screens cropped photos | MEDIUM | Catalogue presentation | FIXED (web staging; app in workspace) |
 | ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (staging; not production) |
 | ISS-089 | Mobile web OTP step detached reCAPTCHA; successful resend did not restart cooldown | MEDIUM | Auth | FIXED (local; real SMS unverified) |

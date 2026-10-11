@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
+import { publicProductWhere } from "@/lib/catalog-policy";
 import batchesFile from "@/lib/catalog/approval-batches.json";
 
 /**
@@ -133,7 +134,12 @@ export async function recordCatalogueApproval(adminUserId: string, input: Approv
         reason,
       },
     });
-    return { ok: true as const, public: identityOk && imageOk };
+    /* Ask the public boundary itself, not the two decisions just recorded: a
+       draft, or a product whose brand or category is inactive, stays hidden
+       however it is approved, and the screen said "now public" for the draft
+       cement ranges (11 Oct 2026). */
+    const visible = await tx.product.count({ where: { id: product.id, AND: [publicProductWhere()] } });
+    return { ok: true as const, public: identityOk && imageOk && visible > 0 };
   });
 }
 

@@ -128,6 +128,16 @@ test("the action takes the approver from the session, never from the payload", (
   assert.doesNotMatch(src, /approvedBy|approverId|input\.admin/);
 });
 
+test("approving a draft reports it as hidden, because it is", async () => {
+  /* REGRESSION (11 Oct 2026): the screen said "now public" for a draft cement range. */
+  const d = (p.dr = await make("draftrange", `Draft Range ${tag}`));
+  await db.product.update({ where: { id: d.id }, data: { status: "draft" } });
+  const fresh = await db.product.findUniqueOrThrow({ where: { id: d.id }, select: { updatedAt: true } });
+  const r = await recordCatalogueApproval(ADMIN, input({ ...d, updatedAt: fresh.updatedAt.toISOString() }));
+  assert.deepEqual(r, { ok: true, public: false });
+  assert.equal(await isPublic(d.id), false);
+});
+
 test("batches carry slugs only — no decisions — and cover the 263 candidates", () => {
   const all = Object.entries(APPROVAL_BATCHES).filter(([b]) => b.startsWith("B")).flatMap(([, slugs]) => slugs);
   assert.equal(all.length, 263);
