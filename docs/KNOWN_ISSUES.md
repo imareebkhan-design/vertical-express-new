@@ -19,7 +19,7 @@ Existing records receive no automatic owner approval. Until genuine approval met
 
 ## ISS-090 — Cancelled orders kept live shipments; cancels released stock twice
 
-**11 October 2026 · HIGH · Fulfilment/Inventory · FIXED locally; staging deployment pending.** Found during payment walkthrough D.
+**11 October 2026 · HIGH · Fulfilment/Inventory · FIXED; live on staging (`build-2026-10-11-001`), not production.** Found during payment walkthrough D.
 
 **Root cause.** Order status and shipment status were kept separately and no cancel path joined them:
 1. No order-cancel path (customer `cancelOrder`, the 15-minute expiry cron, admin `advanceOrderStatus`) touched the
@@ -76,7 +76,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
-| ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (local; staging pending) |
+| ISS-090 | Cancelled orders kept live shipments; shipment and order cancels released stock twice | HIGH | Fulfilment/Inventory | FIXED (staging; not production) |
 | ISS-089 | Mobile web OTP step detached reCAPTCHA; successful resend did not restart cooldown | MEDIUM | Auth | FIXED (local; real SMS unverified) |
 | ISS-001 | GST added on top of displayed prices | CRITICAL | Money/Tax | FIXED |
 | ISS-002 | Dummy payment gateway confirms orders with no money | CRITICAL | Payments | FIXED |
