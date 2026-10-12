@@ -56,15 +56,16 @@ function componentsLinkingToCategories(): { rel: string; slugs: string[] }[] {
       if (name === "node_modules" || name.startsWith(".")) continue;
       const full = join(dir, name);
       if (statSync(full).isDirectory()) out.push(...walk(full));
-      else if (name.endsWith(".tsx")) out.push(full);
+      else if (/\.tsx?$/.test(name) && !/\.test\.tsx?$/.test(name)) out.push(full);
     }
     return out;
   };
 
-  return [...walk(join(ROOT, "components")), ...walk(join(ROOT, "app"))]
+  /* lib too: the directory and the merchandising config hold the slugs now. */
+  return [...walk(join(ROOT, "components")), ...walk(join(ROOT, "app")), ...walk(join(ROOT, "lib"))]
     .map((abs) => {
       const src = readFileSync(abs, "utf8");
-      if (!src.includes("/category/")) return null;
+      if (!src.includes("/category/") && !abs.endsWith("category-directory.ts")) return null;
       const slugs = [...src.matchAll(/\bslug: "([a-z0-9-]+)"/g)].map((m) => m[1]);
       return slugs.length ? { rel: relative(ROOT, abs), slugs } : null;
     })
@@ -90,29 +91,22 @@ test("every hardcoded category link resolves to a real category", async () => {
   assert.deepEqual(dead, [], `these links render a 404:\n  ${dead.join("\n  ")}`);
 });
 
-test("the category index lists every category that exists", async () => {
+test("the category index lists every category a shopper can reach", async () => {
   /* The other direction, on the page whose only job is to list them.
-     `home-appliances-power-backup` holds two published products and was absent
-     from /categories: the slug typo that 404'd in its place was corrected in
-     the navigation, and the index was never looked at. Unreachable stock is
-     invisible stock. */
-  const index = componentsLinkingToCategories().find((f) =>
-    f.rel.endsWith("categories-switcher.tsx")
-  );
-  assert.ok(index, "the category index no longer hardcodes its category list");
-
-  const rows = await db.category.findMany({
-    where: { isActive: true },
-    select: { slug: true },
-  });
-  const listed = new Set(index.slugs);
-  const missing = rows.map((c) => c.slug).filter((s) => !listed.has(s));
-
-  assert.deepEqual(
-    missing,
-    [],
-    `these categories exist but are not on /categories: ${missing.join(", ")}`
-  );
+     `home-appliances-power-backup` held two published products and was absent
+     from /categories once. The index is now the directory itself
+     (lib/category-directory.ts), so check it: every active designated category
+     is listed (as "Coming soon" when empty), and every active category with a
+     visible product is listed somewhere. Unreachable stock is invisible stock. */
+  const { listCategoryDirectory, visibleProductCount } = await import("@/lib/services/catalog");
+  const listed = new Set((await listCategoryDirectory()).flatMap((g) => g.categories.map((c) => c.slug)));
+  const rows = await db.category.findMany({ where: { isActive: true }, select: { id: true, slug: true } });
+  const missing: string[] = [];
+  for (const r of rows) {
+    const reachable = navSlugs.includes(r.slug) || (await visibleProductCount(r.id)) > 0;
+    if (reachable && !listed.has(r.slug)) missing.push(r.slug);
+  }
+  assert.deepEqual(missing, [], `these categories should be on /categories and are not: ${missing.join(", ")}`);
 });
 
 test("every navigation category exists in the database", async () => {

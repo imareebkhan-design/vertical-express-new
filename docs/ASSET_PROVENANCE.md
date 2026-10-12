@@ -79,6 +79,14 @@ Retained deliberately and tracked as follow-up, **not** cleared for use:
   Correcting both halves matters: the first overstated where they appear, which invites
   an urgent fix to a page that does not exist; the second understated that they are
   reachable at all, which invites leaving them.
+- **12 Oct 2026 update (category directory).** `/api/v1/categories` used to return
+  `Category.imageUrl`, i.e. these `/categories/<slug>.webp` composites, to the app (which
+  ignored it). It now returns the generated tile for the slug (`categoryImage()`), or null.
+  Every category surface on web and in the app draws the generated set under
+  `public/merchandising/category-tiles/` (Expo: byte-identical copies in
+  `mobile/assets/images/categories/`). The composites are still served by URL from
+  `public/`. Removing them is the remaining step; it was not done here because the database's
+  `Category.imageUrl` values still name them (nothing reads that column).
 - **`public/products/ss-kitchen-sink.webp`** and three category images with minor marks
   (`kitchen-sinks-faucets`, `conduits-gi-boxes`, `plywood-mdf-hdhmr`).
 

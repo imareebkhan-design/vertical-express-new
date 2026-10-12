@@ -7,6 +7,8 @@ import {
   type CatalogSort,
   mostOrderedInCategory,
   brandsInCategory,
+  listCategoryDirectory,
+  visibleProductCount,
 } from "@/lib/services/catalog";
 import { rupeesToPaise } from "@/lib/money";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
@@ -41,6 +43,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       category.seoDescription ??
       `Buy ${category.name.toLowerCase()} at trade prices delivered across Srinagar.`,
     alternates: { canonical: `/category/${slug}` },
+    /* A coming-soon category is a real page with nothing on it yet; keep it out
+       of the index until it has something to find. */
+    ...((await visibleProductCount(category.id)) === 0 ? { robots: { index: false, follow: true } } : {}),
   };
 }
 
@@ -50,6 +55,24 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
   const category = await categoryForPage(slug);
   if (!category) notFound();
+
+  /* A designated category with nothing approved yet: "Coming soon", with its
+     department's stocked categories as somewhere to go. No product query runs,
+     so nothing unapproved can appear (lib/category-directory.ts). */
+  if ((await visibleProductCount(category.id)) === 0) {
+    const group = (await listCategoryDirectory()).find((g) => g.categories.some((c) => c.slug === slug));
+    const entry = group?.categories.find((c) => c.slug === slug);
+    return (
+      <CategorySwitcher
+        category={category}
+        slug={slug}
+        comingSoon={{
+          name: entry?.name ?? category.name,
+          siblings: (group?.categories ?? []).filter((c) => c.state === "available"),
+        }}
+      />
+    );
+  }
 
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
   const brandSlugs = Array.isArray(sp.brand) ? sp.brand : sp.brand ? [sp.brand] : [];

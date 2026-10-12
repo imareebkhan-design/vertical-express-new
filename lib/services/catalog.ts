@@ -4,6 +4,7 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { expandedSearchTerms } from "@/lib/search-terms";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
+import { buildCategoryDirectory, isCuratedCategory, type DirectoryGroup } from "@/lib/category-directory";
 export type CatalogSort = "popular" | "price_asc" | "price_desc" | "newest" | "discount";
 
 /** Serializable product card payload shared by PLP, search, deals, wishlist. */
@@ -791,8 +792,45 @@ export async function listProductSlugs(): Promise<string[]> {
   return rows.map((r) => r.slug);
 }
 
+/**
+ * The category behind a /category/<slug> page, or null (404).
+ *
+ * An active category with a visible product, as before — or an active
+ * designated material category with none yet, which renders as "Coming soon"
+ * (lib/category-directory.ts). Products on that page still come only through
+ * `catalogListingWhere()`, so a coming-soon page lists nothing.
+ */
 export async function getCategoryBySlug(slug: string) {
+  if (isCuratedCategory(slug)) return db.category.findFirst({ where: { slug, isActive: true } });
   return db.category.findFirst({ where: { slug, isActive: true, products: { some: catalogListingWhere() } } });
+}
+
+/** Active categories' bulk flag and database group, for the API listing. */
+export async function listCategoryFlags() {
+  return db.category.findMany({ where: { isActive: true }, select: { slug: true, isBulk: true, group: true } });
+}
+
+/** How many products in this category the public can see. */
+export async function visibleProductCount(categoryId: string): Promise<number> {
+  return db.product.count({ where: { categoryId, AND: [catalogListingWhere()] } });
+}
+
+/**
+ * The shop's category directory: every active category with its VISIBLE
+ * product count, arranged by `buildCategoryDirectory`. Unlike
+ * `listCategories()` it includes active categories that have nothing visible
+ * yet, because a designated department is shown as "Coming soon".
+ */
+export async function listCategoryDirectory(): Promise<DirectoryGroup[]> {
+  const rows = await db.category.findMany({
+    where: { isActive: true },
+    orderBy: [{ group: "asc" }, { sortOrder: "asc" }],
+    select: {
+      slug: true, name: true, group: true, isActive: true,
+      _count: { select: { products: { where: catalogListingWhere() } } },
+    },
+  });
+  return buildCategoryDirectory(rows.map((r) => ({ ...r, group: String(r.group) })));
 }
 
 /**

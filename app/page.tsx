@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { isPurchasableItem } from "@/lib/catalog-visibility";
-import { getCatalogItem, getDeals, listProducts, listCategories, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
+import { getCatalogItem, getDeals, listProducts, listCategories, listCategoryDirectory, listRooms, mostOrderedRecently } from "@/lib/services/catalog";
 import { DEAL_OF_THE_DAY } from "@/lib/merchandising/home";
 import { HomeSwitcher } from "@/components/mobile/home/home-switcher";
 
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-  const [deals, popular, newestResult, categories, rooms, dealProduct] = await Promise.all([
+  const [deals, popular, newestResult, categories, rooms, dealProduct, directory] = await Promise.all([
     getDeals(8),
     /* Real order volume from the last 7 days, not the catalogue's "popular"
        sort — that sort orders by `ratingCount` (see catalog.ts), a column
@@ -38,13 +38,11 @@ export default async function Home() {
     /* The Deal of the Day reads its product's real price from the catalogue;
        with no deal configured there is nothing to fetch. */
     DEAL_OF_THE_DAY ? getCatalogItem(DEAL_OF_THE_DAY.productSlug) : Promise.resolve(null),
+    /* The department directory (lib/category-directory.ts): the shop's
+       categories, with designated ones shown as "Coming soon" until stocked. */
+    listCategoryDirectory(),
   ]);
 
-  /* The category tiles advertise how much is in each one. They used to carry
-     the figure as a literal; it comes from the same query as the categories. */
-  const categoryCounts = Object.fromEntries(
-    categories.map((c) => [c.slug, c._count.products])
-  );
 
   return (
     <HomeSwitcher
@@ -52,7 +50,7 @@ export default async function Home() {
       featured={popular}
       newArrivals={newestResult.items}
       categories={categories}
-      categoryCounts={categoryCounts}
+      directory={directory}
       rooms={rooms}
       dealProduct={dealProduct && isPurchasableItem(dealProduct) ? dealProduct : null}
     />

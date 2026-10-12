@@ -11,6 +11,8 @@ import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
 import { formatPaise } from "@/lib/money";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { CategoryTile } from "@/components/categories/category-tile";
+import type { DirectoryGroup } from "@/lib/category-directory";
 import { HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/mobile/home/home-lead";
 import { useCart } from "@/hooks/use-cart";
 import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
@@ -38,21 +40,6 @@ import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
  * artboard. No price, delivery time or stock figure is invented here.
  */
 
-/** The twelve categories the phone home leads with, three rows of four. */
-const ENTRY_CATEGORIES: { label: string; slug: string }[] = [
-  { label: "Cement", slug: "cement" },
-  { label: "Tiling", slug: "tiling" },
-  { label: "Painting", slug: "painting" },
-  { label: "Plywood", slug: "plywood-mdf-hdhmr" },
-  { label: "Wires & MCB", slug: "wires-mcb-distribution-boards" },
-  { label: "Switches", slug: "switches-sockets" },
-  { label: "Lighting", slug: "lighting" },
-  { label: "Fans", slug: "ceiling-fans-exhaust" },
-  { label: "Pipes & tanks", slug: "cpvc-pipes-overhead-tanks" },
-  { label: "Bath fittings", slug: "sanitary-bath-fittings" },
-  { label: "Waterproofing", slug: "waterproofing" },
-  { label: "Hardware", slug: "general-hardware-tools" },
-];
 
 interface MobileHomeViewProps {
   deals: CatalogItem[];
@@ -66,6 +53,8 @@ interface MobileHomeViewProps {
   dealProduct?: DealProduct | null;
   /** Injected for tests; the app uses the server action. */
   loadFacts?: () => Promise<MyHomeFacts>;
+  /** The department directory (lib/category-directory.ts). */
+  directory?: DirectoryGroup[];
 }
 
 export function MobileHomeView({
@@ -74,6 +63,7 @@ export function MobileHomeView({
   categoryNames = {},
   dealProduct = null,
   loadFacts = getMyHomeFacts,
+  directory = [],
 }: MobileHomeViewProps) {
   const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const { addItem } = useCart();
@@ -151,32 +141,45 @@ export function MobileHomeView({
         />
       )}
 
-      {/* Category entry grid */}
-      <div className="px-4 pt-5">
-        <div className="flex items-baseline justify-between">
-          <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
-            Shop by category
-          </h2>
-          {/* 14px of text is too small a target (W-25); the padding makes it
-              32px and the negative margin keeps the row where it was. */}
-          <Link
-            href="/categories"
-            className="-mx-2 -my-[9px] inline-flex min-h-8 items-center px-2 text-[11px] font-bold leading-[14px] text-ink no-underline"
-          >
-            See all
-          </Link>
-        </div>
-        <div className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
-          {ENTRY_CATEGORIES.filter((c) => c.slug in categoryNames || Object.keys(categoryNames).length === 0).map((c) => (
-            <Link key={c.slug} href={`/category/${c.slug}`} className="no-underline">
-              <ProductPanel use="category" categorySlug={c.slug} label={c.label} className="ve-cat-tile aspect-square w-full rounded-[18px]" glyphClassName="size-8" />
-              <div className="mt-1.5 text-center text-[11px] font-semibold leading-[13px] text-ink">
-                {c.label}
-              </div>
+      {/* Shop by category: the departments, material ones first (lib/category-directory.ts). */}
+      {directory.length > 0 ? (
+        <section aria-labelledby="home-categories" className="px-4 pt-5">
+          <div className="flex items-baseline justify-between">
+            <h2 id="home-categories" className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+              Shop by category
+            </h2>
+            {/* 14px of text is too small a target (W-25); the padding makes it
+                32px and the negative margin keeps the row where it was. */}
+            <Link
+              href="/categories"
+              className="-mx-2 -my-[9px] inline-flex min-h-8 items-center px-2 text-[11px] font-bold leading-[14px] text-ink no-underline"
+            >
+              See all
             </Link>
+          </div>
+          {directory.map((group) => (
+            <div key={group.key} className="pt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-[13px] font-bold tracking-[-0.01em] text-ink-700">{group.title}</h3>
+                <Link
+                  href={`/categories#${group.key}`}
+                  aria-label={`View all ${group.title}`}
+                  className="-mx-2 -my-[9px] inline-flex min-h-8 flex-none items-center px-2 text-[11px] font-bold text-ink-500 no-underline"
+                >
+                  View all
+                </Link>
+              </div>
+              <ul className="mt-2.5 grid grid-cols-4 gap-x-2 gap-y-3">
+                {group.categories.map((entry) => (
+                  <li key={entry.slug}>
+                    <CategoryTile entry={entry} className="[&>span:last-child]:text-[11px] [&>span:last-child]:leading-[13px]" />
+                  </li>
+                ))}
+              </ul>
+            </div>
           ))}
-        </div>
-      </div>
+        </section>
+      ) : null}
 
       <TrendingSrinagar categoryNames={categoryNames} compact />
 

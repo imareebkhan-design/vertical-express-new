@@ -1,6 +1,7 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 import { categoryImage } from "@/lib/merchandising/home";
+import { PRIMARY_GROUPS } from "@/lib/category-directory";
 import { CutoutPicture } from "@/components/merchandising/cutout-picture";
 
 /**
@@ -216,71 +217,20 @@ const CATEGORY: Record<string, { tint: string; glyph: GlyphName }> = {
 };
 
 /**
- * The four L1 groups in display order, each with its tint and its categories.
- *
- * Same taxonomy as CATEGORY above, expressed the way the browse screens need it:
- * grouped, ordered, with display names. Adding a category means adding it in
- * both places — CATEGORY for its panel, here for where it sits in the tree.
+ * The four material departments in display order, each with its tint and its
+ * categories — derived from `lib/category-directory.ts`, the one place the
+ * grouping, order and display names are written. CATEGORY above stays the
+ * per-slug drawing and tint.
  */
 export const CATEGORY_GROUPS: {
   title: string;
   tint: string;
   categories: { name: string; slug: string }[];
-}[] = [
-  {
-    title: "Civil & Interiors",
-    tint: "var(--color-tint-civil)",
-    categories: [
-      { name: "Cement", slug: "cement" },
-      { name: "Tiling", slug: "tiling" },
-      { name: "Painting", slug: "painting" },
-      { name: "Waterproofing", slug: "waterproofing" },
-      { name: "Plywood, MDF & HDHMR", slug: "plywood-mdf-hdhmr" },
-      { name: "Adhesives & Sealants", slug: "fevicol" },
-    ],
-  },
-  {
-    title: "Furniture & Architectural Hardware",
-    tint: "var(--color-tint-furniture)",
-    categories: [
-      { name: "Hinges, Channels & Handles", slug: "hinges-channels-handles" },
-      { name: "Kitchen Systems", slug: "kitchen-systems-accessories" },
-      { name: "Wardrobe & Bed Fittings", slug: "wardrobe-bed-fittings" },
-      { name: "Door Locks & Hardware", slug: "door-locks-hardware" },
-      { name: "General Hardware & Tools", slug: "general-hardware-tools" },
-    ],
-  },
-  {
-    title: "Electrical",
-    tint: "var(--color-tint-electrical)",
-    categories: [
-      { name: "Wires, MCB & Distribution", slug: "wires-mcb-distribution-boards" },
-      { name: "Switches & Sockets", slug: "switches-sockets" },
-      { name: "Conduits & GI Boxes", slug: "conduits-gi-boxes" },
-      { name: "Lighting", slug: "lighting" },
-      { name: "Ceiling Fans & Exhaust", slug: "ceiling-fans-exhaust" },
-      /* Was "appliances-power-backup", which 404s — the category exists but
-         its slug is home-appliances-power-backup. A category listed in the
-         main navigation that dead-ends is worse than one that is missing:
-         somebody clicks it looking for an inverter and concludes the shop is
-         broken.
-
-         "Power Tools & Accessories" sat here too and has no category behind it
-         at all, in any environment. Removed rather than invented — a category
-         is a shelf, and there is nothing on this one. */
-      { name: "Home Appliances & Power Backup", slug: "home-appliances-power-backup" },
-    ],
-  },
-  {
-    title: "Plumbing, Sanitary & Bath",
-    tint: "var(--color-tint-plumbing)",
-    categories: [
-      { name: "CPVC Pipes & Overhead Tanks", slug: "cpvc-pipes-overhead-tanks" },
-      { name: "Sanitary & Bath Fittings", slug: "sanitary-bath-fittings" },
-      { name: "Kitchen Sinks & Faucets", slug: "kitchen-sinks-faucets" },
-    ],
-  },
-];
+}[] = PRIMARY_GROUPS.map((g) => ({
+  title: g.title,
+  tint: g.tint,
+  categories: g.categories.map(({ name, slug }) => ({ name, slug })),
+}));
 
 /** Every category across the four groups. */
 export const TOTAL_CATEGORIES = CATEGORY_GROUPS.reduce((n, g) => n + g.categories.length, 0);

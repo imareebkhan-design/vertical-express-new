@@ -8,7 +8,8 @@ import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
-import { Categories, type CategoryCounts } from "@/components/sections/categories";
+import { Categories } from "@/components/sections/categories";
+import type { DirectoryGroup } from "@/lib/category-directory";
 import { Deals } from "@/components/sections/deals";
 import { OrderedMost } from "@/components/sections/ordered-most";
 import { ServicesBanner } from "@/components/sections/services-banner";
@@ -26,15 +27,15 @@ interface HomeSwitcherProps {
   featured: CatalogItem[];
   newArrivals: CatalogItem[];
   categories: Category[];
-  /** Published products per category slug. The tiles used to hardcode these. */
-  categoryCounts: CategoryCounts;
+  /** The department directory (lib/category-directory.ts); tiles never print counts. */
+  directory: DirectoryGroup[];
   /** Curated rooms, or []. See `ShopByRoom` for why an empty array hides the section rather than rendering placeholder tiles. */
   rooms: Awaited<ReturnType<typeof listRooms>>;
   /** The configured Deal of the Day's product, or null (see `lib/merchandising/home.ts`). */
   dealProduct: DealProduct | null;
 }
 
-export function HomeSwitcher({ deals, featured, newArrivals, categories, categoryCounts, rooms, dealProduct }: HomeSwitcherProps) {
+export function HomeSwitcher({ deals, featured, newArrivals, categories, directory, rooms, dealProduct }: HomeSwitcherProps) {
   /* Only categories the catalogue has open may be linked from merchandising. */
   const categoryNames = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
   const { isNative } = useNativeShell();
@@ -54,6 +55,7 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories, categor
         rooms={rooms}
         categoryNames={categoryNames}
         dealProduct={dealProduct}
+        directory={directory}
       />
     );
   }
@@ -63,7 +65,7 @@ export function HomeSwitcher({ deals, featured, newArrivals, categories, categor
       <Navbar />
       <main id="main-content">
         <Hero />
-        <Categories counts={categoryCounts} />
+        <Categories directory={directory} />
         <TrendingSrinagar categoryNames={categoryNames} />
         <DealOfTheDay product={dealProduct} />
         <Deals items={deals} />

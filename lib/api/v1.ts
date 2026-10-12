@@ -6,16 +6,19 @@ import { apiFail, apiOk, apiResult } from "@/lib/api/response";
 import { withApiUser, withApiPublic, readJson, type ApiDeps } from "@/lib/api/authed";
 import { captureException } from "@/lib/observability";
 import { storageGuidanceFor } from "@/lib/storage-guidance";
+import { categoryImage } from "@/lib/merchandising/home";
 import {
   listProducts,
   getProductBySlug,
-  listCategories,
   listRooms,
   mostOrderedRecently,
   type CatalogQuery,
   type CatalogSort,
   boughtWithProductRaw,
   getCategoryBySlug,
+  listCategoryDirectory,
+  listCategoryFlags,
+  visibleProductCount,
   brandsInCategory,
   brandsForSearchEntry,
   mostOrderedInCategory,
@@ -86,17 +89,31 @@ const SORTS: readonly CatalogSort[] = ["popular", "price_asc", "price_desc", "ne
 /** GET /api/v1/categories — public. */
 export async function handleListCategories(request: Request): Promise<NextResponse> {
   return withApiPublic(request, "cat", async () => {
-    const rows = await listCategories();
-    /* Named fields, not the row: SEO copy and timestamps are the web's. */
+    /* The department directory (lib/category-directory.ts), flattened in display
+       order. A designated category with nothing approved yet is included with
+       `discovery: "coming_soon"` and `productCount: 0`; its products still come
+       only through the catalogue gates. Fields older app builds read (slug,
+       name, group, imageUrl, isBulk, productCount) keep their meaning. */
+    const [directory, rows] = await Promise.all([listCategoryDirectory(), listCategoryFlags()]);
+    const isBulk = new Map(rows.map((r) => [r.slug, r.isBulk]));
+    const dbGroup = new Map(rows.map((r) => [r.slug, String(r.group)]));
     return apiOk(
-      rows.map((c) => ({
-        slug: c.slug,
-        name: c.name,
-        group: c.group,
-        imageUrl: c.imageUrl,
-        isBulk: c.isBulk,
-        productCount: c._count.products,
-      }))
+      directory.flatMap((g) =>
+        g.categories.map((c) => ({
+          slug: c.slug,
+          name: c.name,
+          shortName: c.shortName,
+          group: dbGroup.get(c.slug) ?? g.key,
+          displayGroup: g.key,
+          displayGroupTitle: g.title,
+          discovery: c.state,
+          /* The generated, unbranded tile (provenance: docs/ASSET_PROVENANCE.md),
+             never Category.imageUrl, whose composites are not cleared for use. */
+          imageUrl: categoryImage(c.slug)?.src ?? null,
+          isBulk: isBulk.get(c.slug) ?? false,
+          productCount: c.visibleProducts,
+        }))
+      )
     );
   });
 }
@@ -242,11 +259,14 @@ export async function handleGetCategory(request: Request, slug: string): Promise
       mostOrderedInCategory(slug),
     ]);
 
+    const visible = await visibleProductCount(category.id);
     return apiOk({
       slug: category.slug,
       name: category.name,
       group: category.group,
       isBulk: category.isBulk,
+      /* "coming_soon": a designated category with nothing approved yet. */
+      discovery: visible > 0 ? "available" : "coming_soon",
       brands: brands.map((b) => ({ slug: b.slug, name: b.name, productCount: b.count })),
       mostOrdered,
     });

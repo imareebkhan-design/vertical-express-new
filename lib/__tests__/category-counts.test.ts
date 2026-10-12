@@ -43,7 +43,7 @@ test("the category section still renders its tiles", () => {
   /* Non-vacuity: an over-eager comment stripper, or a deleted section, would
      satisfy every assertion below on an empty string. */
   assert.match(tiles, /Shop by category/, "the category section copy has gone");
-  assert.match(tiles, /CATEGORY_GROUPS/, "the tile list no longer comes from the category taxonomy");
+  assert.match(tiles, /directory\.map/, "the tile list no longer comes from the category directory");
 });
 
 test("no tile carries a hardcoded product count", () => {
@@ -57,35 +57,24 @@ test("no tile carries a hardcoded product count", () => {
   );
 });
 
-test("which tiles show comes from the categories query", () => {
-  /* Tiles no longer print a count (8 Oct 2026: noise to a shopper). The real
-     count from `listCategories()` still decides which categories appear. */
-  assert.match(
-    tiles,
-    /counts\[c\.slug\]/,
-    "the tiles no longer read the real counts passed in"
-  );
-
+test("which tiles show, and in what state, comes from the real visible counts", () => {
+  /* Tiles never print a count (8 Oct 2026: noise to a shopper). The real
+     visible count, from the shared approval policy, decides each tile's state
+     (lib/category-directory.ts). Runtime coverage: category-discovery.test.ts. */
   const catalog = rendered("lib/services/catalog.ts");
-  /* Counts use the shared approval policy. Runtime category-count coverage is
-     in catalogue-approval-policy.test.ts; status alone is insufficient. */
   assert.match(
     catalog,
-    /_count:\s*\{\s*select:\s*\{\s*products:\s*\{\s*where:\s*catalogListingWhere\(\)/,
-    "listCategories no longer counts visible products per category"
+    /listCategoryDirectory[\s\S]*?_count:\s*\{\s*select:\s*\{\s*products:\s*\{\s*where:\s*catalogListingWhere\(\)/,
+    "the directory no longer counts visible products per category"
   );
-
-  const home = rendered("app/page.tsx");
-  assert.match(
-    home,
-    /c\._count\.products/,
-    "the home page no longer passes the real counts to the tiles"
-  );
+  assert.match(rendered("app/page.tsx"), /listCategoryDirectory\(\)/, "the home page no longer reads the directory");
 });
 
-test("an empty category is left out rather than shown as a dead tile", () => {
-  /* A tile for a shelf with nothing on it leads nowhere. It is filtered out on
-     the real count, never labelled with a zero. */
-  assert.match(tiles, /\(counts\[c\.slug\] \?\? 0\) > 0/, "empty categories are no longer filtered out");
-  assert.doesNotMatch(tiles, /\$\{counts\[/, "a tile prints a product count again");
+test("an empty designated category is shown as Coming soon, never with a zero", () => {
+  /* Owner, 12 Oct 2026: discovery is separate from publication. The state is
+     carried as a label; no count is ever printed on a tile. */
+  const tile = rendered("components/categories/category-tile.tsx");
+  assert.match(tile, /Coming soon/);
+  assert.doesNotMatch(tile, /visibleProducts/, "a tile reads the count, and could print it");
+  assert.doesNotMatch(tiles, /visibleProducts|_count/, "the home section reads a count");
 });
