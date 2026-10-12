@@ -19,7 +19,7 @@ Existing records receive no automatic owner approval. Until genuine approval met
 
 ## ISS-094 — The retired Supabase email-link callback was still reachable and failed with 500
 
-**12 October 2026 · MEDIUM · Auth / Security hygiene · FIXED (code; staging after next deploy).**
+**12 October 2026 · MEDIUM · Auth / Security hygiene · FIXED (staging 12 Oct: `/auth/confirm` now 404).**
 
 Sign-in moved to Firebase on 1 Sep, but the Supabase sign-in code stayed in the tree, described as dead because no
 screen imported it. A route does not need an importer. On staging (`build-2026-10-11-006`), probed 12 Oct:
@@ -171,7 +171,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
-| ISS-094 | Retired Supabase email-link callback still reachable; answered 500 on staging | MEDIUM | Auth | FIXED (code) |
+| ISS-094 | Retired Supabase email-link callback still reachable; answered 500 on staging | MEDIUM | Auth | FIXED (staging) |
 | ISS-093 | An approved photo with unconfirmed reuse rights could become a production listing | HIGH | Catalogue/Legal | FIXED (code; production-only) |
 | ISS-092 | Catalogue approval said "now public" for products that stayed hidden | LOW | Admin/Catalogue | FIXED (staging) |
 | ISS-091 | Phone list rows drew product photos at full size off screen; two app screens cropped photos | MEDIUM | Catalogue presentation | FIXED (web staging; app in workspace) |
@@ -216,7 +216,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-039 | Amber used as body text in ~148 places | MEDIUM | Design system | OPEN |
 | ISS-040 | Production build fails intermittently on connection-pool exhaustion | HIGH | DevOps | FIXED |
 | ISS-041 | Rate limiter was not atomic under concurrency | HIGH | Security | FIXED |
-| ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | FIXED (code, 12 Oct) |
+| ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | FIXED (staging, 12 Oct) |
 | ISS-043 | Cleanup cron endpoint is unauthenticated and unscheduled | MEDIUM | Security/Operations | FIXED |
 | ISS-044 | Third-party branded imagery presented as own-brand goods | CRITICAL | Legal/Content | PARTIAL |
 | ISS-045 | `/categories/ceiling-fans-exhaust.webp` referenced but missing | MEDIUM | Content | PARTIAL |
@@ -2034,7 +2034,7 @@ was applied.
 |---|---|
 | **Severity** | LOW |
 | **Area** | Security/Data |
-| **Status** | FIXED (code, 12 Oct 2026; staging after next deploy) |
+| **Status** | FIXED (staging, 12 Oct 2026) |
 
 **Description.** Noticed while fixing ISS-021 and ISS-041; pre-existing and not made worse
 by that work. Nothing ever deletes from `rate_limits`. The table gains a permanent row per
