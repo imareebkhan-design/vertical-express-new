@@ -139,7 +139,7 @@ export const CATALOGUE_CSV_TEMPLATE = [
 /* RFC 4180 reader                                                     */
 /* ------------------------------------------------------------------ */
 
-interface CsvRecord {
+export interface CsvRecord {
   fields: string[];
   /** Line the record starts on. A quoted field may span several. */
   line: number;
@@ -153,7 +153,7 @@ interface CsvRecord {
  * comment is recognised only at the start of a record, so a `#` inside a title
  * is just a character.
  */
-function readRecords(text: string): CsvRecord[] {
+export function readRecords(text: string): CsvRecord[] {
   /* Excel writes a BOM. Left in place it becomes part of the first header cell
      and the header comparison fails with a message that looks like nonsense,
      because the difference is invisible. */
@@ -260,7 +260,7 @@ function readRecords(text: string): CsvRecord[] {
  * in the cell. So the symbol is removed before the real rule runs. Only the
  * symbol: the digits still have to satisfy `parseRupeeInput` exactly.
  */
-function parseMoney(raw: string): number | null {
+export function parseMoney(raw: string): number | null {
   const withoutSymbol = raw
     .trim()
     .replace(/^(?:₹|rs\.?|inr)\s*/i, "")
@@ -281,7 +281,7 @@ function parseMoney(raw: string): number | null {
  * `500.5` is still refused. Half a bag is not a quantity, and quietly rounding
  * it picks a number nobody chose.
  */
-function parseQty(raw: string): number | null {
+export function parseQty(raw: string): number | null {
   const cleaned = raw.trim().replace(/,/g, "");
   const m = /^(\d+)(?:\.(0+))?$/.exec(cleaned);
   if (!m) return null;
