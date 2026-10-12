@@ -1,5 +1,5 @@
 {
- "source": "docs/release/image-review/approval-batches.csv (workspace) \u2014 slugs only; no decision is recorded here \u2014 C01 = the 8 draft cement ranges that have an image (owner review on staging, 11 Oct 2026); approving records identity/image only and does not change draft status",
+ "source": "docs/release/image-review/approval-batches.csv (workspace) \u2014 slugs only; no decision is recorded here \u2014 C01 = the 8 draft cement ranges that have an image (owner review on staging, 11 Oct 2026); approving records identity/image only and does not change draft status \u2014 D01\u2013D05 (12 Oct 2026, owner request): draft products in the original categories whose photos come from the manufacturer's own site; HomeRun-sourced and third-party-catalogue photos excluded; listing a product approves nothing, activates no brand and changes no status",
  "batches": {
   "B01": [
    "xp-xtra-power-caulking-gun-103",
@@ -295,6 +295,59 @@
    "ve-range-ambuja-kawach-cement-c920dee87e",
    "ve-range-ambuja-plus-cement-548089a03b",
    "ve-range-ultratech-cement-947cb4b73c"
+  ],
+  "D01-tiling": [
+   "ve-range-cera-ceramic-vitrified-tiles-7acfee22f2",
+   "ve-range-cera-glazed-vitrified-tiles-bfbd67ca91",
+   "ve-range-cera-wall-tiles-3e9a719df6",
+   "ve-range-h-r-johnson-marbonite-tiles-2dc1e171fc",
+   "ve-range-h-r-johnson-porselano-tiles-5d36cd8b50",
+   "ve-range-h-r-johnson-tiles-31f902d531",
+   "ve-range-hindware-italian-tiles-3fd061c9fd",
+   "ve-range-hindware-tiles-ba0d633e4d",
+   "ve-range-kajaria-ceramic-wall-tiles-f77a7df751",
+   "ve-range-kajaria-glazed-vitrified-tiles-91627137b4",
+   "ve-range-kajaria-grestough-tiles-1ba9647e36",
+   "ve-range-kajaria-the-ultima-tiles-6019ffe523",
+   "ve-range-kajaria-vitronite-tiles-380ecb2fa6",
+   "ve-range-rak-ceramics-ceramic-porcelain-tiles-4da6b19c18",
+   "ve-range-rak-ceramics-glazed-vitrified-tiles-c0af9ccab4",
+   "ve-range-rak-ceramics-large-format-slabs-74a69d17a2",
+   "ve-range-somany-ceramic-wall-floor-tiles-c69e423dcf",
+   "ve-range-somany-double-charge-vitrified-tiles-a556125ed4",
+   "ve-range-somany-glazed-vitrified-tiles-2c78ef6f4a",
+   "ve-range-varmora-ceramic-wall-tiles-0787b4ab5e",
+   "ve-range-varmora-elevation-tiles-ba04f869ca",
+   "ve-range-varmora-glazed-vitrified-tiles-3e7f1dd9f8"
+  ],
+  "D02-cpvc-pipes-tanks": [
+   "ve-range-astral-cpvc-835e543c85",
+   "ve-range-astral-hdpe-4c89c5b95a",
+   "ve-range-astral-swr-f2580da132",
+   "ve-range-astral-upvc-1659da5f01",
+   "ve-range-finolex-cpvc-c309874b25",
+   "ve-range-finolex-swr-dbb834dd6a",
+   "ve-range-prince-cpvc-370f592216",
+   "ve-range-prince-hdpe-f44235b70b",
+   "ve-range-prince-ppr-50a5284b05",
+   "ve-range-prince-swr-5efc0dfa16",
+   "ve-range-prince-upvc-pvc-5969b94794",
+   "ve-range-supreme-cpvc-6213690da4",
+   "ve-range-supreme-ppr-a663c0a027",
+   "ve-range-supreme-upvc-pvc-49583899f9"
+  ],
+  "D03-sinks-faucets": [
+   "ve-range-cera-kitchen-sinks-f1598c0b71",
+   "ve-range-franke-kitchen-sinks-447ca14e1a",
+   "ve-range-franke-kitchen-taps-2bf0020b5d",
+   "ve-range-kohler-kitchen-faucets-0f45c43cba",
+   "ve-range-kohler-kitchen-sinks-a16c4129bc"
+  ],
+  "D04-plywood-mdf-hdhmr": [
+   "ve-range-greenply-green-club-plywood-8d618dfff6"
+  ],
+  "D05-fans-exhaust": [
+   "ve-range-bajaj-fans-c1389434e1"
   ]
  }
 }

@@ -151,6 +151,21 @@ test("batches carry slugs only — no decisions — and cover the 263 candidates
   assert.doesNotMatch(raw, /APPROVED|CONFIRMED|approvedBy/);
 });
 
+test("D01–D05: category review lists for the original categories, disjoint from every other batch and URL-safe", () => {
+  /* Added on the owner's request (12 Oct 2026) so the approval screen can show the
+     original categories at all. Draft products whose photos come from the
+     manufacturer's own site only; HomeRun-sourced photos are excluded (CLAUDE.md). */
+  const d = Object.entries(APPROVAL_BATCHES).filter(([b]) => b.startsWith("D"));
+  assert.deepEqual(
+    d.map(([b, slugs]) => [b, slugs.length]),
+    [["D01-tiling", 22], ["D02-cpvc-pipes-tanks", 14], ["D03-sinks-faucets", 5], ["D04-plywood-mdf-hdhmr", 1], ["D05-fans-exhaust", 1]]
+  );
+  for (const [b] of d) assert.match(b, /^[A-Za-z0-9-]+$/, `${b} must survive ?batch=${b} unencoded`);
+  const every = Object.values(APPROVAL_BATCHES).flat();
+  assert.equal(new Set(every).size, every.length, "no slug in two batches");
+  assert.equal(every.length, 271 + 43);
+});
+
 test("bulk approval = N single decisions: each validated, sha-checked, made public and audited; failures reported, not hidden", async () => {
   p.f = await make("f", `Caulking Gun ${tag}`);
   p.g = await make("g", `Hole Saw Set 5 pcs ${tag}`);
