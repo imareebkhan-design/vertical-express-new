@@ -15,7 +15,7 @@ import { test, after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
-import { rateLimit } from "../rate-limit";
+import { rateLimit, pruneRateLimits, RATE_LIMIT_RETENTION_MS } from "../rate-limit";
 
 const buckets: string[] = [];
 
@@ -82,21 +82,22 @@ test("ISS-021 — a limiter outage on a failClosed bucket denies the request", a
   assert.ok(result.retryAfterMs > 0, "a denial must tell the caller when to retry");
 });
 
-test("ISS-021 — the OTP path passes failClosed", async () => {
-  // Guards the wiring, not the limiter: a correct limiter is useless if the OTP
-  // caller forgets the option. Asserted against the source so it cannot silently
-  // regress without also failing here.
+test("ISS-021 — every paid lookup on our server asks its limiter to fail closed", async () => {
+  /* This used to check the Supabase OTP send in actions/auth.ts. That path was
+     deleted on 12 Oct 2026: a phone code is now requested from Firebase in the
+     browser and never passes through this limiter (its own abuse protection is
+     ISS-047). What still costs money per call on our server are the Google
+     lookups; a limiter that cannot be consulted must refuse them, not wave them
+     through. Asserted against the source so forgetting the option fails here. */
   const { readFile } = await import("node:fs/promises");
-  const source = await readFile(
-    new URL("../../../actions/auth.ts", import.meta.url),
-    "utf8"
-  );
-  const otpCall = source.slice(source.indexOf("`otp:${formattedIdentifier}`"));
-  assert.match(
-    otpCall.slice(0, 220),
-    /failClosed:\s*true/,
-    "actions/auth.ts must request failClosed for the OTP bucket"
-  );
+  for (const rel of ["../../api/places.ts", "../location-lookup.ts"]) {
+    const source = await readFile(new URL(rel, import.meta.url), "utf8");
+    const calls = source.match(/rateLimit\([\s\S]*?\)\s*[,;)]/g) ?? [];
+    assert.ok(calls.length > 0, `${rel} no longer rate limits at all`);
+    for (const call of calls) {
+      assert.match(call, /failClosed:\s*true/, `${rel}: a limiter call does not fail closed:\n${call}`);
+    }
+  }
 });
 
 // --- ISS-027: atomicity ------------------------------------------------------
@@ -172,4 +173,58 @@ test("retryAfterMs stays within the window and does not grow with further attemp
     second.retryAfterMs <= first.retryAfterMs,
     "the window is pinned, so retryAfterMs must not grow as attempts continue"
   );
+});
+
+// --- ISS-042: retention ------------------------------------------------------
+
+/** Puts a bucket row whose window opened `ageMs` ago, as an old visitor would have left it. */
+async function seedAged(label: string, ageMs: number): Promise<string> {
+  const bucket = freshBucket(label);
+  await db.$executeRaw`
+    INSERT INTO "rate_limits" ("id", "bucket", "hits", "window_start")
+    VALUES (gen_random_uuid(), ${bucket}, 3, LOCALTIMESTAMP - (${ageMs}::bigint * interval '1 millisecond'))
+  `;
+  return bucket;
+}
+
+const exists = async (bucket: string) => (await db.rateLimit.count({ where: { bucket } })) === 1;
+
+test("ISS-042 — rows past the retention horizon are reclaimed; rows inside it, including a running daily window, are not", async () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const stale = await seedAged("stale", RATE_LIMIT_RETENTION_MS + DAY);
+  const runningDaily = await seedAged("daily", DAY - 60_000);
+  const lapsedMinute = await seedAged("minute", 2 * 60 * 60 * 1000);
+  const live = freshBucket("live");
+  await rateLimit(live, 5, 60_000);
+
+  const pruned = await pruneRateLimits();
+
+  assert.ok(pruned >= 1, "the stale row was not reclaimed");
+  assert.equal(await exists(stale), false, "a row older than the retention horizon survived");
+  assert.equal(await exists(runningDaily), true, "a daily window still running was deleted, which would reset its limit early");
+  assert.equal(await exists(lapsedMinute), true, "rows inside the retention horizon are kept");
+  assert.equal(await exists(live), true, "an active bucket was deleted");
+});
+
+test("ISS-042 — retention outlasts the longest window any caller uses", () => {
+  /* Pruning a row resets its bucket. Safe only while every window is shorter
+     than retention; the longest today is one day. */
+  assert.ok(RATE_LIMIT_RETENTION_MS > 86_400_000);
+});
+
+test("ISS-042 — a prune is bounded per call, so a first run cannot lock a large table for long", async () => {
+  const a = await seedAged("batch-a", RATE_LIMIT_RETENTION_MS + 60_000);
+  const b = await seedAged("batch-b", RATE_LIMIT_RETENTION_MS + 60_000);
+  const first = await pruneRateLimits(RATE_LIMIT_RETENTION_MS, 1);
+  assert.equal(first, 1);
+  const left = (await exists(a) ? 1 : 0) + (await exists(b) ? 1 : 0);
+  assert.equal(left, 1, "a batch of one deleted more than one row");
+  await pruneRateLimits();
+});
+
+test("ISS-042 — the scheduled cleanup prunes, and a failed prune does not fail the order cleanup", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const route = await readFile(new URL("../../../app/api/cron/cleanup-orders/route.ts", import.meta.url), "utf8");
+  assert.match(route, /pruneRateLimits\(\)/, "the cron no longer reclaims rate_limits rows");
+  assert.match(route, /try\s*{\s*prunedRateLimits = await pruneRateLimits\(\);\s*}\s*catch/, "a prune failure must be contained");
 });

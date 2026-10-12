@@ -25,13 +25,23 @@ function adminEmails(): string[] {
     .filter(Boolean);
 }
 
+/**
+ * The operator email a verified session token proves, or null. Pure so the
+ * rule can be tested against real token shapes rather than only read.
+ */
+export function operatorEmail(token: { email?: unknown; email_verified?: unknown }): string | null {
+  const email = typeof token.email === "string" ? token.email.trim().toLowerCase() : null;
+  if (!email || token.email_verified !== true) return null;
+  if (!adminEmails().includes(email)) return null;
+  return email;
+}
+
 export async function getAdminUser(): Promise<{ id: string; email: string } | null> {
   const token = await readSession();
   if (!token) return null;
 
-  const email = typeof token.email === "string" ? token.email.trim().toLowerCase() : null;
-  if (!email || token.email_verified !== true) return null;
-  if (!adminEmails().includes(email)) return null;
+  const email = operatorEmail(token);
+  if (!email) return null;
 
   /* The application's own user id, not the Firebase uid — everything downstream
      of an admin action joins on `users.id`. */

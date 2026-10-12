@@ -17,6 +17,46 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-094 — The retired Supabase email-link callback was still reachable and failed with 500
+
+**12 October 2026 · MEDIUM · Auth / Security hygiene · FIXED (code; staging after next deploy).**
+
+Sign-in moved to Firebase on 1 Sep, but the Supabase sign-in code stayed in the tree, described as dead because no
+screen imported it. A route does not need an importer. On staging (`build-2026-10-11-006`), probed 12 Oct:
+
+- `GET /auth/confirm?token_hash=abc&type=email` → **500**. The route ran `supabase.auth.verifyOtp`, and the staging
+  backend has no Supabase auth configuration.
+- `GET /auth/confirm` with no token → 307 to `https://0.0.0.0:8080/login?error=link`. The redirect was built from the
+  container's internal request URL, so it pointed at an address no browser can reach.
+
+The `"use server"` actions in `actions/auth.ts` (`sendOtp`, `verifyOtp`, `signOut`) were absent from the last build's
+server-action manifest, because only the orphaned `login-form.tsx` imported them. They were not reachable, but they
+were one import away from it.
+
+**Fix.** Deleted: `app/auth/confirm/route.ts`, `actions/auth.ts`, `components/auth/login-form.tsx`,
+`lib/services/auth-provider.ts`, `lib/services/users.ts` (only those two callers used `ensureUserMirror`),
+`lib/supabase/server.ts`, `lib/supabase/client.ts` and their two test files. Also removed the dependencies
+`@supabase/ssr` and `@supabase/supabase-js`.
+
+What was kept:
+- Postgres over `DATABASE_URL` and the Supabase Storage origin in the CSP (`NEXT_PUBLIC_SUPABASE_URL`, DEC-011); neither
+  uses the SDK.
+- `supabase/functions/send-sms-hook` (a separately deployed Supabase Edge Function, not part of this app). Whether it is
+  deployed or enabled in the Supabase project is unverified (owner).
+
+Live paths unaffected: Firebase phone/Google sign-in, session cookie and revocation, the admin gate (`authz.ts` already
+read the Firebase token; it only *mentioned* Supabase in a comment) and guest-cart merge (`actions/cart.ts` →
+`mergeGuestCartSafely`).
+
+**Tests.**
+- `single-identity-reader.test.ts`: "Supabase Auth is retired" fails if any of the deleted files, a `@supabase/*`
+  dependency, a `supabase.auth` call, or a server-side OTP send/verify returns. Seen failing on the leftover dependency.
+- `operator-email.test.ts` (new) runs the admin rule on real token shapes: verified and allowlisted (normalised) →
+  operator; unverified (false, missing, `"true"`, `1`), phone-only, not allowlisted, and an empty or unset allowlist →
+  not. Removing the verified-email check fails it.
+- `rate-limit.test.ts`: the ISS-021 wiring check now covers the paid Google lookups. The OTP send no longer passes
+  through our server (ISS-047 remains open).
+
 ## ISS-093 — An approved photo with unconfirmed reuse rights could become a production listing
 
 **11 October 2026 · HIGH · Catalogue / Legal · FIXED in code (production-only rule); staging behaviour unchanged.**
@@ -131,6 +171,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-094 | Retired Supabase email-link callback still reachable; answered 500 on staging | MEDIUM | Auth | FIXED (code) |
 | ISS-093 | An approved photo with unconfirmed reuse rights could become a production listing | HIGH | Catalogue/Legal | FIXED (code; production-only) |
 | ISS-092 | Catalogue approval said "now public" for products that stayed hidden | LOW | Admin/Catalogue | FIXED (staging) |
 | ISS-091 | Phone list rows drew product photos at full size off screen; two app screens cropped photos | MEDIUM | Catalogue presentation | FIXED (web staging; app in workspace) |
@@ -175,7 +216,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-039 | Amber used as body text in ~148 places | MEDIUM | Design system | OPEN |
 | ISS-040 | Production build fails intermittently on connection-pool exhaustion | HIGH | DevOps | FIXED |
 | ISS-041 | Rate limiter was not atomic under concurrency | HIGH | Security | FIXED |
-| ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | OPEN |
+| ISS-042 | `rate_limits` rows are never reclaimed | LOW | Security/Data | FIXED (code, 12 Oct) |
 | ISS-043 | Cleanup cron endpoint is unauthenticated and unscheduled | MEDIUM | Security/Operations | FIXED |
 | ISS-044 | Third-party branded imagery presented as own-brand goods | CRITICAL | Legal/Content | PARTIAL |
 | ISS-045 | `/categories/ceiling-fans-exhaust.webp` referenced but missing | MEDIUM | Content | PARTIAL |
@@ -469,7 +510,7 @@ flags for review.
 `SignInForm` (desktop) or `MobileSignInView` (phone), both on `useFirebaseSignIn` (Firebase phone OTP + Google); the
 app signs in with Firebase too, and sign-out uses `lib/auth/sign-out-client`. The Supabase OTP code described below —
 `actions/auth.ts` (`sendOtp`/`verifyOtp`/`signOut`), `components/auth/login-form.tsx`, `lib/services/auth-provider.ts`
-— is imported by nothing live; remove it in a cleanup change. Still open: real SMS to a live number (ISS-089) and the
+— is imported by nothing live. **Deleted 12 Oct 2026 (ISS-094).** Still open: real SMS to a live number (ISS-089) and the
 production Firebase project's SMS quota/billing. The text below is the original finding.
 
 **Description.** `getOtpChannel()` returns `"phone"` only if `AUTH_OTP_CHANNEL === "phone"`;
@@ -1993,7 +2034,7 @@ was applied.
 |---|---|
 | **Severity** | LOW |
 | **Area** | Security/Data |
-| **Status** | OPEN |
+| **Status** | FIXED (code, 12 Oct 2026; staging after next deploy) |
 
 **Description.** Noticed while fixing ISS-021 and ISS-041; pre-existing and not made worse
 by that work. Nothing ever deletes from `rate_limits`. The table gains a permanent row per
@@ -2017,6 +2058,15 @@ sufficient — this does not justify adding a job runner (DEC-011 defers Inngest
 window are not.
 
 **Owner input required.** No.
+
+**Resolution (12 Oct 2026, Claude Code).** `pruneRateLimits()` in `lib/services/rate-limit.ts` deletes rows whose
+window opened more than `RATE_LIMIT_RETENTION_MS` (7 days) ago, at most 5,000 per call. It runs from the existing
+`/api/cron/cleanup-orders` schedule, and no new job runner was added. A prune failure is captured and does not fail the
+order cleanup. The longest window in use is now one day (daily location/places budgets), not one hour. Retention must
+outlast it, and a test pins that. Pruning a row whose window has ended does what the next call would do anyway, so it
+can only loosen a limit that has already lapsed. Tests (`rate-limit.test.ts`): stale rows go; a running daily window,
+a recent row and an active bucket stay; the batch bound holds; the cron calls it inside its own try. Mutating the
+horizon to zero fails the suite. Production needs its scheduler created (O-INF-2) for this to run there.
 
 ---
 

@@ -1,5 +1,9 @@
 # Phone OTP via MSG91 — setup
 
+> **RETIRED (12 Oct 2026, ISS-094).** This describes the Supabase sign-in path, which has been deleted from the app.
+> Sign-in is Firebase phone OTP + Google (`lib/auth/`, `components/auth/sign-in-form.tsx`). Kept for history only;
+> nothing here needs configuring.
+
 **Status:** code ready, blocked on the owner. Nothing here is live yet. (ISS-006)
 
 ## What is already true

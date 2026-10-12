@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import crypto from "node:crypto";
 import { cleanupExpiredPendingOrders } from "@/lib/services/orders";
+import { pruneRateLimits } from "@/lib/services/rate-limit";
 import { runWithContext, MetricsTracker, captureException } from "@/lib/observability";
 
 /**
@@ -55,8 +56,17 @@ export async function GET(request: NextRequest) {
     const metric = new MetricsTracker("cron-service");
     try {
       const cancelledCount = await cleanupExpiredPendingOrders(15);
-      metric.end("cleanup_orders_cron_success", { cancelledCount });
-      return NextResponse.json({ status: "ok", cancelledCount });
+      /* Housekeeping rides on the same schedule (ISS-042) but must never cost
+         the order cleanup its result: a failed prune is logged and retried on
+         the next run, which finds the same rows. */
+      let prunedRateLimits: number | null = null;
+      try {
+        prunedRateLimits = await pruneRateLimits();
+      } catch (err: unknown) {
+        captureException(err);
+      }
+      metric.end("cleanup_orders_cron_success", { cancelledCount, prunedRateLimits });
+      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits });
     } catch (err: unknown) {
       captureException(err);
       metric.end("cleanup_orders_cron_failed");

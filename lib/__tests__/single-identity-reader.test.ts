@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,19 +38,8 @@ const SANCTIONED = /lib\/auth\/(current-user|session)\.ts$/;
  * the goal; adding to it needs a deliberate decision, which is the point.
  */
 const MIGRATING: Record<string, string> = {
-  "actions/auth.ts":
-    "Dead Supabase OTP actions — no live caller after the Firebase migration; scheduled for deletion.",
-  "lib/services/auth-provider.ts":
-    "Dead Supabase OTP provider — superseded by Firebase; scheduled for deletion.",
-  "app/auth/confirm/route.ts":
-    "Dead Supabase email-OTP callback — unreachable once Supabase stopped issuing links; scheduled for deletion.",
-
-  /* The Supabase-OTP UI. Nothing renders any of these: /login renders
-     components/auth/sign-in-form.tsx (Firebase), and the mobile account view no
-     longer imports the Supabase sign-out. They are the remaining importers of
-     actions/auth.ts, so they and it come out together in the same cleanup. */
-  "components/auth/login-form.tsx":
-    "Orphaned Supabase OTP form — no route renders it; superseded by components/auth/sign-in-form.tsx.",
+  /* Empty since 12 Oct 2026: the Supabase OTP actions, provider, email-link
+     callback and orphaned form were deleted rather than excused. */
 };
 
 /** Reading identity from anything but the sanctioned abstraction. */
@@ -135,4 +124,33 @@ test("every file excused from the rule is genuinely unreachable", () => {
         `Either migrate it off the retired provider or delete it — it is not dead.`
     );
   }
+});
+
+test("Supabase Auth is retired: no SDK, no OTP actions, no email-link callback", () => {
+  /* The old callback was not dead just because nothing linked to it: a GET to
+     /auth/confirm with any token_hash still ran supabase.auth.verifyOtp, and on
+     staging (no Supabase auth config) answered 500. A route is reachable by URL
+     and a "use server" export by POST whatever the UI imports, so retirement
+     means the files are gone and nothing can bring the SDK back quietly.
+     Supabase itself stays: Postgres over DATABASE_URL and the Storage image
+     origin in next.config.ts do not use this SDK. */
+  for (const gone of ["app/auth/confirm/route.ts", "actions/auth.ts", "lib/services/auth-provider.ts", "lib/supabase/server.ts"]) {
+    assert.ok(!existsSync(join(ROOT, gone)), `${gone} is back — the Supabase sign-in path was retired 12 Oct 2026`);
+  }
+
+  const pkg = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as { dependencies?: Record<string, string> };
+  assert.deepEqual(
+    Object.keys(pkg.dependencies ?? {}).filter((d) => d.startsWith("@supabase/")),
+    [],
+    "a @supabase/* SDK is a dependency again; sign-in is Firebase (lib/auth)"
+  );
+
+  const offenders: string[] = [];
+  for (const file of SEARCH.flatMap((b) => walk(join(ROOT, b)))) {
+    const src = code(readFileSync(file, "utf8"));
+    if (/from\s+["']@supabase\//.test(src)) offenders.push(`${relative(ROOT, file)} imports a @supabase/* SDK`);
+    if (/supabase\s*\.\s*auth\b/.test(src)) offenders.push(`${relative(ROOT, file)} calls supabase.auth`);
+    if (/signInWithOtp|verifyOtp\s*\(/.test(src)) offenders.push(`${relative(ROOT, file)} sends or verifies an OTP itself`);
+  }
+  assert.deepEqual(offenders, [], "Supabase sign-in is creeping back:\n  - " + offenders.join("\n  - "));
 });

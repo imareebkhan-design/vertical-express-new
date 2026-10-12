@@ -11,10 +11,10 @@ export type RateLimitOptions = {
    * limiter outage is some extra load.
    *
    * `true` (fail closed) is for buckets where exceeding the limit spends money
-   * or harms a third party. The OTP bucket sets it — see DEC-016: "Rate
-   * limiting on the OTP endpoint should fail closed rather than open (ISS-021)."
-   * A limiter outage there means a victim can be OTP-bombed and we pay for
-   * every message.
+   * or harms a third party (DEC-016, ISS-021): today the paid Google lookups,
+   * enquiries and delivery-code attempts. The OTP bucket that introduced it
+   * left with the Supabase sign-in (ISS-094); OTP sends now go from the
+   * browser to Firebase and are ISS-047's problem.
    */
   failClosed?: boolean;
 };
@@ -100,6 +100,35 @@ export async function rateLimit(
   } catch {
     return denied(options, windowMs);
   }
+}
+
+/**
+ * How long a bucket row is kept after its window opened (ISS-042).
+ *
+ * Must exceed the longest window any caller uses — one day today (the daily
+ * location and places budgets). Deleting a row whose window has ended is
+ * exactly what the next call would do anyway (reset to 1), so pruning can only
+ * ever loosen a limit that has already lapsed, never one still running.
+ */
+export const RATE_LIMIT_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Deletes bucket rows whose window opened more than `retentionMs` ago, at most
+ * `batch` per call so a first run against a large table cannot hold a long
+ * lock. Called from the scheduled cleanup; returns how many rows went.
+ */
+export async function pruneRateLimits(
+  retentionMs: number = RATE_LIMIT_RETENTION_MS,
+  batch = 5000
+): Promise<number> {
+  return db.$executeRaw`
+    DELETE FROM "rate_limits"
+    WHERE "id" IN (
+      SELECT "id" FROM "rate_limits"
+      WHERE "window_start" < LOCALTIMESTAMP - (${retentionMs}::bigint * interval '1 millisecond')
+      LIMIT ${batch}
+    )
+  `;
 }
 
 /**
