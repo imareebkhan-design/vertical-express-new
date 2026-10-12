@@ -133,7 +133,12 @@ const PRODUCTS: SeedProduct[] = [
 const R = (rupees: number) => Math.round(rupees * 100); // to paise
 
 async function main() {
-  // Categories (images already shipped in /public/categories)
+  /* Categories. imageUrl names the generated, unbranded tile (provenance:
+     docs/ASSET_PROVENANCE.md), never the /public/categories composites, whose
+     origin is unverified and several of which carry manufacturer marks. Nothing
+     renders this column today (lib/category-directory.ts and categoryImage()
+     decide the picture); this keeps a new database from inheriting the old
+     paths. Existing rows are untouched: `update` does not set it. */
   for (const [i, c] of CATEGORIES.entries()) {
     await db.category.upsert({
       where: { slug: c.slug },
@@ -146,7 +151,7 @@ async function main() {
       },
       create: {
         slug: c.slug, name: c.name, group: c.group, isBulk: !!c.bulk, sortOrder: i,
-        imageUrl: `/categories/${c.slug}.webp`,
+        imageUrl: `/merchandising/category-tiles/${c.slug}.webp`,
         seoTitle: `${c.name} in Srinagar | Vertical Express`,
         seoDescription: `Buy ${c.name.toLowerCase()} from genuine brands, delivered across Srinagar.`,
       },

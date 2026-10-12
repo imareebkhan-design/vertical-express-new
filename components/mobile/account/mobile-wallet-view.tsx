@@ -45,7 +45,8 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
               triggerHaptic("light");
               router.back();
             }}
-            className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
+            aria-label="Back"
+          className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
           </button>

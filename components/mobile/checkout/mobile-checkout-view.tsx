@@ -482,6 +482,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             triggerHaptic("light");
             router.back();
           }}
+          aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
         >
           <ArrowLeft className="size-4.5" />

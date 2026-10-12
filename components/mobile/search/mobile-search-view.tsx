@@ -342,6 +342,7 @@ export function MobileSearchView({
           <button
             type="button"
             onClick={triggerVoiceSearch}
+            aria-label="Search by voice"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
             title="Voice Search"
           >
@@ -350,6 +351,7 @@ export function MobileSearchView({
           <button
             type="button"
             onClick={triggerBarcodeScan}
+            aria-label="Scan a barcode"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
             title="Barcode Scanner"
           >

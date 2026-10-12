@@ -7,6 +7,11 @@
 .ve-hero { position: relative; }
 .ve-hero-window {
   position: relative; overflow: hidden; isolation: isolate;
+  /* A definite width: with width:auto, aspect-ratio turns min-height into a
+     minimum WIDTH (380 × 1200/440 ≈ 1036px), so between 768px and ~1060px the
+     banner pushed the page into horizontal scroll. Now min-height only makes it
+     taller. */
+  width: 100%; min-width: 0;
   aspect-ratio: 1200 / 440; min-height: 380px;
   border-radius: 28px; background: var(--color-ink);
   touch-action: pan-y;

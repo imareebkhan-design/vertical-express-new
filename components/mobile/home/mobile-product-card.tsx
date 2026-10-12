@@ -196,6 +196,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               type="button"
               onClick={handleQuantityDecrease}
               disabled={isPending}
+              aria-label={`Remove one ${item.title}`}
               className="flex size-6 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
             >
               -
@@ -207,6 +208,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               type="button"
               onClick={handleQuantityIncrease}
               disabled={isPending}
+              aria-label={`Add one more ${item.title}`}
               className="flex size-6 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
             >
               +
@@ -217,6 +219,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             type="button"
             onClick={handleQuickAdd}
             disabled={isPending || !item.inStock}
+            aria-label={item.inStock ? `Add ${item.title} to cart` : `${item.title} is out of stock`}
             className={cn(
               "flex size-8 items-center justify-center rounded-xl transition-all shadow-xs",
               !item.inStock
