@@ -47,7 +47,7 @@ export function CategoryTile({
         {soon ? (
           <span
             aria-hidden
-            className="absolute inset-x-0 bottom-2 mx-auto w-max max-w-[92%] truncate rounded-full bg-paper/95 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.06em] text-ink-700 shadow-card"
+            className="absolute inset-x-0 bottom-1.5 mx-auto w-max max-w-[96%] whitespace-nowrap rounded-full bg-paper/95 px-1.5 py-px text-[9.5px] font-bold leading-[14px] text-ink-700 shadow-card sm:bottom-2 sm:px-2 sm:text-[10.5px]"
           >
             Coming soon
           </span>
