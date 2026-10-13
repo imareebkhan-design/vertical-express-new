@@ -8,8 +8,7 @@ import {
   getPickList,
 } from "@/lib/services/shipments";
 import { PickListPanel } from "@/components/admin/pick-list";
-import { listRoster } from "@/lib/services/admin/roster-write";
-import { RosterManager } from "@/components/admin/roster-manager";
+import Link from "next/link";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
@@ -36,13 +35,10 @@ export default async function AdminDispatch() {
   /* Backstop for the layout gate: a request that renders only this page
      segment never ran app/admin/layout.tsx, so the page checks too. */
   if (!(await getAdminUser())) return null;
-  const [board, roster, onTheRoad, fullRoster, pickList] = await Promise.all([
+  const [board, roster, onTheRoad, pickList] = await Promise.all([
     getDispatchBoard(),
     getDispatchRoster(),
     getShipmentsOnTheRoad(),
-    /* Retired rows included — the management panel shows them greyed, the
-       dispatch dropdown does not offer them. */
-    listRoster(),
     getPickList(),
   ]);
   const total = board.express.length + board.scheduled.length;
@@ -86,27 +82,20 @@ export default async function AdminDispatch() {
           roster={roster}
         />
 
-        {/*
-          "Drivers and vehicles" — the right-hand rail of artboard 5.
-
-          This panel used to state that the roster, the vehicle records and the
-          slots were all absent. Two of those three stopped being absent when
-          the models landed, and the roster is now editable here rather than
-          seedable only by hand — which was the last thing standing between a
-          fresh database and a usable board.
-
-          The old wording is not quoted here on purpose: a guard sweeps the
-          source for exactly those phrases and cannot tell a historical
-          quotation from a live claim.
-
-          What is still missing is the cash column, and it is the one to be most
-          careful about. Cash held per driver is what a day's takings get
-          reconciled against, and there is no COD collection, no driver float
-          and no reconciliation (ISS-010) — a figure there would be reconciled
-          against nothing. Slots are absent too (ISS-057), which is why the
-          lanes above are three rather than five.
-        */}
-        <RosterManager roster={fullRoster} />
+        {/* The roster used to be edited down here, below every lane, and could not
+            be found (owner, 14 Oct). It has its own page now; this is the way there. */}
+        <section className="flex flex-wrap items-center justify-between gap-3 rounded-panel bg-white p-4 shadow-card">
+          <div>
+            <h2 className="text-[15px] font-bold tracking-tight">Drivers and vehicles</h2>
+            <p className="mt-1 text-[12px] font-medium text-ink-700">
+              {roster.drivers.length} active {roster.drivers.length === 1 ? "driver" : "drivers"} and {roster.vehicles.length}{" "}
+              {roster.vehicles.length === 1 ? "vehicle" : "vehicles"} available to assign.
+            </p>
+          </div>
+          <Link href="/admin/drivers" className="rounded-full bg-ink px-4 py-2.5 text-[12.5px] font-bold text-white">
+            Manage drivers &amp; vehicles
+          </Link>
+        </section>
 
         <section className="rounded-panel bg-white p-4 shadow-card">
           <h2 className="text-[15px] font-bold tracking-tight">Cash held per driver</h2>

@@ -24,7 +24,7 @@ import {
   Receipt,
   UserCog,
   SlidersHorizontal,
-  PlusSquare, MessageSquareText, BadgeCheck } from "lucide-react";
+  PlusSquare, MessageSquareText, BadgeCheck, IdCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -46,13 +46,14 @@ import { cn } from "@/lib/utils";
  * a dispatcher needs every destination reachable without a menu.
  */
 
-const GROUPS: { heading: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
+export const GROUPS: { heading: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
   {
     heading: "Operations",
     items: [
       { href: "/admin", label: "Today", icon: Home },
       { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
       { href: "/admin/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/admin/drivers", label: "Drivers & vehicles", icon: IdCard },
       { href: "/admin/returns", label: "Returns", icon: RefreshCw },
     ],
   },

@@ -21,7 +21,7 @@ import { recordAudit } from "@/lib/services/audit";
 
 export type RosterResult<T> =
   | { ok: true; id: T }
-  | { ok: false; reason: "duplicate" | "not_found" };
+  | { ok: false; reason: "duplicate" | "not_found" | "bound" | "on_delivery" };
 
 /**
  * A driver's phone, normalised the way sign-in normalises one.
@@ -192,3 +192,113 @@ export async function listRoster() {
 }
 
 export type Roster = Awaited<ReturnType<typeof listRoster>>;
+
+/** Shipment states in which a driver is holding goods for a customer. */
+const ACTIVE_SHIPMENT: ("packed" | "out_for_delivery")[] = ["packed", "out_for_delivery"];
+
+/**
+ * Edit a driver. The name can always change. The phone can change only until
+ * the driver has signed in to the app once: after that the phone is how their
+ * Firebase account was bound (`Driver.firebaseUid`, see `resolveDriver`), and
+ * moving it would let a different person's phone take over the identity
+ * silently. A lost or replaced phone goes through `releaseDriverLogin`, which
+ * is explicit and audited.
+ */
+export async function updateDriver(params: {
+  driverId: string;
+  name: string;
+  phone: string;
+  actor: { id: string; email: string };
+}): Promise<RosterResult<string>> {
+  const { driverId, name, actor } = params;
+  const phone = normalisePhone(params.phone);
+  return db.$transaction(async (tx) => {
+    const current = await tx.driver.findUnique({ where: { id: driverId }, select: { name: true, phone: true, firebaseUid: true } });
+    if (!current) return { ok: false, reason: "not_found" } as const;
+    if (phone !== current.phone) {
+      if (current.firebaseUid) return { ok: false, reason: "bound" } as const;
+      const clash = await tx.driver.findUnique({ where: { phone }, select: { id: true } });
+      if (clash) return { ok: false, reason: "duplicate" } as const;
+    }
+    if (name === current.name && phone === current.phone) return { ok: true, id: driverId } as const;
+    await tx.driver.update({ where: { id: driverId }, data: { name, phone } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "driver.updated",
+      entityType: "driver",
+      entityId: driverId,
+      before: { name: current.name, phone: current.phone },
+      after: { name, phone },
+    });
+    return { ok: true, id: driverId } as const;
+  });
+}
+
+/**
+ * Unbind a driver's app login so their next verified sign-in with the same
+ * number binds afresh — for a lost or replaced phone. Deliberate and audited
+ * with a reason; refused while the driver is out on a delivery, because the
+ * login is what proves who is carrying those goods.
+ */
+export async function releaseDriverLogin(params: {
+  driverId: string;
+  reason: string;
+  actor: { id: string; email: string };
+}): Promise<RosterResult<string>> {
+  const { driverId, reason, actor } = params;
+  return db.$transaction(async (tx) => {
+    const d = await tx.driver.findUnique({ where: { id: driverId }, select: { firebaseUid: true } });
+    if (!d) return { ok: false, reason: "not_found" } as const;
+    const onRoad = await tx.shipment.count({ where: { driverId, status: "out_for_delivery" } });
+    if (onRoad > 0) return { ok: false, reason: "on_delivery" } as const;
+    if (!d.firebaseUid) return { ok: true, id: driverId } as const;
+    await tx.driver.update({ where: { id: driverId }, data: { firebaseUid: null } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "driver.login_released",
+      entityType: "driver",
+      entityId: driverId,
+      before: { appLinked: true },
+      after: { appLinked: false, reason },
+    });
+    return { ok: true, id: driverId } as const;
+  });
+}
+
+/** Everything the Drivers & vehicles screen shows, retired rows included. */
+export async function listRosterDetailed() {
+  const [drivers, vehicles] = await Promise.all([
+    db.driver.findMany({
+      select: {
+        id: true, name: true, phone: true, isActive: true, createdAt: true, firebaseUid: true,
+        shipments: {
+          where: { status: { in: ACTIVE_SHIPMENT } },
+          select: { id: true, status: true, order: { select: { orderNo: true } } },
+          orderBy: { createdAt: "asc" },
+        },
+        _count: { select: { shipments: { where: { status: "delivered" } } } },
+      },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }],
+    }),
+    db.vehicle.findMany({
+      select: {
+        id: true, registration: true, kind: true, isActive: true, createdAt: true,
+        _count: { select: { shipments: { where: { status: { in: ACTIVE_SHIPMENT } } } } },
+      },
+      orderBy: [{ isActive: "desc" }, { registration: "asc" }],
+    }),
+  ]);
+  return {
+    drivers: drivers.map(({ firebaseUid, _count, ...d }) => ({
+      ...d,
+      /* Whether the driver has completed their first app sign-in. The uid itself never leaves the server. */
+      appLinked: firebaseUid !== null,
+      deliveredCount: _count.shipments,
+    })),
+    vehicles: vehicles.map(({ _count, ...v }) => ({ ...v, activeShipments: _count.shipments })),
+  };
+}
+
+export type RosterDetailed = Awaited<ReturnType<typeof listRosterDetailed>>;

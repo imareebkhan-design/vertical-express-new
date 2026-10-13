@@ -5,6 +5,7 @@ import { adminGate } from "@/lib/services/admin/authz";
 import { NotAnAdmin } from "@/components/admin/not-an-admin";
 import { activeGateway } from "@/lib/services/payments";
 import { AdminSidebar } from "@/components/admin/sidebar";
+import { AdminMobileNav } from "@/components/admin/mobile-nav";
 
 /**
  * Operations console shell.
@@ -39,7 +40,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminSidebar adminEmail={gate.admin.email} gatewayWarning={gatewayWarning} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7 print:hidden">
+        <header className="relative flex h-16 flex-none items-center gap-4 bg-white px-5 shadow-header sm:px-7 print:hidden">
+          <AdminMobileNav />
           <Link href="/admin" className="text-[13px] font-extrabold lg:hidden">
             Operations
           </Link>
