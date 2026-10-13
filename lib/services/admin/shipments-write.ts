@@ -39,7 +39,10 @@ import {
 
 export type AdvanceResult =
   | { ok: true; status: ShipmentStatus; deliveryCode: string | null }
-  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" | "no_driver" | "order_not_active" };
+  | { ok: false; reason: "not_found" | "illegal_transition" | "raced" | "no_driver" | "order_not_active" | "reason_required" };
+
+/** A delivery without the customer's code is an exception; it must say why. */
+export const MIN_OVERRIDE_REASON = 10;
 
 /**
  * Move one shipment to `to`.
@@ -59,8 +62,18 @@ export async function advanceShipment(params: {
    * this write cannot let the previous driver move it.
    */
   requireDriverId?: string;
+  /**
+   * Required to mark a shipment delivered here. The normal path is
+   * `confirmDelivery`, where the customer's code is the proof; this one has
+   * none, so it is an operator exception and must record why (owner, 14 Oct).
+   */
+  overrideReason?: string;
 }): Promise<AdvanceResult> {
   const { shipmentId, to, actor, actorType = "admin", requireDriverId } = params;
+  const overrideReason = params.overrideReason?.trim() ?? "";
+  if (to === "delivered" && overrideReason.length < MIN_OVERRIDE_REASON) {
+    return { ok: false, reason: "reason_required" };
+  }
 
   const shipment = await db.shipment.findUnique({
     where: { id: shipmentId },
@@ -174,7 +187,7 @@ export async function advanceShipment(params: {
            back. `confirmDelivery` is the path that has proof, and records it.
            The two must be distinguishable in the trail, because "delivered"
            with and without a customer confirming it are different claims. */
-        ...(to === "delivered" ? { proof: "none" } : {}),
+        ...(to === "delivered" ? { proof: "override", overrideReason } : {}),
       },
     });
 

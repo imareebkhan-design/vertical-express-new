@@ -154,7 +154,7 @@ test("a shipment advances, and the timestamps follow the goods", async (t) => {
   assert.equal(row.deliveredAt, null);
 
   const code = row.deliveryCode;
-  const done = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR });
+  const done = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR, overrideReason: "Customer away; neighbour signed, photo on file" });
   assert.equal(done.ok, true);
 
   row = await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } });
@@ -171,7 +171,7 @@ test("an illegal move changes nothing at all", async (t) => {
   t.after(cleanup);
   const { shipmentId } = await scratchShipment();
 
-  const res = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR });
+  const res = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR, overrideReason: "Customer away; neighbour signed, photo on file" });
   assert.equal(res.ok, false);
   assert.equal(res.ok === false && res.reason, "illegal_transition");
 
@@ -488,20 +488,26 @@ test("guessing is capped before a million values can be tried", async (t) => {
   assert.equal(row.status, "out_for_delivery");
 });
 
-test("marking delivered without a code is possible and is recorded as unproven", async (t) => {
-  /* A customer who was not there to read the code has to be handled somehow.
-     Both paths exist; the trail distinguishes them, because "delivered" with
-     and without somebody confirming it are different claims. WHEN an operator
-     may do this is a policy question and is the owner's. */
+test("delivered without a code is an exception: refused without a reason, recorded as an override with it", async (t) => {
+  /* A customer who was not there to read the code has to be handled somehow,
+     but it is not a substitute for the code (owner, 14 Oct): it must say why,
+     and the trail distinguishes it from a code-confirmed delivery. */
   t.after(cleanup);
   const { shipmentId } = await dispatched();
 
-  const res = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR });
+  for (const overrideReason of [undefined, "", "   ", "too short"]) {
+    const refused = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR, overrideReason });
+    assert.deepEqual(refused, { ok: false, reason: "reason_required" });
+  }
+  assert.equal((await db.shipment.findUniqueOrThrow({ where: { id: shipmentId } })).status, "out_for_delivery");
+
+  const res = await advanceShipment({ shipmentId, to: "delivered", actor: ACTOR, overrideReason: "Customer away; neighbour signed, photo on file" });
   assert.equal(res.ok, true);
 
   const rows = await db.auditLog.findMany({ where: { entityId: shipmentId } });
   const dumped = JSON.stringify(rows);
-  assert.ok(dumped.includes('"proof":"none"'), "an unproven delivery was not marked as such");
+  assert.ok(dumped.includes('"proof":"override"'), "an unproven delivery was not marked as an override");
+  assert.ok(dumped.includes("neighbour signed"), "the reason was not recorded");
   assert.ok(!dumped.includes("delivery_code"), "an unproven delivery claims proof it does not have");
 });
 

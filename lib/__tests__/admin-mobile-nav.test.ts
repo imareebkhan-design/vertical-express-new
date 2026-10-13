@@ -24,3 +24,9 @@ test("Drivers & vehicles sits in Operations, right after Dispatch, and has a pag
   assert.ok(ops.indexOf('"/admin/drivers"') > ops.indexOf('"/admin/dispatch"'));
   assert.match(read("app/admin/drivers/page.tsx"), /getAdminUser\(\)/);
 });
+
+test("the generic dispatch action cannot mark a shipment delivered; the exception action needs a reason", () => {
+  const a = read("actions/dispatch.ts");
+  assert.match(a, /to: z\.enum\(\["packed", "out_for_delivery", "cancelled"\]\)/);
+  assert.match(a, /export async function adminDeliverWithoutCode[\s\S]*getAdminUser\(\)[\s\S]*overrideReason: parsed\.data\.reason/);
+});

@@ -7,6 +7,7 @@ import {
   adminAdvanceShipment,
   adminAssignShipment,
   adminConfirmDelivery,
+  adminDeliverWithoutCode,
 } from "@/actions/dispatch";
 import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
 
@@ -59,12 +60,22 @@ export function DispatchControls({
       return res;
     });
 
-  const advance = (to: "packed" | "out_for_delivery" | "delivered" | "cancelled") =>
+  const advance = (to: "packed" | "out_for_delivery" | "cancelled") =>
     run(async () => {
       const res = await adminAdvanceShipment({ shipmentId: shipment.id, to });
       if (res.ok && res.data.deliveryCode) setCode(res.data.deliveryCode);
       return res;
     });
+
+  /* The exception: no code to read back. Asks why, and the reason goes into
+     the audit trail as an override (proof: "override"). */
+  const deliverWithoutCode = () => {
+    const reason = window.prompt(
+      "Exception — mark delivered WITHOUT the customer's code?\n\nThis is recorded against your name with the reason. Use it only when the customer could not give the code. What happened?"
+    );
+    if (reason === null) return;
+    run(() => adminDeliverWithoutCode({ shipmentId: shipment.id, reason }));
+  };
 
   return (
     <div className="mt-3 border-t border-line pt-3">
@@ -145,11 +156,11 @@ export function DispatchControls({
              matters later. */
           <button
             type="button"
-            onClick={() => advance("delivered")}
+            onClick={deliverWithoutCode}
             disabled={pending}
-            className={`${button} bg-chip text-ink hover:bg-hush`}
+            className={`${button} bg-ops-warn-tint text-ops-warn`}
           >
-            Delivered, no code
+            Exception: delivered without code
           </button>
         )}
 

@@ -7,6 +7,7 @@ import {
   advanceShipment,
   assignShipment,
   confirmDelivery,
+  MIN_OVERRIDE_REASON,
 } from "@/lib/services/admin/shipments-write";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -26,7 +27,14 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 const advanceSchema = z.object({
   shipmentId: z.string().uuid(),
-  to: z.enum(["packed", "out_for_delivery", "delivered", "cancelled"]),
+  /* No "delivered": that happens only through the customer's code
+     (adminConfirmDelivery) or the reason-required exception below. */
+  to: z.enum(["packed", "out_for_delivery", "cancelled"]),
+});
+
+const overrideSchema = z.object({
+  shipmentId: z.string().uuid(),
+  reason: z.string().trim().min(MIN_OVERRIDE_REASON, "Write what happened (at least 10 characters) — this is recorded").max(300),
 });
 
 const assignSchema = z.object({
@@ -43,6 +51,7 @@ const ADVANCE_MESSAGE: Record<string, string> = {
   raced: "Somebody else moved this shipment a moment ago — reload the board",
   no_driver: "Assign a driver before the goods leave",
   order_not_active: "This order is unpaid or cancelled — nothing in it should be moved",
+  reason_required: "Write what happened before marking it delivered without a code",
 };
 
 const CONFIRM_MESSAGE: Record<string, string> = {
@@ -136,5 +145,22 @@ export async function adminConfirmDelivery(input: unknown): Promise<ActionResult
 
   revalidatePath("/admin/dispatch");
   revalidatePath("/admin");
+  return succeed(null);
+}
+
+/**
+ * Exception: mark a shipment delivered without the customer's code (they could
+ * not read it out). Requires a written reason, recorded in the audit trail as
+ * `proof: "override"` — distinguishable from a code-confirmed delivery.
+ */
+export async function adminDeliverWithoutCode(input: unknown): Promise<ActionResult<null>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = overrideSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Write what happened");
+  const res = await advanceShipment({ shipmentId: parsed.data.shipmentId, to: "delivered", actor: admin, overrideReason: parsed.data.reason });
+  if (!res.ok) return fail("CONFLICT", ADVANCE_MESSAGE[res.reason] ?? "That delivery could not be recorded");
+  revalidatePath("/admin/dispatch");
+  revalidatePath("/admin/orders");
   return succeed(null);
 }
