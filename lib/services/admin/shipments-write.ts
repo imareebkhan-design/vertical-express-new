@@ -3,6 +3,7 @@ import { randomInt, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import type { ShipmentStatus } from "@/prisma/generated/client/client";
 import { recordAudit } from "@/lib/services/audit";
+import { afterOrderRollup, rollUpOrderStatus, type RollupResult } from "@/lib/services/order-rollup";
 import { releaseShipmentInventory } from "@/lib/services/orders";
 import { rateLimit } from "@/lib/services/rate-limit";
 import {
@@ -119,8 +120,9 @@ export async function advanceShipment(params: {
   const deliveryCode = to === CODE_ISSUED_AT ? generateDeliveryCode(randomInt) : null;
 
   const now = new Date();
+  let rollup: RollupResult | null = null;
 
-  return db.$transaction(async (tx) => {
+  const outcome = await db.$transaction(async (tx) => {
     /* Lock the order row and re-read its status under the lock. Every order
        cancel changes that row first (a compare-and-set), so a shipment move and
        an order cancel are serialised: whichever commits second sees the first.
@@ -191,8 +193,13 @@ export async function advanceShipment(params: {
       },
     });
 
+    /* The order follows its shipments, under the order lock taken above. */
+    rollup = await rollUpOrderStatus(tx, shipment.orderId, { type: actorType, id: actor.id });
+
     return { ok: true, status: to, deliveryCode } as const;
   });
+  if (outcome.ok) await afterOrderRollup(rollup);
+  return outcome;
 }
 
 export type AssignResult =
@@ -344,7 +351,11 @@ export async function confirmDelivery(params: {
     return { ok: false, reason: "rejected" };
   }
 
-  return db.$transaction(async (tx) => {
+  let rollup: RollupResult | null = null;
+  const outcome = await db.$transaction(async (tx) => {
+    /* Order row first, shipment second — the same order every order cancel and
+       advanceShipment lock in, so a concurrent cancel cannot deadlock with this. */
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${shipment.orderId}::uuid FOR UPDATE`;
     const updated = await tx.shipment.updateMany({
       where: { id: shipmentId, status: "out_for_delivery", ...(requireDriverId ? { driverId: requireDriverId } : {}) },
       data: { status: "delivered", deliveredAt: new Date() },
@@ -368,8 +379,11 @@ export async function confirmDelivery(params: {
       },
     });
 
+    rollup = await rollUpOrderStatus(tx, shipment.orderId, { type: actorType, id: actor.id });
     return { ok: true } as const;
   });
+  if (outcome.ok) await afterOrderRollup(rollup);
+  return outcome;
 }
 
 /**
