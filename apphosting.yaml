@@ -139,6 +139,14 @@ env:
     secret: google-places-api-key
     availability:
       - RUNTIME
+  # Server-side only. Routes API key for the live-delivery route line, distance
+  # and ETA (lib/services/routes.ts). The secret existed and was granted to this
+  # backend but was never referenced, so staging could never compute a route
+  # (O-QA-5, 14 Oct). Never NEXT_PUBLIC_.
+  - variable: GOOGLE_ROUTES_API_KEY
+    secret: google-routes-api-key
+    availability:
+      - RUNTIME
   # Operators allowed into /admin: comma-separated, verified Google emails
   # (lib/services/admin/authz.ts). A secret, not a value, because this repo is
   # public. Without it the console refuses everyone (fails closed).

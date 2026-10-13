@@ -37,3 +37,11 @@ test("the dispatch board never shows the delivery code to read to a driver", () 
   assert.doesNotMatch(c, /\{code\}/, "the code digits are rendered on the board");
   assert.match(c, /Never give it to the driver/);
 });
+
+test("both checkouts show the unpinned-address notice for the chosen address, and the phone action opens the picker", () => {
+  const desk = read("components/shop/checkout-view.tsx");
+  assert.match(desk, /selected && !hasMapPin\(selected\) && \(\s*<UnpinnedAddressNotice/);
+  const phone = read("components/mobile/checkout/mobile-checkout-view.tsx");
+  assert.match(phone, /openEditAddressSheet\(selected, \{ pinFirst: true \}\)/);
+  assert.match(phone, /setManual\(pin === null && !opts\.pinFirst\)/);
+});

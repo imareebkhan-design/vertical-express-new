@@ -1,5 +1,6 @@
 "use client";
 
+import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned-address-notice";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { useEffect, useRef, useState, useTransition } from "react";
 import React from "react";
@@ -369,6 +370,16 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
                 <Plus className="size-3.5" /> Add another address
               </Link>
             </div>
+          )}
+
+          {selected && !hasMapPin(selected) && (
+            <UnpinnedAddressNotice
+              action={
+                <Link href="/account/addresses?next=/checkout" className="font-bold underline underline-offset-2">
+                  Add a map pin in your addresses
+                </Link>
+              }
+            />
           )}
 
           {totals && !totals.serviceable && (

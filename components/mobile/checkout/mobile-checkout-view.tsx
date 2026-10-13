@@ -1,5 +1,6 @@
 "use client";
 
+import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned-address-notice";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -390,7 +391,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     setIsAddressFormOpen(true);
   };
 
-  const openEditAddressSheet = (addr: AddressFormValues & { id: string }) => {
+  /* `pinFirst`: from "Add a map pin" — open on the location picker even for an
+     address saved without coordinates (which otherwise opens in manual mode). */
+  const openEditAddressSheet = (addr: AddressFormValues & { id: string }, opts: { pinFirst?: boolean } = {}) => {
     triggerHaptic("light");
     setAddressFormError(null);
     setEditingAddressId(addr.id);
@@ -409,7 +412,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     });
     const pin = pinnedFromAddress(addr);
     setPinned(pin);
-    setManual(pin === null);
+    setManual(pin === null && !opts.pinFirst);
     setIsAddressFormOpen(true);
   };
 
@@ -622,6 +625,15 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 );
               })}
             </div>
+          )}
+          {selected && !hasMapPin(selected) && (
+            <UnpinnedAddressNotice
+              action={
+                <button type="button" onClick={() => openEditAddressSheet(selected, { pinFirst: true })} className="font-bold underline underline-offset-2">
+                  Add a map pin
+                </button>
+              }
+            />
           )}
         </div>
 
