@@ -549,7 +549,18 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
             <span>Total</span>
             {/* No current quote, no total: the items subtotal, or the total for
                 a site no longer selected, is not what anyone would be charged. */}
-            <span>{totals ? formatPaise(totals.totalPaise) : quoteStatus === "failed" ? "—" : "Updating…"}</span>
+            {/* "idle" = no delivery address yet, so no quote is ever asked for:
+                saying "Updating…" there left a new customer waiting on a total
+                that could not arrive, beside a disabled button (O-QA-4). */}
+            <span>
+              {totals
+                ? formatPaise(totals.totalPaise)
+                : quoteStatus === "failed"
+                  ? "—"
+                  : quoteStatus === "idle"
+                    ? "Add an address"
+                    : "Updating…"}
+            </span>
           </div>
           {quoteFailure && (
             <p role="alert" className="mt-2 text-sm font-bold text-danger">
@@ -597,6 +608,11 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
           >
             {placing ? <Loader2 className="animate-spin" /> : "Place order"}
           </Button>
+          {quoteStatus === "idle" && (
+            <p className="mt-2 text-center text-xs font-semibold text-neutral-500">
+              Add a delivery address to see your total and place the order.
+            </p>
+          )}
         </div>
       </aside>
     </div>
