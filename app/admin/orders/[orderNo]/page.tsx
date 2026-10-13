@@ -256,7 +256,14 @@ export default async function AdminOrderDetail({
                     <Row
                       label="Delivery code"
                       value={
-                        sh.deliveryCode ?? (
+                        sh.deliveryCode ? (
+                          /* For support verifying the customer — never for the driver,
+                             who must hear it from the customer at the gate. */
+                          <span>
+                            {sh.deliveryCode}{" "}
+                            <span className="text-[11px] font-semibold text-ops-warn">customer only — never tell the driver</span>
+                          </span>
+                        ) : (
                           <span className="text-ink-500">not issued yet</span>
                         )
                       }

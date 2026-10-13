@@ -232,15 +232,18 @@ export function DispatchControls({
       )}
 
       {code && (
-        <div className="mt-2.5 rounded-field bg-ops-ok-tint p-2.5">
+        /* The digits are deliberately NOT shown here. This used to say "Read this to
+           the driver" — a driver who is told the code can confirm a delivery without
+           meeting the customer, which defeats proof of delivery (owner, 14 Oct). The
+           customer sees it on their tracking page; support can read it on the admin
+           order page to verify a customer who calls. */
+        <div className="mt-2.5 rounded-field bg-ops-ok-tint p-2.5" role="status">
           <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ops-ok">
-            Read this to the driver
-          </p>
-          <p className="mt-0.5 text-[20px] font-extrabold tabular-nums tracking-[0.12em] text-ops-ok">
-            {code}
+            Delivery code issued
           </p>
           <p className="mt-1 text-[11px] font-medium leading-[15px] text-ops-ok">
-            Shown once. The customer reads it back at the gate to confirm the handover.
+            The customer sees it in their order tracking (website and app) and reads it to the
+            driver at the gate. Never give it to the driver.
           </p>
         </div>
       )}

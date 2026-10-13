@@ -30,3 +30,10 @@ test("the generic dispatch action cannot mark a shipment delivered; the exceptio
   assert.match(a, /to: z\.enum\(\["packed", "out_for_delivery", "cancelled"\]\)/);
   assert.match(a, /export async function adminDeliverWithoutCode[\s\S]*getAdminUser\(\)[\s\S]*overrideReason: parsed\.data\.reason/);
 });
+
+test("the dispatch board never shows the delivery code to read to a driver", () => {
+  const c = read("components/admin/dispatch-controls.tsx").replace(/\/\*[\s\S]*?\*\//g, " ");
+  assert.doesNotMatch(c, /Read this to the driver/);
+  assert.doesNotMatch(c, /\{code\}/, "the code digits are rendered on the board");
+  assert.match(c, /Never give it to the driver/);
+});
