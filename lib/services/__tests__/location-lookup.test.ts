@@ -7,6 +7,7 @@ import { GEOCODE_LIMIT, lookUpLocation } from "@/lib/services/location-lookup";
 import { locationLookupResult } from "@/lib/location-lookup-result";
 import { handleReverseGeocode } from "@/lib/api/v1";
 import type { ParsedGeocode } from "@/lib/geocode-parse";
+import { liveTestCityId } from "@/test-support/service-city";
 
 /**
  * W-15: GPS → pincode for the web, through the same lookup the native app's
@@ -44,7 +45,7 @@ before(async () => {
   const warehouse = await db.warehouse.create({ data: { name: "ZZZ Loc Warehouse", city: "Srinagar", pincode: "190001" } });
   warehouseId = warehouse.id;
   await db.serviceablePincode.create({
-    data: { pincode: PIN_SERVED, warehouseId, isActive: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: false },
+    data: { cityId: await liveTestCityId(), pincode: PIN_SERVED, warehouseId, isActive: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: false },
   });
   userId = (
     await db.user.create({
@@ -68,7 +69,7 @@ test("Google supplies the pincode; ServiceablePincode alone decides delivery", a
   assert.equal(served.kind, "found");
   assert.ok(served.kind === "found");
   assert.equal(served.address.pincode, PIN_SERVED);
-  assert.deepEqual(served.serviceability, { serviceable: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: false });
+  assert.deepEqual(served.serviceability, { serviceable: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: false, state: "Jammu & Kashmir" });
 
   const unserved = await lookUpLocation(userId, 34.07, 74.8, at(PIN_UNSERVED).geocode);
   assert.ok(unserved.kind === "found");
@@ -117,7 +118,7 @@ test("the web action's answer: a pincode to confirm, or a reason that points to 
     locationLookupResult({
       kind: "found",
       address,
-      serviceability: { serviceable: false, etaMinutes: null, deliveryFeePaise: null, codAllowed: false },
+      serviceability: { serviceable: false, etaMinutes: null, deliveryFeePaise: null, codAllowed: false, state: null },
     }),
     { ok: true, data: { pincode: PIN_SERVED, locality: "Hyderpora", serviceable: false } }
   );

@@ -1,11 +1,12 @@
 import "server-only";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { getCartSummary, type CartSummary } from "@/lib/services/cart";
 import { assertCheckoutCatalogue } from "@/lib/services/checkout-catalogue";
 import { resolveCoupon, redeemCoupon } from "@/lib/services/coupon-eligibility";
 import type { CouponRefusal } from "@/lib/coupon-refusal";
-import { checkServiceability } from "@/lib/services/serviceability";
+import { checkServiceability, lockServiceability } from "@/lib/services/serviceability";
 import {
   resolveExpressOption,
   type ExpressOption,
@@ -46,6 +47,13 @@ export interface CheckoutTotals {
   etaMinutes: number | null;
   serviceable: boolean;
   codAllowed: boolean;
+  /**
+   * GST place of supply: the served city's state when the pincode is served,
+   * otherwise the state the caller passed. The address form defaults its state
+   * field to Jammu & Kashmir, and a Delhi delivery taxed as intra-J&K would
+   * charge CGST + SGST where IGST is due.
+   */
+  placeOfSupplyState: string | null;
 }
 
 /** Compute totals for a cart against a delivery pincode and optional coupon code. */
@@ -71,6 +79,7 @@ export async function computeTotals(
   wantsExpress = false
 ): Promise<CheckoutTotals> {
   const svc = await checkServiceability(pincode);
+  const supplyState = svc.state ?? deliveryState ?? null;
   const qualifiesFree = cart.qualifiesFreeDelivery;
   let deliveryFeePaise = qualifiesFree ? 0 : svc.deliveryFeePaise ?? 0;
   let discountPaise = 0;
@@ -153,7 +162,7 @@ export async function computeTotals(
       }
     }
     const lineInclusiveTotal = Math.max(0, lineSubtotal - lineDiscount);
-    const lineGst = computeGst(lineInclusiveTotal, deliveryState, line.categorySlug);
+    const lineGst = computeGst(lineInclusiveTotal, supplyState, line.categorySlug);
 
     totalTaxPaise += lineGst.taxPaise;
     totalCgstPaise += lineGst.cgstPaise;
@@ -185,6 +194,7 @@ export async function computeTotals(
     totalPaise,
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
+    placeOfSupplyState: supplyState,
     /*
        Two gates, and both must open.
 
@@ -372,7 +382,7 @@ export async function placeOrder(params: {
   }
 
   const warehouse = await db.serviceablePincode.findFirst({
-    where: { pincode: address.pincode, isActive: true },
+    where: { pincode: address.pincode, ...SERVICEABLE_WHERE },
     select: { warehouseId: true },
   });
 
@@ -412,6 +422,7 @@ export async function placeOrder(params: {
   let order;
   try {
     order = await db.$transaction(async (tx) => {
+      await lockServiceability(tx, address.pincode, warehouseId);
       await assertCheckoutCatalogue(tx, cart.lines);
       // Prepare line items with full financial snapshots
       let remainingDiscount = totals.discountPaise;
@@ -427,7 +438,7 @@ export async function placeOrder(params: {
           }
         }
         const lineInclusiveTotal = Math.max(0, lineSubtotal - lineDiscount);
-        const lineGst = computeGst(lineInclusiveTotal, address.state, l.categorySlug);
+        const lineGst = computeGst(lineInclusiveTotal, totals.placeOfSupplyState ?? address.state, l.categorySlug);
         const taxableValuePaise = lineInclusiveTotal - lineGst.taxPaise;
 
         return {

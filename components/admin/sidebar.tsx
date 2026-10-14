@@ -90,7 +90,7 @@ export const GROUPS: { heading: string; items: { href: string; label: string; ic
   {
     heading: "Configure",
     items: [
-      { href: "/admin/serviceability", label: "Serviceability", icon: MapPin },
+      { href: "/admin/serviceability", label: "Service areas", icon: MapPin },
       { href: "/admin/coupons", label: "Coupons", icon: Tag },
       { href: "/admin/staff", label: "Staff & roles", icon: UserCog },
       { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },

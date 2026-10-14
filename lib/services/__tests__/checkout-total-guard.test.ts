@@ -16,6 +16,7 @@ import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { classifyPlaceOrderError, isTotalChangedError } from "@/lib/checkout-errors";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const PINCODE = "999918";
@@ -49,7 +50,7 @@ before(async () => {
   await db.user.create({ data: { id: USER, phone: `+91${Math.floor(1000000000 + Math.random() * 9000000000)}` } });
   warehouseId = (await db.warehouse.create({ data: { name: `${TAG} Warehouse`, city: "Srinagar", pincode: "190001" } })).id;
   await db.serviceablePincode.create({
-    data: { pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: 4900 },
+    data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: 4900 },
   });
   addressId = (await db.address.create({
     data: { userId: USER, name: "E8 Buyer", phone: "9876543210", line1: "Plot 8", city: "Srinagar", state: STATE, pincode: PINCODE, isDefault: true },

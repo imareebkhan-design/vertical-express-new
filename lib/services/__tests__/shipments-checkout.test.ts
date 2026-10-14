@@ -17,6 +17,7 @@ import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
 import { getOrderTracking } from "../tracking";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const TEST_PINCODE = "999905";
@@ -61,7 +62,7 @@ before(async () => {
   warehouseId = wh.id;
 
   await db.serviceablePincode.create({
-    data: { pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
   const address = await db.address.create({

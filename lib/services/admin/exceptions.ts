@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
 
 /**
@@ -46,7 +47,7 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
         placedAt: { lt: new Date(Date.now() - 60 * 60_000) },
       },
     }),
-    db.serviceablePincode.count({ where: { isActive: true } }),
+    db.serviceablePincode.count({ where: SERVICEABLE_WHERE }),
   ]);
 
   const found: OpsException[] = [];

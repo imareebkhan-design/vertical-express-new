@@ -1,6 +1,6 @@
 import { adminListServiceability } from "@/lib/services/admin/stock";
-import { listServiceabilityAudit } from "@/lib/services/admin/serviceability-write";
-import { ServiceabilityEditor } from "@/components/admin/serviceability-editor";
+import { listServiceAreas, listServiceabilityAudit } from "@/lib/services/admin/serviceability-write";
+import { ServiceAreas } from "@/components/admin/service-areas";
 import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
 import { StatusChip } from "@/components/admin/status-chip";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
@@ -12,19 +12,22 @@ export default async function AdminServiceability() {
   /* Backstop for the layout gate: a request that renders only this page
      segment never ran app/admin/layout.tsx, so the page checks too. */
   if (!(await getAdminUser())) return null;
-  const [{ pincodes, warehouses }, settings, history] = await Promise.all([
+  const [{ warehouses }, cities, settings, history] = await Promise.all([
     adminListServiceability(),
+    listServiceAreas(),
     readSettings(),
     listServiceabilityAudit(15),
   ]);
-  const active = pincodes.filter((p) => p.isActive).length;
+  const live = cities.filter((c) => c.isLive);
+  const delivering = live.reduce((n, c) => n + c.included, 0);
 
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-[22px] font-extrabold tracking-tight">Serviceability</h1>
+        <h1 className="text-[22px] font-extrabold tracking-tight">Service areas</h1>
         <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          {active} of {pincodes.length} pincodes active · {warehouses.length}{" "}
+          Live in {live.length === 0 ? "no city" : live.map((c) => c.name).join(", ")} · delivering to {delivering}{" "}
+          {delivering === 1 ? "pincode" : "pincodes"} · {warehouses.length}{" "}
           {warehouses.length === 1 ? "warehouse" : "warehouses"}
         </p>
       </div>
@@ -48,16 +51,8 @@ export default async function AdminServiceability() {
         </ul>
       </section>
 
-      <ServiceabilityEditor
-        pincodes={pincodes.map((p) => ({
-          pincode: p.pincode,
-          warehouseId: p.warehouseId,
-          warehouseName: p.warehouse.name,
-          etaMinutes: p.etaMinutes,
-          deliveryFeePaise: p.deliveryFeePaise,
-          codAllowed: p.codAllowed,
-          isActive: p.isActive,
-        }))}
+      <ServiceAreas
+        cities={cities}
         warehouses={warehouses.map((w) => ({ id: w.id, name: w.name }))}
         codGloballyOff={!parseFlag(settings[SETTING_KEYS.codEnabled])}
       />
@@ -79,13 +74,13 @@ export default async function AdminServiceability() {
             {history.map((h) => {
               const after = (h.after ?? {}) as Record<string, unknown>;
               const before = (h.before ?? {}) as Record<string, unknown>;
-              const fields = Object.keys(after).filter((k) => k !== "pincode");
+              const fields = Object.keys(after).filter((k) => k !== "pincode" && k !== "city" && k !== "cityId");
               return (
                 <li key={h.id} className="rounded-field bg-chip-soft p-3">
                   <p className="text-[12.5px] font-bold text-ink">
-                    {String(after.pincode ?? "—")}{" "}
+                    {String(after.pincode ?? after.city ?? "—")}{" "}
                     <span className="font-semibold text-ink-500">
-                      {h.action.replace("serviceability.", "").replace("_", " ")}
+                      {h.action.replace("serviceability.", "").replace("service_city.", "city ").replace("_", " ")}
                     </span>
                   </p>
                   <p className="mt-0.5 text-[11.5px] font-medium leading-[16px] text-ink-700">

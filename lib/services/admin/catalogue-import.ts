@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { NotSellableError, writeProduct, type NewProduct } from "@/lib/services/admin/product-create";
 import type { CatalogueRow, CsvIssue } from "@/lib/catalogue-csv";
 
@@ -84,7 +85,7 @@ async function resolveWorld() {
     db.brand.findMany({ where: { isActive: true }, select: { id: true, name: true, slug: true } }),
     db.category.findMany({ where: { isActive: true }, select: { id: true, name: true, slug: true } }),
     db.warehouse.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
-    db.serviceablePincode.findMany({ where: { isActive: true }, select: { pincode: true } }),
+    db.serviceablePincode.findMany({ where: SERVICEABLE_WHERE, select: { pincode: true } }),
   ]);
 
   const key = (s: string) => s.trim().toLowerCase();

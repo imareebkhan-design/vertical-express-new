@@ -25,6 +25,7 @@ import { SETTING_KEYS } from "../settings";
 import { getDispatchBoard, getShipmentsForOrder, getShipmentsOnTheRoad } from "../shipments";
 import { adminGetOrder } from "../admin/manage";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const TAG = randomUUID().slice(0, 8);
@@ -80,7 +81,7 @@ before(async () => {
   await db.user.create({ data: { id: USER } });
   warehouseId = (await db.warehouse.create({ data: { name: `ZZZ E7 ${TAG}`, city: "Srinagar", pincode: "190001" } })).id;
   for (const pincode of [PIN_EXPRESS, PIN_PLAIN]) {
-    await db.serviceablePincode.create({ data: { pincode, warehouseId, deliveryFeePaise: STANDARD_FEE, etaMinutes: 120, isActive: true } });
+    await db.serviceablePincode.create({ data: { cityId: await liveTestCityId(), pincode, warehouseId, deliveryFeePaise: STANDARD_FEE, etaMinutes: 120, isActive: true } });
   }
   for (const pincode of [PIN_EXPRESS, PIN_PLAIN, PIN_NONE]) {
     addressIds[pincode] = (

@@ -6,6 +6,7 @@ import { mergeGuestCart, mergeGuestCartSafely, completeSignInCart } from "../car
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { getCartSummary } from "../cart";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 /**
@@ -87,7 +88,7 @@ const guestExists = async (anonId: string) => (await db.cart.findUnique({ where:
 
 before(async () => {
   warehouseId = (await db.warehouse.create({ data: { name: `ZZZ Merge ${TAG}`, city: "Srinagar", pincode: "190001" } })).id;
-  await db.serviceablePincode.create({ data: { pincode: PIN, warehouseId, isActive: true } });
+  await db.serviceablePincode.create({ data: { cityId: await liveTestCityId(), pincode: PIN, warehouseId, isActive: true } });
   await variant("a", 50);
   await variant("b", 50);
   await variant("c", 3); // little stock

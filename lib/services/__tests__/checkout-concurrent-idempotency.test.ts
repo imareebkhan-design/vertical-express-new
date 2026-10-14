@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
 import { placeOrder } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 /**
@@ -39,7 +40,7 @@ before(async () => {
   });
   warehouseId = warehouse.id;
   await db.serviceablePincode.create({
-    data: { pincode: PINCODE, warehouseId, isActive: true, etaMinutes: 240, deliveryFeePaise: 5000 },
+    data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, etaMinutes: 240, deliveryFeePaise: 5000 },
   });
 
   /* The customer is the test's own — no phone or email, so nothing unique can collide. */

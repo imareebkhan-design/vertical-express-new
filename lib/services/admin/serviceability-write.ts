@@ -20,6 +20,9 @@ import type { PincodeRow } from "@/lib/serviceability-csv";
 export interface PincodeEdit {
   pincode: string;
   warehouseId: string;
+  cityId: string;
+  /** Locality label; null when none. */
+  area: string | null;
   /** 0 means no promise. See the note in serviceability-csv.ts. */
   etaMinutes: number;
   deliveryFeePaise: number;
@@ -28,6 +31,8 @@ export interface PincodeEdit {
 }
 
 const TRACKED = [
+  "cityId",
+  "area",
   "warehouseId",
   "etaMinutes",
   "deliveryFeePaise",
@@ -63,6 +68,8 @@ export async function savePincode(
       where: { pincode: edit.pincode },
       select: {
         id: true,
+        cityId: true,
+        area: true,
         warehouseId: true,
         etaMinutes: true,
         deliveryFeePaise: true,
@@ -72,6 +79,8 @@ export async function savePincode(
     });
 
     const after = {
+      cityId: edit.cityId,
+      area: edit.area,
       warehouseId: edit.warehouseId,
       etaMinutes: edit.etaMinutes,
       deliveryFeePaise: edit.deliveryFeePaise,
@@ -123,8 +132,22 @@ export interface BulkResult {
  */
 export async function bulkSavePincodes(
   rows: PincodeRow[],
-  actorId: string
+  actorId: string,
+  cityId: string
 ): Promise<{ ok: true; result: BulkResult } | { ok: false; error: string }> {
+  const city = await db.serviceCity.findUnique({ where: { id: cityId }, select: { id: true } });
+  if (!city) return { ok: false, error: "Pick the city this file is for" };
+  /* A file for Delhi must not quietly move a Srinagar pincode into Delhi. */
+  const elsewhere = await db.serviceablePincode.findMany({
+    where: { pincode: { in: rows.map((r) => r.pincode) }, NOT: { cityId } },
+    select: { pincode: true, city: { select: { name: true } } },
+  });
+  if (elsewhere.length > 0) {
+    return {
+      ok: false,
+      error: `Already in another city: ${elsewhere.map((e) => `${e.pincode} (${e.city.name})`).join(", ")}. Change those one at a time.`,
+    };
+  }
   const warehouses = await db.warehouse.findMany({ select: { id: true, name: true } });
   const byName = new Map(warehouses.map((w) => [w.name.trim().toUpperCase(), w.id]));
 
@@ -139,6 +162,8 @@ export async function bulkSavePincodes(
     }
     resolved.push({
       pincode: r.pincode,
+      cityId,
+      area: null,
       warehouseId: id,
       etaMinutes: r.etaMinutes,
       deliveryFeePaise: r.deliveryFeePaise,
@@ -155,6 +180,8 @@ export async function bulkSavePincodes(
         where: { pincode: edit.pincode },
         select: {
           id: true,
+          cityId: true,
+          area: true,
           warehouseId: true,
           etaMinutes: true,
           deliveryFeePaise: true,
@@ -164,6 +191,8 @@ export async function bulkSavePincodes(
       });
 
       const after = {
+        cityId: edit.cityId,
+        area: edit.area,
         warehouseId: edit.warehouseId,
         etaMinutes: edit.etaMinutes,
         deliveryFeePaise: edit.deliveryFeePaise,
@@ -202,7 +231,7 @@ export async function bulkSavePincodes(
 /** Recent serviceability changes, for the screen's history panel. */
 export async function listServiceabilityAudit(take = 25) {
   return db.auditLog.findMany({
-    where: { entityType: "ServiceablePincode" },
+    where: { entityType: { in: ["ServiceablePincode", "ServiceCity"] } },
     orderBy: { createdAt: "desc" },
     take,
     select: {
@@ -214,4 +243,157 @@ export async function listServiceabilityAudit(take = 25) {
       actorId: true,
     },
   });
+}
+
+/* ------------------------------------------------------------------------ */
+/* Cities                                                                    */
+/* ------------------------------------------------------------------------ */
+
+export type AreaResult<T = null> =
+  | { ok: true; value: T }
+  | { ok: false; reason: "not_found" | "duplicate" | "invalid"; message: string };
+
+/** A new city starts switched OFF: adding it promises nobody anything yet. */
+export async function createCity(
+  input: { name: string; state: string },
+  actorId: string
+): Promise<AreaResult<{ id: string }>> {
+  const name = input.name.trim();
+  const state = input.state.trim();
+  if (name.length < 2 || state.length < 2) return { ok: false, reason: "invalid", message: "Give the city and its state" };
+  const clash = await db.serviceCity.findFirst({ where: { name: { equals: name, mode: "insensitive" } }, select: { id: true } });
+  if (clash) return { ok: false, reason: "duplicate", message: `${name} already exists` };
+  return db.$transaction(async (tx) => {
+    const c = await tx.serviceCity.create({ data: { name, state, isLive: false } });
+    await recordAudit(tx, {
+      actorType: "admin", actorId, action: "service_city.added", entityType: "ServiceCity", entityId: c.id,
+      before: null, after: { city: name, state, isLive: false },
+    });
+    return { ok: true as const, value: { id: c.id } };
+  });
+}
+
+/**
+ * Go live / switch off a whole city. Off keeps every pincode and its terms, so
+ * switching back on restores exactly what was there.
+ */
+export async function setCityLive(cityId: string, isLive: boolean, actorId: string): Promise<AreaResult> {
+  return db.$transaction(async (tx) => {
+    const c = await tx.serviceCity.findUnique({ where: { id: cityId }, select: { id: true, name: true, isLive: true } });
+    if (!c) return { ok: false as const, reason: "not_found" as const, message: "City not found" };
+    if (c.isLive === isLive) return { ok: true as const, value: null };
+    await tx.serviceCity.update({ where: { id: cityId }, data: { isLive } });
+    await recordAudit(tx, {
+      actorType: "admin", actorId, action: isLive ? "service_city.live" : "service_city.off",
+      entityType: "ServiceCity", entityId: cityId,
+      before: { city: c.name, isLive: c.isLive }, after: { city: c.name, isLive },
+    });
+    return { ok: true as const, value: null };
+  });
+}
+
+export interface IncludeTerms {
+  warehouseId: string;
+  etaMinutes: number;
+  deliveryFeePaise: number;
+  codAllowed: boolean;
+  area: string | null;
+}
+
+/**
+ * Include pincodes in a city with one set of terms. New pincodes are added
+ * active; ones already in this city are switched back on with these terms.
+ * A pincode that belongs to ANOTHER city is refused, never moved — the whole
+ * call is refused, so nothing half-applies.
+ */
+export async function includePincodes(
+  cityId: string,
+  pincodes: string[],
+  terms: IncludeTerms,
+  actorId: string
+): Promise<AreaResult<BulkResult & { skippedExcluded: string[] }>> {
+  const list = [...new Set(pincodes)];
+  if (list.length === 0) return { ok: false, reason: "invalid", message: "Add at least one pincode" };
+  const city = await db.serviceCity.findUnique({ where: { id: cityId }, select: { id: true } });
+  if (!city) return { ok: false, reason: "not_found", message: "City not found" };
+  const wh = await db.warehouse.findUnique({ where: { id: terms.warehouseId }, select: { id: true } });
+  if (!wh) return { ok: false, reason: "invalid", message: "Pick a warehouse" };
+  const elsewhere = await db.serviceablePincode.findMany({
+    where: { pincode: { in: list }, NOT: { cityId } },
+    select: { pincode: true, city: { select: { name: true } } },
+  });
+  if (elsewhere.length > 0) {
+    return {
+      ok: false, reason: "duplicate",
+      message: `Already in another city: ${elsewhere.map((e) => `${e.pincode} (${e.city.name})`).join(", ")}`,
+    };
+  }
+  /* An excluded pincode stays excluded when a range covering it is included
+     again: excluding is a deliberate decision about one pincode, and a broad
+     range must not quietly undo it. Re-include it with its own button. */
+  const excluded = new Set(
+    (
+      await db.serviceablePincode.findMany({
+        where: { pincode: { in: list }, cityId, isActive: false },
+        select: { pincode: true },
+      })
+    ).map((r) => r.pincode)
+  );
+  const result: BulkResult & { skippedExcluded: string[] } = { created: 0, updated: 0, unchanged: 0, skippedExcluded: [] };
+  for (const pincode of list) {
+    if (excluded.has(pincode)) {
+      result.skippedExcluded.push(pincode);
+      continue;
+    }
+    const r = await savePincode({ pincode, cityId, isActive: true, ...terms }, actorId);
+    if (r.created) result.created++;
+    else if (r.changed) result.updated++;
+    else result.unchanged++;
+  }
+  return { ok: true, value: result };
+}
+
+/** Exclude (or re-include) one pincode without touching its terms. */
+export async function setPincodeIncluded(pincode: string, isActive: boolean, actorId: string): Promise<AreaResult> {
+  const row = await db.serviceablePincode.findUnique({ where: { pincode } });
+  if (!row) return { ok: false, reason: "not_found", message: `${pincode} is not in any city` };
+  await savePincode(
+    {
+      pincode, cityId: row.cityId, area: row.area, warehouseId: row.warehouseId, etaMinutes: row.etaMinutes,
+      deliveryFeePaise: row.deliveryFeePaise, codAllowed: row.codAllowed, isActive,
+    },
+    actorId
+  );
+  return { ok: true, value: null };
+}
+
+/** Every city with its pincodes, for the service-areas screen. */
+export async function listServiceAreas() {
+  const cities = await db.serviceCity.findMany({
+    orderBy: [{ isLive: "desc" }, { name: "asc" }],
+    include: {
+      pincodes: {
+        orderBy: { pincode: "asc" },
+        include: { warehouse: { select: { name: true } } },
+      },
+    },
+  });
+  return cities.map((c) => ({
+    id: c.id,
+    name: c.name,
+    state: c.state,
+    isLive: c.isLive,
+    included: c.pincodes.filter((p) => p.isActive).length,
+    excluded: c.pincodes.filter((p) => !p.isActive).length,
+    pincodes: c.pincodes.map((p) => ({
+      pincode: p.pincode,
+      area: p.area,
+      warehouseId: p.warehouseId,
+      warehouseName: p.warehouse.name,
+      etaMinutes: p.etaMinutes,
+      deliveryFeePaise: p.deliveryFeePaise,
+      codAllowed: p.codAllowed,
+      isActive: p.isActive,
+    })),
+  }));
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { isPurchasableStatus } from "@/lib/catalog-visibility";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
@@ -74,7 +75,7 @@ export async function resolveWarehouseId(userId: string | null): Promise<string>
     });
     if (addr) {
       const sp = await db.serviceablePincode.findFirst({
-        where: { pincode: addr.pincode, isActive: true },
+        where: { pincode: addr.pincode, ...SERVICEABLE_WHERE },
         select: { warehouseId: true },
       });
       if (sp) return sp.warehouseId;

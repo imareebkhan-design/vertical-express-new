@@ -345,10 +345,34 @@ model ServiceablePincode {
   etaMinutes       Int       @default(60) @map("eta_minutes")
   deliveryFeePaise Int       @default(0) @map("delivery_fee_paise")
   codAllowed       Boolean   @default(true) @map("cod_allowed")
-  isActive         Boolean   @default(true) @map("is_active")
-  warehouse        Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  isActive         Boolean     @default(true) @map("is_active")
+  /// The city this pincode is served as part of. A pincode is sold to only
+  /// while its own row is active AND its city is live.
+  cityId           String      @map("city_id") @db.Uuid
+  /// Optional locality label the operator recognises ("Chandni Chowk").
+  area             String?
+  warehouse        Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  city             ServiceCity @relation(fields: [cityId], references: [id], onDelete: Restrict)
 
+  @@index([cityId])
   @@map("serviceable_pincodes")
+}
+
+/// A city we deliver in. Switching a city off stops every pincode in it at
+/// once without losing the list; each pincode inside is then included or
+/// excluded on its own row.
+model ServiceCity {
+  id        String               @id @default(uuid()) @db.Uuid
+  name      String               @unique
+  /// State of supply for GST: the delivery pincode's state, not what a
+  /// customer typed into the address form.
+  state     String
+  isLive    Boolean              @default(false) @map("is_live")
+  createdAt DateTime             @default(now()) @map("created_at")
+  updatedAt DateTime             @updatedAt @map("updated_at")
+  pincodes  ServiceablePincode[]
+
+  @@map("service_cities")
 }
 
 model Cart {

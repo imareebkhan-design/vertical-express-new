@@ -11,6 +11,7 @@ import { handleAddCartItem } from "@/lib/api/cart-items";
 import { POST } from "@/app/api/v1/cart/items/route";
 import type { CartSummary } from "@/lib/services/cart";
 import type { CartStockAdjustment } from "@/lib/cart-errors";
+import { liveTestCityId } from "@/test-support/service-city";
 
 /**
  * POST /api/v1/cart/items — the first HTTP door onto existing business logic.
@@ -93,7 +94,7 @@ before(async () => {
   warehouseId = warehouse.id;
 
   await db.serviceablePincode.create({
-    data: { pincode: TEST_PINCODE, warehouseId, isActive: true },
+    data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true },
   });
 
   /* `User.id` has no database default — in production it is supplied by the

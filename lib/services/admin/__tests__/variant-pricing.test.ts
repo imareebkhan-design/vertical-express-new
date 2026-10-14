@@ -17,6 +17,7 @@ import { addItem, getCartSummary } from "@/lib/services/cart";
 import { placeOrder, computeTotals } from "@/lib/services/checkout";
 import { setVariantPrice, priceProblem, MAX_STORED_PAISE } from "@/lib/services/admin/variant-pricing";
 import { approveTestProductsCreatedSince } from "../../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const PINCODE = "999968";
@@ -53,7 +54,7 @@ before(async () => {
   if (!brand || !category) throw new Error("Seed must provide a brand and a non-bulk category.");
   await db.user.create({ data: { id: USER, phone: `+91${Math.floor(1000000000 + Math.random() * 9000000000)}` } });
   warehouseId = (await db.warehouse.create({ data: { name: `${TAG} Warehouse`, city: "Srinagar", pincode: "190001" } })).id;
-  await db.serviceablePincode.create({ data: { pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: 0 } });
+  await db.serviceablePincode.create({ data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: 0 } });
   addressId = (await db.address.create({
     data: { userId: USER, name: "Price Buyer", phone: "9876543210", line1: "Plot 68", city: "Srinagar", state: STATE, pincode: PINCODE, isDefault: true },
   })).id;

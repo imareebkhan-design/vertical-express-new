@@ -20,6 +20,7 @@ import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const PINCODE = "999916";
@@ -66,7 +67,7 @@ before(async () => {
   });
   warehouseId = (await db.warehouse.create({ data: { name: `${TAG} Warehouse`, city: "Srinagar", pincode: "190001" } })).id;
   await db.serviceablePincode.create({
-    data: { pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: FEE },
+    data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: FEE },
   });
   await db.setting.upsert({
     where: { key: "cod.enabled" },

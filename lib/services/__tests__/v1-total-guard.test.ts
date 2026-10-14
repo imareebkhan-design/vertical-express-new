@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { addItem, updateItemQty } from "@/lib/services/cart";
 import { handleCheckoutTotals, handlePlaceOrder } from "@/lib/api/v1";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 /**
@@ -81,7 +82,7 @@ before(async () => {
   });
   warehouseId = warehouse.id;
   await db.serviceablePincode.create({
-    data: { pincode: PINCODE, warehouseId, isActive: true, etaMinutes: 240, deliveryFeePaise: 5000, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, etaMinutes: 240, deliveryFeePaise: 5000, codAllowed: true },
   });
   userId = (
     await db.user.create({

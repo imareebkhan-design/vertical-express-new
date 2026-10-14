@@ -21,6 +21,7 @@ import { db } from "@/lib/db";
 import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
+import { liveTestCityId } from "@/test-support/service-city";
 
 const TEST_PINCODE = "999903";
 const TEST_USER = randomUUID();
@@ -117,7 +118,7 @@ before(async () => {
   warehouseId = wh.id;
 
   await db.serviceablePincode.create({
-    data: { pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
   const address = await db.address.create({

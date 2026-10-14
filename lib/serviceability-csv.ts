@@ -14,10 +14,10 @@
  * applies **all rows or none** — a half-applied file leaves coverage in a state
  * nobody chose and nobody can see.
  *
- * The pincode rule is the market, not an invention: CLAUDE.md states Srinagar,
- * Jammu & Kashmir is the first and only market, and J&K pincodes begin 18 or 19.
- * A Mumbai pincode in this file is a mistake every time. When the business
- * expands, this check is the thing to change, deliberately.
+ * Since 15 Oct 2026 a file is imported INTO a city the operator picks on the
+ * screen (service areas by city), so any valid Indian pincode is accepted here
+ * and the city decides where it belongs. A pincode already in another city is
+ * refused by the import, never moved.
  */
 export interface PincodeRow {
   pincode: string;
@@ -97,15 +97,8 @@ export function parsePincodeCsv(text: string): CsvParseResult {
 
     const [pincode, warehouseCode, etaRaw, feeRaw, codRaw, activeRaw] = cells;
 
-    if (!/^\d{6}$/.test(pincode)) {
+    if (!/^[1-9]\d{5}$/.test(pincode)) {
       bad(`"${pincode}" is not a six-digit pincode`);
-      continue;
-    }
-    if (!/^1[89]/.test(pincode)) {
-      /* The market is Srinagar, J&K. A pincode outside it is a mistake, and a
-         silent one — it would quietly promise delivery to a city with no
-         warehouse behind it. */
-      bad(`${pincode} is outside Jammu & Kashmir, which is the only market`);
       continue;
     }
     if (seen.has(pincode)) {

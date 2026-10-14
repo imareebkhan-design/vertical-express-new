@@ -27,6 +27,7 @@ import {
 import { handleOrderTracking } from "@/lib/api/tracking";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 
 const TOKEN = "journey-token";
 const UID = `uid-journey-${randomUUID().slice(0, 8)}`;
@@ -76,7 +77,7 @@ before(async () => {
   if (!category || !brand) throw new Error("Seed must provide a non-bulk category and a brand.");
   userId = (await db.user.create({ data: { id: randomUUID(), firebaseUid: UID, phone: `+9196${String(Math.random()).slice(2, 10)}`, profile: { create: {} } } })).id;
   warehouseId = (await db.warehouse.create({ data: { name: "Journey Test Warehouse", city: "Srinagar", pincode: "190001" } })).id;
-  await db.serviceablePincode.create({ data: { pincode: SERVED, warehouseId, isActive: true, codAllowed: true } });
+  await db.serviceablePincode.create({ data: { cityId: await liveTestCityId(), pincode: SERVED, warehouseId, isActive: true, codAllowed: true } });
   productId = (await db.product.create({
     data: { title: "Journey Test Sealant", slug: `journey-sealant-${Date.now()}`, categoryId: category.id, brandId: brand.id, status: "published" },
   })).id;

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { addItem, updateItemQty, getCartSummary, resolveWarehouseId } from "../cart";
 import { randomUUID } from "crypto";
 import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 
 // Test-wide unique keys to prevent collision
 const TEST_PINCODE_1 = "999901";
@@ -45,10 +46,11 @@ before(async () => {
   warehouseId2 = wh2.id;
 
   // 4. Insert test serviceable pincodes mapping to warehouses
+  const cityId = await liveTestCityId();
   await db.serviceablePincode.createMany({
     data: [
-      { pincode: TEST_PINCODE_1, warehouseId: warehouseId1, isActive: true },
-      { pincode: TEST_PINCODE_2, warehouseId: warehouseId2, isActive: true },
+      { pincode: TEST_PINCODE_1, warehouseId: warehouseId1, cityId, isActive: true },
+      { pincode: TEST_PINCODE_2, warehouseId: warehouseId2, cityId, isActive: true },
     ],
   });
 

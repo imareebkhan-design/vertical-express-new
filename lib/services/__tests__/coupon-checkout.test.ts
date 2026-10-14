@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const TEST_PINCODE = "999907";
@@ -53,7 +54,7 @@ before(async () => {
   warehouseId = wh.id;
 
   await db.serviceablePincode.create({
-    data: { pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
   /* Cash on delivery is now off at the business level until the console turns

@@ -19,6 +19,7 @@ import {
 } from "@/lib/api/v1";
 import type { ParsedGeocode } from "@/lib/geocode-parse";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 /**
@@ -75,7 +76,7 @@ before(async () => {
   const warehouse = await db.warehouse.create({ data: { name: "ZZZ R2 Warehouse", city: "Srinagar", pincode: "190001" } });
   warehouseId = warehouse.id;
   await db.serviceablePincode.create({
-    data: { pincode: PIN_SERVED, warehouseId, isActive: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: PIN_SERVED, warehouseId, isActive: true, etaMinutes: 90, deliveryFeePaise: 4000, codAllowed: true },
   });
 
   const mkUser = async (uid: string) =>
@@ -239,6 +240,7 @@ test("reverse geocode: Google supplies the pincode, ServiceablePincode decides d
     etaMinutes: 90,
     deliveryFeePaise: 4000,
     codAllowed: true,
+    state: "Jammu & Kashmir",
   });
 
   const unserved = await json(

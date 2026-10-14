@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
 import { handleValidateCoupon } from "@/lib/api/v1";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
 
 const TOKEN = "token-coupon-v1";
@@ -69,7 +70,7 @@ before(async () => {
   warehouseId = wh.id;
 
   await db.serviceablePincode.create({
-    data: { pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
+    data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
   const product = await db.product.create({

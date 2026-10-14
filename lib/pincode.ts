@@ -43,3 +43,36 @@ export function parsePincodeList(raw: string): PincodeList {
   }
   return { valid: [...new Set(valid)], invalid };
 }
+
+/**
+ * Any Indian pincode: six digits, not starting 0. Service areas are per city
+ * now (15 Oct 2026), so the serviceability screen takes any pincode and the
+ * operator chooses which city it belongs to. `JK_PINCODE` above still guards
+ * the product express list, which is Srinagar-only.
+ */
+export const INDIA_PINCODE = /^[1-9]\d{5}$/;
+
+/** Largest range accepted in one go — a typo like 110001-119999 is refused, not applied. */
+export const MAX_PINCODE_RANGE = 200;
+
+/**
+ * Parse a typed list for the service-areas screen: pincodes separated by
+ * spaces, commas or new lines, and inclusive ranges like `110001-110010`.
+ */
+export function parseServicePincodes(raw: string): PincodeList & { tooLarge: string[] } {
+  const valid: string[] = [];
+  const invalid: string[] = [];
+  const tooLarge: string[] = [];
+  for (const token of raw.split(/[\s,]+/).map((t) => t.trim()).filter(Boolean)) {
+    const range = /^(\d{6})-(\d{6})$/.exec(token);
+    if (range) {
+      const a = Number(range[1]);
+      const b = Number(range[2]);
+      if (!INDIA_PINCODE.test(range[1]) || !INDIA_PINCODE.test(range[2]) || b < a) invalid.push(token);
+      else if (b - a + 1 > MAX_PINCODE_RANGE) tooLarge.push(token);
+      else for (let n = a; n <= b; n++) valid.push(String(n));
+    } else if (INDIA_PINCODE.test(token)) valid.push(token);
+    else invalid.push(token);
+  }
+  return { valid: [...new Set(valid)], invalid, tooLarge };
+}

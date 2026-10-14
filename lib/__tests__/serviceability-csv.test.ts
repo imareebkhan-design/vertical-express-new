@@ -59,12 +59,13 @@ test("nothing is applied when any row is wrong", () => {
   }
 });
 
-test("a pincode outside the market is refused", () => {
-  /* 400001 is Mumbai. Accepting it would promise delivery in a city with no
-     warehouse behind it. */
-  const r = parsePincodeCsv(`${H}\n400001,W,60,49,yes,yes\n`);
-  assert.equal(r.ok, false);
-  if (!r.ok) assert.match(r.issues[0].message, /Jammu & Kashmir/);
+test("any Indian pincode parses — the file is imported into a city the operator picks", () => {
+  /* Since service areas are per city (15 Oct 2026) a Mumbai or Delhi file is
+     legitimate; the import refuses pincodes that belong to another city. */
+  const r = parsePincodeCsv(`${H}\n400001,W,60,49,yes,yes\n110054,W,,0,no,yes\n`);
+  assert.equal(r.ok, true);
+  const zero = parsePincodeCsv(`${H}\n012345,W,60,49,yes,yes\n`);
+  assert.equal(zero.ok, false, "no Indian pincode starts with 0");
 });
 
 test("a malformed pincode is refused", () => {

@@ -38,6 +38,7 @@ import { apiProfileSchema, firstProfileIssue, saveProfile } from "@/lib/services
 import { getShipmentsForOrder } from "@/lib/services/shipments";
 import { withShipments } from "@/lib/api/cart-shipments";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { getUserWallet } from "@/lib/services/wallet";
 import { getWishlistItems, toggleWishlist } from "@/lib/services/wishlist";
 
@@ -401,7 +402,7 @@ export async function handleListAddresses(request: Request, deps: ApiDeps = {}):
     const served = new Set(
       (
         await db.serviceablePincode.findMany({
-          where: { pincode: { in: [...new Set(rows.map((a) => a.pincode))] }, isActive: true },
+          where: { pincode: { in: [...new Set(rows.map((a) => a.pincode))] }, ...SERVICEABLE_WHERE },
           select: { pincode: true },
         })
       ).map((r) => r.pincode)

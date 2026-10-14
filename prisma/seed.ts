@@ -169,6 +169,12 @@ async function main() {
     create: { id: "00000000-0000-0000-0000-000000000001", name: "Srinagar Central", city: "Srinagar", pincode: "190001" },
   });
 
+  const srinagar = await db.serviceCity.upsert({
+    where: { name: "Srinagar" },
+    update: {},
+    create: { name: "Srinagar", state: "Jammu & Kashmir", isLive: true },
+  });
+
   // Serviceable pincodes: central Srinagar fast, wider zone slower
   for (let i = 1; i <= 25; i++) {
     const pincode = `1900${String(i).padStart(2, "0")}`;
@@ -176,7 +182,7 @@ async function main() {
       where: { pincode },
       update: {},
       create: {
-        pincode, warehouseId: warehouse.id,
+        pincode, warehouseId: warehouse.id, cityId: srinagar.id,
         etaMinutes: i <= 12 ? 60 : 120,
         deliveryFeePaise: i <= 12 ? 0 : R(49),
         codAllowed: true,
