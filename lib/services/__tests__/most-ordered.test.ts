@@ -26,10 +26,17 @@ let variantA = "";
 let variantB = "";
 
 test.before(async () => {
-  const cat = await db.category.findFirst({
-    where: { products: { some: { status: "published", variants: { some: {} } } } },
-    select: { slug: true, id: true },
+  /* A category with at least two published products — "the first category
+     with any" depended on which rows other test files had left behind, and a
+     fresh database could pick one with a single product (15 Oct 2026). */
+  const counts = await db.product.groupBy({
+    by: ["categoryId"],
+    where: { status: "published", variants: { some: {} } },
+    _count: { _all: true },
+    orderBy: { categoryId: "asc" },
   });
+  const catId = counts.find((c) => c._count._all >= 2)?.categoryId;
+  const cat = catId ? await db.category.findUnique({ where: { id: catId }, select: { slug: true, id: true } }) : null;
   assert.ok(cat, "the seeded catalogue needs at least one category with products");
   categorySlug = cat.slug;
 
