@@ -39,9 +39,15 @@ export function AccountButton() {
   };
 
   if (!ready || !user) {
+    /* `next=/account`, not a bare /login: the browser's Firebase state can be
+       empty while the server session is valid (storage cleared, another tab
+       signed in), and /login sends a signed-in visitor to `next` — "/" when
+       absent — so a bare link looked like the icon only refreshing the page
+       (15 Oct 2026). With next, that visitor lands on their account; a
+       signed-out one signs in and lands there too. */
     return (
       <Link
-        href="/login"
+        href="/login?next=/account"
         aria-label="Sign in"
         className="flex size-[38px] items-center justify-center rounded-full bg-chip-soft text-ink no-underline transition-colors hover:bg-chip"
       >

@@ -107,8 +107,19 @@ export async function getShipmentsForOrder(userId: string, orderNo: string) {
       },
     },
   });
+  if (!order) return order;
 
-  return order;
+  /* The code is shown only while the goods are on the road. Once delivered it
+     has been used, and showing it on — "Delivery code 4821" on a delivered
+     order — read as though the handover had not happened (staging, 15 Oct
+     2026). Before dispatch none is issued; after a cancel it must not linger. */
+  return {
+    ...order,
+    shipments: order.shipments.map((sh) => ({
+      ...sh,
+      deliveryCode: sh.status === "out_for_delivery" ? sh.deliveryCode : null,
+    })),
+  };
 }
 
 export type OrderShipments = NonNullable<Awaited<ReturnType<typeof getShipmentsForOrder>>>;

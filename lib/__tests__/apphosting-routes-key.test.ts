@@ -15,3 +15,11 @@ test("GOOGLE_ROUTES_API_KEY comes from the google-routes-api-key secret at runti
   assert.match(yaml, /- variable: GOOGLE_ROUTES_API_KEY\n\s+secret: google-routes-api-key\n\s+availability:\n\s+- RUNTIME/);
   assert.doesNotMatch(yaml, /NEXT_PUBLIC_GOOGLE_ROUTES/);
 });
+
+test("the browser Maps key reaches the staging BUILD from a secret, never as a literal in the repo", () => {
+  assert.match(
+    yaml,
+    /- variable: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY\n\s+secret: google-maps-browser-key-staging\n\s+availability:\n\s+- BUILD\n\s+- RUNTIME/
+  );
+  assert.doesNotMatch(yaml, /NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY\n\s+value:/, "no key value pasted into the repo");
+});

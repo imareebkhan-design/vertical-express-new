@@ -97,3 +97,21 @@ test("the customer's own placement event is not duplicated or credited to an ope
   assert.match(t.at(-1)!.detail ?? "", /by the customer/);
   assert.ok(!JSON.stringify(t).includes("by an operator"));
 });
+
+test("the customer sees the delivery code only while the shipment is out for delivery", async () => {
+  const { getShipmentsForOrder } = await import("@/lib/services/shipments");
+  const order = await db.order.create({
+    data: { orderNo: `${TAG}-4`, userId, status: "confirmed", paymentMethod: "cod", subtotalPaise: 100, totalPaise: 100, warehouseId, address: { name: "X" } },
+  });
+  const sh = await db.shipment.create({ data: { orderId: order.id, sequence: 1, speedClass: "express", status: "pending", warehouseId } });
+  const seen = async () => (await getShipmentsForOrder(userId, `${TAG}-4`))!.shipments[0].deliveryCode;
+  assert.equal(await seen(), null, "none before dispatch");
+  await advanceShipment({ shipmentId: sh.id, to: "packed", actor: actor() });
+  await assignShipment({ shipmentId: sh.id, driverId, actor: actor() });
+  await advanceShipment({ shipmentId: sh.id, to: "out_for_delivery", actor: actor() });
+  const code = (await db.shipment.findUniqueOrThrow({ where: { id: sh.id } })).deliveryCode!;
+  assert.equal(await seen(), code, "shown while on the road");
+  assert.equal((await confirmDelivery({ shipmentId: sh.id, code, actor: actor() })).ok, true);
+  assert.equal(await seen(), null, "gone once delivered");
+  assert.equal(await getShipmentsForOrder(randomUUID(), `${TAG}-4`), null, "another customer sees nothing");
+});

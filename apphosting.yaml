@@ -147,6 +147,15 @@ env:
     secret: google-routes-api-key
     availability:
       - RUNTIME
+  # Browser Maps key for the customer live map (lib/tracking/maps-loader.ts).
+  # Inlined into the browser bundle at BUILD, so it is public by design; its
+  # protection is the key's own restrictions — Maps JavaScript API only, and
+  # this staging host only. Kept in Secret Manager so the repo carries no key.
+  - variable: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
+    secret: google-maps-browser-key-staging
+    availability:
+      - BUILD
+      - RUNTIME
   # Operators allowed into /admin: comma-separated, verified Google emails
   # (lib/services/admin/authz.ts). A secret, not a value, because this repo is
   # public. Without it the console refuses everyone (fails closed).
