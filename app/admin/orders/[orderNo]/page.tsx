@@ -13,6 +13,8 @@ import { StatusControl } from "@/components/admin/status-control";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { ExpressRunBadge, OrderExpressSelection } from "@/components/orders/express-selection";
+import { ReturnIntake } from "@/components/admin/returns/return-intake";
+import { RETURN_STATUS_LABEL } from "@/lib/return-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +65,7 @@ export default async function AdminOrderDetail({
   const back = safeOrdersBack((await searchParams).back);
   const detail = await adminOrderDetail(orderNo);
   if (!detail) notFound();
-  const { order, timeline, city } = detail;
+  const { order, timeline, city, returns, returnable } = detail;
 
   const addr = (order.address ?? {}) as Record<string, unknown>;
   const str = (k: string) => (typeof addr[k] === "string" ? (addr[k] as string) : "");
@@ -301,6 +303,25 @@ export default async function AdminOrderDetail({
                 })}
               </div>
             )}
+          </Panel>
+
+          <Panel title={`Returns${returns.length ? ` · ${returns.length}` : ""}`}>
+            {returns.length > 0 && (
+              <ul className="mb-3 flex flex-col gap-2">
+                {returns.map((r) => (
+                  <li key={r.returnNo} className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] bg-canvas p-3">
+                    <Link href={`/admin/returns/${r.returnNo}`} className="text-[12.5px] font-bold underline-offset-2 hover:underline">
+                      {r.returnNo}
+                    </Link>
+                    <span className="text-[11.5px] font-semibold text-ink-500">
+                      {r.items.map((i) => `${i.qty} × ${i.orderItem.title}`).join(", ")} · asked {formatIst(r.requestedAt)}
+                    </span>
+                    <StatusChip tone={r.status === "rejected" ? "bad" : r.status === "approved" ? "ok" : "info"}>{RETURN_STATUS_LABEL[r.status]}</StatusChip>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ReturnIntake orderNo={order.orderNo} lines={returnable} />
           </Panel>
 
           <Panel title="Timeline">

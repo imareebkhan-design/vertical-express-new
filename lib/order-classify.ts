@@ -16,6 +16,8 @@ export interface ClassifyInput {
   paymentMethod: string;
   payments: { status: string }[];
   shipments: { status: string }[];
+  /** Return requests recorded against the order (any status). */
+  returnRequests?: { status: string }[];
 }
 
 const CLOSED = new Set(["cancelled", "refund_initiated", "refunded"]);
@@ -64,15 +66,16 @@ export function fulfilmentState(o: ClassifyInput): FulfilmentState {
 /** The operational queues an order is in. An order can be in more than one. */
 export function orderTabs(o: ClassifyInput): string[] {
   const tabs = ["all"];
+  const returns = (o.returnRequests?.length ?? 0) > 0 ? ["returns"] : [];
   if (o.status === "pending_payment") tabs.push("awaiting_payment");
-  if (CLOSED.has(o.status)) return [...tabs, "cancelled"];
+  if (CLOSED.has(o.status)) return [...tabs, "cancelled", ...returns];
   const live = o.shipments.filter((s) => s.status !== "cancelled").map((s) => s.status);
   const active = o.status !== "pending_payment";
   if (active && (live.includes("pending") || (live.length === 0 && o.status === "confirmed"))) tabs.push("to_pack");
   if (active && (live.includes("packed") || (live.length === 0 && o.status === "packed"))) tabs.push("to_dispatch");
   if (live.includes("out_for_delivery") || (live.length === 0 && o.status === "out_for_delivery")) tabs.push("in_transit");
   if (fulfilmentState(o) === "delivered") tabs.push("delivered");
-  return tabs;
+  return [...tabs, ...returns];
 }
 
 export const PAYMENT_TONE: Record<PaymentState, "ok" | "warn" | "bad" | "neutral" | "info"> = {

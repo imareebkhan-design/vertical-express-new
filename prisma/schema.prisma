@@ -154,33 +154,33 @@ enum DeliverySpeed {
 }
 
 model Product {
-  id              String                  @id @default(uuid()) @db.Uuid
-  slug            String                  @unique
-  title           String
-  brandId         String                  @map("brand_id") @db.Uuid
-  categoryId      String                  @map("category_id") @db.Uuid
-  description     String?
+  id                     String                  @id @default(uuid()) @db.Uuid
+  slug                   String                  @unique
+  title                  String
+  brandId                String                  @map("brand_id") @db.Uuid
+  categoryId             String                  @map("category_id") @db.Uuid
+  description            String?
   /// [{ label: string, value: string }]
-  specs           Json?
-  unitLabel       String                  @default("per piece") @map("unit_label")
+  specs                  Json?
+  unitLabel              String                  @default("per piece") @map("unit_label")
   /// Overrides the category's speed for this one product. Null means the
   /// category decides, which is right for almost everything.
-  deliverySpeed   DeliverySpeed?          @map("delivery_speed")
-  status          ProductStatus           @default(draft)
+  deliverySpeed          DeliverySpeed?          @map("delivery_speed")
+  status                 ProductStatus           @default(draft)
   /// Explicit review; provenance or an imported title never establishes identity.
-  identityConfirmed Boolean               @default(false) @map("identity_confirmed")
-  identityApprovedAt DateTime?             @map("identity_approved_at")
-  identityApprovedBy String?               @map("identity_approved_by")
-  identityApprovalReason String?           @map("identity_approval_reason")
+  identityConfirmed      Boolean                 @default(false) @map("identity_confirmed")
+  identityApprovedAt     DateTime?               @map("identity_approved_at")
+  identityApprovedBy     String?                 @map("identity_approved_by")
+  identityApprovalReason String?                 @map("identity_approval_reason")
   /// Owner-supplied commercial review, validated against the final persisted state.
-  commercialReview Json?                  @map("commercial_review")
-  isDeal          Boolean                 @default(false) @map("is_deal")
-  ratingAvg       Decimal                 @default(0) @map("rating_avg") @db.Decimal(2, 1)
-  ratingCount     Int                     @default(0) @map("rating_count")
-  seoTitle        String?                 @map("seo_title")
-  seoDescription  String?                 @map("seo_description")
-  createdAt       DateTime                @default(now()) @map("created_at")
-  updatedAt       DateTime                @updatedAt @map("updated_at")
+  commercialReview       Json?                   @map("commercial_review")
+  isDeal                 Boolean                 @default(false) @map("is_deal")
+  ratingAvg              Decimal                 @default(0) @map("rating_avg") @db.Decimal(2, 1)
+  ratingCount            Int                     @default(0) @map("rating_count")
+  seoTitle               String?                 @map("seo_title")
+  seoDescription         String?                 @map("seo_description")
+  createdAt              DateTime                @default(now()) @map("created_at")
+  updatedAt              DateTime                @updatedAt @map("updated_at")
   /// Whether this product can go out on the 60-minute run at all.
   ///
   /// Off by default and set deliberately when the product is listed. Being
@@ -193,13 +193,13 @@ model Product {
   /// a truck) and decides how an order splits into shipments. A product can be
   /// express-class and not express-eligible: a light item we simply do not
   /// promise in an hour.
-  expressEligible Boolean                 @default(false) @map("express_eligible")
-  images          ProductImage[]
-  variants        ProductVariant[]
-  enquiries       ProductEnquiry[]
-  brand           Brand                   @relation(fields: [brandId], references: [id])
-  category        Category                @relation(fields: [categoryId], references: [id])
-  expressPincodes ProductExpressPincode[]
+  expressEligible        Boolean                 @default(false) @map("express_eligible")
+  images                 ProductImage[]
+  variants               ProductVariant[]
+  enquiries              ProductEnquiry[]
+  brand                  Brand                   @relation(fields: [brandId], references: [id])
+  category               Category                @relation(fields: [categoryId], references: [id])
+  expressPincodes        ProductExpressPincode[]
 
   @@index([categoryId, status])
   @@index([brandId, status])
@@ -231,28 +231,28 @@ model ProductExpressPincode {
 }
 
 model ProductImage {
-  id        String  @id @default(uuid()) @db.Uuid
-  productId String  @map("product_id") @db.Uuid
-  url       String
-  alt       String
-  sortOrder Int     @default(0) @map("sort_order")
-  isPrimary Boolean @default(false) @map("is_primary")
+  id               String               @id @default(uuid()) @db.Uuid
+  productId        String               @map("product_id") @db.Uuid
+  url              String
+  alt              String
+  sortOrder        Int                  @default(0) @map("sort_order")
+  isPrimary        Boolean              @default(false) @map("is_primary")
   /// Where the picture came from (the manufacturer's image URL). Null for images that predate provenance.
-  sourceUrl String? @map("source_url")
+  sourceUrl        String?              @map("source_url")
   /// The right under which it is used, e.g. "manufacturer-official". Never inferred.
-  licence   String?
-  width     Int?
-  height    Int?
+  licence          String?
+  width            Int?
+  height           Int?
   /// SHA-256 of the delivered file — makes a re-run of an image import a no-op.
-  sha256    String? @db.Char(64)
-  sourceVerified Boolean @default(false) @map("source_verified")
-  identityApproved Boolean @default(false) @map("identity_approved")
-  approvalStatus ImageApprovalStatus @default(REVIEW_REQUIRED) @map("approval_status")
-  severity ImageReviewSeverity?
-  approvalReason String? @map("approval_reason")
-  approvedAt DateTime? @map("approved_at")
-  approvedBy String? @map("approved_by")
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sha256           String?              @db.Char(64)
+  sourceVerified   Boolean              @default(false) @map("source_verified")
+  identityApproved Boolean              @default(false) @map("identity_approved")
+  approvalStatus   ImageApprovalStatus  @default(REVIEW_REQUIRED) @map("approval_status")
+  severity         ImageReviewSeverity?
+  approvalReason   String?              @map("approval_reason")
+  approvedAt       DateTime?            @map("approved_at")
+  approvedBy       String?              @map("approved_by")
+  product          Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([productId, sha256])
   @@index([productId, sortOrder])
@@ -339,12 +339,12 @@ model Inventory {
 }
 
 model ServiceablePincode {
-  id               String    @id @default(uuid()) @db.Uuid
-  pincode          String    @unique @db.Char(6)
-  warehouseId      String    @map("warehouse_id") @db.Uuid
-  etaMinutes       Int       @default(60) @map("eta_minutes")
-  deliveryFeePaise Int       @default(0) @map("delivery_fee_paise")
-  codAllowed       Boolean   @default(true) @map("cod_allowed")
+  id               String      @id @default(uuid()) @db.Uuid
+  pincode          String      @unique @db.Char(6)
+  warehouseId      String      @map("warehouse_id") @db.Uuid
+  etaMinutes       Int         @default(60) @map("eta_minutes")
+  deliveryFeePaise Int         @default(0) @map("delivery_fee_paise")
+  codAllowed       Boolean     @default(true) @map("cod_allowed")
   isActive         Boolean     @default(true) @map("is_active")
   /// The city this pincode is served as part of. A pincode is sold to only
   /// while its own row is active AND its city is live.
@@ -529,8 +529,10 @@ model Order {
   user             User               @relation(fields: [userId], references: [id])
   warehouse        Warehouse?         @relation(fields: [warehouseId], references: [id])
   payments         Payment[]
+  returnRequests   ReturnRequest[]
 
   @@index([userId, placedAt(sort: Desc)])
+  @@index([placedAt(sort: Desc)])
   @@index([status])
   @@index([status, expiryCheckedAt, placedAt])
   @@map("orders")
@@ -560,6 +562,7 @@ model OrderItem {
   variant           ProductVariant @relation(fields: [variantId], references: [id])
 
   shipmentItems ShipmentItem[]
+  returnItems   ReturnRequestItem[]
 
   @@index([orderId])
   @@map("order_items")
@@ -1205,4 +1208,72 @@ enum ProductEnquiryStatus {
   quoted
   closed
   spam
+}
+
+/// A customer's request to return delivered goods (15 Oct 2026).
+///
+/// Intake and non-monetary review only. The return window, the position on
+/// opened/damaged material and the refund policy are the owner's and not yet
+/// approved, so nothing here refunds money, restocks goods or creates an
+/// exchange — "approved" means approved for collection/inspection, not refunded.
+/// Every change is in the audit log (entity "return_request").
+model ReturnRequest {
+  id              String              @id @default(uuid()) @db.Uuid
+  returnNo        String              @unique @map("return_no")
+  orderId         String              @map("order_id") @db.Uuid
+  status          ReturnStatus        @default(requested)
+  reason          ReturnReason
+  /// The customer's own words, as told to the operator.
+  explanation     String
+  /// When the customer asked (may be earlier than when it was recorded).
+  requestedAt     DateTime            @map("requested_at")
+  /// Where the request came from (phone, at the gate, WhatsApp…).
+  channel         String
+  createdByUserId String              @map("created_by_user_id") @db.Uuid
+  decidedAt       DateTime?           @map("decided_at")
+  decidedByUserId String?             @map("decided_by_user_id") @db.Uuid
+  decisionNote    String?             @map("decision_note")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  order           Order               @relation(fields: [orderId], references: [id])
+  items           ReturnRequestItem[]
+
+  @@index([orderId])
+  @@index([status, requestedAt])
+  @@map("return_requests")
+}
+
+model ReturnRequestItem {
+  id              String        @id @default(uuid()) @db.Uuid
+  returnRequestId String        @map("return_request_id") @db.Uuid
+  orderItemId     String        @map("order_item_id") @db.Uuid
+  qty             Int
+  returnRequest   ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+  orderItem       OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  @@unique([returnRequestId, orderItemId])
+  @@index([orderItemId])
+  @@map("return_request_items")
+}
+
+enum ReturnStatus {
+  requested
+  under_review
+  inspecting
+  approved
+  rejected
+  closed
+
+  @@map("return_status")
+}
+
+enum ReturnReason {
+  damaged_in_transit
+  wrong_item
+  defective
+  short_quantity
+  not_needed
+  other
+
+  @@map("return_reason")
 }

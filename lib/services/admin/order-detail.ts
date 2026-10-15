@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { buildOrderTimeline } from "@/lib/order-timeline";
+import { returnableLines } from "@/lib/services/admin/returns";
 
 /**
  * Everything the order screen shows, read once: the order with items,
@@ -61,5 +62,13 @@ export async function adminOrderDetail(orderNo: string) {
     audits,
     drivers,
   });
-  return { order, timeline, city };
+  const [returns, returnable] = await Promise.all([
+    db.returnRequest.findMany({
+      where: { orderId: order.id },
+      orderBy: { requestedAt: "asc" },
+      select: { returnNo: true, status: true, reason: true, requestedAt: true, items: { select: { qty: true, orderItem: { select: { title: true } } } } },
+    }),
+    returnableLines(db, order.id),
+  ]);
+  return { order, timeline, city, returns, returnable: returnable ?? [] };
 }

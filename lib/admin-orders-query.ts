@@ -18,6 +18,7 @@ export const TABS = [
   { key: "in_transit", label: "In transit" },
   { key: "delivered", label: "Delivered" },
   { key: "cancelled", label: "Cancelled" },
+  { key: "returns", label: "Returns" },
 ] as const;
 export type TabKey = (typeof TABS)[number]["key"];
 

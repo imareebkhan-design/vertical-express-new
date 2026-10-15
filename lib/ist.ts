@@ -47,3 +47,8 @@ export function formatIstDate(d: Date): string {
 export function formatIstTime(d: Date): string {
   return TIME.format(d);
 }
+
+/** "2026-10-15T14:35" — a datetime-local value for `d` in IST. */
+export function istLocalInput(d: Date): string {
+  return new Date(d.getTime() + OFFSET_MS).toISOString().slice(0, 16);
+}

@@ -81,6 +81,9 @@ export const TAB_WHERE: Record<TabKey, W> = {
   in_transit: { AND: [OPEN, { OR: [{ shipments: { some: { status: "out_for_delivery" } } }, { AND: [NO_LIVE, { status: "out_for_delivery" }] }] }] },
   delivered: FULFILMENT_WHERE.delivered,
   cancelled: FULFILMENT_WHERE.cancelled,
+  /* A return request is its own record — an order is never "returned" because
+     it was cancelled or refunded. */
+  returns: { returnRequests: { some: {} } },
 };
 
 const SEARCH_LIMIT = 5000;
@@ -159,6 +162,7 @@ export async function listAdminOrders(q: OrdersQuery, now: Date = new Date()) {
         items: { select: { qty: true } },
         payments: { select: { status: true } },
         shipments: { select: { status: true, driver: { select: { id: true, name: true } } }, orderBy: { sequence: "asc" } },
+        returnRequests: { select: { status: true } },
       },
     }),
     db.order.count({ where }),
