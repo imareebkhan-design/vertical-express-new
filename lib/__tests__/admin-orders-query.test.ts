@@ -60,3 +60,11 @@ test("the URL round-trips every choice (filters survive pagination and back)", (
   assert.match(ordersHref(q, { page: 4 }), /page=4/);
   assert.doesNotMatch(ordersHref(q, { page: 1 }), /page=/);
 });
+
+test("back to orders accepts only an Orders list URL", async () => {
+  const { safeOrdersBack } = await import("@/lib/safe-orders-back");
+  assert.equal(safeOrdersBack("/admin/orders?tab=to_pack&q=x"), "/admin/orders?tab=to_pack&q=x");
+  for (const bad of ["https://evil.example", "//evil.example", "/admin/ordersX", "/admin/settings", "/admin/orders?x=//evil", "/admin/orders?\\x"]) {
+    assert.equal(safeOrdersBack(bad), "/admin/orders", bad);
+  }
+});

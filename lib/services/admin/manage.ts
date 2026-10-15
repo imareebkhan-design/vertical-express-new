@@ -6,7 +6,7 @@ import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { cancelOpenShipments, hasDispatchedShipment, releaseOrderInventory } from "@/lib/services/orders";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
-import { canTransitionOrder } from "@/lib/order-flow";
+import { canTransitionOrder, SHIPMENT_DRIVEN } from "@/lib/order-flow";
 import { triggerAlert } from "@/lib/observability";
 
 /* The map moved to lib/order-flow.ts so the three other paths that write an
@@ -48,6 +48,12 @@ export async function advanceOrderStatus(
   });
   if (!order) throw new Error("NOT_FOUND");
   if (!canTransitionOrder(order.status, to)) throw new Error("INVALID_TRANSITION");
+  /* Packed / out for delivery / delivered belong to the shipments once there
+     are any — the dispatch board enforces the driver and the customer's code,
+     and the order follows (order-rollup.ts). By hand here it would skip both. */
+  if (SHIPMENT_DRIVEN.includes(to) && (await db.shipment.count({ where: { orderId, status: { not: "cancelled" } } })) > 0) {
+    throw new Error("USE_DISPATCH");
+  }
 
   /* Money recorded or held against the order — any attempt, whatever the
      method label says (the same test as a customer cancel, orders.ts). */

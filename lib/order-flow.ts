@@ -33,6 +33,21 @@ export const ORDER_FLOW: Record<OrderStatus, OrderStatus[]> = {
   refunded: [],
 };
 
+/**
+ * Fulfilment moves an admin may NOT make by hand once the order has
+ * shipments: packing, dispatch and delivery happen on the shipments (the
+ * dispatch board), which enforce driver assignment and the customer's delivery
+ * code, and the order follows them (lib/services/order-rollup.ts). Setting the
+ * order to "delivered" by hand would skip the code entirely.
+ */
+export const SHIPMENT_DRIVEN: readonly OrderStatus[] = ["packed", "out_for_delivery", "delivered"];
+
+/** The moves the order screen may offer by hand. */
+export function manualOrderMoves(current: OrderStatus, hasLiveShipments: boolean): OrderStatus[] {
+  const next = nextOrderStatuses(current);
+  return hasLiveShipments ? next.filter((s) => !SHIPMENT_DRIVEN.includes(s)) : next;
+}
+
 /** Where an order in this state may go next. */
 export function nextOrderStatuses(current: OrderStatus): OrderStatus[] {
   return ORDER_FLOW[current] ?? [];

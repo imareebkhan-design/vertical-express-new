@@ -232,3 +232,18 @@ test("two admin cancels at once: one wins, stock released once", async () => {
   assert.equal(s.stock, stockBefore + 2, "stock released exactly once");
   assert.equal((await events(order.id)).filter((e) => e.toStatus === "cancelled").length, 1);
 });
+
+test("an order with shipments cannot be packed, dispatched or delivered by hand — only on the dispatch board", async () => {
+  const { manualOrderMoves } = await import("@/lib/order-flow");
+  assert.deepEqual(manualOrderMoves("confirmed", true), ["cancelled"]);
+  assert.deepEqual(manualOrderMoves("out_for_delivery", true), [], "never 'delivered' without the code");
+  assert.deepEqual(manualOrderMoves("confirmed", false), ["packed", "cancelled"], "orders before shipments keep the old controls");
+});
+
+test("by hand, 'packed' on an order with a shipment is refused and nothing moves", async () => {
+  const order = await makeOrder({ suffix: "dispatch-only", status: "confirmed", paymentMethod: "cod" });
+  await db.shipment.create({ data: { orderId: order.id, sequence: 1, speedClass: "express", status: "pending", warehouseId } });
+  const before = await snapshot(order.id);
+  await assert.rejects(advanceOrderStatus(ADMIN, order.id, "packed"), /USE_DISPATCH/);
+  assert.deepEqual(await snapshot(order.id), before);
+});
