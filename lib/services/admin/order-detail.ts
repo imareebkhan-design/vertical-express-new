@@ -55,6 +55,7 @@ export async function adminOrderDetail(orderNo: string) {
 
   const timeline = buildOrderTimeline({
     placedAt: order.placedAt,
+    userId: order.userId,
     paymentMethod: order.paymentMethod,
     payments: order.payments,
     statusEvents: order.statusEvents,

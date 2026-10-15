@@ -7,7 +7,7 @@ import { formatPaise } from "@/lib/money";
 import { splitOrderPayments } from "@/lib/payment-rows";
 import { formatIst } from "@/lib/ist";
 import { FULFILMENT_STATES, PAYMENT_STATES } from "@/lib/admin-orders-query";
-import { FULFILMENT_TONE, PAYMENT_TONE, fulfilmentState, paymentState } from "@/lib/order-classify";
+import { FULFILMENT_TONE, PAYMENT_TONE, fulfilmentState, paymentState, statusAheadOfShipments } from "@/lib/order-classify";
 import { safeOrdersBack } from "@/lib/safe-orders-back";
 import { StatusControl } from "@/components/admin/status-control";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
@@ -78,6 +78,7 @@ export default async function AdminOrderDetail({
   const ful = fulfilmentState(order);
   const liveShipments = order.shipments.filter((s) => s.status !== "cancelled");
   const moves = manualOrderMoves(order.status, liveShipments.length > 0);
+  const mismatch = statusAheadOfShipments(order);
 
   // GST is stored per line as a snapshot taken at order time. Orders placed
   // before per-line tax capture carry none, and say so.
@@ -120,6 +121,13 @@ export default async function AdminOrderDetail({
           {moves.length > 0 && <StatusControl kind="order" id={order.id} options={moves} />}
         </div>
       </div>
+
+      {mismatch && (
+        <p role="note" className="rounded-[12px] bg-ops-warn-tint px-3.5 py-3 text-[12.5px] font-semibold leading-[18px] text-ops-warn">
+          {mismatch} The fulfilment badge follows the shipments. The status was moved by hand (see the timeline); it is
+          left as recorded. Packing the shipment on the dispatch board brings the two back in line.
+        </p>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-5">

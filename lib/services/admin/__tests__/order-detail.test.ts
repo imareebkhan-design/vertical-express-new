@@ -82,3 +82,18 @@ test("an order with no payment and no shipments shows only what happened", async
   const d = await adminOrderDetail(`${TAG}-2`);
   assert.deepEqual(d!.timeline.map((e) => e.title), ["Order placed"]);
 });
+
+test("the customer's own placement event is not duplicated or credited to an operator", async () => {
+  const o = await db.order.create({
+    data: {
+      orderNo: `${TAG}-3`, userId, status: "pending_payment", paymentMethod: "razorpay", subtotalPaise: 100, totalPaise: 100, address: { name: "X" },
+      statusEvents: { create: [{ toStatus: "pending_payment", actorUserId: userId, note: "Order placed" }] },
+    },
+  });
+  await db.orderStatusEvent.create({ data: { orderId: o.id, fromStatus: "pending_payment", toStatus: "cancelled", actorUserId: userId, note: "Customer cancelled" } });
+  const d = await adminOrderDetail(`${TAG}-3`);
+  const t = d!.timeline;
+  assert.equal(t.filter((e) => /placed/i.test(e.title)).length, 1);
+  assert.match(t.at(-1)!.detail ?? "", /by the customer/);
+  assert.ok(!JSON.stringify(t).includes("by an operator"));
+});

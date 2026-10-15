@@ -34,3 +34,12 @@ test("queues: an order with one shipment on the road and one to pack is in both"
   assert.deepEqual(orderTabs(o("pending_payment", "razorpay", [], ["pending"])), ["all", "awaiting_payment"], "not packable before payment");
   assert.deepEqual(orderTabs(o("refunded", "razorpay", ["refunded"], [])), ["all", "cancelled"]);
 });
+
+test("an order status ahead of its shipments is called out, not repainted", async () => {
+  const { statusAheadOfShipments } = await import("@/lib/order-classify");
+  /* VE-2026-MV976PVL398A on staging: set to packed by hand, shipment still pending. */
+  assert.match(statusAheadOfShipments(o("packed", "razorpay", ["captured"], ["pending"]))!, /says packed, but its shipments are only at confirmed/);
+  assert.equal(statusAheadOfShipments(o("packed", "razorpay", ["captured"], ["packed"])), null);
+  assert.equal(statusAheadOfShipments(o("confirmed", "razorpay", ["captured"], ["delivered"])), null, "behind is the pre-roll-up case, shown by the badge");
+  assert.equal(statusAheadOfShipments(o("packed", "cod", [], [])), null, "no shipments: nothing to compare");
+});

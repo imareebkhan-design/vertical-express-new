@@ -84,3 +84,23 @@ export const PAYMENT_TONE: Record<PaymentState, "ok" | "warn" | "bad" | "neutral
 export const FULFILMENT_TONE: Record<FulfilmentState, "ok" | "warn" | "bad" | "neutral" | "info"> = {
   unfulfilled: "warn", ready: "info", in_transit: "info", partial: "warn", delivered: "ok", cancelled: "neutral",
 };
+
+const STEP = ["confirmed", "packed", "out_for_delivery", "delivered"];
+
+/**
+ * When the order status claims more progress than its shipments show — e.g.
+ * set to "packed" by hand before packing moved to the dispatch board — say
+ * so, rather than repaint the order or rewrite its history. Null when they agree.
+ */
+export function statusAheadOfShipments(o: ClassifyInput): string | null {
+  const live = o.shipments.filter((s) => s.status !== "cancelled").map((s) => s.status);
+  if (live.length === 0 || CLOSED.has(o.status)) return null;
+  const at = STEP.indexOf(o.status);
+  if (at < 0) return null;
+  const furthest = live.every((s) => s === "delivered") ? 3
+    : live.some((s) => s === "out_for_delivery" || s === "delivered") ? 2
+    : live.every((s) => s === "packed") ? 1 : 0;
+  if (at <= furthest) return null;
+  const label = (i: number) => ["confirmed", "packed", "out for delivery", "delivered"][i];
+  return `The order status says ${label(at)}, but its shipments are only at ${label(furthest)}.`;
+}

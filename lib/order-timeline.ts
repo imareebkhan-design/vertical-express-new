@@ -11,6 +11,8 @@
  */
 export interface TimelineInput {
   placedAt: Date;
+  /** The customer — their own actions are not "by an operator". */
+  userId: string;
   paymentMethod: string;
   payments: { id: string; status: string; gateway: string; createdAt: Date; updatedAt: Date; gatewayPaymentId: string | null }[];
   statusEvents: { id: string; fromStatus: string | null; toStatus: string; note: string | null; createdAt: Date; actorUserId: string | null }[];
@@ -62,10 +64,13 @@ export function buildOrderTimeline(o: TimelineInput): TimelineEntry[] {
   }
 
   for (const e of o.statusEvents) {
+    /* The placement event duplicates "Order placed" above. */
+    if (e.fromStatus === null) continue;
+    const by = e.actorUserId === null ? null : e.actorUserId === o.userId ? "by the customer" : "by an operator";
     out.push({
       id: `ev-${e.id}`, at: e.createdAt,
       title: `Order ${e.fromStatus ? `${STATUS[e.fromStatus] ?? e.fromStatus} → ` : ""}${STATUS[e.toStatus] ?? e.toStatus}`,
-      detail: [e.note, e.actorUserId ? "by an operator" : null].filter(Boolean).join(" · ") || undefined,
+      detail: [e.note, by].filter(Boolean).join(" · ") || undefined,
       tone: e.toStatus === "cancelled" ? "bad" : e.toStatus === "delivered" ? "ok" : "info",
     });
   }
