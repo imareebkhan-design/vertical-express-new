@@ -189,3 +189,30 @@ export async function orderFilterOptions() {
   ]);
   return { cities, warehouses, drivers };
 }
+
+export const EXPORT_LIMIT = 5000;
+
+/** The current view (tab + filters, every page) for CSV, bounded. */
+export async function exportAdminOrders(q: OrdersQuery, now: Date = new Date(), limit = EXPORT_LIMIT) {
+  const where: W = { AND: [await baseWhere(q, now), TAB_WHERE[q.tab]] };
+  const total = await db.order.count({ where });
+  if (total > limit) return { ok: false as const, total };
+  const rows = await db.order.findMany({
+    where,
+    orderBy: ORDER_BY[q.sort],
+    take: limit,
+    select: {
+      orderNo: true, placedAt: true, status: true, paymentMethod: true, totalPaise: true, address: true,
+      warehouse: { select: { name: true } },
+      items: { select: { qty: true } },
+      payments: { select: { status: true } },
+      shipments: { select: { status: true, driver: { select: { name: true } } }, orderBy: { sequence: "asc" } },
+    },
+  });
+  const pins = [...new Set(rows.map((r) => String((r.address as Record<string, unknown>)?.pincode ?? "")).filter(Boolean))];
+  const cityOf = new Map(
+    (await db.serviceablePincode.findMany({ where: { pincode: { in: pins } }, select: { pincode: true, city: { select: { name: true } } } }))
+      .map((p) => [p.pincode, p.city.name])
+  );
+  return { ok: true as const, rows, cityOf, total };
+}

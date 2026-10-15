@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { listAdminOrders, orderFilterOptions } from "@/lib/services/admin/orders-list";
 import {
-  FULFILMENT_STATES, PAYMENT_STATES, RANGES, TABS, hasFilters, ordersHref, parseOrdersQuery,
+  FULFILMENT_STATES, PAYMENT_STATES, RANGES, TABS, hasFilters, ordersHref, parseOrdersQuery, type OrdersQuery,
 } from "@/lib/admin-orders-query";
 import { FULFILMENT_TONE, PAYMENT_TONE, fulfilmentState, paymentState } from "@/lib/order-classify";
 import { formatIstDate, formatIstTime } from "@/lib/ist";
@@ -68,14 +68,43 @@ export default async function AdminOrders({
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
         <h1 className="text-[22px] font-extrabold tracking-tight">Orders</h1>
         <p className="mt-0.5 text-[12px] font-semibold text-ink-500">
           {total} {total === 1 ? "order" : "orders"}
           {rangeLabel ? ` · placed ${rangeLabel}` : ""}
           {query.q ? ` · matching “${query.q}”` : ""} · times in IST
         </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {query.tab === "to_pack" && (
+            <Link href="/admin/dispatch" className="inline-flex h-9 items-center rounded-panel bg-chip px-4 text-[12.5px] font-bold text-ink">
+              Open pick list
+            </Link>
+          )}
+          {/* A plain link: the route re-checks admin access, caps the size and audits the export. */}
+          <a
+            href={`/admin/orders/export${ordersHref({ ...query, page: 1 }).replace("/admin/orders", "")}`}
+            className="inline-flex h-9 items-center rounded-panel bg-ink px-4 text-[12.5px] font-bold text-white"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
+
+      <nav aria-label="Saved views" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
+        <ul className="flex items-center gap-2 pb-1">
+          <li className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-ink-500">Views</li>
+          {savedViews(query, options.cities).map((v) => (
+            <li key={v.label}>
+              <Link href={v.href} className="inline-flex h-8 items-center whitespace-nowrap rounded-full bg-chip px-3.5 text-[12px] font-semibold text-ink hover:bg-hush">
+                {v.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <nav aria-label="Order views" className="-mx-4 overflow-x-auto px-4 md:mx-0 md:px-0">
         <ul className="flex gap-2 pb-1">
@@ -204,6 +233,24 @@ export default async function AdminOrders({
       )}
     </div>
   );
+}
+
+/**
+ * Reusable views, as links over the URL state (no stored model yet — a saved
+ * view table would need its own owner and audit; these cover the requested
+ * set). "Delivered" here means placed this month and now delivered.
+ */
+function savedViews(q: OrdersQuery, cities: { id: string; name: string }[]) {
+  const base: OrdersQuery = { ...q, tab: "all", q: "", range: null, from: null, to: null, pay: [], ful: [], st: [], method: [], city: [], wh: [], driver: [], sort: "placed_desc", page: 1 };
+  const delhi = cities.find((c) => c.name.toLowerCase() === "delhi");
+  return [
+    { label: "Today's orders", href: ordersHref(base, { range: "today" }) },
+    { label: "Awaiting payment", href: ordersHref(base, { tab: "awaiting_payment" }) },
+    { label: "To dispatch now", href: ordersHref(base, { tab: "to_dispatch", sort: "placed_asc" }) },
+    { label: "In transit", href: ordersHref(base, { tab: "in_transit" }) },
+    ...(delhi ? [{ label: "Delhi orders", href: ordersHref(base, { city: [delhi.id] }) }] : []),
+    { label: "Delivered · placed this month", href: ordersHref(base, { tab: "delivered", range: "month" }) },
+  ];
 }
 
 function PageLink({ href, label }: { href: string | null; label: string }) {

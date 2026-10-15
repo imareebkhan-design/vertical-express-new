@@ -180,3 +180,24 @@ test("reading the list changes nothing: no payment, stock, wallet or order write
   for (const t of TABS) await list({ tab: t.key, pay: "paid,cod", sort: "updated_desc" });
   assert.deepEqual(await snap(), before);
 });
+
+test("CSV export: admin only, same filters as the screen, audited, bounded", async () => {
+  const { handleOrdersExport } = await import("@/lib/services/admin/orders-export");
+  const url = `http://x/admin/orders/export?q=${TAG}&tab=delivered`;
+  assert.equal((await handleOrdersExport(new Request(url), { getAdmin: async () => null })).status, 403);
+
+  const admin = randomUUID();
+  const res = await handleOrdersExport(new Request(url), { getAdmin: async () => ({ id: admin }) });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-disposition") ?? "", /attachment; filename="orders-\d{8}-\d{4}-IST\.csv"/);
+  const lines = (await res.text()).trim().split("\r\n");
+  const exported = lines.slice(1).map((l) => JSON.parse(l.split(",")[0]));
+  assert.deepEqual(exported.sort(), (await list({ tab: "delivered" })).nos.sort(), "exactly the rows the screen shows (all pages)");
+  const audit = await db.auditLog.findFirst({ where: { actorId: admin, action: "orders.exported" } });
+  assert.equal((audit?.after as { rows: number }).rows, exported.length);
+  await db.auditLog.deleteMany({ where: { actorId: admin } });
+
+  const big = await handleOrdersExport(new Request(`http://x/admin/orders/export?q=${TAG}`), { getAdmin: async () => ({ id: admin }), limit: 3 });
+  assert.equal(big.status, 413, "a wider view is refused, not truncated");
+  assert.equal(await db.auditLog.count({ where: { actorId: admin } }), 0, "a refused export is not recorded as one");
+});
