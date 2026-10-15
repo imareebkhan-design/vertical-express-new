@@ -15,6 +15,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
+import { getOrderTracking } from "../tracking";
 
 const TEST_PINCODE = "999905";
 const TEST_USER = randomUUID();
@@ -247,4 +248,24 @@ test("Shipments: a failed order writes no shipments", async () => {
   assert.equal(after, before, "a rejected order must leave no shipments behind");
 
   await db.address.delete({ where: { id: orphanAddress.id } });
+});
+
+test("Address pin: the saved pin travels into the order snapshot and becomes the tracking destination", async () => {
+  /* The web address form now saves the confirmed pin (DEC-021). This is the
+     chain that makes it matter: saved address -> order snapshot -> the
+     destination a route and an ETA are computed to. */
+  await db.address.update({
+    where: { id: addressId },
+    data: { latitude: 34.0662, longitude: 74.8288, placeId: "ChIJ-pin-test", line2: "12 Bund Road, Rajbagh", accessNote: "Rear gate" },
+  });
+  await clearCart();
+  await addItem(TEST_USER, null, smallVariantId, 1);
+  const result = await placeOrder({ userId: TEST_USER, addressId, paymentMethod: "dummy", idempotencyKey: `pin-${randomUUID()}` });
+
+  const order = await db.order.findUniqueOrThrow({ where: { orderNo: result.orderNo }, select: { address: true } });
+  const snap = order.address as Record<string, unknown>;
+  assert.deepEqual([snap.latitude, snap.longitude, snap.placeId, snap.accessNote], [34.0662, 74.8288, "ChIJ-pin-test", "Rear gate"]);
+
+  const tracking = await getOrderTracking({ kind: "customer", userId: TEST_USER }, result.orderNo, new Date(), { routesEnabled: false });
+  assert.deepEqual(tracking?.destination, { lat: 34.0662, lng: 74.8288 });
 });

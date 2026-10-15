@@ -6,6 +6,45 @@ revisited, do not delete the entry — append a superseding decision and mark th
 
 **Status values:** `ACCEPTED` · `PROPOSED` · `SUPERSEDED` · `REVISIT AT <trigger>`
 
+## DEC-021 — Web addresses carry the map pin; Places autocomplete stays server-proxied
+
+**Status:** ACCEPTED · **Date:** 8 October 2026
+
+**Decision.** Every web address form (desktop account, phone account, phone
+checkout) starts from the same location picker as the "Where should we
+deliver?" sheet, and saves the confirmed pin's coordinates. Google decides the
+area line, pincode, city, state and coordinates; the customer types house /
+flat / floor, landmark and gate instructions. Typing an address without the map
+remains possible and saves no coordinates.
+
+**Why.** Web addresses had no coordinates at all, so a web order carried no
+destination and live tracking could never draw a route or give an ETA (the
+8 Oct staging TEST order showed `latitude: null`). The app has saved pins since
+DEC-020; the web now matches it.
+
+**Places stays behind our server**, not `PlaceAutocompleteElement`: the
+existing proxy (`lib/services/places.ts`) already uses Places API (New) with
+session tokens, keeps the Places key off the browser, sits under the guest and
+per-account rate limits, and serves the app and the web from one code path.
+The widget would need a browser Places key and a second, unthrottled path.
+
+**Billed flow, per search.** One session token per search: suggest calls
+(debounced 250 ms, 3+ characters, field mask: place id, text, structured
+format) and the one Place Details call that ends it (field mask: `location`,
+`addressComponents`) share the token, so Google prices them as one session.
+A locality with no postal code costs one reverse geocode more. The pin preview
+loads Maps JavaScript once, only on the confirmation step. "Use my location" is
+one reverse geocode; the coordinates come from the device, never from Places.
+Abandoned searches are billed per suggest request, which the debounce and the
+rate limits bound.
+
+**Place id.** Stored on `Address` (`place_id`, migration
+`20261008150000_address_place_id`) only together with the pin's coordinates,
+and copied into the order's address snapshot.
+
+**Not done.** Address Validation API not used — India coverage is pre-GA;
+revisit if it proves reliable for Srinagar.
+
 ## DEC-020 — Expand location beyond pincode entry; design (not build) live driver tracking
 
 **Status:** ACCEPTED for the location/map/serviceability work; the driver-telemetry

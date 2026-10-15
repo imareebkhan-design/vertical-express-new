@@ -55,7 +55,7 @@ after(async () => {
   await db.user.deleteMany({ where: { id: { in: [userA, userB] } } });
 });
 
-async function pendingOrder() {
+async function pendingOrder(placedAt?: Date) {
   const amount = 36900;
   const gw = `order_${randomUUID().slice(0, 14)}`;
   const order = await db.order.create({
@@ -68,6 +68,7 @@ async function pendingOrder() {
       subtotalPaise: amount,
       totalPaise: amount,
       payments: { create: { gateway: "razorpay", gatewayOrderId: gw, amountPaise: amount, status: "created" } },
+      ...(placedAt ? { placedAt } : {}),
     },
   });
   orderIds.push(order.id);
@@ -119,6 +120,24 @@ test("nothing paid at Razorpay: the checkout details are offered as before", asy
   assert.equal(d.status, "pending_payment");
   assert.deepEqual((d.razorpay as { orderId: string; amountPaise: number }).orderId, o.gw);
   assert.equal((d.razorpay as { amountPaise: number }).amountPaise, o.amount);
+  const terms = d.razorpay as { payBy: string; payWithinSeconds: number };
+  assert.ok(terms.payWithinSeconds > 890 && terms.payWithinSeconds <= 900, "the window, counted on the server's clock");
+  assert.ok(Date.parse(terms.payBy) > Date.now());
+});
+
+test("payment window closed but not yet swept: the server offers no checkout, whatever the client does", async () => {
+  /* REGRESSION (staging, 8 Oct 2026): an open Checkout took a payment after the
+     order's window. Between the window closing and the expiry job's next run
+     the order is still pending_payment; it must not be payable. */
+  const o = await pendingOrder(new Date(Date.now() - 16 * 60_000));
+  let asked = 0;
+  const d = await body(await get(o.orderNo, async () => (asked++, null)));
+  assert.equal(d.status, "pending_payment", "the expiry job, not this read, cancels it");
+  assert.equal(d.razorpay, null);
+  assert.equal(asked, 1, "a payment whose callback was lost is still looked for first");
+
+  const nearly = await pendingOrder(new Date(Date.now() - (15 * 60 - 90) * 1000));
+  assert.equal((await body(await get(nearly.orderNo, async () => null))).razorpay, null, "90 s left is too little to open Checkout");
 });
 
 test("Razorpay cannot be asked: no checkout offered, and nothing is marked failed or cancelled", async () => {

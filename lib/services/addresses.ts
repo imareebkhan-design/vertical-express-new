@@ -33,6 +33,8 @@ export async function createAddress(userId: string, input: AddressInput) {
       pincode: input.pincode,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      // A place id describes the pin; without one it is kept nowhere.
+      placeId: input.latitude != null ? input.placeId ?? null : null,
       isDefault: makeDefault,
     },
   });
@@ -65,6 +67,7 @@ export async function updateAddress(userId: string, id: string, input: AddressIn
       // coordinates for an address the customer may have moved.
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      placeId: input.latitude != null ? input.placeId ?? null : null,
       isDefault: input.isDefault || existing.isDefault,
     },
   });

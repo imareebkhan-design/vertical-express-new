@@ -76,3 +76,17 @@ test("no signed-in-only loading boundary can stream before the session is checke
     );
   }
 });
+
+test("middleware keeps the query on its sign-in redirect", async () => {
+  /* "Add a delivery address" at checkout links to /account/addresses?add=1&next=/checkout.
+     Signed out, middleware used to send next=/account/addresses, so after sign-in the
+     form was not open and nothing returned the customer to checkout. */
+  const { middleware } = await import("../../middleware");
+  const { NextRequest } = await import("next/server");
+  const res = middleware(new NextRequest("https://verticalexpress.in/account/addresses?add=1&next=/checkout"));
+  const location = new URL(res.headers.get("location") ?? "", "https://verticalexpress.in");
+  assert.equal(location.pathname, "/login");
+  assert.equal(location.searchParams.get("next"), "/account/addresses?add=1&next=/checkout");
+  assert.equal(safeNextPath(location.searchParams.get("next")), "/account/addresses?add=1&next=/checkout");
+  assert.equal(location.toString(), new URL(signInPathFor("/account/addresses?add=1&next=/checkout"), "https://verticalexpress.in").toString(), "one encoding for one destination");
+});

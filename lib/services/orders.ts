@@ -1,4 +1,5 @@
 import "server-only";
+import { PAYMENT_WINDOW_MINUTES } from "@/lib/payment-window";
 import { db } from "@/lib/db";
 import { isCancellable } from "@/lib/order-flow";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
@@ -400,7 +401,7 @@ export const EXPIRY_RUN_BUDGET_MS = 120 * 1000;
  * that throws still moves the order to the back (unless that update fails too).
  */
 export async function cleanupExpiredPendingOrders(
-  maxAgeMinutes = 15,
+  maxAgeMinutes = PAYMENT_WINDOW_MINUTES,
   deps: {
     /** Injected in tests; defaults to asking the active Razorpay gateway. */
     findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;

@@ -1,5 +1,6 @@
 "use server";
 
+import { paymentTermsFor } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
@@ -96,7 +97,8 @@ export async function validateCoupon(code: string, pincode: string): Promise<Act
 
 interface PlaceOrderData {
   orderNo: string;
-  razorpay: { orderId: string; amountPaise: number; keyId: string } | null;
+  /** `payBy`: when the order stops accepting payment (lib/payment-window.ts). */
+  razorpay: { orderId: string; amountPaise: number; keyId: string; payBy: string | null; payWithinSeconds: number | null } | null;
 }
 
 export async function placeOrder(input: {
@@ -165,6 +167,7 @@ export async function placeOrder(input: {
               orderId: result.gatewayOrderId,
               amountPaise: result.amountPaise ?? 0,
               keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+              ...(result.placedAt ? paymentTermsFor(result.placedAt) : { payBy: null, payWithinSeconds: null }),
             }
           : null,
     });

@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -226,7 +227,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
       </div>
 
       {/* Swipe Gallery */}
-      <div className="relative aspect-square w-full bg-tile border-b border-mist/10">
+      <div className={cn("relative aspect-square w-full border-b border-mist/10", product.images.length > 0 ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
         {product.images.length > 0 ? (
           <div className="scrollbar-hide flex h-full overflow-x-auto snap-x snap-mandatory"
                onScroll={(e) => {
@@ -242,14 +243,14 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
                   setZoomScale(1);
                   setIsLightboxOpen(true);
                 }}
-                className="relative h-full w-full shrink-0 snap-center p-6"
+                className="relative h-full w-full shrink-0 snap-center"
               >
                 <Image
                   src={img.url}
                   alt={img.alt || product.title}
                   fill
                   priority={i === 0}
-                  className="object-contain p-4"
+                  className={PRODUCT_PHOTO}
                   sizes="100vw"
                 />
               </div>
@@ -510,13 +511,13 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
                 onClick={() => triggerHaptic("light")}
                 className="snap-center shrink-0 w-[124px] rounded-xl border border-mist/20 bg-white p-2.5 shadow-card transition-shadow hover:shadow-card-hover"
               >
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-mist/5">
+                <div className={cn("relative aspect-square w-full overflow-hidden rounded-lg", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {item.imageUrl ? (
                     <Image
                       src={item.imageUrl}
                       alt={item.title}
                       fill
-                      className="object-contain p-1"
+                      className={PRODUCT_PHOTO}
                       sizes="100px"
                     />
                   ) : (

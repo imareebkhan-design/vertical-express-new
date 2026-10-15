@@ -1,5 +1,6 @@
 "use server";
 
+import { checkoutTimeoutSeconds, paymentTermsFor, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId } from "@/lib/auth/current-user";
 import {
@@ -47,7 +48,7 @@ export async function reorder(orderNo: string): Promise<ActionResult<null>> {
 
 export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
   orderNo: string;
-  razorpay: { orderId: string; amountPaise: number; keyId: string } | null;
+  razorpay: { orderId: string; amountPaise: number; keyId: string; payBy: string | null; payWithinSeconds: number | null } | null;
 }>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in");
@@ -82,6 +83,13 @@ export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
     );
   }
 
+  /* After the gateway check, so a payment whose callback was lost still
+     settles; before handing out Checkout, so a window that has closed — but
+     not yet been swept by the expiry job — cannot take a payment. The client
+     refuses too; this does not rely on it. */
+  const terms = paymentTermsFor(order.placedAt);
+  if (checkoutTimeoutSeconds(terms) === "closed") return fail("CONFLICT", PAYMENT_WINDOW_CLOSED_MESSAGE);
+
   const payment = order.payments[0];
   const gatewayOrderId = payment?.gatewayOrderId ?? null;
 
@@ -92,6 +100,7 @@ export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
           orderId: gatewayOrderId,
           amountPaise: order.totalPaise,
           keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+          ...terms,
         }
       : null,
   });

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Link from "next/link";
 import type { CatalogItem } from "@/lib/services/catalog";
 import { formatPaise, discountPercent } from "@/lib/money";
@@ -31,7 +33,7 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
           <img
             src={item.imageUrl}
             alt=""
-            className="size-[76px] object-contain p-1.5 sm:size-[92px]"
+            className={cn("size-[76px] sm:size-[92px]", PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE)}
           />
         ) : (
           <ProductPanel

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Link from "next/link";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
@@ -61,12 +63,12 @@ function DealCard({ item }: { item: CatalogItem }) {
         className="relative block h-[200px] w-full overflow-hidden rounded-[16px] no-underline"
       >
         {!isGenericPlaceholder(item.imageUrl) ? (
-          <span className="flex size-full items-center justify-center bg-chip-soft">
+          <span className={cn("flex size-full items-center justify-center", PRODUCT_PHOTO_SURFACE)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl ?? ""}
               alt=""
-              className="size-full object-contain p-4 transition-transform duration-300 group-hover:scale-105"
+              className={cn(PRODUCT_PHOTO, "transition-transform duration-300 group-hover:scale-105")}
             />
           </span>
         ) : (

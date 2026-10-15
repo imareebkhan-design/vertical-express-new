@@ -23,9 +23,13 @@ export default async function CheckoutPage() {
     line1: a.line1,
     line2: a.line2,
     landmark: a.landmark,
+    accessNote: a.accessNote,
     city: a.city,
     state: a.state,
     pincode: a.pincode,
+    latitude: a.latitude,
+    longitude: a.longitude,
+    placeId: a.placeId,
     isDefault: a.isDefault,
   }));
 

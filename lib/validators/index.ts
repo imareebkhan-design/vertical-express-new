@@ -23,6 +23,8 @@ export const addressInputSchema = z.object({
   pincode: pincodeSchema,
   latitude: z.number().finite().min(-90).max(90).nullable().optional(),
   longitude: z.number().finite().min(-180).max(180).nullable().optional(),
+  /** Same shape Places resolve accepts (lib/services/places.ts). Only meaningful with a pin. */
+  placeId: z.string().regex(/^[A-Za-z0-9_-]{1,255}$/).nullable().optional(),
   isDefault: z.boolean().default(false),
 }).refine((a) => (a.latitude == null) === (a.longitude == null), { message: "Both delivery coordinates are required", path: ["latitude"] });
 export type AddressInput = z.infer<typeof addressInputSchema>;

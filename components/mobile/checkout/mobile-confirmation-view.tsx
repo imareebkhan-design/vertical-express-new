@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle2, Clock, Wallet, Package, MapPin } from "lucide-react";
@@ -81,10 +83,10 @@ export function MobileConfirmationView({ order, shipments }: MobileConfirmationV
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {order.items.map((item: any) => (
               <li key={item.id} className="py-3 flex gap-3 first:pt-0 last:pb-0">
-                <span className="size-12 shrink-0 overflow-hidden rounded-lg bg-mist/5 border border-mist/15">
+                <span className={cn("size-12 shrink-0 overflow-hidden rounded-lg border border-mist/15", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.title} className="size-full object-contain p-1" />
+                    <img src={item.imageUrl} alt={item.title} className={PRODUCT_PHOTO} />
                   )}
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">

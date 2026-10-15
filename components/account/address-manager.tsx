@@ -1,20 +1,28 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { removeAddress, makeDefaultAddress } from "@/actions/address";
 import { Button } from "@/components/ui/button";
 import { AddressForm, type AddressFormValues } from "@/components/account/address-form";
+import { safeNextPath } from "@/lib/safe-next";
 
 type Address = AddressFormValues & { id: string };
 
 export function AddressManager({ addresses }: { addresses: Address[] }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"list" | "add" | string>("list"); // string = editing id
+  const params = useSearchParams();
+  /* Arriving from checkout ("Add a delivery address"): open the form, and go back there once it is saved. */
+  const returnTo = params.get("next") ? safeNextPath(params.get("next"), "") || null : null;
+  const [mode, setMode] = useState<"list" | "add" | string>(params.get("add") === "1" ? "add" : "list"); // string = editing id
   const [, startTransition] = useTransition();
 
   const done = () => {
+    if (returnTo) {
+      router.push(returnTo);
+      return;
+    }
     setMode("list");
     router.refresh();
   };

@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO } from "@/lib/product-media";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
@@ -45,7 +46,7 @@ export function DealOfTheDay({
       <div className="ve-deal-panel">
         <Link href={view.href} className="ve-deal-media" tabIndex={-1} aria-hidden>
           {view.imageUrl ? (
-            <Image src={view.imageUrl} alt="" fill sizes={compact ? "40vw" : "280px"} className="object-contain p-4" />
+            <Image src={view.imageUrl} alt="" fill sizes={compact ? "40vw" : "280px"} className={PRODUCT_PHOTO} />
           ) : (
             <Tag className="size-12 text-ink-500" strokeWidth={1.4} />
           )}

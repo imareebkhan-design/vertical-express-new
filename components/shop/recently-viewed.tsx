@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
@@ -64,13 +66,13 @@ export function RecentlyViewedSection({ currentSlug }: { currentSlug?: string })
             href={`/product/${item.slug}`}
             className="group rounded-card border border-hairline-border bg-white p-3 shadow-card transition-shadow hover:shadow-card-hover"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-panel bg-surface/60">
+            <div className={cn("relative aspect-square w-full overflow-hidden rounded-panel", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-surface/60")}>
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}
                   alt={item.title}
                   fill
-                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  className={cn(PRODUCT_PHOTO, "transition-transform duration-300 group-hover:scale-105")}
                   sizes="(max-width: 640px) 50vw, 20vw"
                 />
               ) : (

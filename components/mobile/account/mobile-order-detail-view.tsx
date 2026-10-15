@@ -1,5 +1,8 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -81,8 +84,13 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   // Launch Razorpay Payment Window
   const openRazorpay = async (
     orderNo: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
+      return;
+    }
     try {
       await loadRazorpayScript();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -98,6 +106,8 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         currency: "INR",
         name: "Vertical Express",
         order_id: rzp.orderId,
+        /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+        ...(timeout !== null ? { timeout } : {}),
         theme: { color: "#EDAF1C" },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async (response: any) => {
@@ -262,7 +272,12 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
           </div>
         )}
 
-        {cancelled && order.cancelledReason && (
+        {isLatePaid(order) ? (
+          <div role="status" className="rounded-2xl bg-brand/15 p-4 text-xs font-bold text-ink">
+            {LATE_PAYMENT_MESSAGE}
+          </div>
+        ) : null}
+        {cancelled && order.cancelledReason && !isLatePaid(order) && (
           <div className="rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             This order was cancelled. Reason: {order.cancelledReason}
           </div>
@@ -279,10 +294,10 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {order.items.map((item: any) => (
               <li key={item.id} className="py-3 flex gap-3 first:pt-0 last:pb-0">
-                <span className="size-12 shrink-0 overflow-hidden rounded-lg bg-mist/5 border border-mist/15">
+                <span className={cn("size-12 shrink-0 overflow-hidden rounded-lg border border-mist/15", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt="" className="size-full object-contain p-1" />
+                    <img src={item.imageUrl} alt="" className={PRODUCT_PHOTO} />
                   )}
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
