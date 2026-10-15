@@ -46,7 +46,9 @@ test("go live sends the city; exclude sends the pincode", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Go live" }));
   await waitFor(() => screen.getByRole("status"));
   assert.deepEqual(calls.setCityLive, [{ cityId: "del", isLive: true }]);
-  fireEvent.click(screen.getByRole("button", { name: "Exclude 110054" }));
+  const exclude = screen.getByRole("button", { name: "Exclude 110054" }) as HTMLButtonElement;
+  await waitFor(() => assert.equal(exclude.disabled, false));
+  fireEvent.click(exclude);
   await waitFor(() => assert.equal(calls.setPincodeIncluded?.length, 1));
   assert.deepEqual(calls.setPincodeIncluded, [{ pincode: "110054", isActive: false }]);
 });
