@@ -56,9 +56,9 @@ test("a screen with no model behind it says so", () => {
   /* stock-ledger left this list when StockMovement landed — the guard failed
      the moment it stopped needing to declare itself, which is the list working
      rather than the list being wrong. Remove a screen from here when it gains
-     a model, not when its wording changes. */
+     a model, not when its wording changes. returns left on 15 Oct 2026 when
+     ReturnRequest landed (its refund/restock half still says it is blocked). */
   const UNBACKED = [
-    "app/admin/returns/page.tsx",
     "app/admin/suppliers/page.tsx",
     "app/admin/support/page.tsx",
     "app/admin/purchasing/page.tsx",

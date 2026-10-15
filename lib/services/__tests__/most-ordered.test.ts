@@ -3,6 +3,7 @@ import test from "node:test";
 import { randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 import { mostOrderedInCategory } from "@/lib/services/catalog";
 
 /**
@@ -31,17 +32,24 @@ test.before(async () => {
      fresh database could pick one with a single product (15 Oct 2026). */
   const counts = await db.product.groupBy({
     by: ["categoryId"],
-    where: { status: "published", variants: { some: {} } },
+    /* Listable, the same boundary the section reads through. */
+    where: { AND: [catalogListingWhere(), { status: "published", variants: { some: {} } }] },
     _count: { _all: true },
     orderBy: { categoryId: "asc" },
   });
-  const catId = counts.find((c) => c._count._all >= 2)?.categoryId;
+  /* …and no orders yet: the section ranks the top few, so orders other test
+     files left in a category would push this file's products out of it. */
+  let catId: string | undefined;
+  for (const c of counts.filter((x) => x._count._all >= 2)) {
+    const ordered = await db.orderItem.count({ where: { variant: { product: { categoryId: c.categoryId } } } });
+    if (ordered === 0) { catId = c.categoryId; break; }
+  }
   const cat = catId ? await db.category.findUnique({ where: { id: catId }, select: { slug: true, id: true } }) : null;
   assert.ok(cat, "the seeded catalogue needs at least one category with products");
   categorySlug = cat.slug;
 
   const products = await db.product.findMany({
-    where: { categoryId: cat.id, status: "published", variants: { some: {} } },
+    where: { AND: [catalogListingWhere(), { status: "published", categoryId: cat.id, variants: { some: {} } }] },
     select: { variants: { select: { id: true }, take: 1 } },
     take: 2,
   });
