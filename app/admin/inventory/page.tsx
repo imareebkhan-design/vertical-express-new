@@ -4,6 +4,7 @@ import { adminListStock, type StockFilter } from "@/lib/services/admin/stock";
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
 import { StockAdjuster } from "@/components/admin/stock-adjuster";
+import { adminAdjustStock, adminRecountStock } from "@/actions/inventory";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const dynamic = "force-dynamic";
@@ -190,6 +191,8 @@ export default async function AdminInventory({
                     warehouseId={r.warehouseId}
                     sku={r.sku}
                     onHand={r.qtyOnHand}
+                    adjust={adminAdjustStock}
+                    recount={adminRecountStock}
                   />
                 </td>
               </tr>

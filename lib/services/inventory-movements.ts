@@ -74,6 +74,79 @@ export async function adjustStock(params: {
   }
 }
 
+export type RecountResult =
+  | { ok: true; qtyAfter: number; qtyDelta: number }
+  | { ok: false; error: "invalid" | "not_found" }
+  /** The count moved since the operator read it. `qtyOnHand` is what it is now. */
+  | { ok: false; error: "stale"; qtyOnHand: number };
+
+/**
+ * Record a shelf count: set on-hand to what was counted.
+ *
+ * `adjustStock` takes a delta, which is right for "+12 received" and "−3
+ * damaged" — those are events. A recount is not an event, it is an
+ * observation, and taking it as a delta made the operator do the subtraction
+ * against the number on their screen. If a sale landed between the count and
+ * Apply, the delta was applied to a count it was never computed against and
+ * the figure recorded was silently not the one found.
+ *
+ * So the operator sends what they counted and the on-hand figure they were
+ * looking at. If the record no longer says that, nothing is written and they
+ * are told the current figure — stock moved while they counted, and only they
+ * know whether their count was before or after it. The same compare-and-set
+ * guard as `adjustStock` closes the gap between this read and the write.
+ *
+ * A count that matches the record writes a movement with a delta of zero. That
+ * is information ("counted, agreed"), and it is how a row stocked before the
+ * ledger existed gets its first history — from a person's count, not from an
+ * inferred backfill.
+ */
+export async function recountStock(params: {
+  variantId: string;
+  warehouseId: string;
+  countedQty: number;
+  /** The on-hand figure the operator saw when they counted. */
+  expectedOnHand: number;
+  note: string;
+  actorEmail: string;
+}): Promise<RecountResult> {
+  const { variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail } = params;
+  if (!Number.isInteger(countedQty) || countedQty < 0 || !Number.isInteger(expectedOnHand)) {
+    return { ok: false, error: "invalid" };
+  }
+
+  return db.$transaction(async (tx) => {
+    const row = await tx.inventory.findUnique({
+      where: { variantId_warehouseId: { variantId, warehouseId } },
+      select: { qtyOnHand: true },
+    });
+    if (!row) return { ok: false, error: "not_found" } as const;
+    if (row.qtyOnHand !== expectedOnHand) return { ok: false, error: "stale", qtyOnHand: row.qtyOnHand } as const;
+
+    const qtyDelta = countedQty - row.qtyOnHand;
+    /* The guard, and for a matching count the row lock: an update to the same
+       value still locks the row, so no change can commit between this check
+       and the movement — a "counted, agreed" row must not describe a number
+       that was already gone. */
+    const applied = await tx.inventory.updateMany({
+      where: { variantId, warehouseId, qtyOnHand: row.qtyOnHand },
+      data: { qtyOnHand: countedQty },
+    });
+    if (applied.count !== 1) {
+      const now = await tx.inventory.findUnique({
+        where: { variantId_warehouseId: { variantId, warehouseId } },
+        select: { qtyOnHand: true },
+      });
+      return { ok: false, error: "stale", qtyOnHand: now?.qtyOnHand ?? row.qtyOnHand } as const;
+    }
+
+    await tx.stockMovement.create({
+      data: { variantId, warehouseId, qtyDelta, qtyAfter: countedQty, reason: "recount", note, actorEmail },
+    });
+    return { ok: true, qtyAfter: countedQty, qtyDelta } as const;
+  });
+}
+
 /**
  * The ledger row for a stock change the system has just made inside `tx`.
  *
