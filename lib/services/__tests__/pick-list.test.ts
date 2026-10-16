@@ -27,6 +27,8 @@ async function scratchOrderWithShipment(opts: {
   variantId: string;
   qty: number;
   title: string;
+  orderStatus?: "confirmed" | "pending_payment";
+  warehouseId?: string;
 }) {
   /* The order's customer is the test's own. The seed creates no users, so
      borrowing "whichever user exists" passed only on a database with
@@ -34,11 +36,11 @@ async function scratchOrderWithShipment(opts: {
      not deterministic. */
   const user = await db.user.create({ data: { id: randomUUID() }, select: { id: true } });
   scratchUsers.push(user.id);
-  const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
+  const wh = opts.warehouseId ? { id: opts.warehouseId } : await db.warehouse.findFirstOrThrow({ select: { id: true } });
 
   const order = await db.order.create({
     data: {
-      orderNo: uniq(), userId: user.id, status: "confirmed", subtotalPaise: 100,
+      orderNo: uniq(), userId: user.id, status: opts.orderStatus ?? "confirmed", subtotalPaise: 100,
       discountPaise: 0, deliveryFeePaise: 0, taxPaise: 0, totalPaise: 100,
       paymentMethod: "razorpay", address: {}, warehouseId: wh.id,
       items: {
@@ -174,4 +176,25 @@ test("an empty warehouse queue produces an empty list, not a crash", async (t) =
   t.after(cleanup);
   const list = await getPickList();
   assert.ok(Array.isArray(list), "the pick list is not a list");
+});
+
+test("an unpaid order's goods are not picked (same filter as the dispatch board)", async (t) => {
+  t.after(cleanup);
+  const variantId = await scratchVariant("ZZZ Pick Unpaid");
+  await scratchOrderWithShipment({ status: "pending", speedClass: "express", variantId, qty: 2, title: "ZZZ Pick Unpaid", orderStatus: "pending_payment" });
+  assert.equal((await getPickList()).find((l) => l.variantId === variantId), undefined);
+});
+
+test("the same item in two warehouses is two lines, each with its own warehouse", async (t) => {
+  const wh2 = await db.warehouse.create({ data: { name: `zzz-pick-wh-${randomUUID().slice(0, 6)}`, city: "Delhi", pincode: "110054" } });
+  t.after(async () => {
+    await cleanup();
+    await db.warehouse.delete({ where: { id: wh2.id } });
+  });
+  const variantId = await scratchVariant("ZZZ Pick Two Sheds");
+  const wh1 = await db.warehouse.findFirstOrThrow({ where: { NOT: { id: wh2.id } }, select: { id: true, name: true } });
+  await scratchOrderWithShipment({ status: "pending", speedClass: "express", variantId, qty: 3, title: "ZZZ Pick Two Sheds", warehouseId: wh1.id });
+  await scratchOrderWithShipment({ status: "pending", speedClass: "express", variantId, qty: 2, title: "ZZZ Pick Two Sheds", warehouseId: wh2.id });
+  const lines = (await getPickList()).filter((l) => l.variantId === variantId);
+  assert.deepEqual(lines.map((l) => [l.warehouse, l.totalQty]).sort(), [[wh1.name, 3], [wh2.name, 2]].sort());
 });

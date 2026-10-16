@@ -304,7 +304,10 @@ export async function getShipmentsOnTheRoad() {
  */
 export async function getPickList() {
   const items = await db.shipmentItem.findMany({
-    where: { shipment: { status: "pending" } },
+    /* Only what can actually be packed: the same order filter the dispatch
+       board uses. An unpaid (pending_payment) order's goods were on the list
+       while its shipment was nowhere on the board (staging, 16 Oct). */
+    where: { shipment: { status: "pending", order: { status: { notIn: [...INACTIVE_ORDER_STATES] } } } },
     select: {
       qty: true,
       shipment: {
@@ -342,7 +345,11 @@ export async function getPickList() {
   for (const item of items) {
     const v = item.orderItem.variant;
     const ref = `${item.shipment.order.orderNo}-${item.shipment.sequence}`;
-    const existing = byVariant.get(v.id);
+    /* Per warehouse as well as per variant: two warehouses are two walks, and
+       one row labelled with the first shipment's warehouse sent Delhi QA lines
+       to "Srinagar Central" (staging, 16 Oct). */
+    const key = `${item.shipment.warehouse?.name ?? ""}|${v.id}`;
+    const existing = byVariant.get(key);
 
     if (existing) {
       existing.totalQty += item.qty;
@@ -351,7 +358,7 @@ export async function getPickList() {
          that is the shipment with somebody waiting on it. */
       if (item.shipment.speedClass === "express") existing.speedClass = "express";
     } else {
-      byVariant.set(v.id, {
+      byVariant.set(key, {
         variantId: v.id,
         sku: v.sku,
         title: item.orderItem.title,

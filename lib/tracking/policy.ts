@@ -1,5 +1,8 @@
 import { decodePolyline, distanceToPathM, haversineM, validLatLng, type LatLng } from "./geo";
 
+/** Past this, the customer is told the rider's location has gone quiet, not that it is updating. A UI threshold, not a promise. */
+export const LONG_SILENCE_MS = 5 * 60_000;
+
 /**
  * The rules of live delivery tracking, as pure functions.
  *
@@ -259,7 +262,14 @@ export function liveTrackingView(
 
   const recorded = Date.parse(s.driver.recordedAt);
   if (!Number.isFinite(recorded) || nowMs - recorded > limits.staleAfterMs) {
-    return { state: "updating_location", headline: "Updating rider location…", ...none };
+    /* A short gap is a phone between fixes; a long one is not "updating" —
+       after 393 minutes the screen still said it was (staging, 16 Oct). */
+    const quietMs = Number.isFinite(recorded) ? nowMs - recorded : Infinity;
+    return {
+      state: "updating_location",
+      headline: quietMs > LONG_SILENCE_MS ? "Rider's location hasn't updated recently" : "Updating rider location…",
+      ...none,
+    };
   }
 
   const route = s.route;

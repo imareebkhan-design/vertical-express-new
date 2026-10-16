@@ -241,3 +241,11 @@ test("the web tracking panel says only what liveTrackingView decides", () => {
   assert.match(card, /liveTrackingView\(/);
   assert.doesNotMatch(card, /etaMinutes|durationS/, "the card computes or prints minutes itself");
 });
+
+test("a long silence is said plainly, not as 'updating' (393 minutes on staging, 16 Oct)", () => {
+  assert.equal(liveTrackingView(live(4 * 60_000, null), T, LIMITS).headline, "Updating rider location…", "a short gap is still updating");
+  const v = liveTrackingView(live(393 * 60_000, null), T, LIMITS);
+  assert.equal(v.state, "updating_location");
+  assert.equal(v.headline, "Rider's location hasn't updated recently");
+  assert.equal(v.minutes, null);
+});
