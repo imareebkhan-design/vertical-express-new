@@ -13,7 +13,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 - Validation: gstin regex (15 chars). Index: `user_id`.
 
 **addresses** — N:1 users
-- `user_id fk`, `label enum(home, site, office, other)`, `name`, `phone`, `line1`, `line2 null`, `landmark null`, `city`, `state`, `pincode char(6)`, `lat/lng numeric null`, `place_id text null`, `access_note null`, `is_default bool`, `deleted_at`
+- `user_id fk`, `label enum(home, site, office, other)`, `name`, `phone`, `line1`, `line2 null`, `landmark null`, `city`, `state`, `pincode char(6)`, `lat/lng numeric null`, `place_id text null`, `pin_pincode char(6) null`, `access_note null`, `is_default bool`, `deleted_at`
 - Validation: pincode `^[1-9][0-9]{5}$`. Index: `(user_id, is_default)`, `pincode`.
 
 **admin_users** — `user_id fk unique`, `permissions jsonb` (see permissions), `is_active bool`.
@@ -254,3 +254,23 @@ loses the record of which orders bought express; export it first if any exist.
 
 **Rollback.** Revert the code first, then `ALTER TABLE "addresses" DROP COLUMN "place_id";`.
 Nothing else reads the column.
+
+
+## Address pin pincode (migration `20261016120000_address_pin_pincode`, issue #1)
+
+- `addresses.pin_pincode char(6) null` — Google's pincode for the address's pin,
+  reverse-geocoded by the server on every save that carries coordinates
+  (`pinPincodeFor` in `lib/services/addresses.ts`). Null without a pin or when
+  Google could not answer.
+- **Owner decision (16 Oct 2026):** a pin whose Google pincode differs from the
+  customer's pincode is **kept and flagged, never refused** — Google's pincode
+  boundaries are not reliable enough in Srinagar to turn a customer away on
+  them. `pin_pincode <> pincode` is the mismatch for ops to review.
+- Copied into the order's `address` snapshot as `pinPincode` at placement.
+- Additive and nullable. Rollback: stop writing it, then drop the column in a
+  later release (expand → contract).
+- Cost: one Google Geocoding request per pinned address save.
+- **Not yet applied to staging or production** (16 Oct 2026): local
+  `vertical_express_test` / `vertical_express_demo` only. Prisma reads every
+  column of `addresses`, so apply this migration **before** deploying the code
+  that carries it, or address reads fail.
