@@ -7,7 +7,8 @@ import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
-import { captureException, triggerAlert } from "@/lib/observability";
+import { captureException, log, triggerAlert } from "@/lib/observability";
+import { recordSystemMovement } from "@/lib/services/inventory-movements";
 
 export type { CapturedLookup };
 
@@ -96,7 +97,13 @@ export async function listOrders(userId: string, page = 1, perPage = 10) {
   return { orders, total, page, perPage };
 }
 
-async function restock(tx: Prisma.TransactionClient, variantId: string, qty: number, warehouseId?: string | null) {
+async function restock(
+  tx: Prisma.TransactionClient,
+  variantId: string,
+  qty: number,
+  warehouseId: string | null | undefined,
+  ledger: { orderId: string; note: string }
+) {
   if (qty <= 0) return;
   const inv = await tx.inventory.findFirst({
     where: {
@@ -108,6 +115,25 @@ async function restock(tx: Prisma.TransactionClient, variantId: string, qty: num
     await tx.inventory.update({
       where: { id: inv.id },
       data: { qtyOnHand: { increment: qty } },
+    });
+    /* The movement names the warehouse the goods actually went back to. For a
+       legacy order with no warehouse that is whichever row `findFirst` chose
+       (ISS-004 territory), and the ledger now shows it rather than hiding it. */
+    await recordSystemMovement(tx, {
+      variantId,
+      warehouseId: inv.warehouseId,
+      qtyDelta: qty,
+      reason: "released",
+      orderId: ledger.orderId,
+      note: ledger.note,
+    });
+  } else {
+    /* Nothing to put the goods back into. Unchanged behaviour — creating a
+       stock row here would invent a location — but no longer silent. */
+    log("WARN", {
+      service: "inventory",
+      event: "restock_no_inventory_row",
+      metadata: { variantId, warehouseId: warehouseId ?? null, qty, orderId: ledger.orderId },
     });
   }
 }
@@ -138,7 +164,7 @@ export async function releaseOrderInventory(
   });
   for (const item of items) {
     const notOnShelf = item.shipmentItems.reduce((n, s) => n + s.qty, 0);
-    await restock(tx, item.variantId, item.qty - notOnShelf, warehouseId);
+    await restock(tx, item.variantId, item.qty - notOnShelf, warehouseId, { orderId, note: "Order cancelled" });
   }
 }
 
@@ -166,10 +192,13 @@ export async function releaseShipmentInventory(
 ) {
   const items = await tx.shipmentItem.findMany({
     where: { shipmentId },
-    select: { qty: true, orderItem: { select: { variantId: true } } },
+    select: { qty: true, orderItem: { select: { variantId: true, orderId: true } } },
   });
   for (const item of items) {
-    await restock(tx, item.orderItem.variantId, item.qty, warehouseId);
+    await restock(tx, item.orderItem.variantId, item.qty, warehouseId, {
+      orderId: item.orderItem.orderId,
+      note: "Shipment cancelled",
+    });
   }
 }
 

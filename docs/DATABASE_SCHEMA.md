@@ -279,3 +279,15 @@ optional `user_id` (signed-in customer), `name`, `phone`, optional `quantity` / 
 (`ProductEnquiryStatus`: new, contacted, quoted, closed, spam), `admin_notes`, timestamps. RLS enabled, no
 anon/authenticated grants. Admin status changes write `audit_logs` (`product_enquiry.status_changed`). Additive;
 rollback = leave the table, roll the app back.
+
+## `StockMovementReason.released` (migration `20261016120000_stock_movement_released`, 16 Oct 2026)
+
+Additive enum value. `released` is written by the order and shipment cancel paths
+(`lib/services/orders.ts` → `restock`) when goods that never left the warehouse go
+back on the shelf; `sold` (already in the enum, never written until now) is written
+by checkout for each line. Neither is offered to operators (`OPERATOR_REASONS`).
+
+No column or existing row changes. **Rollback:** code only — earlier code neither
+writes nor reads `released`, and the ledger page falls back to the raw reason name
+for any value it has no label for. Postgres cannot drop an enum value cheaply, so
+the value stays; that is harmless.

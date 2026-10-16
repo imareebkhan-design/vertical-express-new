@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { log } from "@/lib/observability";
-import type { StockMovementReason } from "@/prisma/generated/client/client";
+import type { Prisma, StockMovementReason } from "@/prisma/generated/client/client";
 
 /**
  * Changing stock, with a reason attached.
@@ -75,6 +75,147 @@ export async function adjustStock(params: {
 }
 
 /**
+ * The ledger row for a stock change the system has just made inside `tx`.
+ *
+ * Checkout's decrement and the cancel paths' restock change `qtyOnHand`
+ * directly — those writes are the proven, race-free part and are left exactly
+ * as they were. This only writes the row that explains them, in the same
+ * transaction, so a sale or a release can no longer happen without a trace.
+ *
+ * `qtyAfter` is read back after the caller's write. That read is exact: the
+ * caller's update holds the row lock until the transaction commits, so no other
+ * writer can move the count between the write and this read.
+ *
+ * A missing row throws rather than skipping. The caller has just updated that
+ * row, so a miss means the caller is wrong, and the transaction should not
+ * commit a stock change the ledger cannot describe.
+ */
+export async function recordSystemMovement(
+  tx: Prisma.TransactionClient,
+  m: {
+    variantId: string;
+    warehouseId: string;
+    /** Signed, as applied by the caller. */
+    qtyDelta: number;
+    reason: "sold" | "released";
+    orderId: string;
+    note?: string | null;
+  }
+): Promise<void> {
+  const row = await tx.inventory.findUnique({
+    where: { variantId_warehouseId: { variantId: m.variantId, warehouseId: m.warehouseId } },
+    select: { qtyOnHand: true },
+  });
+  if (!row) throw new Error(`STOCK_LEDGER_ROW_MISSING:${m.variantId}@${m.warehouseId}`);
+  await tx.stockMovement.create({
+    data: {
+      variantId: m.variantId,
+      warehouseId: m.warehouseId,
+      qtyDelta: m.qtyDelta,
+      qtyAfter: row.qtyOnHand,
+      reason: m.reason,
+      note: m.note ?? null,
+      actorEmail: null,
+      orderId: m.orderId,
+    },
+  });
+}
+
+export interface LedgerDriftRow {
+  variantId: string;
+  warehouseId: string;
+  sku: string;
+  productTitle: string;
+  productSlug: string;
+  warehouseName: string;
+  qtyOnHand: number;
+  /** `qtyAfter` of the newest movement — what the ledger says should be there. */
+  ledgerQty: number;
+}
+
+/**
+ * Stock counts the ledger cannot explain.
+ *
+ * Every movement stores `qtyAfter`, so the newest movement for a variant at a
+ * warehouse says what the count should be now. Where `qtyOnHand` disagrees,
+ * something changed the count without writing a movement — a script, a
+ * database client, or a code path that predates this ledger. Those are the rows
+ * to recount; this lists them and changes nothing.
+ *
+ * Rows with stock but no movement at all are counted separately and not listed
+ * as drift: their opening balance was set before the ledger existed, which is
+ * a known gap, not evidence of a fault. Recording an opening balance for them is
+ * an operator's recount, not something to infer.
+ *
+ * Ties on `created_at` are broken by id, which is arbitrary but stable. Two
+ * movements for the same variant at the same warehouse in the same microsecond
+ * would have to come from one transaction, and none of the writers do that.
+ */
+export async function findLedgerDrift(limit = 100): Promise<{
+  rows: LedgerDriftRow[];
+  driftCount: number;
+  /** Inventory rows holding stock that the ledger has never seen. */
+  unledgeredCount: number;
+}> {
+  const [rows, counts] = await Promise.all([
+    db.$queryRaw<
+      {
+        variant_id: string;
+        warehouse_id: string;
+        sku: string;
+        title: string;
+        slug: string;
+        warehouse_name: string;
+        qty_on_hand: number;
+        ledger_qty: number;
+      }[]
+    >`
+      SELECT i.variant_id, i.warehouse_id, v.sku, p.title, p.slug, w.name AS warehouse_name,
+             i.qty_on_hand, last.qty_after AS ledger_qty
+      FROM inventory i
+      JOIN LATERAL (
+        SELECT m.qty_after FROM stock_movements m
+        WHERE m.variant_id = i.variant_id AND m.warehouse_id = i.warehouse_id
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+      ) last ON true
+      JOIN product_variants v ON v.id = i.variant_id
+      JOIN products p ON p.id = v.product_id
+      JOIN warehouses w ON w.id = i.warehouse_id
+      WHERE last.qty_after <> i.qty_on_hand
+      ORDER BY abs(i.qty_on_hand - last.qty_after) DESC, v.sku
+      LIMIT ${limit}
+    `,
+    db.$queryRaw<{ drift: bigint; unledgered: bigint }[]>`
+      SELECT
+        count(*) FILTER (WHERE last.qty_after IS NOT NULL AND last.qty_after <> i.qty_on_hand) AS drift,
+        count(*) FILTER (WHERE last.qty_after IS NULL AND i.qty_on_hand <> 0) AS unledgered
+      FROM inventory i
+      LEFT JOIN LATERAL (
+        SELECT m.qty_after FROM stock_movements m
+        WHERE m.variant_id = i.variant_id AND m.warehouse_id = i.warehouse_id
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT 1
+      ) last ON true
+    `,
+  ]);
+  return {
+    rows: rows.map((r) => ({
+      variantId: r.variant_id,
+      warehouseId: r.warehouse_id,
+      sku: r.sku,
+      productTitle: r.title,
+      productSlug: r.slug,
+      warehouseName: r.warehouse_name,
+      qtyOnHand: r.qty_on_hand,
+      ledgerQty: r.ledger_qty,
+    })),
+    driftCount: Number(counts[0]?.drift ?? 0),
+    unledgeredCount: Number(counts[0]?.unledgered ?? 0),
+  };
+}
+
+/**
  * The stock ledger — every movement, newest first.
  *
  * Reads `qtyAfter` from the row rather than replaying the history. That is
@@ -126,8 +267,8 @@ export async function listMovementsForVariant(variantId: string, take = 10) {
   });
 }
 
-/** Reason codes a person may pick. `sold` and `returned` are written by the
- *  order path, never chosen in a form — offering them would let somebody
+/** Reason codes a person may pick. `sold`, `released` and `returned` are
+ *  written by the order path, never chosen in a form — offering them would let somebody
  *  record a sale that did not happen. */
 export const OPERATOR_REASONS = [
   "recount",
