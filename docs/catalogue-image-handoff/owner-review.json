@@ -1,0 +1,1740 @@
+{
+  "note": "Blank decisions. Research verification does not constitute owner approval. Range decisions cannot approve exact SKU identity or commerce.",
+  "batches": [
+    {
+      "batch": 1,
+      "items": [
+        {
+          "slug": "ve-range-cp-plus-analog-hd-00f8c0ba1e",
+          "title": "CP PLUS Analog HD",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://cpplusworld.com/cp-vta-f1043",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/5bc33f9e0cdf6345ad672b862b1fc24da68f0d8adb3f2673eb8736de22a6277b.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cp-plus-network-cameras-c762c4afb4",
+          "title": "CP PLUS Network Cameras",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://cpplusworld.com/cp-unc-tc41zl6c-vmd-lq",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4bd6987594bfb0e3bb67fb566bc5dbf035a47687d473a6f330bce47a67e1a847.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cp-plus-storage-switches-18d47cba52",
+          "title": "CP PLUS Storage & Switches",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://cpplusworld.com/cp-anw-hp4h2-n65",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/9924c27f9a7dc234f6e48135c70751ab11150e9d3b50aea89f444d2ffb98efd4.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cp-plus-time-attendance-dd330214ad",
+          "title": "CP PLUS Time Attendance",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://cpplusworld.com/cp-vta-f1043",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/73a659f80ed3f296e1b319aadb3d93282577a617de5d281704504b7142e6ed5a.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-havells-fans-92e7282560",
+          "title": "Havells Fans",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://havells.com/fans/ceiling-fans.html?availability_filter=5555",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/5f2032affa34e942049b3d8f78372577c0bd2940d99afa9e9b0470cd31d5b643.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-jk-super-cement-67c2d0e5d1",
+          "title": "JK Super Cement",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.jkcement.com/grey-cement/jk-super-strong-cement/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/aee9c0b95b979f73e60c1c32f6fefe2c17e635e877fcb2eccae98caee4a79a7d.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-khyber-cement-623d0f3083",
+          "title": "Khyber Cement",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://khybercement.com/khyber-opc/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/56caee07ae0a05090e6d997295e91500ae35c321037bc466bcda13f6dffbdc25.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-max-cement-19ad38eb70",
+          "title": "MAX Cement",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.maxcement.co.in/product/ordinary-portland-cement/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4089745bb6ea7eed7b5895ae8dc3b8639cc6c020c18e4a8cbd1b2d7ae07d9750.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-finolex-conduit-pipes-electrical-fittings-d64f9c938e",
+          "title": "Finolex Conduit Pipes & Electrical Fittings",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.finolex.com/ProductPage/SubCat/Rigid-PVC-Fittings",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/f8fabd6a4a8f408ae22cbc61e576a3b36732219d796a1ff0c5778baf9599b346.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-finolex-electrical-conduit-45fa69d113",
+          "title": "Finolex Electrical Conduit",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.finolex.com/ProductPage/SubCat/Rigid-PVC-Conduits",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2e2907e25777dba8dcc03b8b1ee1358e3a3351140dcfabce52a3db99f47a51b2.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-finolex-upvc-d356daa6ae",
+          "title": "Finolex uPVC",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.finolexpipes.com/plumbing-products/astm-pipes-fittings/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/107d238560df257b9ec7da0fbbb88beda36cd1c99ddd3ee5f0ae09286b248cee.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-supreme-hdpe-37aff4d92b",
+          "title": "Supreme HDPE",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.supreme.co.in/pipe/drainage/products/polyethylene-pipes-as-per-is-14333/range/pipe",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e3de5ecd08a7e9ecca5e92ef087b3168c48f2ab03fea25484436ebdf0787883c.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-supreme-swr-72dacc86e1",
+          "title": "Supreme SWR",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.supreme.co.in/pipe/drainage/products/swr-drainage-system",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8859d878125a63c5ee6dcb1b22e0a51f986af710ed161069da3be396ad6257f4.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-vectus-composite-piping-b9dda441cb",
+          "title": "Vectus Composite Piping",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.vectus.in/blog/installing-a-plumbing-system-in-a-new-home/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b82acbda686b47704b984c0438bb9f5b875d66fbbef6b952a2ae0662c2e436de.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-vectus-cpvc-3de55bcff0",
+          "title": "Vectus CPVC",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.vectus.in/blog/installing-a-plumbing-system-in-a-new-home/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4e625cff32ebed976b94c69bd8d36f642c3563876901072a0eb11906f8817e1c.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-vectus-ppr-7e602abfbc",
+          "title": "Vectus PPR",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.vectus.in/blog/installing-a-plumbing-system-in-a-new-home/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/94d699f8b4d3b6fcf643875b02cc552f6bc8366f65dc13d5fc4b5da96459cf49.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-vectus-swr-fafcbb2daa",
+          "title": "Vectus SWR",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.vectus.in/blog/installing-a-plumbing-system-in-a-new-home/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/a8c97d7b5f55fc29c624369b31508865a7363bbeb1f938f13cf034b20863951c.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-door-accessories-fff3a9d05b",
+          "title": "Dorset Door Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/architectural-hardware/door-accessories",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/d95f0704547ce35a434c4a55d872e4abb6ca16aa66f4f9b743ec353e7e1cb10b.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-door-closers-11a02478b7",
+          "title": "Dorset Door Closers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/architectural-hardware/door-closer",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/480f2d97dbd5838a511a74de8467a60476a11073912a1cc8ff0c848c75a40e54.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-door-handles-ddaa87959e",
+          "title": "Dorset Door Handles",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/architectural-hardware/door-handles",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/831448d265e54b57486e89572b4b8acaf63d89ffcc3937581b7cd4441f36bb54.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 2,
+      "items": [
+        {
+          "slug": "ve-range-dorset-door-hinges-f9a1b35dca",
+          "title": "Dorset Door Hinges",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/architectural-hardware/door-hinges",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/400bcb104f8f48c42874f0d445b2203b6b7194fe863d88d5deec839166dfe51c.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-mortise-locks-67b44108b0",
+          "title": "Dorset Mortise Locks",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/locks-security-systems/mortise-locks",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/3e61f882558a8fcdc34eb8e96d22970a114dee7029d45429634a38d791f69fa9.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hafele-door-handles-2a9bd2e76c",
+          "title": "Häfele Door Handles",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://home.hafeleindia.com/products/opalus-series",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/fc2a5bc30f877d5445ff5fa7bc6327463503626abbe8d97d0542764b08d78a52.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hafele-glass-door-hardware-a051ee0cf1",
+          "title": "Häfele Glass Door Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://home.hafeleindia.com/products/elegans-shower-cubicle-fittings",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4b1fa62128bcc93cdd4daa7132e2175c9fc0b33a152575f4ee919f3791d355cf.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-door-hardware-7a2a1d8a3e",
+          "title": "Hettich Door Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/door-hardware-solutions",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/51138b4cd5d1b6d9b5aeab4156ba8ea60f79a4d7cc44f77e945d3f8cd419c083.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-door-hinges-874e9baadc",
+          "title": "Hettich Door Hinges",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/door-hardware-solutions",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/6664240461ffd2790225c54ad0613ab01bf9c1c41af17c4c8f80e8171ed16eb6.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-sliding-door-systems-bb9b15f3d9",
+          "title": "Hettich Sliding Door Systems",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/sliding-door-systems/slideline",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b62f8950e37e25ec4ae5a72e63936cf930a37d31e15bb70c8945a563e13c17a8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-yale-door-hardware-78c1714d1e",
+          "title": "Yale Door Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://yaleonline.in/products/yale-door-closer-en-size-3-surface",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/22f2f1a1235fc2107a2d9cfc23ce43edac97b4f26015a4e9adbe9e6a1b1f26c0.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-yale-mechanical-locks-673377fcdb",
+          "title": "Yale Mechanical Locks",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://yaleonline.in/products/yale-mortise-lockbody-85-c2c-45-mmb-s-latch-deadbolt-brass",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/94f6fb8ec41f30f3c7edb17fb8a8a74462d44c88b435f9b054d754ac3caab501.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-yale-smart-locks-e18196638b",
+          "title": "Yale Smart Locks",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://yaleonline.in/products/ydme-100nxt-digital-door-lock-black",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/31d9d38b0e331f91cf6e971b281f229552b44e4ffa0b5f9b6b3ea2e73a909192.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-centuryply-decorative-doors-95c789ab25",
+          "title": "CenturyPly Decorative Doors",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.centuryply.com/centurydoors/decorative-doors",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2ca0feeae399549e045af2117fb28222bb331ddc76e86c93b1895ce1294fe42c.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xtra-power-caulking-gun-203",
+          "title": "XTRA POWER Caulking Gun 203",
+          "reviewStatus": "EXACT_PRODUCT_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xtra-power-caulking-gun-203",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/d3050a2a17a621fb1e61c4ffa2201a1b101d52049f28f059a1c3fd1801c325f7.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xtra-power-caulking-gun-206",
+          "title": "XTRA POWER Caulking Gun 206",
+          "reviewStatus": "EXACT_PRODUCT_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xtra-power-caulking-gun-206",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/aaecde2d3ee1c0a492937edb6f800e7800b0fcb6984f54c7c1fdc7336eb46df1.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-chain-saw-file-without-handle",
+          "title": "XTRA POWER Chain Saw File Without Handle",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/chain-saw-file-without-handle",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/d81e3bc215e527ab474125381eea91b0646b33f1221ee4f007ce071896b7706e.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-glass-suction-lifter",
+          "title": "XTRA POWER Glass Suction Lifter",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/glass-suction-lifter",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/073ffd4252f21dcd3ad5c28f2b0f24006468907905e219c501ab291ed1c3ebdb.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-spirit-level",
+          "title": "XTRA POWER Spirit Level",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/spirit-level",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/5b51745845d3c377510ae95f58077f5c5fda4d38a1ec73b42f3daad0f1e28d10.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-spirit-level-prime",
+          "title": "XTRA POWER Spirit Level - Prime",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/spirit-level-prime",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2060de336bd17db2e0dc99fc9ae5a40f2b40b95f657ac098a1899482fe2ded44.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-drawer-hardware-7294feb01f",
+          "title": "Dorset Drawer Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/product/furniture-fitting-and-kitchen-hardware",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/c037165cf9b24b41ed98fa6a9f04c5ce6a7fbe9a6203cffeb977d76ae3b9e587.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-hinges-34f9747fee",
+          "title": "Dorset Hinges",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/product/furniture-fitting-and-kitchen-hardware",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/dba466186b344782d89778c060d39152b073a897a813cc4eaa3a50b9e247c123.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-handles-da39f41da4",
+          "title": "Hettich Handles",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/aluminium-profile",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/48771702a1a6413e9dbe6df73f94a7e51b218c4913438bef53c1a67f36b63042.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 3,
+      "items": [
+        {
+          "slug": "ve-range-hettich-sliding-folding-systems-1ffce22568",
+          "title": "Hettich Sliding/Folding Systems",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/sliding-door-systems/slideline",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b62f8950e37e25ec4ae5a72e63936cf930a37d31e15bb70c8945a563e13c17a8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-drawer-channels-8611f93b9a",
+          "title": "Ozone Drawer Channels",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/drawer-slides",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/39fe3ec44227f0ff08dd5cf09883fa633c58ac23ffe150d1a797c8b43442deed.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-hinges-034663c3cc",
+          "title": "Ozone Hinges",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/furniture-hinges",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b9889a7ff0f8f0bce12a87736172295fcfc41cc2c0283f26a110a3931d436047.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-elica-kitchen-hoods-6ddf317e05",
+          "title": "Elica Kitchen Hoods",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.elicaindia.com/Chimneys/Ismart/Filterless/ISMART-EFL-HAC-LTW-90",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/04fa7e9d78ee7b9eafde3f638419c838b8de86fbf4b5ac1fcc388191a50ba444.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-exide-batteries-eae3c20a8e",
+          "title": "Exide Batteries",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.exidecare.com/brand/exide-home-invamaster-inverter-battery",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4fd239315ee3e78f0c146e38619783c7c0c9288a4724d97aa6d2869bf72b3e01.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-exide-inverters-ups-486bac8e48",
+          "title": "Exide Inverters / UPS",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.exidecare.com/brand/exide-home-magic-inverter",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b6f4978f03cab4a5e62f91b62707670e5aef2db374f5296de33914b846a44780.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-faber-built-in-appliances-6e29cbef73",
+          "title": "Faber Built-in Appliances",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://faberindia.com/products/built-in-fbio-83l-18f-tft-bk",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e3015b9fda9bcb5a5d4e3a8836346f169425797e9a49a6e537fcc694e096cb4b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-faber-chimneys-444549d12a",
+          "title": "Faber Chimneys",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://faberindia.com/products/hood-mercury-bldc-fl-sc-hc-bk-in-90-t",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/a3425adbe47b5316795d00fef7c61c8259955b0ba516cac4265ae82326a5135d.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-faber-hobs-1a720fb071",
+          "title": "Faber Hobs",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://faberindia.com/products/hob-gas-fh-40-amd",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/118dcd8daf299187e2d431fbd0b79045b1f222f72569f57039122fdd9ae7538d.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-haier-air-conditioners-6a7c0575b4",
+          "title": "Haier Air Conditioners",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://shop.haierindia.com/category/Air-Solutions/14",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/5d4825a048782cf0caeeb1c4cc7de14cbca4ab8eedc49d933ca2bd8a5dcdce59.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-haier-refrigerators-dcf796562f",
+          "title": "Haier Refrigerators",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://shop.haierindia.com/category/Refrigerators/13",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/72fc2520404faeb5ba9ae4b67841acb1078666791db4235be44769e30be99c60.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-haier-washing-machines-1d55dc4cb4",
+          "title": "Haier Washing Machines",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://shop.haierindia.com/shop/Washing-Machines/Front-Load-Washing-Machines/12/34",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/66e29fc6c0860b4fcb33ecc2a3e6e97d0d534c445a9da458c514981df1d68d7b.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-havells-geysers-7d71ed99bf",
+          "title": "Havells Geysers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://havells.com/bianca-convertible-storage-water-heater-geyser.html",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0c91712680f1e043a15f3f5a9d87a4c838d65bc6b8f11775d98e4f2cb234adf7.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ifb-dishwashers-028ecb6d15",
+          "title": "IFB Dishwashers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ifbappliances.com/support/product-help",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/1809d2cb0d999355fc6115daa56cab36660413d6272b1a09cafb4190bdb2219f.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ifb-microwaves-18dae77a0e",
+          "title": "IFB Microwaves",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ifbappliances.com/support/product-help",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/29dcc54634c3c0ba904adf5b1d46dcde1718b4c7f86ae3409d482a5d3d8fcdac.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ifb-washing-machines-de13409183",
+          "title": "IFB Washing Machines",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ifbappliances.com/support/product-help",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/688d4dac1491288ac1f357c7af2ccff251b0cae9ae6850df48b6745cc8ebeea7.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-kaff-kitchen-hoods-eb9b8aad42",
+          "title": "KAFF Kitchen Hoods",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://checkout.kaff.in/products/base-bf-60",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/bc2d371dffa3b382539d384019b091df47bd397689f82311289f32540d439f9a.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-lg-air-conditioners-17303d14bb",
+          "title": "LG Air Conditioners",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lg.com/in/range-e-catalogue/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/294afc2d186340e85924226fe0d73850b57afdb2eb16d4d58acf0300abfcd227.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-lg-dishwashers-e803eaf44d",
+          "title": "LG Dishwashers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lg.com/in/range-e-catalogue/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/96867891bef4c0686f6b51e374f5acc392518b27cc8aa59bbf076a9657afbaa3.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-lg-microwaves-32b1f626df",
+          "title": "LG Microwaves",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lg.com/in/range-e-catalogue/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/68c8731f65f38394bcdeb49af02993d031e9cce02cc50da2d790ff581f45d7ab.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 4,
+      "items": [
+        {
+          "slug": "ve-range-lg-refrigerators-4435fd53c7",
+          "title": "LG Refrigerators",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lg.com/in/range-e-catalogue/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/83034edb29639b53d45f1c4952427f9018646d79faac381bff863d9c1b555dee.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-lg-washing-machines-9c49559881",
+          "title": "LG Washing Machines",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lg.com/in/range-e-catalogue/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/ab39e42e5fc45fcd9088dbb7cde39a65c4b1fcc9935c6a2366c8216865e32785.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-luminous-batteries-30dc9aca0f",
+          "title": "Luminous Batteries",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.luminousindia.com/e-shop",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/67f17d174750327fc51efe710d02e40dae4756d609d7856d777de4a82e9cbcaf.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-luminous-home-inverters-d3129bc3f6",
+          "title": "Luminous Home Inverters",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.luminousindia.com/e-shop",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/234d38035a4645db0bd4fc3e8bebad44995f5158dd31f4567f39f14c423587fc.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-luminous-inverter-series-88b1f8b415",
+          "title": "Luminous Inverter Series",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.luminousindia.com/e-shop",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0562c9e6bb3399482f794568c492047aa553d18a3657164d1016826fec2c9c49.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-luminous-solar-backup-40f55e9d25",
+          "title": "Luminous Solar Backup",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.luminousindia.com/e-shop",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2151d4a55294db7f42b89a9afee8fa60788df3a13c120aca160183234f253545.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-microtek-batteries-8842f476a6",
+          "title": "Microtek Batteries",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.microtek.in/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e7c646d9bcb63f4258721e707d9e812a65d1dbbee813b6bc39f6a7048c6d0939.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-microtek-stabilizers-9b60c73b51",
+          "title": "Microtek Stabilizers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.microtek.in/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/96100a2f1470289c4e7f0cda9ce8ff0fabe4d3d0477df7ac73c1641873cb3274.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-racold-geysers-31e221de4f",
+          "title": "Racold Geysers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.racold.com/electric-storage-geyser/cdr-dlx",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/c06b87763a670d0d84da80c099d007210a206340f20afc35c57c05ab971fe368.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-samsung-air-conditioners-90bcc81b9f",
+          "title": "Samsung Air Conditioners",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.samsung.com/in/air-conditioners/split-ac/bespoke-ai-windfree-inverter-split-ac-6-30-kw-3-star-2026-ar60h24d13wnna/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8c03c940e5d5bcb0667f3babd50520b4db7108b1445729832cbadd17c1d58ecd.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-samsung-microwaves-75b5e5c937",
+          "title": "Samsung Microwaves",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.samsung.com/in/microwave-ovens/convection/mw7300b-mc32b7382qc-tl/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/1c81b97cd0693ebd5baea89823bf631e64b7d1d52aac46330175981c1bd7fdc5.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-samsung-refrigerators-a83f870926",
+          "title": "Samsung Refrigerators",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.samsung.com/in/refrigerators/french-door/rf9000-t-style-french-door-32inch-family-hub-810l-stainless-steel-rf71db9950qdtl/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/21155e80a9b952215d4654da738b79f86f4ca51b535af30e6bd99f223616f8ec.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-samsung-washing-machines-5a328f570b",
+          "title": "Samsung Washing Machines",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.samsung.com/in/washers-and-dryers/washing-machines/ww8400d-front-loading-smartthings-ai-energy-made-a-xx-percent-extra-energy-efficiency-ai-ecobubble-12kg-navy-ww12db8b54gstl/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/59ef5145ada25e263b4b737118443dcd5ae42cc5d6a7001c8a9a647c47df4c9a.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-v-guard-batteries-3a980536a2",
+          "title": "V-Guard Batteries",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://vguard.com/products/v-guard-vt-250-dlx-inverter-battery-tubular-technology-high-backup-performance-230ah-capacity-48-36-month-warranty",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7c522b4b5d121c5cc80695536e024b3efc553e501306e0656d67d1779631e13a.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-v-guard-inverters-d3f19f49ef",
+          "title": "V-Guard Inverters",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://vguard.com/products/prime-1150-digital-inverter-ups",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8d76229f1246582615f17749aaea444bebfdb8c1be89287a99889b676bd83145.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-v-guard-stabilizers-0ffd0e1235",
+          "title": "V-Guard Stabilizers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://vguard.com/products/vgsd-50-smart-stabilizer-for-refrigerators-up-to-300-l-digital-display-working-range-130-290v",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0493fb2da1e1c9ff0b63e0fde4505d19de86db8b15ed5708673ca0b88aadd23a.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-whirlpool-hobs-0182d18b97",
+          "title": "Whirlpool Hobs",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://india.whirlpool.in/akc-950---90cm-5-burner-ss-gas-hob/p",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8329e4a9e8e50679f59bd505d33fc050d2aa7c2140608695c72e688cbc3e8437.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-whirlpool-microwaves-6d87f790e9",
+          "title": "Whirlpool Microwaves",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://india.whirlpool.in/magicook-pro-solo-20-l-microwave--up-to-18-auto-cook-menus-/p",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/192acebde1bd61e261e9cca25615ae2a6801d2e52cb1358cc5db5307015cea5c.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-whirlpool-refrigerators-3ce8e9b655",
+          "title": "Whirlpool Refrigerators",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://india.whirlpool.in/luxuriem-654l-4-door-french-door-refrigerator-3-star-convertible-inverter-compressor-360-triple-cooling/p",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/85562690988aae861c8f6f30f08f6cf6756558e74940df674a25e74a267f6c69.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-whirlpool-washing-machines-7da9e1948c",
+          "title": "Whirlpool Washing Machines",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://india.whirlpool.in/stainwash-pro-8kg-5-star-fully-automatic-top-load-washing-machine/p",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0ed77ffdc79255f576039ec5afb42127e548a9c5faf491ff0ae4a8db01e65819.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 5,
+      "items": [
+        {
+          "slug": "ve-range-dorset-kitchen-hardware-2a0c15cc7b",
+          "title": "Dorset Kitchen Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/product/furniture-fitting-and-kitchen-hardware",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e88fc3cdecbd969a3cbf861febbf9da0e14a78fa058d21a3a8ab8ad98375ab32.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-dorset-storage-accessories-ae717adb62",
+          "title": "Dorset Storage Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/product/furniture-fitting-and-kitchen-hardware",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/20ed1cc5f9a0cb050d97016c779e4d9f20eb0e6ce65880ed6fc27eaacbeecc4c.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hafele-drawer-systems-7bfc3ab1ad",
+          "title": "Häfele Drawer Systems",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://home.hafeleindia.com/products/matrixbox-premium-drawer-system",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8f2d4931bf08d0410fb0d86a7bc8dac810cf7a02f65a1376473961be48fc8b59.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-rotating-storage-2929e81e13",
+          "title": "Hettich Rotating Storage",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/press/detail/furnspin-premiere-at-hettich",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/c5b16b345231e2b5a49315ec4056cc7bf73d02457f6643e87a7d822fa5fbdf7b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-corner-accessories-f3137284f2",
+          "title": "Ozone Corner Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/corner-unit",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e053c455edf6b07bce859ad62123e500643c48753874c4b8611e890fd203fd6d.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-drawer-organisation-2396ee449d",
+          "title": "Ozone Drawer Organisation",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/drawer-accessories",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/f31df7b9d6bd6c91282468a396fa2bb4d195c0c9d1e0be223293a64374129418.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-kitchen-accessories-4a2822e4eb",
+          "title": "Ozone Kitchen Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/kitchen-accessories",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/11643d7d04b48e7e5b2836937509f733d3ec33153433ef37bc5bd0bd4bc1ae69.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-pantry-pull-outs-b8c5b136b2",
+          "title": "Ozone Pantry / Pull-outs",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/pantrytall-unit",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b1e9e0f21f113b7d13c094fa37c0974c82d6f80fa50c3457140d6df1c2b9f96a.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-waste-management-241cb44947",
+          "title": "Ozone Waste Management",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/kitchen-waste-bins",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/ee69cf5243131d8b76ea738f481086d17ef4ba297f45fb3f0ce21e3b50fd85ea.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-bajaj-electricals-led-lights-lighting-adbdcbf5a1",
+          "title": "Bajaj Electricals LED Lights & Lighting",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bajajelectricals.com/products/awe-plus-iot-smart-lamp",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2714981af5f38f1d582c5d7278765ca1709ee5c5b44aac777d5dbe3c594592eb.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-crompton-led-lights-lighting-71f87a0f1e",
+          "title": "Crompton LED Lights & Lighting",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.crompton.co.in/products/crompton-dynaray-led-lamp",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/15ed8ee4c9987e1a996c08908ddc6fe38c58d0625a461e4499e0e91c2c43aae6.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hafele-kitchen-lighting-ea07723545",
+          "title": "Häfele Kitchen Lighting",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://home.hafeleindia.com/products/drawer-light",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8bb46705876e154c87addf6d801f33dbe703775b3ebb8756034293880c638b03.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-philips-led-lights-lighting-87de9b867d",
+          "title": "Philips LED Lights & Lighting",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.lighting.philips.co.in/consumer/p/battens-slimline-elite/8721103147936",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4b0bd74302fdaa1c022d9b297daf985bcdec6f1b6be7fc9cd8805ef3cb1a8f5f.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-syska-led-lights-lighting-beddffe2d6",
+          "title": "Syska LED Lights & Lighting",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://syska.co.in/products/syska-30-w-t-bulb-b22-led-bulb-white",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2df8190c1811594b70d3b388c5516e10fbe84335188a2511e4369a5b45860acd.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-black-decker-drills-drivers-a5b00f3bf4",
+          "title": "Black+Decker Drills & Drivers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://in.blackanddecker.global/product/hd555/550w-variable-speed-hammer-drill-13-mm",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/db2a541cb0896da5bd5bbba36c40e0ffdc4c1a4ecec5741435450823f6f06abd.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-black-decker-grinders-saws-5b9fb29ba0",
+          "title": "Black+Decker Grinders & Saws",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://in.blackanddecker.global/product/g650/650w-small-angle-grinder-100-mm",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/3e5478fe57495decd35434688f562c8699975439618c982a0a96103098c060df.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-black-decker-sanders-15ebbc78a9",
+          "title": "Black+Decker Sanders",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://in.blackanddecker.global/product/ka400/220w-14-sheet-sander",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7946fc18afd9d62f3da08877ee1e0b3575bed3f5adffe5e211131a155d2d6a3b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-bosch-professional-construction-d4994085e1",
+          "title": "Bosch Professional Construction",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bosch-professional.com/in/en/products/gbh-220-06112A60F0",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/eee7162fe68c74fc96a73148a921b42d41cd2f234aa6757e353186472c1f453b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-bosch-professional-drills-drivers-cb62d933af",
+          "title": "Bosch Professional Drills & Drivers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bosch-professional.com/in/en/products/gsr-120-li-06019G80F1",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b2819ce004602086ffd996fcebf045e8027b86d74c8fd997c444e9948530420f.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-bosch-professional-grinding-metalworking-f0e5c34a49",
+          "title": "Bosch Professional Grinding & Metalworking",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bosch-professional.com/in/en/products/gws-660-060137505F",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/dfe731b942b4399da6c9b4e8853ec29dd459dcbeb3025da8fab19737dde00800.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 6,
+      "items": [
+        {
+          "slug": "ve-range-bosch-professional-saws-1bdb0a5de3",
+          "title": "Bosch Professional Saws",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bosch-pt.co.in/in/en/products/gks-235-turbo-06015A20F0",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/198497ce66f3765c74ad9d8834ffae8f10e56652574b274d61b838fbb07aef6f.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-bosch-professional-woodworking-ec3dd09e79",
+          "title": "Bosch Professional Woodworking",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.bosch-professional.com/in/en/products/gho-6500-06015960F0",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/6340669e155ba3783d23fd6a2452fbd3c1c7248688e60eb2dfe38ee43e38a076.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hilti-demolition-112f98b7d0",
+          "title": "Hilti Demolition",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hilti.in/c/CLS_POWER_TOOLS_7125/CLS_DEMOLITION_HAMMER_BREAKER_SUB_7125/r7770033",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/ea49653916339a32b9f6d5deb57a10b3dec7c096a6c66a5f1ff98aa8136d884b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ingco-cordless-72268b4829",
+          "title": "INGCO Cordless",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ingco.com/in/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/da45d2faf5888eb261265090ced684a73f73dd304da2f1570ca711d424a1c7bc.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ingco-drills-drivers-2815ab08ea",
+          "title": "INGCO Drills & Drivers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ingco.com/in/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/8455038b7b972ff8da4b21951fa1f343bcf893a7efa3a623a99475b1b74e92ca.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ingco-grinders-saws-149b022796",
+          "title": "INGCO Grinders & Saws",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://in.ingco.com/in/products/power-tools",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4cc12952492525a28512e1890678c18b07dfc9305d761c7795316d5af201ae22.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ingco-rotary-demolition-7ed51f4cb5",
+          "title": "INGCO Rotary & Demolition",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ingco.com/in/product/cordless-rotary-hammer/CRHLI20288",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/42afa7b93effbcf96e66157fa7f3e662ced2fdd104cf95545fd48aa750ba1a0e.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-stanley-cordless-cb4d5ab02b",
+          "title": "Stanley Cordless",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.in.stanleytools.global/en-in/product/scg400-b1/18v-v20-100mm-grinder-tool-only",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/596c5701d1e09f781a5034c2d3e6bc51fbdeb0e0ab194f9a31de164de85d779d.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-stanley-drills-drivers-a827395a02",
+          "title": "Stanley Drills & Drivers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.in.stanleytools.global/en-in/product/sdh600/600w-12-13mm-hammer-drill",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7ed4cc6768e25e929c654c5f42a05ec2115c4e130b9b5041b9040d3ac0cf2cb3.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-stanley-grinders-be976fe3c0",
+          "title": "Stanley Grinders",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.in.stanleytools.global/en-in/product/sg7100/750w-100mm-slim-small-angle-grinder",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/c69788be87d5566fae7ce80cb48422e3fb569b3f79c93e83a99fa3eef7ec3928.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cera-accessories-6597eddc1e",
+          "title": "CERA Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.cera-india.com/cera/faucets-showers-bath-accessories-bottle-trap/bottle-trap-1",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/3e21b619bf2df25736c7120aa233764941ef1911be95a29cf25f36a1dc6b39ef.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cera-faucets-showers-c4a3fe9c52",
+          "title": "CERA Faucets & Showers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.cera-india.com/cera/faucets-showers-faucets-single-lever-range-victor/victor-pillar-cock",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/62603b1bc9deebd67e412d9724843d577e053471835d2289e3e2b5fd36ee2caa.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cera-sanitaryware-4a1fd5975a",
+          "title": "CERA Sanitaryware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.cera-india.com/cera/sanitaryware-wash-basins-table-top-wall-hung-wash-basins/careo",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/5d073c05bc93e9e65abadbb15fb16e6ff881999e20ba91b30718f962c2d5a132.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cera-shower-partitions-16e4ecde18",
+          "title": "CERA Shower Partitions",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.cera-india.com/cera/wellness-shower-partitions/cadmega",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/066a51e320cee0aac5ba7c375e084945c7308821502795a00e7f868a00c6d63e.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-cera-vanity-mirrors-a037c2130f",
+          "title": "CERA Vanity & Mirrors",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.cera-india.com/cera/faucets-showers-bath-accessories/meridien-round-shaving-mirror",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/c5424c4f6ddc912e7ebdee8f93718f45be0efdc3b2a8376d3b2e069f9ca74643.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-essco-accessories-188bce35bf",
+          "title": "Essco Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.esscobathware.com/products/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7ef5232f8447eb0652884365b34fbdda95c9d3bbc2b6c4b59d859956a3c54938.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-essco-faucets-0dab45d1e7",
+          "title": "Essco Faucets",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.esscobathware.com/products/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b571fe839322298776a1f0dfb7442d3d57da53a5e3d6291b5af9d9a73f790a10.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-essco-sanitaryware-149b0f1f58",
+          "title": "Essco Sanitaryware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.esscobathware.com/products/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/3a29c1661dc2bb5e537966301676948b0e3c804e5c3e8060cd11e4b63b2821c8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hansgrohe-faucets-f3120849e3",
+          "title": "Hansgrohe Faucets",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hansgrohe.in/articledetail-rebris-e-single-lever-basin-mixer-for-concealed-installation-wall-mounted-with-spout-20-cm-72568007",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/47a5db4e39a9012a557cce480b65e4e0ce2a6b7a57691aae0a1eb294fcefbd9e.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hansgrohe-shower-controls-3d396e0956",
+          "title": "Hansgrohe Shower Controls",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hansgrohe.in/articledetail-rainselect-thermostat-for-concealed-installation-for-4-functions-with-integrated-shower-holder-15357000",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/df7031a4e55ab77078d0272dbc41d01fc643cd0468cd6a43d6898905efb6f47b.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 7,
+      "items": [
+        {
+          "slug": "ve-range-hansgrohe-showers-7bf51d2c16",
+          "title": "Hansgrohe Showers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hansgrohe.in/articledetail-rainfinity-hand-shower-130-3jet-ecosmart-26865000",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4102ad1a728610f4f216a05e514570e8425a77b518d33ebecb9d9f4a65d0da90.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hindware-bathroom-accessories-1f30fadd78",
+          "title": "Hindware Bathroom Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://hindware.com/p/bath/contessa-towel-ring?childId=4491",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/12c42275a54afb7ea034769f4dad6004af8164991bdad586541713b207555a4c.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hindware-faucets-7fe9138900",
+          "title": "Hindware Faucets",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://hindware.com/c/bath",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/49cdf4323a2226baba7714c61f419e3de6f213f6f9c8542855b2fadf4a5e2807.jpeg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hindware-sanitaryware-b1c45fce52",
+          "title": "Hindware Sanitaryware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://hindware.com/c/bath",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7c062e5e8ec7697674a84f87090e9011b74bf46e12c9eddd27e09fd300eb4a47.jpeg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hindware-showers-b6da7274e0",
+          "title": "Hindware Showers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://hindware.com/c/bath",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/96aba08e65770580d2c593cf99301245b40c99d002d6f0bf81d995043c76abbf.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-jaquar-showers-669f728a7f",
+          "title": "Jaquar Showers",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.jaquar.com/en/overhead-190mm-rain-shower?Id=829",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/74804ec186bb90dd2c16ef3d5893c11b5a4cf40c6a6fdc002e2df9e8090f1db8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-parryware-sanitaryware-2afe1052c7",
+          "title": "Parryware Sanitaryware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.parryware.in/products/bowl-basin-WPC895V46?sku=WPC895V46",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/34c2685d61fb2a478ccfdcf2b7d3cac53bc59f122f3a99a8b6ee1e4492ef0c19.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-cut-off-wheel-sgw",
+          "title": "SGW Cut Off Wheel",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/cut-off-wheel-sgw",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/6c683d4395ee205f81ed8940bd98327dd3f6abb4e2902449fc322b845dc3b6d5.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-dc-wheel-sgw",
+          "title": "SGW DC Wheel",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/dc-wheel-sgw",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0e2f1db86b164b5e175c6572019977814a49bc94cc41570cd2a7c7a8a2ddc3c6.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-awant-blades",
+          "title": "XTRA POWER Awant Blades",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/awant-blades",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/faff1fd37b55ec75c1e84a7e74a964929473d8e49deac551ceb1dc1f08cf58c6.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-awant-ceramic-blade",
+          "title": "XTRA POWER Awant Ceramic Blade",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/awant-ceramic-blade",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/80a7ec7a3f40fb55ea4d2c0e4c8ea907cc8ea271d4023f8a1d473f39e5f3bd92.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-awant-laser-welded-blade",
+          "title": "XTRA POWER Awant Laser Welded Blade",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/awant-laser-welded-blade",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0d2c3cca845a589b9d3804b3908162a79948d1473fe77e8d5874660209df80b7.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-bearings-2rs-v3",
+          "title": "XTRA POWER Bearings (2RS) V3",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/bearings-2rs-v3",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/71fa1472a0e581326fe3788204dfd4026ccf3493855aca2cce53885d630db850.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xtra-power-blue-line-tct-saw-blade",
+          "title": "XTRA POWER Blue Line TCT Saw Blade",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xtra-power-blue-line-tct-saw-blade",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/48752dd786cee43f40f2e397789d67fe4721f5fc93fda4acb5d72ffcb312adfb.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-ceramic-blade-with-copper-washer",
+          "title": "XTRA POWER Ceramic Blade With Copper Washer",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/ceramic-blade-with-copper-washer",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/53a20f33894d9cea83205499e63989aeb0e12f3000f53b1530cba8dc302fa357.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-ceramic-drill-bit",
+          "title": "XTRA POWER Ceramic Drill Bit",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/ceramic-drill-bit",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/82db9b0a71017418b1e6388df5f293c1d95357b52a7d1a703571a71e07544f49.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-chain-bar-for-chain-saw",
+          "title": "XTRA POWER Chain Bar For Chain Saw",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/chain-bar-for-chain-saw",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/fe885cc55c144a63ad7304c3e876830fdcd03464af2b3b575b6acc149bd9901a.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-chain-for-chain-saw",
+          "title": "XTRA POWER Chain For Chain Saw",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/chain-for-chain-saw",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/ddcc5752bd26a4fa3fc6330ee977cbbc52f8871de2a4255ce3322aeff514b758.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-concrete-hole-saw",
+          "title": "XTRA POWER Concrete Hole Saw",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/concrete-hole-saw",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/fda388e41ae1dbec87f844073858fd1dc388f551a2c42db4443c380fdc9d096b.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-concrete-hole-saw-rod",
+          "title": "XTRA POWER Concrete Hole Saw Rod",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/concrete-hole-saw-rod",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/1527f75397c480a60301ec772115909d604a04b0de07d51369396315f1691ccb.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 8,
+      "items": [
+        {
+          "slug": "xp-concrete-vibrator-rods",
+          "title": "XTRA POWER Concrete Vibrator Rods",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/concrete-vibrator-rods",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4334dbbaa7f1b3eccee488922e9e00195b43c536fe2c5a4c3aaf150aa0611981.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-cove-bead-bits",
+          "title": "XTRA POWER Cove Bead Bits",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/cove-bead-bits",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/73fcea2d8c4b8ed6ebdf99db2e30420ced490a7f27a6c0ec7dec6dd342f411ab.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-cut-off-wheel-gx-series",
+          "title": "XTRA POWER Cut Off Wheel Gx Series",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/cut-off-wheel-gx-series",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b090a1a600544329152d064904c646adcfe7366a28f12246fc06f10f085dcdba.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-cut-off-wheel-r1-series",
+          "title": "XTRA POWER Cut Off Wheel R1 Series",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/cut-off-wheel-r1-series",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/4b2dc645de35ed94bb81b7b91d4db84c965f6cd229cf89e7a4fa5b521b48502b.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-glass-core-drill",
+          "title": "XTRA POWER Glass Core Drill",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/glass-core-drill",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/99e65d9669b4fbd2c6851828aa3b42300b7fc3cb6ae95acc00ce53cd3562f9c4.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-granite-core-bits-xtra-power",
+          "title": "XTRA POWER Granite Core Bits",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/-granite-core-bits-xtra-power-",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/0dd4483c057e8283391cc95c2adeafe69e7c23d5889d95af6d866e0f4e3d3c2c.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-high-torque-bits",
+          "title": "XTRA POWER High Torque Bits",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/high-torque-bits",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/57e941a108eb88a21a8a9016ac73e7a1fb2c86e298cf22964659599ac73afc98.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-hss-drill-bits",
+          "title": "XTRA POWER HSS Drill Bits",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/hss-drill-bits",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b1d913277683013d7f9daf7a7f6db410842d7b86f59a4dcdb92bd43ca84b29b8.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-hss-drill-bits-eco",
+          "title": "XTRA POWER HSS Drill Bits Eco",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/hss-drill-bits-eco",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/53358ef17e64a1d5b35a5ba7a40dd3c562622ad40a5e8db71947674697b53989.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-masonry-drill-bits",
+          "title": "XTRA POWER Masonry Drill Bits",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/masonry-drill-bits",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e36cce0cf2f2ed10b0569810c6346acedcbc1ce18975a684e7067929f0ae94e1.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-non-woven-wheel-xtra-power",
+          "title": "XTRA POWER Non Woven Wheel",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/non-woven-wheel-xtra-power",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2a8c8371ca63bbf37267a89bf731c59cf7efcb7d3126a6047f3ef882940a8452.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-non-woven-pad-for-steel-metal",
+          "title": "XTRA POWER Non-woven Pad For Steel & Metal",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/non-woven-pad-for-steel-metal",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/d9a12c41d00e90461dde4632b40df068561ac1ba4673594ae4279999c3fa376e.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-pad-with-velcro",
+          "title": "XTRA POWER Pad With Velcro",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/pad-with-velcro",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/e9cc9714bf6c0a9ec799136dbdfe6137efd9ba3349b95e547d57421826efa1fd.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xtra-power-pro",
+          "title": "XTRA POWER Pro",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xtra-power-pro",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/bd6b14cd36dc155af9107e3b01f00e2704c5f5d8cb03cf13b60d1598ac4cd284.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-rewop-blade",
+          "title": "XTRA POWER Rewop Blade",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/rewop-blade",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/7f71d4b30f3317eea70ac91322566a0e35b2d25831b952f22528cc55a9ecbfb0.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xtra-power-tct-saw-blade",
+          "title": "XTRA POWER TCT Saw Blade",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xtra-power-tct-saw-blade",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/934e8e917961bc18b709293d5441bd93840336b05da7c04cac5e2ec388c4c4ed.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "xp-xp-jig-saw-blades",
+          "title": "XTRA POWER XP Jig Saw Blades",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://xtrapowertools.com/product-details/xp-jig-saw-blades",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/01ecbe1ce1177199dce05a084ada2d059ed5d109d5cfdceb645c2711d31ffc58.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-crabtree-switches-sockets-modular-accessories-efd2f2b7fc",
+          "title": "Crabtree Switches, Sockets & Modular Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://havells.com/switches/modular-range.html",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/431b88657c689a17a12d834ff0b2d81b3c2a21948e0180133ea800ade03d34cf.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-gm-modular-switches-sockets-modular-accessories-ddd3777a85",
+          "title": "GM Modular Switches, Sockets & Modular Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.gmmodular.com/switches-and-accessories/p/switches-aa-1-005/395",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/befdac87202a48252a157203570b69bd1708ce406e6010817c931570db2c5b2a.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-goldmedal-switches-sockets-modular-accessories-4cafb60363",
+          "title": "Goldmedal Switches, Sockets & Modular Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://goldmedalindia.com/curve-nixon/function/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/6ce8d5d2bbe7a708972edab720bcc3ff24f6aa12cafd8f837e21a9eccbf9b6c9.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    },
+    {
+      "batch": 9,
+      "items": [
+        {
+          "slug": "ve-range-dorset-bed-hardware-1fd47978a9",
+          "title": "Dorset Bed Hardware",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.dorsetindia.com/products/furniture-fitting-and-kitchen-hardware/gas-piston/gas-piston/bed-fitting",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/2600e324e5e34fe896ac65e3b5d90929ecd7e955b55cfaebaaf1460ff42411ab.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-sliding-systems-282825ef96",
+          "title": "Hettich Sliding Systems",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/sliding-door-systems/slideline",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b62f8950e37e25ec4ae5a72e63936cf930a37d31e15bb70c8945a563e13c17a8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-hettich-wardrobe-sliding-systems-769d077459",
+          "title": "Hettich Wardrobe Sliding Systems",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.hettich.com/en-in/products/sliding-door-systems/slideline",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b62f8950e37e25ec4ae5a72e63936cf930a37d31e15bb70c8945a563e13c17a8.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-bed-fittings-1f63de60f2",
+          "title": "Ozone Bed Fittings",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/bed-fittings",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/27e5530a2b7956cdb8b24d32c2470a0ab5820796d8859cb7e206cf4eb7d26622.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-wardrobe-accessories-9467dc1d6b",
+          "title": "Ozone Wardrobe Accessories",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/wardrobe-accessories",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/b36bd8216dcc37d354abac31728b6065187e3e04166c34a4a7a512e1e32f68a4.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-ozone-wardrobe-sliding-265dc5a4f9",
+          "title": "Ozone Wardrobe Sliding",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.ozone.in/category/wardrobe-fittings",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/326a4c4a9018edec42d0d9307d4af97d7253fbbddefc9c4f03ef4f755d8ddab3.webp",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-havells-mcb-rccb-rcbo-db-switchgear-bfe5523c5a",
+          "title": "Havells MCB / RCCB / RCBO / DB / Switchgear",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://havells.com/home-electricals/switchgears/circuit-breaker.html?availability_filter=5555",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/427d661938c6beb244b8cefee362e16d1d197590a3fb99805a9d17c69d5d9289.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-kei-industries-wires-cables-1fac7e77db",
+          "title": "KEI Industries Wires & Cables",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.kei-ind.com/cables-and-wires/house-wire/home-cab-fr/",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/1e24354354c26a83feeab42fc21ad594f0a23db81367d308a2b03595e64afe4e.png",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        },
+        {
+          "slug": "ve-range-v-guard-wires-cables-6727a44ffb",
+          "title": "V-Guard Wires & Cables",
+          "reviewStatus": "RANGE_REPRESENTATIVE_VERIFIED",
+          "sourceUrl": "https://www.vguard.in/products/wires-cables",
+          "assetUrl": "https://storage.googleapis.com/ve-staging-product-images/completion-630/54b3bc9c125b47f2819032a2f36ba0ee9823481ddab693d4b5a1734320d228a2.jpg",
+          "decision": null,
+          "reviewer": null,
+          "reviewedAt": null
+        }
+      ]
+    }
+  ]
+}

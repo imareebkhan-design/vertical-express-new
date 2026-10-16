@@ -1,0 +1,20 @@
+{
+  "verifiedAt": "2026-10-16T05:12:09.753Z",
+  "passed": 6,
+  "failed": 0,
+  "checks": [
+    "630 unique products",
+    "494 attached;136 missing",
+    "494 valid hashes",
+    "No publication or approval enabled",
+    "No local paths or credentials",
+    "169 blank owner decisions"
+  ],
+  "staging": {
+    "products": 630,
+    "hashesMatched": 494,
+    "draftProducts": 630,
+    "approvedImages": 0
+  },
+  "applicationTests": "Not run: documentation/data-only change; no executable application changes."
+}
