@@ -56,3 +56,21 @@ test("a place id that is not shaped like one is refused at the boundary", () => 
   assert.equal(addressInputSchema.safeParse({ ...BASE, latitude: 34, longitude: 74, placeId: "has space" }).success, false);
   assert.equal(addressInputSchema.safeParse({ ...BASE, latitude: 34, longitude: 74, placeId: "x".repeat(256) }).success, false);
 });
+
+test("a served pincode's state wins over the form's pre-filled one; an unserved pincode keeps what was entered", async () => {
+  const city = await db.serviceCity.create({ data: { name: `ZZZ Addr City ${randomUUID().slice(0, 6)}`, state: "Delhi", isLive: true } });
+  const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
+  await db.serviceablePincode.create({ data: { pincode: "999981", cityId: city.id, warehouseId: wh.id, isActive: true } });
+  try {
+    const served = await createAddress(USER, addressInputSchema.parse({ ...BASE, city: "New Delhi", pincode: "999981", state: "Jammu & Kashmir" }));
+    assert.equal(served.state, "Delhi");
+    const edited = await updateAddress(USER, served.id, addressInputSchema.parse({ ...BASE, city: "New Delhi", pincode: "999981", state: "Jammu & Kashmir" }));
+    assert.equal(edited?.state, "Delhi", "an edit cannot put it back");
+    const unserved = await createAddress(USER, addressInputSchema.parse({ ...BASE, pincode: "999982", state: "Somewhere" }));
+    assert.equal(unserved.state, "Somewhere");
+  } finally {
+    await db.address.deleteMany({ where: { userId: USER, pincode: { in: ["999981", "999982"] } } });
+    await db.serviceablePincode.deleteMany({ where: { pincode: "999981" } });
+    await db.serviceCity.delete({ where: { id: city.id } });
+  }
+});
