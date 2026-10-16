@@ -8,7 +8,7 @@ import type { Prisma } from "@/prisma/generated/client/client";
 import { settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
 import { captureException, triggerAlert } from "@/lib/observability";
-import { recordSystemMovement } from "@/lib/services/inventory-movements";
+import { recordSystemMovement, recordUnresolvedRestock } from "@/lib/services/inventory-movements";
 
 export type { CapturedLookup };
 
@@ -107,8 +107,10 @@ export async function listOrders(userId: string, page = 1, perPage = 10) {
  * warehouses or a change made outside the app. Crediting the wrong shelf
  * overstates it and lets it be oversold; crediting none understates it, which a
  * recount fixes and no customer pays for. So the count is left alone, no
- * movement is written (one would claim a release that did not happen), and an
- * alert names the order for a person to settle. The cancel itself proceeds —
+ * movement is written (one would claim a release that did not happen), an
+ * `inventory.restock_unresolved` audit row is written in the same transaction
+ * (the console lists it: a cancelled order is never cancelled again, so nothing
+ * would retry it), and an alert names the order for a person to settle. The cancel itself proceeds —
  * refusing it would hold a customer's order hostage to a stock record.
  *
  * Before 16 Oct 2026 a missing warehouse fell back to the variant's first
@@ -123,6 +125,7 @@ async function restock(
 ) {
   if (qty <= 0) return;
   if (!warehouseId) {
+    await recordUnresolvedRestock(tx, { orderId: ledger.orderId, variantId, warehouseId: null, qty, cause: "no_warehouse" });
     triggerAlert("restock_needs_location", "Cancelled goods were not restocked: the order has no warehouse", {
       variantId,
       qty,
@@ -135,6 +138,7 @@ async function restock(
     data: { qtyOnHand: { increment: qty } },
   });
   if (applied.count === 0) {
+    await recordUnresolvedRestock(tx, { orderId: ledger.orderId, variantId, warehouseId, qty, cause: "no_inventory_row" });
     triggerAlert("restock_no_inventory_row", "Cancelled goods were not restocked: no stock record at the order's warehouse", {
       variantId,
       warehouseId,

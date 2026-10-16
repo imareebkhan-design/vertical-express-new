@@ -162,7 +162,10 @@ merged or deployed:** checkout writes a `sold` movement per line and both cancel
 longer picks the first inventory row (ISS-004 territory): it restocks nothing, writes no movement and raises
 `restock_needs_location`. A restock with no inventory row at the order's warehouse creates no row, writes no movement
 and raises `restock_no_inventory_row`. In both cases the cancel still succeeds and the stock is understated, never
-overstated, until a person recounts (2 more tests, 9 in the file). Stock levels set before the ledger existed have no opening movement and are reported as a count,
+overstated, until a person recounts. Each such case also writes an `inventory.restock_unresolved` audit row in the
+cancel's transaction, listed on `/admin/stock-ledger` ("Cancelled goods not put back"), because a cancelled order is
+never cancelled again and nothing would retry it. There is no "resolved" flag yet — that workflow is unspecified
+(10 tests in the file). Stock levels set before the ledger existed have no opening movement and are reported as a count,
 not backfilled.
 
 ## ISS-089 — Mobile web OTP verifier attachment and resend cooldown

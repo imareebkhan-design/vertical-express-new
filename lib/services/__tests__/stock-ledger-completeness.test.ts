@@ -6,7 +6,7 @@ import { addItem } from "@/lib/services/cart";
 import { placeOrder } from "../checkout";
 import { cancelOrder } from "../orders";
 import { advanceShipment } from "../admin/shipments-write";
-import { adjustStock, findLedgerDrift } from "../inventory-movements";
+import { adjustStock, findLedgerDrift, listUnresolvedRestocks } from "../inventory-movements";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
 
@@ -103,6 +103,8 @@ after(async () => {
   await db.payment.deleteMany({ where });
   await db.orderStatusEvent.deleteMany({ where });
   await db.auditLog.deleteMany({ where: { actorId: { in: [...USERS, OPS.id] } } });
+  const ours = await db.order.findMany({ where: { userId: { in: USERS } }, select: { id: true } });
+  await db.auditLog.deleteMany({ where: { entityType: "order", entityId: { in: ours.map((o) => o.id) } } });
   await db.order.deleteMany({ where: { userId: { in: USERS } } });
   await db.cartItem.deleteMany({ where: { cart: { userId: { in: USERS } } } });
   await db.cart.deleteMany({ where: { userId: { in: USERS } } });
@@ -218,6 +220,12 @@ test("drift: a count changed outside the ledger is listed; stock with no history
 
   /* findLedgerDrift reads only; nothing it reported was changed. */
   assert.equal(await onHand(), 13);
+
+  /* Adding a variant clears the product's commercial review (a database
+     trigger, correctly). Re-record the test approval so later tests can still
+     buy it, and put the count back where the ledger says it is. */
+  await approveTestProductsCreatedSince(SUITE_START);
+  await db.inventory.update({ where: { variantId_warehouseId: { variantId, warehouseId } }, data: { qtyOnHand: 10 } });
 });
 
 /**
@@ -259,6 +267,7 @@ test("a legacy order with no warehouse is cancelled without guessing where its s
   const other = await db.inventory.findUniqueOrThrow({ where: { variantId_warehouseId: { variantId, warehouseId: otherWarehouseId } } });
   assert.equal(other.qtyOnHand, 4, "not the other warehouse either");
   assert.equal((await movementsFor(o.id)).length, 0, "no movement claims a release that did not happen");
+  await assertUnresolved(o.id, o.orderNo, { qty: 2, warehouseId: null, cause: "no_warehouse" });
 });
 
 test("a cancel whose stock row is gone creates no row and records no release", async () => {
@@ -270,4 +279,36 @@ test("a cancel whose stock row is gone creates no row and records no release", a
   assert.equal((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status, "cancelled");
   assert.equal(await db.inventory.count({ where: { variantId, warehouseId: otherWarehouseId } }), 0, "no stock row is invented");
   assert.equal((await movementsFor(o.id)).length, 0);
+  await assertUnresolved(o.id, o.orderNo, { qty: 3, warehouseId: otherWarehouseId, cause: "no_inventory_row" });
+});
+
+/**
+ * An unresolved restock must outlive the log line: the order is cancelled, a
+ * second cancel is refused, so nothing will ever retry it. The record is the
+ * only thing that tells an operator these goods are on a shelf the count does
+ * not know about.
+ */
+async function assertUnresolved(
+  orderId: string,
+  orderNo: string,
+  want: { qty: number; warehouseId: string | null; cause: "no_warehouse" | "no_inventory_row" }
+) {
+  const rows = await db.auditLog.findMany({ where: { entityType: "order", entityId: orderId, action: "inventory.restock_unresolved" } });
+  assert.equal(rows.length, 1, "exactly one durable record, written with the cancel");
+  const listed = (await listUnresolvedRestocks(100)).find((r) => r.orderId === orderId);
+  assert.ok(listed, "the console lists it");
+  assert.equal(listed.orderNo, orderNo);
+  assert.equal(listed.variantId, variantId);
+  assert.equal(listed.sku, `${TAG}-item`);
+  assert.equal(listed.qty, want.qty);
+  assert.equal(listed.warehouseId, want.warehouseId);
+  assert.equal(listed.cause, want.cause);
+}
+
+test("a normal cancel leaves no unresolved-restock record", async () => {
+  await setStock(10);
+  const placed = await order(USERS[0], 1);
+  await cancelOrder(USERS[0], placed.orderNo, "changed my mind");
+  const o = await db.order.findUniqueOrThrow({ where: { orderNo: placed.orderNo } });
+  assert.equal(await db.auditLog.count({ where: { entityId: o.id, action: "inventory.restock_unresolved" } }), 0);
 });

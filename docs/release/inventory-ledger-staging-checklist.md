@@ -86,7 +86,7 @@ the owner approves a direct database edit, on staging, on the QA SKU only.**
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 8.1 | Search the staging logs for `restock_needs_location` and `restock_no_inventory_row` | None during this run. Any occurrence names an order whose stock was **not** put back and needs a human decision | |
+| 8.1 | Search the staging logs for `restock_needs_location` and `restock_no_inventory_row`, and look at the ledger page's **Cancelled goods not put back** panel | No log hits and no panel during this run. Any hit names an order whose goods were **not** restocked; settle it with a Received or Recount at the warehouse where the goods are, with the order number in the note. The panel row stays as history | |
 
 ## Sign-off
 

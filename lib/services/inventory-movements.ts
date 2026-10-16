@@ -121,6 +121,94 @@ export async function recordSystemMovement(
   });
 }
 
+export type UnresolvedRestockCause = "no_warehouse" | "no_inventory_row";
+
+const UNRESOLVED_RESTOCK = "inventory.restock_unresolved";
+
+/**
+ * Record, inside the cancel's transaction, goods a cancel could not put back.
+ *
+ * The cancel path refuses to guess a warehouse or invent a stock row (see
+ * `restock` in orders.ts), which is right, but leaves the goods unaccounted
+ * for. A log line is not enough: the order is now cancelled, a second cancel is
+ * refused, so nothing will retry it. This row is the durable trace, and it
+ * commits or rolls back with the cancel.
+ */
+export async function recordUnresolvedRestock(
+  tx: Prisma.TransactionClient,
+  r: { orderId: string; variantId: string; warehouseId: string | null; qty: number; cause: UnresolvedRestockCause }
+): Promise<void> {
+  await tx.auditLog.create({
+    data: {
+      actorType: "system",
+      action: UNRESOLVED_RESTOCK,
+      entityType: "order",
+      entityId: r.orderId,
+      after: { variantId: r.variantId, warehouseId: r.warehouseId, qty: r.qty, cause: r.cause },
+    },
+  });
+}
+
+export interface UnresolvedRestockRow {
+  orderId: string;
+  orderNo: string | null;
+  variantId: string;
+  sku: string | null;
+  productTitle: string | null;
+  productSlug: string | null;
+  warehouseId: string | null;
+  qty: number;
+  cause: UnresolvedRestockCause;
+  at: Date;
+}
+
+/**
+ * Cancelled goods that were not restocked, newest first.
+ *
+ * Read-only. This lists them; it does not decide where they belong. Settling
+ * one is an operator's recount (or receipt) at the warehouse where the goods
+ * actually are, with a note naming the order — the same auditable path as any
+ * other correction. There is deliberately no "resolved" flag yet: marking a
+ * row settled is a business workflow nobody has specified.
+ */
+export async function listUnresolvedRestocks(take = 20): Promise<UnresolvedRestockRow[]> {
+  const rows = await db.auditLog.findMany({
+    where: { action: UNRESOLVED_RESTOCK, entityType: "order" },
+    orderBy: { createdAt: "desc" },
+    take,
+    select: { entityId: true, after: true, createdAt: true },
+  });
+  const parsed = rows.flatMap((r) => {
+    const a = r.after as { variantId?: unknown; warehouseId?: unknown; qty?: unknown; cause?: unknown } | null;
+    if (!a || typeof a.variantId !== "string" || typeof a.qty !== "number") return [];
+    const cause: UnresolvedRestockCause = a.cause === "no_warehouse" ? "no_warehouse" : "no_inventory_row";
+    return [{
+      orderId: r.entityId,
+      variantId: a.variantId,
+      warehouseId: typeof a.warehouseId === "string" ? a.warehouseId : null,
+      qty: a.qty,
+      cause,
+      at: r.createdAt,
+    }];
+  });
+  const [orders, variants] = await Promise.all([
+    db.order.findMany({ where: { id: { in: parsed.map((p) => p.orderId) } }, select: { id: true, orderNo: true } }),
+    db.productVariant.findMany({
+      where: { id: { in: parsed.map((p) => p.variantId) } },
+      select: { id: true, sku: true, product: { select: { title: true, slug: true } } },
+    }),
+  ]);
+  const orderNo = new Map(orders.map((o) => [o.id, o.orderNo]));
+  const variant = new Map(variants.map((v) => [v.id, v]));
+  return parsed.map((p) => ({
+    ...p,
+    orderNo: orderNo.get(p.orderId) ?? null,
+    sku: variant.get(p.variantId)?.sku ?? null,
+    productTitle: variant.get(p.variantId)?.product.title ?? null,
+    productSlug: variant.get(p.variantId)?.product.slug ?? null,
+  }));
+}
+
 export interface LedgerDriftRow {
   variantId: string;
   warehouseId: string;

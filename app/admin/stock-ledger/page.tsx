@@ -3,7 +3,7 @@ import Link from "next/link";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable } from "@/components/admin/ops-table";
 import { StatusChip, type StatusTone } from "@/components/admin/status-chip";
-import { findLedgerDrift, listStockMovements } from "@/lib/services/inventory-movements";
+import { findLedgerDrift, listStockMovements, listUnresolvedRestocks } from "@/lib/services/inventory-movements";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
@@ -62,7 +62,11 @@ export default async function AdminStockLedger({
   if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const [{ rows, total, perPage }, drift] = await Promise.all([listStockMovements(page), findLedgerDrift(20)]);
+  const [{ rows, total, perPage }, drift, unresolved] = await Promise.all([
+    listStockMovements(page),
+    findLedgerDrift(20),
+    listUnresolvedRestocks(20),
+  ]);
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   return (
@@ -83,6 +87,47 @@ export default async function AdminStockLedger({
             : ""}
           .
         </p>
+
+        {unresolved.length > 0 && (
+          <section className="flex flex-col gap-2" aria-labelledby="unresolved-restocks">
+            <h2 id="unresolved-restocks" className="text-[14px] font-bold text-ops-bad">
+              Cancelled goods not put back ({unresolved.length === 20 ? "20 newest" : unresolved.length})
+            </h2>
+            <p className="text-[12px] font-semibold leading-[17px] text-ink-500">
+              These orders were cancelled, but the system could not tell which shelf the goods
+              belong on, so it changed no count. Find the goods, then record a Received or Recount
+              from Inventory at the warehouse where they actually are, with the order number in
+              the note.
+            </p>
+            <OpsTable
+              columns={["When", "Order", "Product", "Qty", "Why"]}
+              rows={unresolved.map((u) => [
+                u.at.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+                u.orderNo ? (
+                  <Link key={`${u.orderId}-${u.variantId}-o`} href={`/admin/orders/${u.orderNo}`} className="font-bold text-ink no-underline hover:underline">
+                    {u.orderNo}
+                  </Link>
+                ) : (
+                  u.orderId
+                ),
+                <span key={`${u.orderId}-${u.variantId}-p`}>
+                  {u.productSlug ? (
+                    <Link href={`/admin/products/${u.productSlug}`} className="font-bold text-ink no-underline hover:underline">
+                      {u.productTitle}
+                    </Link>
+                  ) : (
+                    u.variantId
+                  )}
+                  {u.sku && <span className="block text-[11px] font-semibold text-ink-500">{u.sku}</span>}
+                </span>,
+                String(u.qty),
+                u.cause === "no_warehouse" ? "Order has no warehouse" : "No stock record at its warehouse",
+              ])}
+              emptyTitle="Nothing outstanding."
+              emptyNote=""
+            />
+          </section>
+        )}
 
         {drift.driftCount > 0 && (
           <section className="flex flex-col gap-2" aria-labelledby="ledger-drift">
