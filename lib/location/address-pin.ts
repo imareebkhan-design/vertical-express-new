@@ -93,3 +93,20 @@ export function placeFieldsToAsk(manual: boolean, pin: Pick<PinnedLocation, "cit
   if (manual || !pin) return { city: true, state: true };
   return { city: !pin.city, state: !pin.state };
 }
+
+export type PinPincodeCheck = { kind: "match" } | { kind: "mismatch"; pinPincode: string } | { kind: "unchecked" } | { kind: "no_pin" };
+
+/**
+ * Does the pin agree with the pincode the order will be delivered to? Read from
+ * the order's address snapshot, where `pinPincode` is Google's pincode for the
+ * pin, recorded when the address was saved. A mismatch is kept, never refused
+ * (owner, 16 Oct 2026) — this only tells ops to check before dispatch. A
+ * snapshot without one (saved before 16 Oct, or Google did not answer) is
+ * unchecked, not a mismatch.
+ */
+export function pinPincodeCheck(snapshot: Record<string, unknown> | null | undefined): PinPincodeCheck {
+  const s = snapshot ?? {};
+  if (typeof s.latitude !== "number" || typeof s.longitude !== "number") return { kind: "no_pin" };
+  if (typeof s.pinPincode !== "string" || !s.pinPincode) return { kind: "unchecked" };
+  return s.pinPincode === s.pincode ? { kind: "match" } : { kind: "mismatch", pinPincode: s.pinPincode };
+}

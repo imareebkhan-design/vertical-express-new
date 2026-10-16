@@ -15,6 +15,7 @@ import { getAdminUser } from "@/lib/services/admin/authz";
 import { ExpressRunBadge, OrderExpressSelection } from "@/components/orders/express-selection";
 import { ReturnIntake } from "@/components/admin/returns/return-intake";
 import { RETURN_STATUS_LABEL } from "@/lib/return-flow";
+import { pinPincodeCheck } from "@/lib/location/address-pin";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export default async function AdminOrderDetail({
   const str = (k: string) => (typeof addr[k] === "string" ? (addr[k] as string) : "");
   const lat = typeof addr.latitude === "number" ? addr.latitude : null;
   const lng = typeof addr.longitude === "number" ? addr.longitude : null;
+  const pinCheck = pinPincodeCheck(addr);
   /* Not the newest row: after a second capture (ISS-075) that is the
      refund-bound payment, and it would hide the one that paid for the order. */
   const { primary: payment, secondCaptures } = splitOrderPayments(order.payments);
@@ -380,6 +382,18 @@ export default async function AdminOrderDetail({
                 )
               }
             />
+            {pinCheck.kind === "mismatch" && (
+              <Row
+                label="Pin pincode"
+                value={
+                  <span className="text-ops-warn">
+                    Google places the pin in <span className="tabular-nums">{pinCheck.pinPincode}</span>, the address says{" "}
+                    <span className="tabular-nums">{str("pincode")}</span> — check with the customer before dispatch
+                  </span>
+                }
+              />
+            )}
+            {pinCheck.kind === "match" && <Row label="Pin pincode" value="matches the address" />}
             <Row label="Warehouse" value={order.warehouse?.name ?? "—"} />
           </Panel>
 
