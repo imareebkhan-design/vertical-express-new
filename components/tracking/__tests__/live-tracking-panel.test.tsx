@@ -103,3 +103,25 @@ test("delivered or cancelled: polling stops and the page is refreshed into its f
   assert.equal(finished, 1);
   assert.equal(calls, 1, "no further polls after the delivery ended");
 });
+
+test("coming back to the page while a request is in flight never starts a second poll loop", async () => {
+  /* Staging, 16 Oct: one customer's tracking page went from ~7 to ~90 polls a
+     minute while they walked with the phone — each screen-on fired a new
+     loop alongside the in-flight one. */
+  let calls = 0;
+  const load = async () => {
+    calls++;
+    await new Promise((r) => setTimeout(r, 40));
+    return { ok: true as const, data: { ...tracking({ driver: fresh, route: ROUTE }), pollMs: 150 } };
+  };
+  await act(async () => {
+    render(<LiveTrackingPanel orderNo="VE-1" shipmentId="s1" load={load} loadMaps={async () => null} onFinished={() => {}} />);
+  });
+  /* Three "back to the page" events while the first request is still out. */
+  await act(async () => {
+    for (let i = 0; i < 3; i++) document.dispatchEvent(new (document.defaultView!.Event)("visibilitychange"));
+    await new Promise((r) => setTimeout(r, 1_000));
+  });
+  /* One loop: ~1 + 1000/(150+40) ≈ 6 requests. Four loops would be ~20. */
+  assert.ok(calls <= 7, `expected one poll loop, saw ${calls} requests in 1 s`);
+});

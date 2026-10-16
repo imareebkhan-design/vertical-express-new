@@ -78,10 +78,21 @@ export function LiveTrackingPanel({
   useEffect(() => {
     let live = true;
     let timer: number | undefined;
+    /* Exactly one poll loop. Coming back to the page polls at once, and a
+       request can still be in flight then; without this each return started
+       another loop beside it (a phone's screen-on, a tab switch), and one
+       customer's page reached ~90 polls a minute (staging, 16 Oct). Only the
+       newest tick may schedule the next. */
+    let seq = 0;
+    let inFlight = false;
     const tick = async () => {
+      const mine = ++seq;
+      window.clearTimeout(timer);
       if (document.visibilityState === "visible") {
+        inFlight = true;
         const res = await load(orderNo).catch(() => null);
-        if (!live) return;
+        inFlight = false;
+        if (!live || mine !== seq) return;
         if (res?.ok) {
           pollMs.current = res.data.pollMs;
           setData(res.data);
@@ -95,14 +106,13 @@ export function LiveTrackingPanel({
           setFailed(true);
         }
       }
+      if (mine !== seq) return;
       timer = window.setTimeout(tick, pollMs.current);
     };
     void tick();
     const onVisible = () => {
-      if (document.visibilityState === "visible") {
-        window.clearTimeout(timer);
-        void tick();
-      }
+      /* An answer already on its way is as fresh as a new request would be. */
+      if (document.visibilityState === "visible" && !inFlight) void tick();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
