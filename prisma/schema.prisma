@@ -95,6 +95,11 @@ model Address {
   /// Places field Google's terms allow keeping indefinitely; lets the place be
   /// re-resolved later without asking the customer again.
   placeId    String?      @map("place_id")
+  /// Google's pincode for the pin, looked up by the server when the address is
+  /// saved. Differing from `pincode` is a mismatch for ops to review; the save
+  /// is never refused for it (owner, 16 Oct 2026). Null without a pin or when
+  /// Google could not answer.
+  pinPincode String?      @map("pin_pincode") @db.Char(6)
   isDefault  Boolean      @default(false) @map("is_default")
   deletedAt  DateTime?    @map("deleted_at")
   createdAt  DateTime     @default(now()) @map("created_at")

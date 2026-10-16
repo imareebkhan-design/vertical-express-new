@@ -483,6 +483,8 @@ export async function placeOrder(params: {
             latitude: address.latitude,
             longitude: address.longitude,
             placeId: address.placeId,
+            /* Google's pincode for the pin; differing from `pincode` is a mismatch for ops. */
+            pinPincode: address.pinPincode,
             city: address.city,
             state: address.state,
             pincode: address.pincode,
