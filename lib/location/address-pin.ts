@@ -78,3 +78,18 @@ export function pinnedFromPlace(
   if (!place || !pincode) return null;
   return { label: place.label, formattedAddress: place.formattedAddress, pincode, city, state: null, lat: place.lat, lng: place.lng, placeId: place.placeId };
 }
+
+/**
+ * Which of city and state the customer must type, because nothing else
+ * decided them.
+ *
+ * A pin carries Google's city and state; a pin from the location sheet often
+ * carries neither (`pinnedFromPlace` has no state), and an address typed by
+ * hand has no pin at all. Whatever is left must be asked for — the forms used
+ * to start from "Srinagar" / "Jammu & Kashmir" without showing the fields, so a
+ * Delhi site was saved as one in J&K and nobody saw it happen.
+ */
+export function placeFieldsToAsk(manual: boolean, pin: Pick<PinnedLocation, "city" | "state"> | null): { city: boolean; state: boolean } {
+  if (manual || !pin) return { city: true, state: true };
+  return { city: !pin.city, state: !pin.state };
+}

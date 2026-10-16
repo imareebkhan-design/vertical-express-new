@@ -7,6 +7,7 @@ import { removeAddress, makeDefaultAddress } from "@/actions/address";
 import { Button } from "@/components/ui/button";
 import { AddressForm, type AddressFormValues } from "@/components/account/address-form";
 import { safeNextPath } from "@/lib/safe-next";
+import { returnWithAddress } from "@/lib/checkout-address";
 
 type Address = AddressFormValues & { id: string };
 
@@ -18,9 +19,10 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
   const [mode, setMode] = useState<"list" | "add" | string>(params.get("add") === "1" ? "add" : "list"); // string = editing id
   const [, startTransition] = useTransition();
 
-  const done = () => {
+  const done = (id: string) => {
     if (returnTo) {
-      router.push(returnTo);
+      /* Back to checkout with the new address selected, not the old default. */
+      router.push(returnWithAddress(returnTo, id));
       return;
     }
     setMode("list");

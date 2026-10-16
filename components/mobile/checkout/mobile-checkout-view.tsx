@@ -25,7 +25,7 @@ import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon }
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import { AddressLocation } from "@/components/location/address-location";
-import { pinnedFromAddress, pinnedFromPlace, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { pinnedFromAddress, pinnedFromPlace, placeFieldsToAsk, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { ExpressChoice } from "@/components/shop/checkout/express-choice";
 import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
@@ -83,8 +83,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     line1: "",
     line2: "",
     landmark: "",
-    city: "Srinagar",
-    state: "Jammu & Kashmir",
+    city: "",
+    state: "",
     pincode: "",
     isDefault: false,
   });
@@ -118,6 +118,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   /* The map half of the address (see lib/location/address-pin.ts); `manual` is the no-map escape hatch. */
   const [pinned, setPinned] = useState<PinnedLocation | null>(null);
   const [manual, setManual] = useState(false);
+  const ask = placeFieldsToAsk(manual, pinned);
 
   /* ISS-081: `totals` answers exactly the address, coupon and delivery choice
      on screen, or is null — the moment any of them changes, until the server
@@ -363,8 +364,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       line1: "",
       line2: "",
       landmark: "",
-      city: "Srinagar",
-      state: "Jammu & Kashmir",
+      city: "",
+      state: "",
       /* Never a pincode the customer did not give us (W-13): their selected
          site's, else the one they confirmed for delivery, else empty. */
       pincode: selected?.pincode || chosenPincode || "",
@@ -928,6 +929,38 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
             />
           </div>
+          ) : null}
+
+          {/* City and state: from the pin when it has them, otherwise typed — never assumed. */}
+          {ask.city || ask.state ? (
+            <div className="grid grid-cols-2 gap-3">
+              {ask.city ? (
+                <div>
+                  <label htmlFor="address-city" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">City</label>
+                  <input
+                    id="address-city"
+                    type="text"
+                    required
+                    value={addressForm.city}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, city: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+              ) : null}
+              {ask.state ? (
+                <div>
+                  <label htmlFor="address-state" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">State</label>
+                  <input
+                    id="address-state"
+                    type="text"
+                    required
+                    value={addressForm.state}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, state: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : null}
 
           {/* Landmark, delivery instructions, and the pincode when typed by hand */}
