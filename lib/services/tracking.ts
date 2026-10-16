@@ -3,7 +3,7 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { advanceShipment, confirmDelivery } from "@/lib/services/admin/shipments-write";
 import { computeDrivingRoute, routesConfigured } from "@/lib/services/routes";
-import { validLatLng, type LatLng } from "@/lib/tracking/geo";
+import { decodePolyline, progressAlongPath, validLatLng, type LatLng } from "@/lib/tracking/geo";
 import {
   TRACKING_CONFIG,
   checkPing,
@@ -322,10 +322,22 @@ export async function getOrderTracking(
       const minutes = cached ? etaMinutes(cached.durationS) : null;
       const routeYoung = cached !== null && now.getTime() - cached.computedAt.getTime() <= TRACKING_CONFIG.routeMaxAgeMs;
       if (cached && !stale && routeYoung && minutes !== null) {
+        /* Between refreshes (at most every 20–60 s) the rider keeps moving
+           along the cached route, and the distance and ETA used to stay at the
+           route's starting values while the marker went on — 4.2 km shown with
+           the rider 2 km further on (staging, 16 Oct). While the rider is on
+           the cached route, count only what is still ahead: scale the route's
+           own distance and duration by the share of its path remaining. No
+           extra Routes call; off the route, the next refresh handles it. */
+        const ahead = progressAlongPath({ lat: live.latitude, lng: live.longitude }, decodePolyline(cached.polyline));
+        const share =
+          ahead && ahead.totalM > 0 && ahead.offPathM <= TRACKING_CONFIG.offRouteM ? Math.min(1, ahead.remainingM / ahead.totalM) : 1;
+        const distanceM = Math.round(cached.distanceM * share);
+        const durationS = Math.round(cached.durationS * share);
         routeView = {
-          distanceM: cached.distanceM,
-          durationS: cached.durationS,
-          etaMinutes: minutes,
+          distanceM,
+          durationS,
+          etaMinutes: etaMinutes(durationS) ?? minutes,
           polyline: cached.polyline,
           computedAt: cached.computedAt.toISOString(),
         };

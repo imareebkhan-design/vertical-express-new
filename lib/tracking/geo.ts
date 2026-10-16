@@ -89,3 +89,39 @@ export function distanceToPathM(p: LatLng, path: LatLng[]): number {
   }
   return best;
 }
+
+/**
+ * Where `p` sits along a path: how far it is from the path, and how much of
+ * the path is still ahead of it (from its closest point to the end), plus the
+ * path's whole length — all in metres. Same local projection as
+ * `distanceToPathM`. Null for a path with fewer than two points.
+ */
+export function progressAlongPath(p: LatLng, path: LatLng[]): { offPathM: number; remainingM: number; totalM: number } | null {
+  if (path.length < 2) return null;
+  const kx = EARTH_RADIUS_M * Math.cos(rad(p.lat)) * (Math.PI / 180);
+  const ky = EARTH_RADIUS_M * (Math.PI / 180);
+  const seg: number[] = [];
+  let best = Infinity;
+  let bestI = 0;
+  let bestT = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const ax = (path[i].lng - p.lng) * kx;
+    const ay = (path[i].lat - p.lat) * ky;
+    const bx = (path[i + 1].lng - p.lng) * kx;
+    const by = (path[i + 1].lat - p.lat) * ky;
+    const dx = bx - ax;
+    const dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    seg.push(Math.sqrt(len2));
+    const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len2));
+    const d = Math.hypot(ax + t * dx, ay + t * dy);
+    if (d < best) {
+      best = d;
+      bestI = i;
+      bestT = t;
+    }
+  }
+  const totalM = seg.reduce((s, x) => s + x, 0);
+  const remainingM = (1 - bestT) * seg[bestI] + seg.slice(bestI + 1).reduce((s, x) => s + x, 0);
+  return { offPathM: best, remainingM, totalM };
+}

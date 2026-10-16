@@ -257,6 +257,57 @@ test("a cached route is never served for a stale rider, nor once it has aged out
   assert.equal(b?.shipments[0].route, null, "an aged-out cached route is not an ETA");
 });
 
+function encodePolyline(points: { lat: number; lng: number }[]): string {
+  let out = "";
+  let pLat = 0;
+  let pLng = 0;
+  const enc = (v: number) => {
+    let x = v < 0 ? ~(v << 1) : v << 1;
+    let s = "";
+    while (x >= 0x20) {
+      s += String.fromCharCode((0x20 | (x & 0x1f)) + 63);
+      x >>= 5;
+    }
+    return s + String.fromCharCode(x + 63);
+  };
+  for (const p of points) {
+    const lat = Math.round(p.lat * 1e5);
+    const lng = Math.round(p.lng * 1e5);
+    out += enc(lat - pLat) + enc(lng - pLng);
+    pLat = lat;
+    pLng = lng;
+  }
+  return out;
+}
+
+test("between route refreshes, distance and ETA follow the rider along the route — no extra Routes call", async () => {
+  const s = await scratchOrder({ driverId: driverOne });
+  await handleDriverStart(req("POST", "d1"), s.shipmentId, verify);
+  const start = { lat: 34.07, lng: 74.81 };
+  const t0 = new Date();
+  await handleDriverLocation(req("POST", "d1", ping(t0)), s.shipmentId, verify, t0);
+  let calls = 0;
+  const route = async (): Promise<RouteResult> => {
+    calls++;
+    return { distanceM: 2000, durationS: 600, polyline: encodePolyline([start, DEST]) };
+  };
+  const viewer = { kind: "customer" as const, userId: ownerId };
+  const a = await getOrderTracking(viewer, s.orderNo, t0, { route, routesEnabled: true });
+  assert.equal(a?.shipments[0].route?.distanceM, 2000);
+  assert.equal(calls, 1);
+
+  /* 10 s later the rider is halfway along the cached route: inside the
+     minimum refresh interval, so no new route — but the numbers move. */
+  const t1 = new Date(t0.getTime() + 10_000);
+  const half = { latitude: (start.lat + DEST.lat) / 2, longitude: (start.lng + DEST.lng) / 2 };
+  await handleDriverLocation(req("POST", "d1", ping(t1, half)), s.shipmentId, verify, t1);
+  const b = await getOrderTracking(viewer, s.orderNo, t1, { route, routesEnabled: true });
+  assert.equal(calls, 1, "no extra Routes call");
+  const dist = b?.shipments[0].route?.distanceM ?? 0;
+  assert.ok(dist > 900 && dist < 1100, `about half the distance remains (got ${dist})`);
+  assert.equal(b?.shipments[0].route?.etaMinutes, 5, "about half the time remains");
+});
+
 /* ------------------------------------------------------------------ the end of a delivery */
 
 test("delivery by code ends tracking: no position stored, none shown, further updates refused", async () => {
