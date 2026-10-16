@@ -174,10 +174,11 @@ the same transaction:
 
 - `lib/services/checkout.ts` — after each line's unchanged guarded decrement,
   a `sold` movement (`qtyDelta = −qty`, `orderId`, note = order number).
-- `lib/services/orders.ts` — `restock` writes a `released` movement naming the
-  warehouse the goods actually went back to; a restock with no inventory row is
-  logged (`restock_no_inventory_row`) instead of silently dropped. Behaviour of
-  the counts themselves is unchanged.
+- `lib/services/orders.ts` — `restock` writes a `released` movement. It no longer
+  guesses: an order with no warehouse (legacy) or no inventory row at its
+  warehouse restocks nothing, writes no movement and raises an alert
+  (`restock_needs_location` / `restock_no_inventory_row`). Previously the first
+  case credited an arbitrary warehouse. Normal releases are unchanged.
 - `lib/services/inventory-movements.ts` — `recordSystemMovement` (reads
   `qtyAfter` back under the caller's row lock) and `findLedgerDrift`
   (read-only).
@@ -194,8 +195,12 @@ the same transaction:
 ## 7. Release impact
 
 - **Migration risk.** One `ALTER TYPE … ADD VALUE`. Non-blocking, no rewrite.
-  Migrations run automatically on deploy (ISS-024), so merging this into a
-  deployed branch applies it.
+  *Corrected 17 Oct:* migrations do **not** run on deploy. App Hosting runs
+  `npm run build`, which never touches the database; staging is migrated by hand
+  with `scripts/staging-db.sh migrate` (`docs/DEPLOY_FIREBASE.md` §Migrations).
+  **The migration must be applied before the code rolls out**: the new cancel
+  path writes `released`, and without the enum value every cancel would fail.
+  Checklist: `docs/release/inventory-ledger-staging-checklist.md`.
 - **Behaviour change.** Checkout and cancel each do one extra indexed read and
   one insert per line inside their existing transactions. The row lock is
   already held, so lock ordering (order → shipment → inventory) is unchanged.
