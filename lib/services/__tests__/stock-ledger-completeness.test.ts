@@ -31,6 +31,7 @@ const OPS = { id: randomUUID(), email: "ledger-ops@example.invalid" };
 const USERS = [randomUUID(), randomUUID()];
 const addressOf: Record<string, string> = {};
 let warehouseId: string;
+let otherWarehouseId: string;
 let productId: string;
 let variantId: string;
 let savedCod: Awaited<ReturnType<typeof db.setting.findUnique>>;
@@ -64,6 +65,7 @@ before(async () => {
   const brand = await db.brand.findFirstOrThrow({ select: { id: true } });
   const category = await db.category.findFirstOrThrow({ where: { isBulk: false }, select: { id: true } });
   warehouseId = (await db.warehouse.create({ data: { name: `${TAG} Warehouse`, city: "Srinagar", pincode: "190001" } })).id;
+  otherWarehouseId = (await db.warehouse.create({ data: { name: `${TAG} Other`, city: "Srinagar", pincode: "190002" } })).id;
   await db.serviceablePincode.create({
     data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: 4900 },
   });
@@ -106,11 +108,11 @@ after(async () => {
   await db.cart.deleteMany({ where: { userId: { in: USERS } } });
   await db.address.deleteMany({ where: { userId: { in: USERS } } });
   await db.serviceablePincode.deleteMany({ where: { pincode: PINCODE } });
-  await db.stockMovement.deleteMany({ where: { warehouseId } });
-  await db.inventory.deleteMany({ where: { warehouseId } });
+  await db.stockMovement.deleteMany({ where: { warehouseId: { in: [warehouseId, otherWarehouseId] } } });
+  await db.inventory.deleteMany({ where: { warehouseId: { in: [warehouseId, otherWarehouseId] } } });
   await db.productVariant.deleteMany({ where: { productId } });
   await db.product.deleteMany({ where: { id: productId } });
-  await db.warehouse.delete({ where: { id: warehouseId } });
+  await db.warehouse.deleteMany({ where: { id: { in: [warehouseId, otherWarehouseId] } } });
   await db.user.deleteMany({ where: { id: { in: USERS } } });
 });
 
@@ -216,4 +218,56 @@ test("drift: a count changed outside the ledger is listed; stock with no history
 
   /* findLedgerDrift reads only; nothing it reported was changed. */
   assert.equal(await onHand(), 13);
+});
+
+/**
+ * An order the checkout of today could not have written, cancelled: the
+ * restock must not guess where goods go, and must not invent a stock row.
+ *
+ * Checkout refuses to place an order without a warehouse, and nothing in the
+ * app deletes an inventory row, so both cases mean data from before warehouses
+ * or a change made outside the app. Putting goods into the wrong warehouse
+ * overstates one shelf and lets it be oversold; leaving them out understates
+ * it, which a recount fixes and a customer never pays for. So the count is left
+ * alone, no movement claims a release that did not happen, and the cancel
+ * itself still succeeds.
+ */
+async function handMadeOrder(suffix: string, qty: number, orderWarehouseId: string | null) {
+  return db.order.create({
+    data: {
+      orderNo: `${TAG}-${suffix}`, userId: USERS[0], status: "confirmed", paymentMethod: "cod",
+      address: { label: "site", name: "Legacy", phone: "9876543210", line1: "Plot 3", line2: null, landmark: null, city: "Srinagar", state: STATE, pincode: PINCODE },
+      subtotalPaise: 20000 * qty, totalPaise: 20000 * qty, warehouseId: orderWarehouseId,
+      items: { create: [{ variantId, title: "Legacy", variantName: "Unit", unitPricePaise: 20000, qty, lineTotalPaise: 20000 * qty }] },
+    },
+  });
+}
+
+test("a legacy order with no warehouse is cancelled without guessing where its stock goes", async () => {
+  await setStock(10);
+  /* The variant is stocked in two places, so any choice would be a guess. */
+  await db.inventory.upsert({
+    where: { variantId_warehouseId: { variantId, warehouseId: otherWarehouseId } },
+    create: { variantId, warehouseId: otherWarehouseId, qtyOnHand: 4 },
+    update: { qtyOnHand: 4 },
+  });
+  const o = await handMadeOrder("LEGACY", 2, null);
+  await cancelOrder(USERS[0], o.orderNo, "changed my mind");
+
+  assert.equal((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status, "cancelled");
+  assert.equal(await onHand(), 10, "the order's own warehouse is unknown — no shelf is credited");
+  const other = await db.inventory.findUniqueOrThrow({ where: { variantId_warehouseId: { variantId, warehouseId: otherWarehouseId } } });
+  assert.equal(other.qtyOnHand, 4, "not the other warehouse either");
+  assert.equal((await movementsFor(o.id)).length, 0, "no movement claims a release that did not happen");
+});
+
+test("a cancel whose stock row is gone creates no row and records no release", async () => {
+  /* The order says it came from the other warehouse; the variant has no row there. */
+  await db.inventory.deleteMany({ where: { variantId, warehouseId: otherWarehouseId } });
+  const o = await handMadeOrder("NOROW", 3, otherWarehouseId);
+  await cancelOrder(USERS[0], o.orderNo, "changed my mind");
+
+  assert.equal((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status, "cancelled");
+  assert.equal(await db.inventory.count({ where: { variantId, warehouseId: otherWarehouseId } }), 0, "no stock row is invented");
+  assert.equal((await movementsFor(o.id)).length, 0);
 });

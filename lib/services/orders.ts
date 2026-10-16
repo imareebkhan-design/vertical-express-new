@@ -7,7 +7,7 @@ import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
-import { captureException, log, triggerAlert } from "@/lib/observability";
+import { captureException, triggerAlert } from "@/lib/observability";
 import { recordSystemMovement } from "@/lib/services/inventory-movements";
 
 export type { CapturedLookup };
@@ -97,6 +97,23 @@ export async function listOrders(userId: string, page = 1, perPage = 10) {
   return { orders, total, page, perPage };
 }
 
+/**
+ * Put goods that never left the warehouse back on its shelf, with the ledger
+ * row that says so.
+ *
+ * Never guesses a location and never invents a stock row. Checkout refuses an
+ * order it cannot tie to a warehouse, and nothing in the app deletes an
+ * inventory row, so reaching either case below means an order from before
+ * warehouses or a change made outside the app. Crediting the wrong shelf
+ * overstates it and lets it be oversold; crediting none understates it, which a
+ * recount fixes and no customer pays for. So the count is left alone, no
+ * movement is written (one would claim a release that did not happen), and an
+ * alert names the order for a person to settle. The cancel itself proceeds —
+ * refusing it would hold a customer's order hostage to a stock record.
+ *
+ * Before 16 Oct 2026 a missing warehouse fell back to the variant's first
+ * inventory row (ISS-004 territory) — an arbitrary warehouse.
+ */
 async function restock(
   tx: Prisma.TransactionClient,
   variantId: string,
@@ -105,37 +122,35 @@ async function restock(
   ledger: { orderId: string; note: string }
 ) {
   if (qty <= 0) return;
-  const inv = await tx.inventory.findFirst({
-    where: {
+  if (!warehouseId) {
+    triggerAlert("restock_needs_location", "Cancelled goods were not restocked: the order has no warehouse", {
       variantId,
-      ...(warehouseId ? { warehouseId } : {}),
-    },
-  });
-  if (inv) {
-    await tx.inventory.update({
-      where: { id: inv.id },
-      data: { qtyOnHand: { increment: qty } },
-    });
-    /* The movement names the warehouse the goods actually went back to. For a
-       legacy order with no warehouse that is whichever row `findFirst` chose
-       (ISS-004 territory), and the ledger now shows it rather than hiding it. */
-    await recordSystemMovement(tx, {
-      variantId,
-      warehouseId: inv.warehouseId,
-      qtyDelta: qty,
-      reason: "released",
+      qty,
       orderId: ledger.orderId,
-      note: ledger.note,
     });
-  } else {
-    /* Nothing to put the goods back into. Unchanged behaviour — creating a
-       stock row here would invent a location — but no longer silent. */
-    log("WARN", {
-      service: "inventory",
-      event: "restock_no_inventory_row",
-      metadata: { variantId, warehouseId: warehouseId ?? null, qty, orderId: ledger.orderId },
-    });
+    return;
   }
+  const applied = await tx.inventory.updateMany({
+    where: { variantId, warehouseId },
+    data: { qtyOnHand: { increment: qty } },
+  });
+  if (applied.count === 0) {
+    triggerAlert("restock_no_inventory_row", "Cancelled goods were not restocked: no stock record at the order's warehouse", {
+      variantId,
+      warehouseId,
+      qty,
+      orderId: ledger.orderId,
+    });
+    return;
+  }
+  await recordSystemMovement(tx, {
+    variantId,
+    warehouseId,
+    qtyDelta: qty,
+    reason: "released",
+    orderId: ledger.orderId,
+    note: ledger.note,
+  });
 }
 
 /**
