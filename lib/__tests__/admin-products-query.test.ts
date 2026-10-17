@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { MAX_SEARCH_LENGTH, parseProductsQuery, productsHref } from "../admin-products-query";
+import { MAX_PAGE, MAX_SEARCH_LENGTH, parseProductsQuery, productsHref } from "../admin-products-query";
 
 const ID = "3f2b8c1e-9a4d-4e7b-8c2a-1b2c3d4e5f60";
 
@@ -28,4 +28,19 @@ test("links keep the filters, and changing a filter goes back to page 1", () => 
   assert.equal(productsHref(q, { page: 5 }), "/admin/products?q=wire&status=published&page=5");
   assert.equal(productsHref(q, { status: "draft" }), "/admin/products?q=wire&status=draft");
   assert.equal(productsHref(q, { q: "", status: null, page: 1 }), "/admin/products");
+});
+
+test("a page must be a whole positive number written as one; anything else is page 1", () => {
+  for (const raw of ["3abc", "1e3", "2.5", "0", "-1", "+2", "0x10", " ", "", "١٢"]) {
+    assert.equal(parseProductsQuery({ page: raw }).page, 1, `page=${JSON.stringify(raw)}`);
+  }
+  assert.equal(parseProductsQuery({ page: "7" }).page, 7);
+  assert.equal(parseProductsQuery({ page: " 7 " }).page, 7, "surrounding spaces are not part of the number");
+});
+
+test("an absurd page cannot reach the database as an enormous offset", () => {
+  assert.equal(parseProductsQuery({ page: String(MAX_PAGE) }).page, MAX_PAGE);
+  for (const raw of [String(MAX_PAGE + 1), "99999999999999999999", "9007199254740993"]) {
+    assert.equal(parseProductsQuery({ page: raw }).page, 1, `page=${raw}`);
+  }
 });

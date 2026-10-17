@@ -21,6 +21,12 @@ export const PRODUCT_STATUS_FILTERS = [
 export type ProductStatusKey = (typeof PRODUCT_STATUS_FILTERS)[number]["key"];
 
 export const PRODUCTS_PER_PAGE = 30;
+/**
+ * The highest page a URL may ask for. 10,000 pages of 30 is 300,000 products,
+ * far past any catalogue this shop will hold; anything larger is a typo or a
+ * probe, and passing it on would become an enormous OFFSET.
+ */
+export const MAX_PAGE = 10_000;
 export const MAX_SEARCH_LENGTH = 100;
 
 export interface ProductsQuery {
@@ -45,13 +51,16 @@ export function parseProductsQuery(sp: Params): ProductsQuery {
   const status = one(sp.status);
   const categoryId = one(sp.category);
   const brandId = one(sp.brand);
-  const page = Number.parseInt(one(sp.page), 10);
+  /* Digits only. `parseInt` read "3abc" as 3 and "1e3" as 1, and a 25-digit
+     number as something Postgres cannot use as an offset. */
+  const rawPage = one(sp.page);
+  const page = /^[1-9][0-9]{0,4}$/.test(rawPage) ? Number(rawPage) : 1;
   return {
     q: one(sp.q).slice(0, MAX_SEARCH_LENGTH),
     status: PRODUCT_STATUS_FILTERS.some((s) => s.key === status) ? (status as ProductStatusKey) : null,
     categoryId: UUID.test(categoryId) ? categoryId.toLowerCase() : null,
     brandId: UUID.test(brandId) ? brandId.toLowerCase() : null,
-    page: Number.isFinite(page) && page >= 1 ? page : 1,
+    page: page <= MAX_PAGE ? page : 1,
   };
 }
 

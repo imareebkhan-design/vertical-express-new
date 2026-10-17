@@ -211,6 +211,11 @@ export interface AdminProductFilters {
  * Ordered by last edit, then id — two products saved in the same millisecond
  * share an `updatedAt`, and without the tie-break a product could appear on two
  * pages and another on neither.
+ *
+ * `page` is sanitised and then clamped to the last page, and the page actually
+ * served is returned. A page past the end used to return an empty list while
+ * the screen printed a range like "Showing 2971–1025 of 1025"; now it serves
+ * the last page and says so.
  */
 export async function adminListProducts(page = 1, perPage = 30, filters: AdminProductFilters = {}) {
   const q = filters.q?.trim();
@@ -229,27 +234,32 @@ export async function adminListProducts(page = 1, perPage = 30, filters: AdminPr
   }
   const where: Prisma.ProductWhereInput = { AND: [...base, ...(filters.status ? [{ status: filters.status }] : [])] };
 
-  const [products, total, byStatus, unfilteredTotal] = await Promise.all([
-    db.product.findMany({
-      where,
-      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
-      skip: (Math.max(1, page) - 1) * perPage,
-      take: perPage,
-      include: {
-        brand: { select: { id: true, name: true } },
-        category: { select: { name: true } },
-        variants: { where: { isDefault: true }, take: 1, include: { inventory: true } },
-      },
-    }),
+  const [total, byStatus, unfilteredTotal] = await Promise.all([
     db.product.count({ where }),
     db.product.groupBy({ by: ["status"], where: { AND: base }, _count: { _all: true } }),
     db.product.count(),
   ]);
+  const size = Number.isInteger(perPage) && perPage > 0 ? perPage : 30;
+  const lastPage = Math.max(1, Math.ceil(total / size));
+  const requested = Number.isInteger(page) && page >= 1 ? page : 1;
+  const served = Math.min(requested, lastPage);
+
+  const products = await db.product.findMany({
+    where,
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    skip: (served - 1) * size,
+    take: size,
+    include: {
+      brand: { select: { id: true, name: true } },
+      category: { select: { name: true } },
+      variants: { where: { isDefault: true }, take: 1, include: { inventory: true } },
+    },
+  });
 
   const statusCounts: Record<ProductStatus, number> = { draft: 0, catalog_only: 0, published: 0, archived: 0 };
   for (const row of byStatus) statusCounts[row.status] = row._count._all;
 
-  return { products, total, page, perPage, statusCounts, unfilteredTotal };
+  return { products, total, page: served, perPage: size, lastPage, statusCounts, unfilteredTotal };
 }
 
 /**

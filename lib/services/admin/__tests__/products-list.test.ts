@@ -88,3 +88,28 @@ test("status counts follow the other filters, so each status tab shows what it o
   assert.deepEqual(r.statusCounts, { draft: 1, catalog_only: 5, published: 0, archived: 1 });
   assert.equal(r.unfilteredTotal >= 9, true);
 });
+
+test("a page past the end shows the last page, never an empty list with an impossible range", async () => {
+  const filters = { brandId: ids.brandB };
+  const r = await adminListProducts(99, 3, filters);
+  assert.equal(r.total, 7);
+  assert.equal(r.page, 3, "clamped to the last page");
+  assert.equal(r.products.length, 1, "the last page's one product");
+  const last = await adminListProducts(3, 3, filters);
+  assert.deepEqual(r.products.map((p) => p.id), last.products.map((p) => p.id));
+});
+
+test("a page past the end of an empty result is page 1 with nothing on it", async () => {
+  const r = await adminListProducts(5, 3, { q: `${TAG} no such product anywhere` });
+  assert.equal(r.total, 0);
+  assert.equal(r.page, 1);
+  assert.equal(r.products.length, 0);
+});
+
+test("a nonsense page from a direct caller is treated as page 1, not passed to the database", async () => {
+  for (const page of [0, -3, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    const r = await adminListProducts(page, 3, { brandId: ids.brandB });
+    assert.equal(r.page, 1, `page=${page}`);
+    assert.equal(r.products.length, 3);
+  }
+});

@@ -24,7 +24,7 @@ export default async function AdminProducts({
      segment never ran app/admin/layout.tsx, so the page checks too. */
   if (!(await getAdminUser())) return null;
   const query = parseProductsQuery(await searchParams);
-  const [{ products, total, statusCounts, unfilteredTotal }, brands, allBrands, categories] = await Promise.all([
+  const [{ products, total, page, lastPage, statusCounts, unfilteredTotal }, brands, allBrands, categories] = await Promise.all([
     adminListProducts(query.page, PRODUCTS_PER_PAGE, query),
     /* Only active brands are offered — an inactive one is retired, and
        assigning a product to it would hide the product from the storefront by
@@ -39,9 +39,11 @@ export default async function AdminProducts({
     db.brand.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.category.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
-  const pages = Math.max(1, Math.ceil(total / PRODUCTS_PER_PAGE));
-  const from = total === 0 ? 0 : (query.page - 1) * PRODUCTS_PER_PAGE + 1;
-  const to = Math.min(total, query.page * PRODUCTS_PER_PAGE);
+  /* `page` is the page actually served — the service clamps a page past the
+     end to the last one — so the range below can never contradict the total. */
+  const here = { ...query, page };
+  const from = products.length === 0 ? 0 : (page - 1) * PRODUCTS_PER_PAGE + 1;
+  const to = (page - 1) * PRODUCTS_PER_PAGE + products.length;
   const filtered = Boolean(query.q || query.status || query.categoryId || query.brandId);
   const field =
     "h-9 rounded-field bg-chip-soft px-3 text-[12.5px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink";
@@ -184,16 +186,16 @@ export default async function AdminProducts({
             Showing {from}–{to} of {total}
           </p>
           <div className="flex items-center gap-2">
-            {query.page > 1 ? (
-              <Link href={productsHref(query, { page: query.page - 1 })} className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold hover:bg-hush">
+            {page > 1 ? (
+              <Link href={productsHref(here, { page: page - 1 })} className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold hover:bg-hush">
                 Previous
               </Link>
             ) : null}
             <span className="text-[12px] font-semibold tabular-nums text-ink-500">
-              Page {Math.min(query.page, pages)} of {pages}
+              Page {page} of {lastPage}
             </span>
-            {query.page < pages ? (
-              <Link href={productsHref(query, { page: query.page + 1 })} className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold hover:bg-hush">
+            {page < lastPage ? (
+              <Link href={productsHref(here, { page: page + 1 })} className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold hover:bg-hush">
                 Next
               </Link>
             ) : null}
@@ -201,11 +203,30 @@ export default async function AdminProducts({
         </nav>
       )}
 
-      <p className="rounded-panel bg-ops-warn-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-warn">
-        Read-only (ISS-019). Creating and editing products from here needs HSN and GST rate
-        per product, which the schema does not carry yet — and an invoice cannot be raised
-        without them. Editing arrives with those columns.
-      </p>
+      {/* What the publish gate enforces (sellableReasons in
+          lib/services/admin/publish-guard.ts). This describes it; the gate,
+          not this text, is what stops an incomplete product going on sale. */}
+      <div className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
+        <p>
+          Open a product to edit it. Drafts can be saved incomplete; a product goes on sale only when
+          its editor shows nothing missing:
+        </p>
+        <ul className="mt-1.5 list-disc pl-5">
+          <li>an active default variant with a selling price above zero, and no MRP below its price</li>
+          <li>a stock record for the default variant (opening stock can be 0)</li>
+          <li>a confirmed HSN and GST rate for its category</li>
+          <li>an approved exact product photo as the main image</li>
+          <li>an active brand and category</li>
+          <li>
+            the owner&apos;s commercial review — changing a price or a variant clears it, and the product
+            needs reviewing again (
+            <Link href="/admin/catalogue-approvals" className="underline">
+              Catalogue approvals
+            </Link>
+            )
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
