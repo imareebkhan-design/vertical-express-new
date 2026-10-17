@@ -3,7 +3,7 @@ import Link from "next/link";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { OpsTable } from "@/components/admin/ops-table";
 import { StatusChip, type StatusTone } from "@/components/admin/status-chip";
-import { listStockMovements } from "@/lib/services/inventory-movements";
+import { findLedgerDrift, listStockMovements, listUnresolvedRestocks } from "@/lib/services/inventory-movements";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
@@ -21,11 +21,12 @@ export const dynamic = "force-dynamic";
  * figure could only be asserted, never explained. A number nobody can explain
  * gets overruled by whoever counted last, and that count is usually wrong too.
  *
- * `StockMovement` now records every change a person makes from the console,
- * with a reason and a name. What it does NOT yet record is the decrement the
- * order path makes at checkout — that is still race-free and transactional and
- * still silent, so the ledger is honest about being half a history rather than
- * pretending to be the whole one.
+ * `StockMovement` records every change a person makes from the console, with
+ * a reason and a name, and — since the ISS-090 follow-up — every sale at
+ * checkout and every release when an order or shipment is cancelled, in the
+ * same transaction as the change. What it still cannot explain is stock set
+ * before the ledger existed, or changed outside the app; the drift panel lists
+ * the first kind as a count and the second as rows to recount.
  */
 const TONE: Record<string, StatusTone> = {
   received: "ok",
@@ -36,6 +37,7 @@ const TONE: Record<string, StatusTone> = {
   damaged: "bad",
   lost: "bad",
   sold: "neutral",
+  released: "info",
 };
 
 const LABEL: Record<string, string> = {
@@ -47,6 +49,7 @@ const LABEL: Record<string, string> = {
   damaged: "Damaged",
   lost: "Lost",
   sold: "Sold",
+  released: "Released",
 };
 
 export default async function AdminStockLedger({
@@ -59,7 +62,11 @@ export default async function AdminStockLedger({
   if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const { rows, total, perPage } = await listStockMovements(page);
+  const [{ rows, total, perPage }, drift, unresolved] = await Promise.all([
+    listStockMovements(page),
+    findLedgerDrift(20),
+    listUnresolvedRestocks(20),
+  ]);
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   return (
@@ -68,15 +75,94 @@ export default async function AdminStockLedger({
       intro={`Every movement, with a reason and a person attached. ${total} recorded.`}
     >
       <div className="flex flex-col gap-4">
-        {/* Honest about the half that is still missing. A ledger that looks
-            complete and silently omits every sale is worse than one that says
-            which movements it does not yet see. */}
+        {/* Honest about what the ledger still cannot explain. Sales and
+            cancellations are recorded now; stock that predates the ledger, or
+            was changed outside the app, is not. */}
         <p className="rounded-[12px] bg-ops-info-tint px-3.5 py-3 text-[12px] font-semibold leading-[17px] text-ops-info">
-          Console adjustments are recorded here — recounts, receipts, damage, transfers.
-          The decrement an order makes at checkout is not yet written to this ledger, so a
-          row is missing for every sale. Until that is wired, this explains what people
-          did to the count, not everything that happened to it.
+          Recorded here: console adjustments, every sale at checkout, and stock put back when
+          an order or shipment is cancelled. Not recorded: stock levels set before the ledger
+          existed
+          {drift.unledgeredCount > 0
+            ? ` — ${drift.unledgeredCount} stocked ${drift.unledgeredCount === 1 ? "item has" : "items have"} no history yet; a recount from Inventory gives ${drift.unledgeredCount === 1 ? "it" : "them"} one`
+            : ""}
+          .
         </p>
+
+        {unresolved.length > 0 && (
+          <section className="flex flex-col gap-2" aria-labelledby="unresolved-restocks">
+            <h2 id="unresolved-restocks" className="text-[14px] font-bold text-ops-bad">
+              Cancelled goods not put back ({unresolved.length === 20 ? "20 newest" : unresolved.length})
+            </h2>
+            <p className="text-[12px] font-semibold leading-[17px] text-ink-500">
+              These orders were cancelled, but the system could not tell which shelf the goods
+              belong on, so it changed no count. Find the goods, then record a Received or Recount
+              from Inventory at the warehouse where they actually are, with the order number in
+              the note.
+            </p>
+            <OpsTable
+              columns={["When", "Order", "Product", "Qty", "Why"]}
+              rows={unresolved.map((u) => [
+                u.at.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }),
+                u.orderNo ? (
+                  <Link key={`${u.orderId}-${u.variantId}-o`} href={`/admin/orders/${u.orderNo}`} className="font-bold text-ink no-underline hover:underline">
+                    {u.orderNo}
+                  </Link>
+                ) : (
+                  u.orderId
+                ),
+                <span key={`${u.orderId}-${u.variantId}-p`}>
+                  {u.productSlug ? (
+                    <Link href={`/admin/products/${u.productSlug}`} className="font-bold text-ink no-underline hover:underline">
+                      {u.productTitle}
+                    </Link>
+                  ) : (
+                    u.variantId
+                  )}
+                  {u.sku && <span className="block text-[11px] font-semibold text-ink-500">{u.sku}</span>}
+                </span>,
+                String(u.qty),
+                u.cause === "no_warehouse" ? "Order has no warehouse" : "No stock record at its warehouse",
+              ])}
+              emptyTitle="Nothing outstanding."
+              emptyNote=""
+            />
+          </section>
+        )}
+
+        {drift.driftCount > 0 && (
+          <section className="flex flex-col gap-2" aria-labelledby="ledger-drift">
+            <h2 id="ledger-drift" className="text-[14px] font-bold text-ops-bad">
+              {drift.driftCount} {drift.driftCount === 1 ? "count disagrees" : "counts disagree"} with the ledger
+            </h2>
+            <p className="text-[12px] font-semibold leading-[17px] text-ink-500">
+              The last movement says one number and the shelf record says another, so something
+              changed the count without writing a movement. Recount these from Inventory. Nothing
+              here is changed automatically.
+            </p>
+            <OpsTable
+              columns={["Product", "Warehouse", "On hand", "Ledger says", "Gap"]}
+              rows={drift.rows.map((d) => [
+                <span key={`${d.variantId}-${d.warehouseId}-p`}>
+                  <Link
+                    href={`/admin/products/${d.productSlug}`}
+                    className="font-bold text-ink no-underline hover:underline"
+                  >
+                    {d.productTitle}
+                  </Link>
+                  <span className="block text-[11px] font-semibold text-ink-500">{d.sku}</span>
+                </span>,
+                d.warehouseName,
+                String(d.qtyOnHand),
+                String(d.ledgerQty),
+                <span key={`${d.variantId}-${d.warehouseId}-g`} className="font-bold tabular-nums text-ops-bad">
+                  {d.qtyOnHand - d.ledgerQty > 0 ? `+${d.qtyOnHand - d.ledgerQty}` : d.qtyOnHand - d.ledgerQty}
+                </span>,
+              ])}
+              emptyTitle="No disagreements."
+              emptyNote=""
+            />
+          </section>
+        )}
 
         <OpsTable
           columns={["When", "Type", "Product", "Warehouse", "Change", "On hand", "Who"]}

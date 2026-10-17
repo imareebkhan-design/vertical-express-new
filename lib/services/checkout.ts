@@ -14,6 +14,7 @@ import {
 import { getPaymentProvider, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
+import { recordSystemMovement } from "@/lib/services/inventory-movements";
 import { trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 import { SETTING_KEYS, readSetting, parseFlag } from "@/lib/services/settings";
 
@@ -567,6 +568,16 @@ export async function placeOrder(params: {
           data: { qtyOnHand: { decrement: line.qty } },
         });
         if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
+        /* The decrement above is unchanged; this writes the ledger row that
+           explains it, in the same transaction (ISS-090 remaining gap). */
+        await recordSystemMovement(tx, {
+          variantId: line.variantId,
+          warehouseId,
+          qtyDelta: -line.qty,
+          reason: "sold",
+          orderId: created.id,
+          note: created.orderNo,
+        });
       }
 
       // Split the order into physically separate deliveries.

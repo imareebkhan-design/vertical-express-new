@@ -153,9 +153,20 @@ mixed orders, shipment-then-order, repeated cancels, concurrent shipment+order c
 order cancel, expiry cron (run twice), second warehouse, goods on the road, failed-delivery return. Each asserts every
 inventory row in both warehouses. All failed before the fix; the race test fails 3/3 without the row lock.
 
-**Remaining gaps (not in scope, not fixed).** Stock changes from checkout and cancels still write no `StockMovement`
-row, so the ledger cannot explain sales or restocks. Restocking with no warehouse (legacy orders from before
-warehouses) still picks the first inventory row (ISS-004 territory).
+**Remaining gaps (not in scope, not fixed).** ~~Stock changes from checkout and cancels still write no `StockMovement`
+row, so the ledger cannot explain sales or restocks.~~ **Fixed 16 Oct 2026 on `claude/inventory-ledger-audit`, not yet
+merged or deployed:** checkout writes a `sold` movement per line and both cancel paths write a `released` movement
+(new enum value, migration `20261017090000_stock_movement_released`), each in the transaction that moves the count;
+`findLedgerDrift` lists counts whose newest movement disagrees with `qtyOnHand` (`stock-ledger-completeness.test.ts`,
+7 tests, 5 fail without the fix). **17 Oct:** restocking with no warehouse (legacy orders from before warehouses) no
+longer picks the first inventory row (ISS-004 territory): it restocks nothing, writes no movement and raises
+`restock_needs_location`. A restock with no inventory row at the order's warehouse creates no row, writes no movement
+and raises `restock_no_inventory_row`. In both cases the cancel still succeeds and the stock is understated, never
+overstated, until a person recounts. Each such case also writes an `inventory.restock_unresolved` audit row in the
+cancel's transaction, listed on `/admin/stock-ledger` ("Cancelled goods not put back"), because a cancelled order is
+never cancelled again and nothing would retry it. There is no "resolved" flag yet — that workflow is unspecified
+(10 tests in the file). Stock levels set before the ledger existed have no opening movement and are reported as a count,
+not backfilled.
 
 ## ISS-089 — Mobile web OTP verifier attachment and resend cooldown
 
