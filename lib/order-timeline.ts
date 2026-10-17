@@ -89,6 +89,12 @@ export function buildOrderTimeline(o: TimelineInput): TimelineEntry[] {
         detail: [proof, a.actorType === "driver" ? "by the driver" : a.actorType === "admin" ? "by an operator" : null].filter(Boolean).join(" · ") || undefined,
         tone: after.status === "delivered" ? "ok" : after.status === "cancelled" ? "bad" : after.proof === "override" ? "warn" : "info",
       });
+    } else if (a.entityType === "shipment" && a.action === "shipment.received_back") {
+      out.push({
+        id: `au-${a.id}`, at: a.createdAt, title: `${label(a.entityId)} returned to the warehouse — not handed over`,
+        detail: [typeof after.reason === "string" ? after.reason : null, after.deliveryCodeRevoked ? "delivery code revoked" : null, "by an operator"].filter(Boolean).join(" · "),
+        tone: "warn",
+      });
     } else if (a.action === "order.notification_pending") {
       out.push({ id: `au-${a.id}`, at: a.createdAt, title: "Customer notification not sent", detail: "no delivery channel is configured yet", tone: "neutral" });
     } else if (a.action === "inventory.released") {
