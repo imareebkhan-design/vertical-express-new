@@ -36,6 +36,7 @@
     "db:status": "prisma migrate status",
     "qa:fixture": "NODE_PATH=./test-support/stubs tsx scripts/qa-staging-fixture.mts",
     "qa:delhi-trial": "NODE_PATH=./test-support/stubs tsx scripts/qa-delhi-trial.mts",
+    "ops:receive-back": "NODE_PATH=./test-support/stubs tsx scripts/receive-shipment-back.mts",
     "preflight": "npx tsx scripts/preflight.mjs",
     "start:smoke": "DATABASE_URL=${DEMO_DATABASE_URL:-postgresql://${USER}@localhost:5432/vertical_express_demo?schema=public} DIRECT_URL=${DEMO_DATABASE_URL:-postgresql://${USER}@localhost:5432/vertical_express_demo?schema=public} PAYMENT_GATEWAY=razorpay-live RAZORPAY_KEY_ID=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY RAZORPAY_KEY_SECRET=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY RAZORPAY_WEBHOOK_SECRET=PLACEHOLDER_LOCAL_SMOKE_TEST_ONLY next start --port 3200"
   },

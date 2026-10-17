@@ -3,7 +3,7 @@ import { randomInt, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
 import type { ShipmentStatus } from "@/prisma/generated/client/client";
 import { recordAudit } from "@/lib/services/audit";
-import { afterOrderRollup, rollUpOrderStatus, type RollupResult } from "@/lib/services/order-rollup";
+import { afterOrderRollup, rollUpOrderStatus, targetFromShipments, type RollupResult } from "@/lib/services/order-rollup";
 import { releaseShipmentInventory } from "@/lib/services/orders";
 import { rateLimit } from "@/lib/services/rate-limit";
 import {
@@ -200,6 +200,115 @@ export async function advanceShipment(params: {
   });
   if (outcome.ok) await afterOrderRollup(rollup);
   return outcome;
+}
+
+export type ReceivedBackResult =
+  | { ok: true; orderStatus: string }
+  | { ok: false; reason: "not_found" | "not_out_for_delivery" | "order_not_active" | "attestation_required" | "reason_required" | "raced" };
+
+/**
+ * A shipment that left on a vehicle and came back without being handed over —
+ * dispatched by mistake, or nobody at the gate — is received back at the
+ * warehouse.
+ *
+ * `SHIPMENT_FLOW` deliberately has no route from out_for_delivery to packed:
+ * "unpacking" is a physical act with a physical record, not a dropdown. This is
+ * that record. It is its own operation, not a loosening of the machine:
+ *
+ *   - only from out_for_delivery, only for an active order, never after a
+ *     delivery (the guarded update matches nothing once the row has moved);
+ *   - an operator attests the goods are back and says why, and both are audited;
+ *   - the delivery code is revoked — it proved nothing and must not prove a
+ *     later handover — and the live position is removed;
+ *   - no stock moves (dispatch never released any; the goods are back on the
+ *     shelf, still allocated to this order), no payment or wallet is touched,
+ *     and nothing claims a delivery;
+ *   - the order follows its shipments back only as far as they now justify,
+ *     with its own status event and audit. The roll-up stays forward-only.
+ *
+ * A failed delivery that should end the order is still a cancel, which restocks.
+ */
+export async function receiveShipmentBack(params: {
+  shipmentId: string;
+  actor: { id: string; email: string };
+  reason: string;
+  /** The operator confirms the goods are physically back in the warehouse. */
+  goodsReceivedBack: boolean;
+}): Promise<ReceivedBackResult> {
+  const { shipmentId, actor } = params;
+  const reason = params.reason?.trim() ?? "";
+  if (!params.goodsReceivedBack) return { ok: false, reason: "attestation_required" };
+  if (reason.length < MIN_OVERRIDE_REASON) return { ok: false, reason: "reason_required" };
+
+  const shipment = await db.shipment.findUnique({
+    where: { id: shipmentId },
+    select: { id: true, status: true, orderId: true, sequence: true, driverId: true, dispatchedAt: true, deliveredAt: true },
+  });
+  if (!shipment) return { ok: false, reason: "not_found" };
+  if (shipment.status !== "out_for_delivery" || shipment.deliveredAt) return { ok: false, reason: "not_out_for_delivery" };
+
+  return db.$transaction(async (tx) => {
+    /* The same order lock every cancel and roll-up takes, so this serialises with them. */
+    const [locked] = await tx.$queryRaw<{ status: string }[]>`
+      SELECT status::text AS status FROM orders WHERE id = ${shipment.orderId}::uuid FOR UPDATE`;
+    if (!locked || (INACTIVE_ORDER_STATES as readonly string[]).includes(locked.status)) {
+      return { ok: false, reason: "order_not_active" } as const;
+    }
+
+    const updated = await tx.shipment.updateMany({
+      where: { id: shipmentId, status: "out_for_delivery", deliveredAt: null },
+      data: { status: "packed", deliveryCode: null, dispatchedAt: null },
+    });
+    if (updated.count === 0) return { ok: false, reason: "raced" } as const;
+    await tx.shipmentLiveLocation.deleteMany({ where: { shipmentId } });
+
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "shipment.received_back",
+      entityType: "shipment",
+      entityId: shipmentId,
+      before: { status: "out_for_delivery", dispatchedAt: shipment.dispatchedAt?.toISOString() ?? null, driverId: shipment.driverId },
+      /* The revoked code is not written here either; that it was revoked is. */
+      after: {
+        status: "packed", orderId: shipment.orderId, sequence: shipment.sequence,
+        reason, goodsReceivedBack: true, deliveryCodeRevoked: true, stockMoved: false,
+      },
+    });
+
+    /* The order follows back only as far as its shipments now justify. */
+    const shipments = await tx.shipment.findMany({ where: { orderId: shipment.orderId }, select: { status: true } });
+    const target = targetFromShipments(shipments.map((s) => s.status));
+    const CHAIN = ["confirmed", "packed", "out_for_delivery", "delivered"];
+    let orderStatus = locked.status;
+    if (target && CHAIN.indexOf(target) >= 0 && CHAIN.indexOf(locked.status) > CHAIN.indexOf(target) && locked.status !== "delivered") {
+      const moved = await tx.order.updateMany({
+        where: { id: shipment.orderId, status: locked.status as never },
+        data: { status: target },
+      });
+      if (moved.count !== 1) throw new Error("order moved under the lock");
+      await tx.orderStatusEvent.create({
+        data: {
+          orderId: shipment.orderId,
+          fromStatus: locked.status as never,
+          toStatus: target,
+          actorUserId: actor.id,
+          note: `Shipment ${shipment.sequence} returned to the warehouse — not handed over: ${reason}`,
+        },
+      });
+      await recordAudit(tx, {
+        actorType: "admin",
+        actorId: actor.id,
+        action: "order.status_corrected",
+        entityType: "order",
+        entityId: shipment.orderId,
+        before: { status: locked.status },
+        after: { status: target, source: "shipment_received_back", shipmentId },
+      });
+      orderStatus = target;
+    }
+    return { ok: true, orderStatus } as const;
+  });
 }
 
 export type AssignResult =
