@@ -198,3 +198,25 @@ test("checkout racing a city switch-off: the placement waits for it and refuses 
   assert.equal(await orders(), n, "no order was created");
   assert.equal((await db.inventory.findFirstOrThrow({ where: { variantId, warehouseId } })).qtyOnHand, stockBefore);
 });
+
+/* Staging, 17 Oct (VE-2026-MVC648PX1424): the quote for a served Delhi address
+   showed ₹199 with "Place order" enabled while the Delhi warehouse held none of
+   the item. Placement then refused (OUT_OF_STOCK) and the customer, hurried,
+   paid for a different, pinless address. The quote must say first. */
+test("the quote names lines the serving warehouse cannot supply; in stock it names none", async () => {
+  const cart = await getCartSummary(USER, null);
+  const inStock = await computeTotals(cart, PIN_IN, null, null, USER);
+  assert.deepEqual(inStock.unavailableLines, []);
+
+  await db.inventory.update({ where: { variantId_warehouseId: { variantId, warehouseId } }, data: { qtyOnHand: 0 } });
+  try {
+    const short = await computeTotals(cart, PIN_IN, null, null, USER);
+    assert.equal(short.serviceable, true, "still a served pincode");
+    assert.deepEqual(short.unavailableLines, [`${TAG} item`]);
+    await assert.rejects(place(PIN_IN), /OUT_OF_STOCK/, "placement agrees with the quote");
+  } finally {
+    await db.inventory.update({ where: { variantId_warehouseId: { variantId, warehouseId } }, data: { qtyOnHand: 100 } });
+  }
+  const unserved = await computeTotals(cart, PIN_UNLISTED, null, null, USER);
+  assert.deepEqual(unserved.unavailableLines, [], "an unserved pincode is reported as unserviceable, not as stock");
+});

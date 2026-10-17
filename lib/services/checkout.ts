@@ -54,9 +54,30 @@ export interface CheckoutTotals {
    * charge CGST + SGST where IGST is due.
    */
   placeOfSupplyState: string | null;
+  /**
+   * Cart lines the warehouse serving this pincode cannot supply in full, by
+   * title. Empty when it can, or when the pincode is not served (that is
+   * `serviceable: false`, a different answer). Placement refuses these with
+   * OUT_OF_STOCK; the quote says so first, so "Place order" is not offered
+   * for an address that cannot be fulfilled (staging, 17 Oct).
+   */
+  unavailableLines: string[];
 }
 
 /** Compute totals for a cart against a delivery pincode and optional coupon code. */
+/** Lines the pincode's serving warehouse cannot supply in full — the same warehouse and test placement uses. */
+async function unavailableAt(pincode: string, cart: CartSummary): Promise<string[]> {
+  if (cart.lines.length === 0) return [];
+  const served = await db.serviceablePincode.findFirst({ where: { pincode, ...SERVICEABLE_WHERE }, select: { warehouseId: true } });
+  if (!served?.warehouseId) return [];
+  const stock = await db.inventory.findMany({
+    where: { warehouseId: served.warehouseId, variantId: { in: cart.lines.map((l) => l.variantId) } },
+    select: { variantId: true, qtyOnHand: true },
+  });
+  const onHand = new Map(stock.map((r) => [r.variantId, r.qtyOnHand]));
+  return cart.lines.filter((l) => (onHand.get(l.variantId) ?? 0) < l.qty).map((l) => l.title);
+}
+
 export async function computeTotals(
   cart: CartSummary,
   pincode: string,
@@ -195,6 +216,7 @@ export async function computeTotals(
     etaMinutes: svc.etaMinutes,
     serviceable: svc.serviceable,
     placeOfSupplyState: supplyState,
+    unavailableLines: await unavailableAt(pincode, cart),
     /*
        Two gates, and both must open.
 

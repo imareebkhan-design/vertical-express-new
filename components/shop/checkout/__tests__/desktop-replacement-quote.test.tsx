@@ -49,7 +49,7 @@ function quote(totalPaise: number, discountPaise = 0): CheckoutTotals {
     express: { available: false, reason: "no_price", feePaise: null, eligibleVariantIds: [], ineligibleVariantIds: ["v-1"] },
     expressChosen: false, discountPaise, couponDeliveryWaivedPaise: 0, couponRejection: null,
     taxPaise: 0, gst: { ratePct: 18, hsn: "8536", taxPaise: 0, cgstPaise: 0, sgstPaise: 0, igstPaise: 0, intraState: true },
-    totalPaise, etaMinutes: null, serviceable: true, codAllowed: true, placeOfSupplyState: "Jammu & Kashmir",
+    totalPaise, etaMinutes: null, serviceable: true, codAllowed: true, placeOfSupplyState: "Jammu & Kashmir", unavailableLines: [],
   };
 }
 

@@ -36,6 +36,7 @@ import { CodSplitNotice } from "@/components/shop/cod-split-notice";
 import { CouponRevisedNotice } from "@/components/shop/checkout/coupon-revised-notice";
 import { QuotePending } from "@/components/mobile/checkout/quote-pending";
 import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
+import { unavailableMessage } from "@/lib/checkout-fulfilment";
 import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevision } from "@/lib/coupon-refusal";
 import { isTotalChangedError } from "@/lib/checkout-errors";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
@@ -165,6 +166,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       if (!fresh.codAllowed) setPaymentMethod((m) => (m === "cod" ? "online" : m));
     }
   );
+  /* The warehouse serving this address can supply every line (shared rule, lib/checkout-fulfilment). */
+  const stockMessage = unavailableMessage(totals, selected?.pincode);
 
   /* The same split the cart shows and the order is placed with — one rule, in
      lib/shipment-plan.ts, including the express run the current quote grants
@@ -260,6 +263,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
   // place order handler
   const handlePlaceOrder = () => {
+    if (stockMessage) return;
     setError(null);
     setCouponRevision(null);
     if (!selectedAddressId) {
@@ -601,6 +605,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                         <br />
                         Phone: {addr.phone}
                       </p>
+                      {/* Which addresses carry a pin — the order's tracking destination. */}
+                      <p className={cn("mt-1 text-[11px] font-bold", hasMapPin(addr) ? "text-success" : "text-ops-warn")}>
+                        {hasMapPin(addr) ? "Map pin set" : "No map pin · route ETA unavailable"}
+                      </p>
                       <div className="flex gap-3 mt-3 pt-3 border-t border-mist/10">
                         <button
                           onClick={(e) => {
@@ -712,6 +720,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               </p>
             )}
           </div>
+        )}
+
+        {stockMessage && (
+          <p role="alert" className="rounded-2xl border border-danger/30 bg-white p-4 text-xs font-bold text-danger">{stockMessage}</p>
         )}
 
         {/* Payment Methods */}
@@ -841,7 +853,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
           <button
             onClick={handlePlaceOrder}
-            disabled={placing || !canSubmit}
+            disabled={placing || !canSubmit || stockMessage !== null}
             className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md hover:opacity-95 active:scale-98 disabled:opacity-50"
           >
             {placing ? (
