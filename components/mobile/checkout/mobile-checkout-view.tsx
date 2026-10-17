@@ -25,7 +25,7 @@ import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon }
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import { AddressLocation } from "@/components/location/address-location";
-import { pinnedFromAddress, pinnedFromPlace, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { missingPlaceField, pinnedFromAddress, pinnedFromPlace, withPinnedLocation, withPlaceFields, type PinnedLocation } from "@/lib/location/address-pin";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { ExpressChoice } from "@/components/shop/checkout/express-choice";
 import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
@@ -83,8 +83,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     line1: "",
     line2: "",
     landmark: "",
-    city: "Srinagar",
-    state: "Jammu & Kashmir",
+    city: "",
+    state: "",
     pincode: "",
     isDefault: false,
   });
@@ -356,21 +356,22 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     triggerHaptic("light");
     setAddressFormError(null);
     setEditingAddressId(null);
-    setAddressForm({
+    const startPin = pinnedFromPlace(chosenPlace, chosenPincode, chosenCity);
+    setAddressForm(withPlaceFields<AddressFormValues>({
       label: "site",
       name: "",
       phone: "",
       line1: "",
       line2: "",
       landmark: "",
-      city: "Srinagar",
-      state: "Jammu & Kashmir",
+      city: "",
+      state: "",
       /* Never a pincode the customer did not give us (W-13): their selected
          site's, else the one they confirmed for delivery, else empty. */
       pincode: selected?.pincode || chosenPincode || "",
       isDefault: false,
-    });
-    setPinned(pinnedFromPlace(chosenPlace, chosenPincode, chosenCity));
+    }, startPin));
+    setPinned(startPin);
     setManual(false);
     setIsAddressFormOpen(true);
   };
@@ -408,6 +409,11 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     }
     if (manual && addressForm.pincode.length !== 6) {
       setAddressFormError("Please enter a valid 6-digit pincode");
+      return;
+    }
+    const missingPlace = missingPlaceField(addressForm);
+    if (missingPlace) {
+      setAddressFormError(`Enter the ${missingPlace}.`);
       return;
     }
     const payload = manual || !pinned ? { ...addressForm, latitude: null, longitude: null, placeId: null } : withPinnedLocation(addressForm, pinned);
@@ -836,7 +842,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             </p>
           ) : (
             <div className="space-y-2">
-              <AddressLocation value={pinned} onChange={setPinned} />
+              <AddressLocation value={pinned} onChange={(pin) => { setPinned(pin); setAddressForm((f) => withPlaceFields(f, pin)); }} />
               <button type="button" onClick={() => setManual(true)} className="text-[11px] font-bold text-ink/50 underline underline-offset-2">
                 Can&apos;t find it? Enter the address without the map
               </button>
@@ -960,6 +966,36 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               />
             </div>
             ) : null}
+          </div>
+
+          {/* City and state — from the map pin where it knows them, always shown so they can be corrected (issue #1) */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="address-city" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
+                City
+              </label>
+              <input
+                id="address-city"
+                type="text"
+                required
+                value={addressForm.city}
+                onChange={(e) => setAddressForm((f) => ({ ...f, city: e.target.value }))}
+                className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+              />
+            </div>
+            <div>
+              <label htmlFor="address-state" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
+                State
+              </label>
+              <input
+                id="address-state"
+                type="text"
+                required
+                value={addressForm.state}
+                onChange={(e) => setAddressForm((f) => ({ ...f, state: e.target.value }))}
+                className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+              />
+            </div>
           </div>
 
           <div>

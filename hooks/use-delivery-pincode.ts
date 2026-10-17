@@ -37,6 +37,8 @@ export interface DeliveryPlace {
   lat: number;
   lng: number;
   placeId: string | null;
+  /** From the confirmed place, so a new address can show it. Absent on places saved before Oct 2026. */
+  state?: string | null;
 }
 
 interface LocationState {
@@ -139,7 +141,7 @@ async function confirmPincode(candidate: string): Promise<boolean> {
  * from an explicit "Deliver here" — a GPS fix never replaces a chosen location
  * on its own — and only for a place the server said we deliver to.
  */
-function choosePlace(place: DeliveryPlace & { pincode: string; city: string | null; serviceable: boolean }): boolean {
+function choosePlace(place: DeliveryPlace & { pincode: string; city: string | null; state?: string | null; serviceable: boolean }): boolean {
   if (!place.serviceable || !/^\d{6}$/.test(place.pincode)) return false;
   const kept: DeliveryPlace = {
     source: place.source,
@@ -148,6 +150,7 @@ function choosePlace(place: DeliveryPlace & { pincode: string; city: string | nu
     lat: place.lat,
     lng: place.lng,
     placeId: place.placeId,
+    state: place.state ?? null,
   };
   const city = place.city ?? "Srinagar";
   localStorage.setItem(KEY_PINCODE, place.pincode);

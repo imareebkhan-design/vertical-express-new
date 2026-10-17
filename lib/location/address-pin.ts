@@ -35,7 +35,13 @@ export function areaLine(pin: Pick<PinnedLocation, "formattedAddress" | "pincode
   return line.slice(0, LINE2_MAX);
 }
 
-/** The address fields a confirmed pin decides. Customer-entered fields are left exactly as typed. */
+/**
+ * The address fields a confirmed pin decides. Customer-entered fields are left
+ * exactly as typed — and that now includes city and state: the form fills them
+ * from the pin (`withPlaceFields`) and shows them, so what is in the form is
+ * either the pin's answer or the customer's correction of it. The pin's value
+ * is used only where the form has none.
+ */
 export function withPinnedLocation<T extends AddressFields>(
   values: T,
   pin: PinnedLocation
@@ -43,8 +49,8 @@ export function withPinnedLocation<T extends AddressFields>(
   return {
     ...values,
     line2: areaLine(pin) || null,
-    city: pin.city ?? values.city,
-    state: pin.state ?? values.state,
+    city: values.city?.trim() ? values.city : pin.city ?? values.city,
+    state: values.state?.trim() ? values.state : pin.state ?? values.state,
     pincode: pin.pincode,
     latitude: pin.lat,
     longitude: pin.lng,
@@ -71,10 +77,28 @@ export function pinnedFromAddress(a: AddressFields): PinnedLocation | null {
 
 /** The place confirmed in the location sheet, as a starting pin for a new address. */
 export function pinnedFromPlace(
-  place: { label: string; formattedAddress: string; lat: number; lng: number; placeId: string | null } | null,
+  place: { label: string; formattedAddress: string; lat: number; lng: number; placeId: string | null; state?: string | null } | null,
   pincode: string | null,
   city: string | null
 ): PinnedLocation | null {
   if (!place || !pincode) return null;
-  return { label: place.label, formattedAddress: place.formattedAddress, pincode, city, state: null, lat: place.lat, lng: place.lng, placeId: place.placeId };
+  return { label: place.label, formattedAddress: place.formattedAddress, pincode, city, state: place.state ?? null, lat: place.lat, lng: place.lng, placeId: place.placeId };
+}
+
+/**
+ * A newly confirmed pin fills the form's city and state where it knows them, so
+ * the customer sees them and can correct them. Where it does not, the field is
+ * left as it was — never a guessed "Srinagar" or "Jammu & Kashmir" the customer
+ * cannot see (issue #1).
+ */
+export function withPlaceFields<T extends { city: string; state: string }>(values: T, pin: PinnedLocation | null): T {
+  if (!pin) return values;
+  return { ...values, city: pin.city?.trim() || values.city, state: pin.state?.trim() || values.state };
+}
+
+/** The first of city and state still empty — both are required by the server (`addressInputSchema`). */
+export function missingPlaceField(values: { city?: string | null; state?: string | null }): "city" | "state" | null {
+  if (!values.city || values.city.trim().length < 2) return "city";
+  if (!values.state || values.state.trim().length < 2) return "state";
+  return null;
 }
