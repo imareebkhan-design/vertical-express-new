@@ -7,8 +7,11 @@ import { strictCatalogue } from "@/lib/deploy-env";
  * `manufacturer-official-dealer-use` is the owner's dealer-rights decision for the
  * launch catalogue. Free-text licences such as "independent licence not attested"
  * (the cement ranges, 11 Oct 2026) are not here. Adding a code is an owner decision.
+ * `homerun-library-owner-licensed`: owner, 17 Oct 2026, in writing — the HomeRun image
+ * library is licensed for Vertical Express. Rights only: identity is still approved per photo
+ * (docs/catalog/homerun-production-images-2026-10-17).
  */
-export const ATTESTED_IMAGE_LICENCES = ["manufacturer-official-dealer-use"] as const;
+export const ATTESTED_IMAGE_LICENCES = ["manufacturer-official-dealer-use", "homerun-library-owner-licensed"] as const;
 
 /** Customer-visible photos require a recorded identity decision, not provenance alone. */
 export function approvedImageWhere(): Prisma.ProductImageWhereInput {

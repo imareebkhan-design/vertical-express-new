@@ -262,6 +262,13 @@ no-minimum-order positioning, calculator-as-funnel, COD prominence.
 > closely (category naming, footer layout, a "Fevicol" category with no Fevicol
 > products), treat that as technical debt to diverge from, not a pattern to extend.
 
+**Owner exception, 17 Oct 2026 (in writing):** the HomeRun *image library* the owner
+downloaded is licensed for Vertical Express product photos (licence code
+`homerun-library-owner-licensed`, `lib/catalog-policy.ts`). It covers rights only — each
+photo still needs a correct product mapping and the per-photo identity approval. Branding,
+logos, promo banners, copy and code remain off-limits. Ledger:
+`docs/catalog/homerun-production-images-2026-10-17/` (workspace).
+
 ### Documents that have drifted
 
 The repository contains earlier documents — `AUDIT_REPORT.md`, `PRODUCTION_CHECKLIST.md`,
