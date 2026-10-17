@@ -26,11 +26,19 @@ let variantA = "";
 let variantB = "";
 
 test.before(async () => {
-  const cat = await db.category.findFirst({
-    where: { products: { some: { status: "published", variants: { some: {} } } } },
-    select: { slug: true, id: true },
+  /* A category that has two rankable products — not merely the first with one.
+     An unordered findFirst returned whatever row Postgres met first, and the
+     seed has categories with a single product (wardrobe-bed-fittings), so the
+     suite failed or passed on physical row order. */
+  const counts = await db.product.groupBy({
+    by: ["categoryId"],
+    where: { status: "published", variants: { some: {} } },
+    _count: { _all: true },
+    orderBy: { categoryId: "asc" },
   });
-  assert.ok(cat, "the seeded catalogue needs at least one category with products");
+  const rankable = counts.find((c) => c._count._all >= 2);
+  assert.ok(rankable, "the seeded catalogue needs a category with two published products");
+  const cat = await db.category.findUniqueOrThrow({ where: { id: rankable.categoryId }, select: { slug: true, id: true } });
   categorySlug = cat.slug;
 
   const products = await db.product.findMany({
