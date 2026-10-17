@@ -23,6 +23,7 @@ taken · **Device PASS** = physical device · **Pending** = not yet run ·
 | INV-4 | Missing inventory row on cancel was silent | P1 | Fixed | `restock` skipped with a log line | Alert `restock_no_inventory_row`; never creates a row | missing-row test | `97f936d` | Local, CI | Staging §8 |
 | INV-5 | An unresolved restock left no durable trace | P1 | Fixed | Only a log alert; the order is cancelled and cannot be cancelled again, so nothing retries | `inventory.restock_unresolved` audit row in the cancel's transaction; listed on `/admin/stock-ledger` | both edge tests assert it (fail without the fix); normal cancel writes none | `87d4b5d` | Local, CI | Staging §8 |
 | INV-6 | A recount was a delta against a possibly stale on-screen figure | P1 | Fixed | Adjuster took a delta for every reason; `adjustStock` guards only its own read→write | `recountStock` takes counted qty + the figure shown, refuses if it moved; matching count writes a 0 movement | `stock-recount` 6 (race test fails without the guard); component 5 | `1b7ced4` | Local, CI | Staging §3, §4.3a |
+| MIG-1 | My migration shared a timestamp with integration's `20261016120000_address_pin_pincode` | P1 | Fixed | Both were dated the same minute | Renamed to `20261017090000_…` before any shared database had applied it | 36-migration chain from empty; staging status | `bf06fc5` | Local, Staging | — |
 | TEST-1 | 16 tests failed on a locally built test DB | P2 | Fixed | `setup-test-db.sh` skipped the seed-approval step CI runs | Same guarded, idempotent step added; no assertion changed | 1254/1254 on a rebuilt DB | `5991154` | Local | — |
 | DOC-1 | Audit said migrations run on deploy | P1 | Fixed | Wrong; App Hosting never migrates | Corrected; migrate-before-rollout ordering in checklist | — | `da4c167` | — | — |
 | OPS-1 | Vercel check fails on every commit | P3 | Open | Vercel says "Account is blocked"; same on the integration branch; Vercel is no longer the deploy target | — | commit statuses on `03db1b9`, `7b47e7d`, `da4c167` | — | — | Owner: disconnect the Vercel Git integration, or restore the account |
@@ -45,21 +46,21 @@ negative stock is prevented by guarded updates.
 
 | Check | Result | Evidence |
 |---|---|---|
-| Backend suite, `1b7ced4` | Auto PASS 1263/1263 | local, isolated test DB |
-| UI component tests, `1b7ced4` | Auto PASS 172/172 | local |
-| Typecheck, lint, `1b7ced4` | Auto PASS | local |
-| Production build, `1b7ced4` | Auto PASS (59/59 static; stock pages dynamic) | local, CI's placeholder env |
+| Backend suite, `bf06fc5` | Auto PASS 1270/1270 | local, isolated test DB (36 migrations from empty) |
+| UI component tests, `bf06fc5` | Auto PASS 174/174 | local |
+| Typecheck, lint, `bf06fc5` | Auto PASS | local |
+| Production build, `bf06fc5` | Auto PASS (59/59 static; stock pages dynamic) | local, CI's placeholder env |
 | CI on `da4c167` | Auto PASS | [push](https://github.com/imareebkhan-design/vertical-express-new/actions/runs/38980901497), [PR](https://github.com/imareebkhan-design/vertical-express-new/actions/runs/38980919098) |
-| CI on final commit | *filled in below* | |
+| CI on `bf06fc5` | Auto PASS | [push](https://github.com/imareebkhan-design/vertical-express-new/actions/runs/38986259830), [PR](https://github.com/imareebkhan-design/vertical-express-new/actions/runs/38986263911) |
 | Migration chain on an empty DB | Auto PASS | `setup-test-db.sh --reset` |
-| Migration on staging | **Blocked** — needs owner approval of the guard override | checklist §0 |
+| Migration on staging | **PASS**, 17 Oct 12:40 IST, owner-approved, after the owner's backup; verified read-only | checklist §0 |
 | `/admin/stock-ledger`, `/admin/inventory` rendered | **Pending** — needs an allow-listed Firebase sign-in | checklist §2 |
 | Sale, cancel, recount, drift on staging | **Pending** | checklist §3–8 |
 | Mobile, live tracking, payments end-to-end | **Not in this PR's scope**; not re-verified here | — |
 
 ## Owner actions
 
-1. Approve, or run yourself, the staging migration (checklist §0, option A or B).
+1. ~~Staging migration~~ done 17 Oct (checklist §0).
 2. Roll the branch out to `ve-staging` **after** the migration, then run checklist §2–8 signed in as an operator.
 3. Decide INV-7 (how a settled unresolved-restock is marked) and INV-8 (opening balances via recount).
 4. Vercel: disconnect or restore (OPS-1).

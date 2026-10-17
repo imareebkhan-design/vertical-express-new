@@ -25,11 +25,11 @@ merged. Pick one:
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 0.1 | Take a staging database backup (Supabase dashboard → Database → Backups) | Backup listed with today's time | |
-| 0.2 | `cd ~/ve-inventory-audit && VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gjhxhmcsuhxcmrvtkggz scripts/staging-db.sh status` | Pending, in this order: `20261016120000_address_pin_pincode` (integration's, not yet on staging as of 16 Oct) and `20261017090000_stock_movement_released`. **Anything else pending → stop**: staging is behind for other reasons and that needs its own review | |
-| 0.3 | Same command with `migrate` instead of `status` | "All migrations have been successfully applied"; status up to date | |
-| 0.4 | Read-only SQL (Supabase SQL editor): `SELECT unnest(enum_range(NULL::"StockMovementReason"));` | Includes `released` | |
-| 0.5 | Remove the 0-A symlink if one was made | — | |
+| 0.1 | Take a staging database backup (Supabase dashboard → Database → Backups) | Backup listed with today's time | Owner confirmed a backup was taken, 17 Oct |
+| 0.2 | `cd ~/ve-inventory-audit && VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gjhxhmcsuhxcmrvtkggz scripts/staging-db.sh status` | Pending, in this order: `20261016120000_address_pin_pincode` (integration's, not yet on staging as of 16 Oct) and `20261017090000_stock_movement_released`. **Anything else pending → stop**: staging is behind for other reasons and that needs its own review | 17 Oct 12:39 IST, from `bf06fc5`: only `20261017090000_stock_movement_released` pending; `address_pin_pincode` was already applied |
+| 0.3 | Same command with `migrate` instead of `status` | "All migrations have been successfully applied"; status up to date | **PASS** 12:40 IST: applied; "Database schema is up to date" |
+| 0.4 | Read-only SQL (Supabase SQL editor): `SELECT unnest(enum_range(NULL::"StockMovementReason"));` | Includes `released` | **PASS** (read-only session): enum includes `released`; `addresses.pin_pincode` present; both migrations finished, not rolled back; 0 failed; `stock_movements` has 0 rows |
+| 0.5 | Remove the 0-A symlink if one was made | — | Removed |
 
 Recovery: the enum value is additive and cannot be dropped cheaply. If the code
 rollout is abandoned, leave the value in place; older code ignores it. Restore
