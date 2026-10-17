@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { AddressLocation } from "@/components/location/address-location";
 import type { PinnedLocation } from "@/lib/location/address-pin";
-import { pinnedFromAddress, pinnedFromPlace, withPinnedLocation } from "@/lib/location/address-pin";
+import { missingPlaceField, pinnedFromAddress, pinnedFromPlace, withPinnedLocation, withPlaceFields } from "@/lib/location/address-pin";
 
 export interface AddressFormValues {
   id?: string;
@@ -40,7 +40,14 @@ export function AddressForm({
   onCancel?: () => void;
 }) {
   const delivery = useDeliveryPincode();
-  const [values, setValues] = useState<AddressFormValues>({
+  /* A new address starts from the place the customer already confirmed in the
+     location sheet, if any; an existing one from its own saved pin. */
+  const [pinned, setPinned] = useState<PinnedLocation | null>(() =>
+    initial?.id ? pinnedFromAddress(initial) : pinnedFromPlace(delivery.place, delivery.pincode, delivery.city)
+  );
+  /* City and state come from the pin, or from the customer — never a default
+     they cannot see. Both are shown and editable in either mode. */
+  const [values, setValues] = useState<AddressFormValues>(() => withPlaceFields({
     label: initial?.label ?? "home",
     name: initial?.name ?? "",
     phone: initial?.phone ?? "",
@@ -48,16 +55,11 @@ export function AddressForm({
     line2: initial?.line2 ?? "",
     landmark: initial?.landmark ?? "",
     accessNote: initial?.accessNote ?? "",
-    city: initial?.city ?? "Srinagar",
-    state: initial?.state ?? "Jammu & Kashmir",
+    city: initial?.city ?? "",
+    state: initial?.state ?? "",
     pincode: initial?.pincode ?? "",
     isDefault: initial?.isDefault ?? false,
-  });
-  /* A new address starts from the place the customer already confirmed in the
-     location sheet, if any; an existing one from its own saved pin. */
-  const [pinned, setPinned] = useState<PinnedLocation | null>(() =>
-    initial?.id ? pinnedFromAddress(initial) : pinnedFromPlace(delivery.place, delivery.pincode, delivery.city)
-  );
+  }, initial?.id ? null : pinned));
   /* Typing the address without the map: the escape hatch when Google cannot find it. No coordinates are saved. */
   const [manual, setManual] = useState(() => Boolean(initial?.id) && pinnedFromAddress(initial ?? {}) === null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,11 @@ export function AddressForm({
     setError(null);
     if (!manual && !pinned) {
       setError("Set the delivery location first, or enter the address without the map.");
+      return;
+    }
+    const missing = missingPlaceField(values);
+    if (missing) {
+      setError(`Enter the ${missing}.`);
       return;
     }
     startTransition(async () => {
@@ -94,7 +101,7 @@ export function AddressForm({
         </p>
       ) : (
         <div className="space-y-2">
-          <AddressLocation value={pinned} onChange={setPinned} />
+          <AddressLocation value={pinned} onChange={(pin) => { setPinned(pin); setValues((v) => withPlaceFields(v, pin)); }} />
           <button type="button" onClick={() => setManual(true)} className="text-xs font-bold text-neutral-500 underline underline-offset-2 hover:text-ink">
             Can&apos;t find it? Enter the address without the map
           </button>
@@ -148,15 +155,15 @@ export function AddressForm({
         </Field>
       </div>
 
-      {manual ? (
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="City">
-            <Input value={values.city} onChange={(e) => set("city", e.target.value)} required />
-          </Field>
-          <Field label="State">
-            <Input value={values.state} onChange={(e) => set("state", e.target.value)} required />
-          </Field>
-          <Field label="Pincode">
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="City">
+          <Input value={values.city} onChange={(e) => set("city", e.target.value)} required />
+        </Field>
+        <Field label="State">
+          <Input value={values.state} onChange={(e) => set("state", e.target.value)} required />
+        </Field>
+        <Field label="Pincode">
+          {manual ? (
             <Input
               inputMode="numeric"
               maxLength={6}
@@ -164,9 +171,12 @@ export function AddressForm({
               onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
               required
             />
-          </Field>
-        </div>
-      ) : null}
+          ) : (
+            /* The pin decides the pincode, and with it whether we deliver: change the pin to change it. */
+            <Input value={pinned?.pincode ?? ""} readOnly aria-readonly="true" placeholder="From the map pin" />
+          )}
+        </Field>
+      </div>
 
       <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-neutral-700">
         <input
