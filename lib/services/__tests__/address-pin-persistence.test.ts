@@ -74,3 +74,29 @@ test("a served pincode's state wins over the form's pre-filled one; an unserved 
     await db.serviceCity.delete({ where: { id: city.id } });
   }
 });
+
+/* Issue #1, acceptance 7 — owner decision 16 Oct 2026: keep the pin, record Google's pincode for it. */
+const found = (pincode: string) => async () => ({ kind: "found" as const, address: { line1: "", locality: null, city: "Srinagar", state: "Jammu and Kashmir", pincode } });
+
+test("Google's pincode for the pin is recorded beside the customer's; a mismatch is kept, never refused", async () => {
+  const input = addressInputSchema.parse({ ...BASE, latitude: 34.0662, longitude: 74.8288 });
+  const created = await createAddress(USER, input, found("190015"));
+  const row = await db.address.findUniqueOrThrow({ where: { id: created.id } });
+  assert.deepEqual([row.pincode, row.pinPincode], ["190008", "190015"]);
+
+  await updateAddress(USER, created.id, input, found("190008"));
+  const after = await db.address.findUniqueOrThrow({ where: { id: created.id } });
+  assert.equal(after.pinPincode, "190008", "re-checked on every pinned save");
+});
+
+test("no pin: Google is not asked and nothing is recorded; Google unavailable: nothing is recorded", async () => {
+  let asked = 0;
+  const counting = async () => { asked += 1; return { kind: "found" as const, address: { line1: "", locality: null, city: null, state: null, pincode: "190001" } }; };
+  const plain = await createAddress(USER, addressInputSchema.parse(BASE), counting);
+  assert.equal(asked, 0);
+  assert.equal((await db.address.findUniqueOrThrow({ where: { id: plain.id } })).pinPincode, null);
+
+  const down = async () => ({ kind: "provider_error" as const, status: "NETWORK" });
+  const pinned = await createAddress(USER, addressInputSchema.parse({ ...BASE, latitude: 34.07, longitude: 74.83 }), down);
+  assert.equal((await db.address.findUniqueOrThrow({ where: { id: pinned.id } })).pinPincode, null);
+});

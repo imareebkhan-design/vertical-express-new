@@ -156,7 +156,7 @@ inventory row in both warehouses. All failed before the fix; the race test fails
 **Remaining gaps (not in scope, not fixed).** ~~Stock changes from checkout and cancels still write no `StockMovement`
 row, so the ledger cannot explain sales or restocks.~~ **Fixed 16 Oct 2026 on `claude/inventory-ledger-audit`, not yet
 merged or deployed:** checkout writes a `sold` movement per line and both cancel paths write a `released` movement
-(new enum value, migration `20261016120000_stock_movement_released`), each in the transaction that moves the count;
+(new enum value, migration `20261017090000_stock_movement_released`), each in the transaction that moves the count;
 `findLedgerDrift` lists counts whose newest movement disagrees with `qtyOnHand` (`stock-ledger-completeness.test.ts`,
 7 tests, 5 fail without the fix). **17 Oct:** restocking with no warehouse (legacy orders from before warehouses) no
 longer picks the first inventory row (ISS-004 territory): it restocks nothing, writes no movement and raises

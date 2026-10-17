@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { AddressLocation } from "@/components/location/address-location";
 import type { PinnedLocation } from "@/lib/location/address-pin";
-import { pinnedFromAddress, pinnedFromPlace, withPinnedLocation } from "@/lib/location/address-pin";
+import { pinnedFromAddress, pinnedFromPlace, placeFieldsToAsk, withPinnedLocation } from "@/lib/location/address-pin";
 
 export interface AddressFormValues {
   id?: string;
@@ -36,7 +36,8 @@ export function AddressForm({
   onCancel,
 }: {
   initial?: Partial<AddressFormValues>;
-  onDone: () => void;
+  /** Called with the saved address's id. */
+  onDone: (id: string) => void;
   onCancel?: () => void;
 }) {
   const delivery = useDeliveryPincode();
@@ -48,8 +49,9 @@ export function AddressForm({
     line2: initial?.line2 ?? "",
     landmark: initial?.landmark ?? "",
     accessNote: initial?.accessNote ?? "",
-    city: initial?.city ?? "Srinagar",
-    state: initial?.state ?? "Jammu & Kashmir",
+    /* Never assumed: filled from the pin, or typed (see placeFieldsToAsk). */
+    city: initial?.city ?? "",
+    state: initial?.state ?? "",
     pincode: initial?.pincode ?? "",
     isDefault: initial?.isDefault ?? false,
   });
@@ -62,6 +64,8 @@ export function AddressForm({
   const [manual, setManual] = useState(() => Boolean(initial?.id) && pinnedFromAddress(initial ?? {}) === null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const ask = placeFieldsToAsk(manual, pinned);
 
   const set = <K extends keyof AddressFormValues>(k: K, v: AddressFormValues[K]) =>
     setValues((prev) => ({ ...prev, [k]: v }));
@@ -79,7 +83,7 @@ export function AddressForm({
         setError(result.error.message);
         return;
       }
-      onDone();
+      onDone(result.data.id);
     });
   };
 
@@ -148,23 +152,29 @@ export function AddressForm({
         </Field>
       </div>
 
-      {manual ? (
+      {manual || ask.city || ask.state ? (
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="City">
-            <Input value={values.city} onChange={(e) => set("city", e.target.value)} required />
-          </Field>
-          <Field label="State">
-            <Input value={values.state} onChange={(e) => set("state", e.target.value)} required />
-          </Field>
-          <Field label="Pincode">
-            <Input
-              inputMode="numeric"
-              maxLength={6}
-              value={values.pincode}
-              onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
-              required
-            />
-          </Field>
+          {ask.city ? (
+            <Field label="City">
+              <Input value={values.city} onChange={(e) => set("city", e.target.value)} required />
+            </Field>
+          ) : null}
+          {ask.state ? (
+            <Field label="State">
+              <Input value={values.state} onChange={(e) => set("state", e.target.value)} required />
+            </Field>
+          ) : null}
+          {manual ? (
+            <Field label="Pincode">
+              <Input
+                inputMode="numeric"
+                maxLength={6}
+                value={values.pincode}
+                onChange={(e) => set("pincode", e.target.value.replace(/\D/g, ""))}
+                required
+              />
+            </Field>
+          ) : null}
         </div>
       ) : null}
 

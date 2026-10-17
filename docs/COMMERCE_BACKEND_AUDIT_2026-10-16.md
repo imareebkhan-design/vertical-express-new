@@ -182,7 +182,7 @@ the same transaction:
 - `lib/services/inventory-movements.ts` — `recordSystemMovement` (reads
   `qtyAfter` back under the caller's row lock) and `findLedgerDrift`
   (read-only).
-- `prisma/schema.prisma` + migration `20261016120000_stock_movement_released` —
+- `prisma/schema.prisma` + migration `20261017090000_stock_movement_released` —
   additive enum value.
 - `app/admin/stock-ledger/page.tsx` — label for *Released*; the banner that
   said "a row is missing for every sale" now says what is and is not recorded;

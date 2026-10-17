@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { areaLine, pinnedFromAddress, pinnedFromPlace, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { areaLine, pinPincodeCheck, pinnedFromAddress, pinnedFromPlace, placeFieldsToAsk, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 
 /**
  * The split between what Google decided (area, pincode, city, state,
@@ -65,4 +65,24 @@ test("a new address starts from the place confirmed in the location sheet, and f
   assert.deepEqual(pinnedFromPlace(place, "190008", "Srinagar")?.placeId, "ChIJ-raj");
   assert.equal(pinnedFromPlace(null, "190008", "Srinagar"), null, "a typed pincode alone is not a pin");
   assert.equal(pinnedFromPlace(place, null, null), null);
+});
+
+test("city and state are asked for whenever no pin decided them (issue #1: no silent Srinagar / J&K)", () => {
+  assert.deepEqual(placeFieldsToAsk(true, PIN), { city: true, state: true }, "typed by hand: both");
+  assert.deepEqual(placeFieldsToAsk(false, null), { city: true, state: true }, "no pin yet: both");
+  assert.deepEqual(placeFieldsToAsk(false, PIN), { city: false, state: false }, "Google decided both");
+  const fromSheet = pinnedFromPlace({ label: "CP", formattedAddress: "Connaught Place, New Delhi 110001", lat: 28.63, lng: 77.21, placeId: null }, "110001", "New Delhi");
+  assert.deepEqual(placeFieldsToAsk(false, fromSheet), { city: false, state: true }, "the location sheet carries no state");
+});
+
+/* Issue #1, acceptance 7 — the owner keeps a mismatched pin (16 Oct); ops must see it. */
+test("pinPincodeCheck reads an order's address snapshot: match, mismatch, unchecked, no pin", () => {
+  const pin = { latitude: 34.07, longitude: 74.83 };
+  assert.deepEqual(pinPincodeCheck({ ...pin, pincode: "190008", pinPincode: "190008" }), { kind: "match" });
+  assert.deepEqual(pinPincodeCheck({ ...pin, pincode: "190008", pinPincode: "190015" }), { kind: "mismatch", pinPincode: "190015" });
+  /* Orders placed before 16 Oct, or when Google could not answer, have no recorded pincode — not a mismatch. */
+  assert.deepEqual(pinPincodeCheck({ ...pin, pincode: "190008" }), { kind: "unchecked" });
+  assert.deepEqual(pinPincodeCheck({ ...pin, pincode: "190008", pinPincode: null }), { kind: "unchecked" });
+  assert.deepEqual(pinPincodeCheck({ pincode: "190008", pinPincode: "190015" }), { kind: "no_pin" });
+  assert.deepEqual(pinPincodeCheck(null), { kind: "no_pin" });
 });

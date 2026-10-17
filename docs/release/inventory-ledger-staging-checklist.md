@@ -26,7 +26,7 @@ merged. Pick one:
 | # | Step | Expected | Result |
 |---|---|---|---|
 | 0.1 | Take a staging database backup (Supabase dashboard → Database → Backups) | Backup listed with today's time | |
-| 0.2 | `cd ~/ve-inventory-audit && VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gjhxhmcsuhxcmrvtkggz scripts/staging-db.sh status` | Exactly one pending: `20261016120000_stock_movement_released`. **More than one pending → stop**: staging is behind the integration branch for other reasons | |
+| 0.2 | `cd ~/ve-inventory-audit && VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gjhxhmcsuhxcmrvtkggz scripts/staging-db.sh status` | Pending, in this order: `20261016120000_address_pin_pincode` (integration's, not yet on staging as of 16 Oct) and `20261017090000_stock_movement_released`. **Anything else pending → stop**: staging is behind for other reasons and that needs its own review | |
 | 0.3 | Same command with `migrate` instead of `status` | "All migrations have been successfully applied"; status up to date | |
 | 0.4 | Read-only SQL (Supabase SQL editor): `SELECT unnest(enum_range(NULL::"StockMovementReason"));` | Includes `released` | |
 | 0.5 | Remove the 0-A symlink if one was made | — | |
@@ -37,7 +37,7 @@ from the 0.1 backup only if something else in the migration run went wrong.
 Rehearsed locally on 17 Oct: the full chain applied to an empty database
 (`scripts/setup-test-db.sh --reset`), and 1256 tests passed on it.
 
-**Order matters: migrate (0.3) before the code rollout (1.1).** The new code
+**Order matters: migrate (0.3) before the code rollout (1.1).** Both pending migrations must be in place first: Prisma reads every `addresses` column, so without `pin_pincode` every address read fails. The new code
 writes `released` on every cancel. Against a database without that enum value,
 the insert fails, the cancel transaction rolls back, and **every cancel on
 staging fails**, including the expiry cron. The reverse is safe: the old code on

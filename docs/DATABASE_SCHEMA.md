@@ -29,7 +29,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 - Validation: gstin regex (15 chars). Index: `user_id`.
 
 **addresses** — N:1 users
-- `user_id fk`, `label enum(home, site, office, other)`, `name`, `phone`, `line1`, `line2 null`, `landmark null`, `city`, `state`, `pincode char(6)`, `lat/lng numeric null`, `place_id text null`, `access_note null`, `is_default bool`, `deleted_at`
+- `user_id fk`, `label enum(home, site, office, other)`, `name`, `phone`, `line1`, `line2 null`, `landmark null`, `city`, `state`, `pincode char(6)`, `lat/lng numeric null`, `place_id text null`, `pin_pincode char(6) null`, `access_note null`, `is_default bool`, `deleted_at`
 - Validation: pincode `^[1-9][0-9]{5}$`. Index: `(user_id, is_default)`, `pincode`.
 
 **admin_users** — `user_id fk unique`, `permissions jsonb` (see permissions), `is_active bool`.
@@ -280,7 +280,26 @@ optional `user_id` (signed-in customer), `name`, `phone`, optional `quantity` / 
 anon/authenticated grants. Admin status changes write `audit_logs` (`product_enquiry.status_changed`). Additive;
 rollback = leave the table, roll the app back.
 
-## `StockMovementReason.released` (migration `20261016120000_stock_movement_released`, 16 Oct 2026)
+## Address pin pincode (migration `20261016120000_address_pin_pincode`, issue #1)
+
+- `addresses.pin_pincode char(6) null` — Google's pincode for the address's pin,
+  reverse-geocoded by the server on every save that carries coordinates
+  (`pinPincodeFor` in `lib/services/addresses.ts`). Null without a pin or when
+  Google could not answer.
+- **Owner decision (16 Oct 2026):** a pin whose Google pincode differs from the
+  customer's pincode is **kept and flagged, never refused** — Google's pincode
+  boundaries are not reliable enough in Srinagar to turn a customer away on
+  them. `pin_pincode <> pincode` is the mismatch for ops to review.
+- Copied into the order's `address` snapshot as `pinPincode` at placement.
+- Additive and nullable. Rollback: stop writing it, then drop the column in a
+  later release (expand → contract).
+- Cost: one Google Geocoding request per pinned address save.
+- **Not yet applied to staging or production** (16 Oct 2026): local
+  `vertical_express_test` / `vertical_express_demo` only. Prisma reads every
+  column of `addresses`, so apply this migration **before** deploying the code
+  that carries it, or address reads fail.
+
+## `StockMovementReason.released` (migration `20261017090000_stock_movement_released`, 16 Oct 2026)
 
 Additive enum value. `released` is written by the order and shipment cancel paths
 (`lib/services/orders.ts` → `restock`) when goods that never left the warehouse go
@@ -291,3 +310,6 @@ No column or existing row changes. **Rollback:** code only — earlier code neit
 writes nor reads `released`, and the ledger page falls back to the raw reason name
 for any value it has no label for. Postgres cannot drop an enum value cheaply, so
 the value stays; that is harmless.
+
+Renamed from `20261016120000_…` on 17 Oct, before it was applied anywhere shared,
+because `20261016120000_address_pin_pincode` took the same timestamp.

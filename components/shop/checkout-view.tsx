@@ -4,11 +4,12 @@ import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { useEffect, useRef, useState, useTransition } from "react";
 import React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
 import type * as CheckoutActionsModule from "@/actions/checkout";
 import { useCart } from "@/components/shop/cart-provider";
+import { initialCheckoutAddress } from "@/lib/checkout-address";
 import { formatPaise } from "@/lib/money";
 import { deliveryFeeLabel } from "@/lib/checkout-display";
 import { CheckoutSummaryLines } from "@/components/shop/checkout/summary-lines";
@@ -58,7 +59,9 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
   const [contactEmail, setContactEmail] = useState("");
   const router = useRouter();
   const { summary, loaded, loadFailed, refresh } = useCart();
-  const [addressId, setAddressId] = useState(addresses.find((a) => a.isDefault)?.id ?? addresses[0]?.id ?? "");
+  /* Null outside the App Router (tests, previews): then there is no request. */
+  const requestedAddress = useSearchParams()?.get("address") ?? null;
+  const [addressId, setAddressId] = useState(() => initialCheckoutAddress(addresses, requestedAddress));
   // Prototype: Pay-on-delivery is the default/primary method until a live
   // payment gateway is wired. Online pay stays available via the test gateway.
   const [method, setMethod] = useState<PayMethod>("cod");

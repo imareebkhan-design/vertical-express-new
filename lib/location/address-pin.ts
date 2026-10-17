@@ -78,3 +78,35 @@ export function pinnedFromPlace(
   if (!place || !pincode) return null;
   return { label: place.label, formattedAddress: place.formattedAddress, pincode, city, state: null, lat: place.lat, lng: place.lng, placeId: place.placeId };
 }
+
+/**
+ * Which of city and state the customer must type, because nothing else
+ * decided them.
+ *
+ * A pin carries Google's city and state; a pin from the location sheet often
+ * carries neither (`pinnedFromPlace` has no state), and an address typed by
+ * hand has no pin at all. Whatever is left must be asked for — the forms used
+ * to start from "Srinagar" / "Jammu & Kashmir" without showing the fields, so a
+ * Delhi site was saved as one in J&K and nobody saw it happen.
+ */
+export function placeFieldsToAsk(manual: boolean, pin: Pick<PinnedLocation, "city" | "state"> | null): { city: boolean; state: boolean } {
+  if (manual || !pin) return { city: true, state: true };
+  return { city: !pin.city, state: !pin.state };
+}
+
+export type PinPincodeCheck = { kind: "match" } | { kind: "mismatch"; pinPincode: string } | { kind: "unchecked" } | { kind: "no_pin" };
+
+/**
+ * Does the pin agree with the pincode the order will be delivered to? Read from
+ * the order's address snapshot, where `pinPincode` is Google's pincode for the
+ * pin, recorded when the address was saved. A mismatch is kept, never refused
+ * (owner, 16 Oct 2026) — this only tells ops to check before dispatch. A
+ * snapshot without one (saved before 16 Oct, or Google did not answer) is
+ * unchecked, not a mismatch.
+ */
+export function pinPincodeCheck(snapshot: Record<string, unknown> | null | undefined): PinPincodeCheck {
+  const s = snapshot ?? {};
+  if (typeof s.latitude !== "number" || typeof s.longitude !== "number") return { kind: "no_pin" };
+  if (typeof s.pinPincode !== "string" || !s.pinPincode) return { kind: "unchecked" };
+  return s.pinPincode === s.pincode ? { kind: "match" } : { kind: "mismatch", pinPincode: s.pinPincode };
+}
