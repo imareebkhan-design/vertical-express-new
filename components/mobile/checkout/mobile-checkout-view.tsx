@@ -34,6 +34,8 @@ import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
 import { quoteShort } from "@/lib/order-display";
 import { CodSplitNotice } from "@/components/shop/cod-split-notice";
 import { CouponRevisedNotice } from "@/components/shop/checkout/coupon-revised-notice";
+import { useCheckoutAddressSelection } from "@/components/shop/use-checkout-address";
+import { DeliveringTo, PinBadge, RequestedAddressMissing } from "@/components/shop/checkout/delivering-to";
 import { QuotePending } from "@/components/mobile/checkout/quote-pending";
 import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
 import { unavailableMessage } from "@/lib/checkout-fulfilment";
@@ -67,9 +69,13 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
   // Local state for address lists
   const [addresses, setAddresses] = useState(initialAddresses);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    initialAddresses.find((a) => a.isDefault)?.id || initialAddresses[0]?.id || null
-  );
+  /* One rule with the desktop layout, kept in `?address=`: this used to start
+     on the default whatever the URL said, so coming back from adding an address
+     dropped it, and a reload or a switch to the desktop layout reset the pick
+     (use-checkout-address.ts). */
+  const { addressId: chosenAddressId, select: selectAddress, requestedMissing } = useCheckoutAddressSelection(addresses);
+  const selectedAddressId = chosenAddressId || null;
+  const setSelectedAddressId = (id: string | null) => selectAddress(id ?? "");
 
   // Totals & Placing states
   const [error, setError] = useState<string | null>(null);
@@ -482,7 +488,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   };
 
   return (
-    <div className="relative flex flex-col min-h-screen bg-surface pb-36 overflow-x-hidden">
+    /* pb-52: room for the fixed pay bar, which now also says where the order
+       goes; at pb-36 the last section could sit under it on a small phone. */
+    <div className="relative flex flex-col min-h-screen bg-surface pb-52 overflow-x-hidden">
       {/* Sticky Native Header */}
       <div className="native-header sticky top-0 z-30 flex items-center gap-3 border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)] backdrop-blur-md shadow-xs">
         <button
@@ -568,15 +576,27 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               No addresses saved. Add an address to continue.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Delivery address">
+              {requestedMissing && <RequestedAddressMissing />}
               {addresses.map((addr) => {
                 const isSelected = selectedAddressId === addr.id;
+                const choose = () => {
+                  triggerHaptic("light");
+                  setSelectedAddressId(addr.id);
+                };
                 return (
                   <div
                     key={addr.id}
-                    onClick={() => {
-                      triggerHaptic("light");
-                      setSelectedAddressId(addr.id);
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onClick={choose}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        choose();
+                      }
                     }}
                     className={cn(
                       "rounded-2xl border p-4 flex gap-3 text-left transition-all active:scale-[0.99]",
@@ -605,10 +625,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                         <br />
                         Phone: {addr.phone}
                       </p>
-                      {/* Which addresses carry a pin — the order's tracking destination. */}
-                      <p className={cn("mt-1 text-[11px] font-bold", hasMapPin(addr) ? "text-success" : "text-ops-warn")}>
-                        {hasMapPin(addr) ? "Map pin set" : "No map pin · route ETA unavailable"}
-                      </p>
+                      <PinBadge address={addr} className="mt-1.5" />
                       <div className="flex gap-3 mt-3 pt-3 border-t border-mist/10">
                         <button
                           onClick={(e) => {
@@ -843,6 +860,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               <CouponRevisedNotice revision={couponRevision} currentTotalPaise={totals.totalPaise} variant="phone" />
             </div>
           )}
+          <DeliveringTo address={selected} className="mb-2.5" />
           <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-extrabold text-ink/40 uppercase block leading-none">Total Payable</span>

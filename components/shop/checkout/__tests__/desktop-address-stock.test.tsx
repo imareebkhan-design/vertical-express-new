@@ -83,8 +83,8 @@ test("each address card says whether it has a map pin, so a pinless one is not c
   setup();
   await settle();
   const card = (name: RegExp) => screen.getByText(name).closest("label")!;
-  assert.match(card(/Rajbagh site/).textContent ?? "", /Map pin set/);
-  assert.match(card(/Delhi site/).textContent ?? "", /Map pin set/);
+  assert.match(card(/Rajbagh site/).textContent ?? "", /Map pin confirmed/);
+  assert.match(card(/Delhi site/).textContent ?? "", /Map pin confirmed/);
   cleanup();
 
   const actions = { getCheckoutTotals: async () => ({ ok: true, data: quote([]) }) } as unknown as CheckoutActions;

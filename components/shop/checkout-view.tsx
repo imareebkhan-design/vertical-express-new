@@ -4,13 +4,14 @@ import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE, PAYMENT_DISMISSED_MESSAGE } from "@/lib/payment-window";
 import { useEffect, useRef, useState, useTransition } from "react";
 import React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Banknote, Check, CreditCard, Loader2, MapPin, Plus } from "lucide-react";
 import type * as CheckoutActionsModule from "@/actions/checkout";
 import { useCart } from "@/components/shop/cart-provider";
-import { initialCheckoutAddress } from "@/lib/checkout-address";
 import { unavailableMessage } from "@/lib/checkout-fulfilment";
+import { useCheckoutAddressSelection } from "@/components/shop/use-checkout-address";
+import { DeliveringTo, PinBadge, RequestedAddressMissing } from "@/components/shop/checkout/delivering-to";
 import { formatPaise } from "@/lib/money";
 import { deliveryFeeLabel } from "@/lib/checkout-display";
 import { CheckoutSummaryLines } from "@/components/shop/checkout/summary-lines";
@@ -60,9 +61,9 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
   const [contactEmail, setContactEmail] = useState("");
   const router = useRouter();
   const { summary, loaded, loadFailed, refresh } = useCart();
-  /* Null outside the App Router (tests, previews): then there is no request. */
-  const requestedAddress = useSearchParams()?.get("address") ?? null;
-  const [addressId, setAddressId] = useState(() => initialCheckoutAddress(addresses, requestedAddress));
+  /* The choice is kept in `?address=`, so a reload, coming back, or the layout
+     switching to the phone one does not change it (use-checkout-address.ts). */
+  const { addressId, select: setAddressId, requestedMissing } = useCheckoutAddressSelection(addresses);
   // Prototype: Pay-on-delivery is the default/primary method until a live
   // payment gateway is wired. Online pay stays available via the test gateway.
   const [method, setMethod] = useState<PayMethod>("cod");
@@ -345,6 +346,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
             </Link>
           ) : (
             <div className="space-y-3">
+              {requestedMissing && <RequestedAddressMissing />}
               {addresses.map((a) => (
                 <label
                   key={a.id}
@@ -369,10 +371,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
                       {a.line2 ? `, ${a.line2}` : ""}, {a.city}, {a.state} — {a.pincode}
                     </p>
                     <p className="font-bold text-neutral-500">{a.phone}</p>
-                    {/* Which addresses carry a pin — the order's tracking destination. */}
-                    <p className={cn("mt-0.5 text-xs font-bold", hasMapPin(a) ? "text-success" : "text-ops-warn")}>
-                      {hasMapPin(a) ? "Map pin set" : "No map pin · route ETA unavailable"}
-                    </p>
+                    <PinBadge address={a} className="mt-1.5" />
                   </div>
                 </label>
               ))}
@@ -629,9 +628,10 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
               {error}
             </p>
           )}
+          <DeliveringTo address={selected} className="mt-5" />
           <Button
             size="lg"
-            className="mt-5 w-full"
+            className="mt-3 w-full"
             onClick={submit}
             disabled={placing || !canSubmit || !fulfilable}
           >
