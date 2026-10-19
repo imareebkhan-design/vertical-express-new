@@ -298,3 +298,18 @@ rollback = leave the table, roll the app back.
   `vertical_express_test` / `vertical_express_demo` only. Prisma reads every
   column of `addresses`, so apply this migration **before** deploying the code
   that carries it, or address reads fail.
+
+## `StockMovementReason.released` (migration `20261017090000_stock_movement_released`, 16 Oct 2026)
+
+Additive enum value. `released` is written by the order and shipment cancel paths
+(`lib/services/orders.ts` → `restock`) when goods that never left the warehouse go
+back on the shelf; `sold` (already in the enum, never written until now) is written
+by checkout for each line. Neither is offered to operators (`OPERATOR_REASONS`).
+
+No column or existing row changes. **Rollback:** code only — earlier code neither
+writes nor reads `released`, and the ledger page falls back to the raw reason name
+for any value it has no label for. Postgres cannot drop an enum value cheaply, so
+the value stays; that is harmless.
+
+Renamed from `20261016120000_…` on 17 Oct, before it was applied anywhere shared,
+because `20261016120000_address_pin_pincode` took the same timestamp.

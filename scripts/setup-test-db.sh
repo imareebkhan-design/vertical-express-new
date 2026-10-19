@@ -90,4 +90,15 @@ npx prisma db seed
 echo "Applying test fixtures ..."
 psql -q -d "$DB_NAME" -f "$(dirname "$0")/test-fixtures.sql"
 
+# The same step CI runs after seeding (.github/workflows/ci.yml, "Approve seeded
+# synthetic catalogue for tests"). Under the explicit-approval policy
+# (lib/catalog-policy.ts) an unapproved seeded product is not listable, so without
+# it every suite that needs a listable product fails before its first assertion —
+# 16 tests across search, most-ordered, order-contact and product guidance. This
+# was missing here only; a database built by this script disagreed with CI's.
+# Guarded by db-guard (local, VE_TEST_DATABASE=1) and idempotent.
+echo "Approving seeded synthetic catalogue for tests ..."
+NODE_PATH=./test-support/stubs node --conditions=react-server --env-file-if-exists=.env.test \
+  --import ./test-support/db-guard.mjs --import tsx test-support/approve-seed-catalogue.mts
+
 echo "Test database ready: $DB_NAME"
