@@ -8,6 +8,7 @@ import {
   isOperatorReason,
   logAdjustment,
   OPERATOR_REASONS,
+  recountStock,
 } from "@/lib/services/inventory-movements";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -81,4 +82,60 @@ export async function adminAdjustStock(input: unknown): Promise<ActionResult<{ q
   revalidatePath("/admin");
   revalidatePath("/", "layout");
   return succeed({ qtyAfter: result.qtyAfter });
+}
+
+const recountSchema = z.object({
+  variantId: z.string().uuid(),
+  warehouseId: z.string().uuid(),
+  countedQty: z
+    .number()
+    .int("Stock is counted in whole units")
+    .min(0, "A shelf cannot hold fewer than zero")
+    .max(1_000_000, "That is too large to be a shelf count"),
+  /** The on-hand figure the operator was looking at when they counted. */
+  expectedOnHand: z.number().int(),
+  note: z.string().trim().min(1, "A recount needs a note saying what you found").max(200),
+});
+
+/**
+ * Recording a shelf count: the number found, not a difference.
+ *
+ * Refused when the count moved after the operator read it (a sale between
+ * counting and Apply) — the message gives the current figure, because only the
+ * person holding the clipboard knows whether their count came before or after.
+ */
+export async function adminRecountStock(input: unknown): Promise<ActionResult<{ qtyAfter: number; qtyDelta: number }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+
+  const parsed = recountSchema.safeParse(input);
+  if (!parsed.success) {
+    return fail("VALIDATION", parsed.error.issues[0]?.message ?? "That count is not valid");
+  }
+  const { variantId, warehouseId, countedQty, expectedOnHand, note } = parsed.data;
+
+  const result = await recountStock({ variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail: admin.email });
+
+  if (!result.ok) {
+    logAdjustment({ ok: false, error: result.error === "stale" ? "raced" : result.error === "not_found" ? "not_found" : "would_go_negative" }, {
+      variantId, warehouseId, countedQty, expectedOnHand, reason: "recount", actor: admin.email,
+    });
+    if (result.error === "not_found") return fail("NOT_FOUND", "No stock record at that warehouse");
+    if (result.error === "stale") {
+      return fail(
+        "CONFLICT",
+        `Stock changed while you were counting — it now says ${result.qtyOnHand}. Check whether your count was before or after that, then count again.`
+      );
+    }
+    return fail("VALIDATION", "That count is not valid");
+  }
+
+  logAdjustment({ ok: true, qtyAfter: result.qtyAfter }, {
+    variantId, warehouseId, countedQty, qtyDelta: result.qtyDelta, reason: "recount", actor: admin.email,
+  });
+  revalidatePath("/admin/inventory");
+  revalidatePath("/admin/stock-ledger");
+  revalidatePath("/admin");
+  revalidatePath("/", "layout");
+  return succeed({ qtyAfter: result.qtyAfter, qtyDelta: result.qtyDelta });
 }

@@ -1082,6 +1082,11 @@ enum StockMovementReason {
   sold
   /// Came back from a customer.
   returned
+  /// Put back on the shelf because the order or shipment that took it was
+  /// cancelled before the goods left the warehouse. Written by the cancel
+  /// path, never chosen in a form. Distinct from `returned`: these goods never
+  /// reached a customer.
+  released
   /// A correction to an earlier movement.
   correction
 }

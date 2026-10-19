@@ -2,7 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { adminAdjustStock } from "@/actions/inventory";
+import type { ActionResult } from "@/lib/validators";
+
+/** The two server actions, passed in by the page so the form is testable. */
+export type AdjustStockAction = (input: {
+  variantId: string;
+  warehouseId: string;
+  qtyDelta: number;
+  reason: string;
+  note?: string;
+}) => Promise<ActionResult<{ qtyAfter: number }>>;
+export type RecountStockAction = (input: {
+  variantId: string;
+  warehouseId: string;
+  countedQty: number;
+  expectedOnHand: number;
+  note: string;
+}) => Promise<ActionResult<{ qtyAfter: number; qtyDelta: number }>>;
 
 /**
  * Changing one stock count, with a reason.
@@ -11,10 +27,11 @@ import { adminAdjustStock } from "@/actions/inventory";
  * screen with forty always-editable number fields is one mis-click away from a
  * wrong count nobody notices.
  *
- * The delta is entered, not the new total. "+12 received" and "−3 damaged" are
- * what actually happened, and they are what the ledger has to record; asking
- * for the new total would mean deriving the movement by subtraction and losing
- * the operator's intent when the count moved underneath them.
+ * For events — received, damaged, lost, transferred, corrected — the delta is
+ * entered: "+12 received" and "−3 damaged" are what happened. A recount is an
+ * observation, so it asks for the number counted on the shelf and sends the
+ * on-hand figure shown here with it; the server refuses if stock moved in
+ * between, rather than recording a shelf count nobody made.
  */
 const REASONS = [
   { value: "recount", label: "Recount — what I found on the shelf" },
@@ -25,18 +42,29 @@ const REASONS = [
   { value: "correction", label: "Correcting an earlier movement" },
 ] as const;
 
-export function StockAdjuster({
-  variantId,
-  warehouseId,
-  sku,
-  onHand,
-}: {
+interface StockAdjusterProps {
   variantId: string;
   warehouseId: string;
   sku: string;
   onHand: number;
-}) {
+  adjust: AdjustStockAction;
+  recount: RecountStockAction;
+}
+
+export function StockAdjuster(props: StockAdjusterProps) {
   const router = useRouter();
+  return <StockAdjusterForm {...props} onSaved={() => router.refresh()} />;
+}
+
+export function StockAdjusterForm({
+  variantId,
+  warehouseId,
+  sku,
+  onHand,
+  adjust,
+  recount,
+  onSaved,
+}: StockAdjusterProps & { onSaved: () => void }) {
   const [open, setOpen] = useState(false);
   const [delta, setDelta] = useState("");
   const [reason, setReason] = useState<string>("recount");
@@ -44,25 +72,29 @@ export function StockAdjuster({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
+  const isRecount = reason === "recount";
   const parsed = Number(delta);
-  const valid = delta.trim() !== "" && Number.isInteger(parsed) && parsed !== 0;
-  const projected = valid ? onHand + parsed : onHand;
+  const valid =
+    delta.trim() !== "" && Number.isInteger(parsed) && (isRecount ? parsed >= 0 : parsed !== 0);
+  const projected = !valid ? onHand : isRecount ? parsed : onHand + parsed;
 
   const submit = () => {
     setError(null);
     start(async () => {
-      const res = await adminAdjustStock({
-        variantId,
-        warehouseId,
-        qtyDelta: parsed,
-        reason,
-        note: note.trim() || undefined,
-      });
+      const res = isRecount
+        ? await recount({ variantId, warehouseId, countedQty: parsed, expectedOnHand: onHand, note: note.trim() })
+        : await adjust({
+            variantId,
+            warehouseId,
+            qtyDelta: parsed,
+            reason,
+            note: note.trim() || undefined,
+          });
       if (res.ok) {
         setOpen(false);
         setDelta("");
         setNote("");
-        router.refresh();
+        onSaved();
       } else {
         setError(res.error.message);
       }
@@ -91,9 +123,9 @@ export function StockAdjuster({
           value={delta}
           onChange={(e) => setDelta(e.target.value)}
           inputMode="numeric"
-          placeholder="+12 or −3"
-          aria-label={`Change in units for ${sku}`}
-          className={`${field} w-24`}
+          placeholder={isRecount ? `Counted (now ${onHand})` : "+12 or −3"}
+          aria-label={isRecount ? `Units counted on the shelf for ${sku}` : `Change in units for ${sku}`}
+          className={`${field} ${isRecount ? "w-36" : "w-24"}`}
         />
         <select
           value={reason}
@@ -121,7 +153,7 @@ export function StockAdjuster({
         <button
           type="button"
           onClick={submit}
-          disabled={pending || !valid || (reason === "recount" && !note.trim())}
+          disabled={pending || !valid || (isRecount && !note.trim())}
           className="h-9 rounded-panel bg-ink px-4 text-[12.5px] font-bold text-white disabled:opacity-50"
         >
           {pending ? "Saving…" : "Apply"}
@@ -139,6 +171,11 @@ export function StockAdjuster({
         {valid && (
           <span className="text-[12px] font-semibold text-ink-700">
             {onHand} → <span className="font-extrabold text-ink">{projected}</span>
+            {isRecount && (
+              <span className="ml-1">
+                ({projected - onHand > 0 ? `+${projected - onHand}` : projected - onHand === 0 ? "matches" : projected - onHand})
+              </span>
+            )}
           </span>
         )}
       </div>
