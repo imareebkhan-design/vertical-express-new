@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { OrderStatus, BookingStatus } from "@/prisma/generated/client/client";
+import type { OrderStatus, BookingStatus, Prisma, ProductStatus } from "@/prisma/generated/client/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { cancelOpenShipments, hasDispatchedShipment, releaseOrderInventory } from "@/lib/services/orders";
@@ -192,21 +192,74 @@ export async function advanceBookingStatus(
   });
 }
 
-export async function adminListProducts(page = 1, perPage = 30) {
-  const [products, total] = await Promise.all([
-    db.product.findMany({
-      orderBy: { updatedAt: "desc" },
-      skip: (page - 1) * perPage,
-      take: perPage,
-      include: {
-        brand: { select: { id: true, name: true } },
-        category: { select: { name: true } },
-        variants: { where: { isDefault: true }, take: 1, include: { inventory: true } },
-      },
-    }),
+export interface AdminProductFilters {
+  /** Title, slug, SKU or brand name, case-insensitive. */
+  q?: string;
+  status?: ProductStatus | null;
+  categoryId?: string | null;
+  brandId?: string | null;
+}
+
+/**
+ * The admin product list, searchable, filterable and paged.
+ *
+ * Took only a page before, and the screen never passed one, so the console
+ * showed the 30 most recently edited products and nothing past them could be
+ * reached. `statusCounts` are computed with every filter except status applied,
+ * so each status tab shows the number it would open.
+ *
+ * Ordered by last edit, then id — two products saved in the same millisecond
+ * share an `updatedAt`, and without the tie-break a product could appear on two
+ * pages and another on neither.
+ *
+ * `page` is sanitised and then clamped to the last page, and the page actually
+ * served is returned. A page past the end used to return an empty list while
+ * the screen printed a range like "Showing 2971–1025 of 1025"; now it serves
+ * the last page and says so.
+ */
+export async function adminListProducts(page = 1, perPage = 30, filters: AdminProductFilters = {}) {
+  const q = filters.q?.trim();
+  const base: Prisma.ProductWhereInput[] = [];
+  if (filters.categoryId) base.push({ categoryId: filters.categoryId });
+  if (filters.brandId) base.push({ brandId: filters.brandId });
+  if (q) {
+    base.push({
+      OR: [
+        { title: { contains: q, mode: "insensitive" } },
+        { slug: { contains: q, mode: "insensitive" } },
+        { variants: { some: { sku: { contains: q, mode: "insensitive" } } } },
+        { brand: { name: { contains: q, mode: "insensitive" } } },
+      ],
+    });
+  }
+  const where: Prisma.ProductWhereInput = { AND: [...base, ...(filters.status ? [{ status: filters.status }] : [])] };
+
+  const [total, byStatus, unfilteredTotal] = await Promise.all([
+    db.product.count({ where }),
+    db.product.groupBy({ by: ["status"], where: { AND: base }, _count: { _all: true } }),
     db.product.count(),
   ]);
-  return { products, total, page, perPage };
+  const size = Number.isInteger(perPage) && perPage > 0 ? perPage : 30;
+  const lastPage = Math.max(1, Math.ceil(total / size));
+  const requested = Number.isInteger(page) && page >= 1 ? page : 1;
+  const served = Math.min(requested, lastPage);
+
+  const products = await db.product.findMany({
+    where,
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    skip: (served - 1) * size,
+    take: size,
+    include: {
+      brand: { select: { id: true, name: true } },
+      category: { select: { name: true } },
+      variants: { where: { isDefault: true }, take: 1, include: { inventory: true } },
+    },
+  });
+
+  const statusCounts: Record<ProductStatus, number> = { draft: 0, catalog_only: 0, published: 0, archived: 0 };
+  for (const row of byStatus) statusCounts[row.status] = row._count._all;
+
+  return { products, total, page: served, perPage: size, lastPage, statusCounts, unfilteredTotal };
 }
 
 /**
