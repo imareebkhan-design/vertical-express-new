@@ -17,6 +17,23 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 Existing records receive no automatic owner approval. Until genuine approval metadata and exact reviewed image hashes are recorded, previously visible products may be hidden. The owner's existing verified staging admin is the approval actor; no second approver is required. Applying migrations, collecting/recording those approvals and deploying are outside this isolated implementation handoff. See `CATALOGUE_SAFETY_HANDOFF.md` for validation and migration state.
 
+## ISS-095 — The catalogue approval screen hid every product's specifications
+
+**19 October 2026 · MEDIUM · Admin / Catalogue · FIXED (branch `feat/admin-catalogue`; not deployed).**
+
+`/admin/catalogue-approvals` rendered `product.specs` with `Object.entries`, but imported products store specs as
+`[{ label, value }]`. Each row showed its array index as the label and `[object Object]` as the value, so an owner
+approving a product's *identity* could not see its grade, weight or pack. The screen now reads specs through
+`lib/catalog/specs.ts` (`specRows`), which accepts both stored shapes and reads anything else as no specs.
+
+Same branch: the console can now edit categories (`/admin/categories`), a product's description, unit and
+specifications, add/retire/re-default variants, and upload photos (`/api/admin/product-images`). An uploaded photo
+starts `REVIEW_REQUIRED` and is invisible until approved; unit/spec edits clear identity approval and variant edits
+clear the commercial review (database triggers), and the screen warns before either. Uploading needs the hosting
+service account to hold `roles/storage.objectCreator` on the image bucket; without it the upload is refused and
+nothing is attached. Tests: `product-details.test.ts`, `product-images.test.ts`, `categories.test.ts`,
+`product-catalogue-panels.test.tsx`.
+
 ## ISS-094 — The retired Supabase email-link callback was still reachable and failed with 500
 
 **12 October 2026 · MEDIUM · Auth / Security hygiene · FIXED (staging 12 Oct: `/auth/confirm` now 404).**
@@ -182,6 +199,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 
 | ID | Title | Sev | Area | Status |
 |---|---|---|---|---|
+| ISS-095 | The catalogue approval screen hid every product's specifications | MEDIUM | Admin/Catalogue | FIXED (branch) |
 | ISS-094 | Retired Supabase email-link callback still reachable; answered 500 on staging | MEDIUM | Auth | FIXED (staging) |
 | ISS-093 | An approved photo with unconfirmed reuse rights could become a production listing | HIGH | Catalogue/Legal | FIXED (code; production-only) |
 | ISS-092 | Catalogue approval said "now public" for products that stayed hidden | LOW | Admin/Catalogue | FIXED (staging) |
@@ -1302,7 +1320,8 @@ race-free conditional update, every change carrying a reason and an actor.
 Two things deliberately remain read-only, and are not part of this issue: **price** is
 server-authoritative and is not editable from a form, and **image upload** needs an
 object store that does not exist — a URL field accepting anything typed into it is how a
-manufacturer's photography reaches the catalogue without a licence (ISS-044).
+manufacturer's photography reaches the catalogue without a licence (ISS-044). *(19 Oct 2026: upload now exists,
+to the GCS image bucket with licence, source and per-photo approval required — ISS-095.)*
 
 **The description below is retained as written and is no longer accurate.**
 

@@ -33,7 +33,6 @@ type Product = {
   deliverySpeed: string;
   hsn: string | null;
   gstRatePct: number | null;
-  images: { id: string; url: string; alt: string; isPrimary: boolean }[];
   variants: {
     id: string;
     name: string;
@@ -195,37 +194,6 @@ export function ProductEditor({
           Set per category, not per product, and not editable here: a rate typed on the
           wrong screen becomes a tax error on every order in that category. The rates in
           use are owner-confirmed; changing one is a decision for the CA, not a form field.
-        </p>
-      </Section>
-
-      <Section title="Images">
-        {product.images.length === 0 ? (
-          <p className="text-[12.5px] font-semibold text-ink-700">
-            No images. The product will render with a placeholder on the storefront.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-2.5">
-            {product.images.map((img) => (
-              <figure key={img.id} className="w-[132px]">
-                {/* Plain img: these are catalogue URLs of unknown origin and
-                    dimensions, and next/image would need both. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.url}
-                  alt={img.alt}
-                  className="h-[100px] w-full rounded-field bg-white object-contain"
-                />
-                <figcaption className="mt-1 text-[11px] font-semibold text-ink-500">
-                  {img.isPrimary ? "Primary" : img.alt || "No alt text"}
-                </figcaption>
-              </figure>
-            ))}
-          </div>
-        )}
-        <p className="text-[12px] font-medium leading-[17px] text-ink-700">
-          Read-only. Uploading needs somewhere to put the file — there is no object store
-          configured, and a URL field that accepts anything typed into it is how a
-          manufacturer&rsquo;s photography ends up on our catalogue without a licence.
         </p>
       </Section>
 

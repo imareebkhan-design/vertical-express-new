@@ -11,7 +11,8 @@ import {
   uploadProductImage,
   type StoreObject,
 } from "@/lib/services/admin/product-images";
-import { sameOrigin } from "@/lib/services/admin/image-upload-handler";
+import { NextRequest } from "next/server";
+import { handleImageUpload, sameOrigin } from "@/lib/services/admin/image-upload-handler";
 import { createApprovedCatalogueFixture } from "@/test-support/catalogue-fixtures";
 
 /**
@@ -131,4 +132,18 @@ test("uploads are refused from another site", () => {
   assert.equal(sameOrigin(h({ origin: "https://evil.example", host: "shop.example" })), false);
   assert.equal(sameOrigin(h({ origin: "https://shop.example", "x-forwarded-host": "shop.example", host: "internal:8080" })), true);
   assert.equal(sameOrigin(h({ host: "shop.example" })), false, "no Origin header, no upload");
+});
+
+test("a signed-out or non-admin upload is refused before the file is read or stored", async () => {
+  const m = memoryStore();
+  let formRead = false;
+  const req = new NextRequest("https://shop.example/api/admin/product-images", {
+    method: "POST",
+    headers: { origin: "https://shop.example", host: "shop.example" },
+  });
+  Object.defineProperty(req, "formData", { value: async () => ((formRead = true), new FormData()) });
+  const res = await handleImageUpload(req, { admin: async () => null, store: () => m.store, imageBase: BASE });
+  assert.equal(res.status, 403);
+  assert.equal(formRead, false);
+  assert.equal(m.objects.size, 0);
 });
