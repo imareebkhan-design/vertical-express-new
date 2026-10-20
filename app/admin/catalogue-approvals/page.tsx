@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { specRows } from "@/lib/catalog/specs";
 import Link from "next/link";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { APPROVAL_BATCHES, PACK_SENSITIVE, approvalBatchView } from "@/lib/services/admin/catalogue-approval";
@@ -68,10 +69,10 @@ export default async function CatalogueApprovals({ searchParams }: { searchParam
                 <p className="mb-3 text-xs font-semibold text-neutral-500">
                   {p.identityConfirmed ? `Identity confirmed — ${p.identityApprovalReason}` : "Identity not confirmed"}
                 </p>
-                {p.specs && typeof p.specs === "object" && (
+                {specRows(p.specs).length > 0 && (
                   <dl className="mb-4 grid grid-cols-2 gap-x-4 text-xs">
-                    {Object.entries(p.specs as Record<string, unknown>).slice(0, 12).map(([k, v]) => (
-                      <div key={k} className="contents"><dt className="font-bold text-neutral-500">{k}</dt><dd className="font-semibold">{String(v)}</dd></div>
+                    {specRows(p.specs).slice(0, 12).map((s, i) => (
+                      <div key={`${s.label}-${i}`} className="contents"><dt className="font-bold text-neutral-500">{s.label}</dt><dd className="font-semibold">{s.value}</dd></div>
                     ))}
                   </dl>
                 )}

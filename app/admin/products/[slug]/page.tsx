@@ -4,6 +4,18 @@ import { db } from "@/lib/db";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { ProductEditor } from "@/components/admin/product-editor";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { ATTESTED_IMAGE_LICENCES } from "@/lib/catalog-policy";
+import { specRows } from "@/lib/catalog/specs";
+import { formatPaise } from "@/lib/money";
+import { DetailsPanel, PhotosPanel, VariantsPanel } from "@/components/admin/product-catalogue-panels";
+import {
+  adminAddVariant,
+  adminRemoveImage,
+  adminSaveProductDetails,
+  adminSetDefaultVariant,
+  adminSetPrimaryImage,
+  adminSetVariantActive,
+} from "@/actions/product-details";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +29,7 @@ export default async function AdminProductPage({
   if (!(await getAdminUser())) return null;
   const { slug } = await params;
 
-  const [product, brands] = await Promise.all([
+  const [product, brands, warehouses] = await Promise.all([
     db.product.findUnique({
       where: { slug },
       select: {
@@ -27,10 +39,13 @@ export default async function AdminProductPage({
         status: true,
         brandId: true,
         deliverySpeed: true,
+        description: true,
+        unitLabel: true,
+        specs: true,
         category: { select: { slug: true, name: true, group: true, isBulk: true } },
         images: {
           orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
-          select: { id: true, url: true, alt: true, isPrimary: true },
+          select: { id: true, url: true, alt: true, isPrimary: true, identityApproved: true, approvalStatus: true, licence: true },
         },
         variants: {
           orderBy: [{ isDefault: "desc" }, { name: "asc" }],
@@ -40,6 +55,8 @@ export default async function AdminProductPage({
             sku: true,
             pricePaise: true,
             compareAtPaise: true,
+            isActive: true,
+            isDefault: true,
             inventory: {
               select: {
                 qtyOnHand: true,
@@ -59,6 +76,7 @@ export default async function AdminProductPage({
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
+    db.warehouse.findMany({ where: { isActive: true }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   if (!product) notFound();
@@ -97,7 +115,6 @@ export default async function AdminProductPage({
           deliverySpeed: product.deliverySpeed ?? "",
           hsn: tax?.hsn ?? null,
           gstRatePct: tax?.ratePct ?? null,
-          images: product.images,
           variants: product.variants.map((v) => ({
             id: v.id,
             name: v.name,
@@ -118,6 +135,45 @@ export default async function AdminProductPage({
             })),
           })),
         }}
+      />
+
+      <DetailsPanel
+        productId={product.id}
+        description={product.description ?? ""}
+        unitLabel={product.unitLabel}
+        specs={specRows(product.specs)}
+        save={adminSaveProductDetails}
+      />
+      <VariantsPanel
+        productId={product.id}
+        variants={product.variants.map((v) => ({
+          id: v.id,
+          name: v.name,
+          sku: v.sku,
+          price: formatPaise(v.pricePaise),
+          isActive: v.isActive,
+          isDefault: v.isDefault,
+        }))}
+        warehouses={warehouses}
+        add={adminAddVariant}
+        setActive={adminSetVariantActive}
+        setDefault={adminSetDefaultVariant}
+      />
+      <PhotosPanel
+        slug={product.slug}
+        photos={product.images.map((i) => ({
+          id: i.id,
+          url: i.url,
+          alt: i.alt,
+          isPrimary: i.isPrimary,
+          /* The approval decision only; what a customer sees is approvedImageWhere() (lib/catalog-policy.ts). */
+          approved: i.identityApproved && (i.approvalStatus === "APPROVED_EXACT" || i.approvalStatus === "APPROVED_WITH_LIMITATION"),
+          licence: i.licence,
+        }))}
+        licences={ATTESTED_IMAGE_LICENCES}
+        uploadEnabled={Boolean(process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE)}
+        setPrimary={adminSetPrimaryImage}
+        remove={adminRemoveImage}
       />
     </div>
   );
