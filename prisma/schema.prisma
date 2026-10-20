@@ -534,6 +534,7 @@ model Order {
   user             User               @relation(fields: [userId], references: [id])
   warehouse        Warehouse?         @relation(fields: [warehouseId], references: [id])
   payments         Payment[]
+  refunds          PaymentRefund[]
   returnRequests   ReturnRequest[]
 
   @@index([userId, placedAt(sort: Desc)])
@@ -587,10 +588,38 @@ model Payment {
   createdAt         DateTime      @default(now()) @map("created_at")
   updatedAt         DateTime      @updatedAt @map("updated_at")
   order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  refunds           PaymentRefund[]
 
   @@index([orderId])
   @@index([gatewayPaymentId])
   @@map("payments")
+}
+
+/// Money sent back to the customer for one captured payment (ISS-025).
+/// `requested` is written before Razorpay is asked, so a crash between the two
+/// leaves a visible row that blocks a second refund; Razorpay's `receipt` is
+/// this row's id, so the refund webhook can always find it again.
+/// At most one refund per payment may be in flight (partial unique index in
+/// the migration). Rows are never deleted.
+model PaymentRefund {
+  id              String       @id @default(uuid()) @db.Uuid
+  paymentId       String       @map("payment_id") @db.Uuid
+  orderId         String       @map("order_id") @db.Uuid
+  amountPaise     Int          @map("amount_paise")
+  status          RefundStatus @default(requested)
+  gatewayRefundId String?      @unique @map("gateway_refund_id")
+  reason          String
+  actorEmail      String       @map("actor_email")
+  /// Gateway error code only, never a response body.
+  failure         String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  payment         Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  order           Order        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([orderId])
+  @@map("payment_refunds")
 }
 
 model OrderStatusEvent {
@@ -917,6 +946,13 @@ enum PaymentMethod {
   dummy
   razorpay
   cod
+}
+
+enum RefundStatus {
+  requested
+  pending
+  processed
+  failed
 }
 
 enum PaymentStatus {

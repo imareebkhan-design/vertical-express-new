@@ -3,6 +3,7 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
 import { db } from "@/lib/db";
 import { settleCapturedPayment } from "@/lib/services/checkout";
+import { applyRefundWebhook } from "@/lib/services/refunds";
 import { runWithContext, trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 
 export async function POST(req: NextRequest) {
@@ -27,6 +28,15 @@ export async function POST(req: NextRequest) {
 
       const payload = JSON.parse(rawBody);
       const event = payload.event as string;
+
+      /* Refund events (ISS-025): matched to our refund row by Razorpay's refund
+         id or the receipt we sent; dashboard refunds are recorded too. Handled
+         before the payment paths, which key their dedupe on the payment row. */
+      if (typeof event === "string" && event.startsWith("refund.")) {
+        const outcome = await applyRefundWebhook(payload.payload?.refund?.entity ?? {});
+        metric.end("webhook_refund", { event, outcome });
+        return NextResponse.json({ status: `refund_${outcome}` });
+      }
       /* Razorpay sends the event id ONLY in the `x-razorpay-event-id` header —
          its webhook body has no `event_id`. The header is authoritative; the
          body field is a fallback for callers that put it there. Reading only

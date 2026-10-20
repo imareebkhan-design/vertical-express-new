@@ -212,11 +212,11 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-022 | No security headers or CSP | MEDIUM | Security | FIXED |
 | ISS-023 | No CI pipeline | MEDIUM | DevOps | FIXED |
 | ISS-024 | Migrations run automatically on production deploy | HIGH | DevOps | FIXED |
-| ISS-025 | No refund entity or workflow | MEDIUM | Payments | OPEN |
+| ISS-025 | No refund entity or workflow | MEDIUM | Payments | PARTIAL — owed-money refunds built 19 Oct; policy refunds await owner |
 | ISS-026 | No GST invoice generation | HIGH | Legal/Finance | BLOCKED (CA) |
 | ISS-027 | Admin authorization via env allowlist only | MEDIUM | Security | OPEN |
 | ISS-028 | Order numbers are non-sequential | LOW | Orders | OPEN |
-| ISS-029 | Webhook handles only `payment.captured` | LOW | Payments | OPEN |
+| ISS-029 | Webhook handles only `payment.captured` | LOW | Payments | PARTIAL — `refund.*` events handled 19 Oct |
 | ISS-030 | Free-delivery threshold hardcoded in source | LOW | Pricing | BLOCKED (OWNER) |
 | ISS-031 | Three animation libraries shipped to mobile | LOW | Performance | OPEN |
 | ISS-032 | Unit of measure stored as a display string | LOW | Data model | OPEN |
@@ -1581,7 +1581,7 @@ drill — a backup that has never been restored is a hypothesis, not a backup.
 |---|---|
 | **Severity** | MEDIUM |
 | **Area** | Payments |
-| **Status** | OPEN |
+| **Status** | PARTIAL — owed-money refunds built 19 Oct; policy refunds await the owner (Q7) |
 
 **Description.** `PaymentStatus` includes `refunded` and `OrderStatus` includes
 `refund_initiated` and `refunded`, but there is no refund entity, no partial-refund
@@ -1621,6 +1621,25 @@ cancelled)* is the refund-required worklist, readable through
 Still open and the owner's call: refund policy, who authorises, a `Refund` entity,
 an operator screen over the worklist, and whether/when to call `refundPayment`.
 Tests: `lib/services/__tests__/payment-settlement.test.ts`.
+
+**Update 2026-10-19 — PARTIAL: refunds of money that was never owed.** Branch
+`feat/refund-execution`. A payment on the refund-required worklist (captured on a
+cancelled order, or a second capture on a paid order) can be refunded in full from
+`/admin/payments` by an admin, with a written reason and a two-step confirm.
+`payment_refunds` records each refund (`requested` before Razorpay is asked; receipt =
+row id); a partial unique index allows one in-flight refund per payment; only a
+definite gateway refusal frees the payment for another attempt — a timeout or 5xx stays
+in flight until `checkRefundWithGateway` or the `refund.*` webhook settles it; the
+payment becomes `refunded` when processed refunds cover it; dashboard refunds are
+recorded from the webhook. Every step is audited. Tests:
+`lib/services/__tests__/refunds.test.ts` (15, two mutation-checked),
+`components/admin/__tests__/refund-control.test.tsx` (4).
+
+**Still open (owner policy, Q7):** refunds of delivered goods, partial refunds by
+operators, return windows, approval separation (support requests / finance
+approves), COD cash refunds, and a customer notification channel (none is wired).
+The order status is not changed by a refund (`refund_initiated` stays unreachable,
+`lib/order-flow.ts`).
 
 ## ISS-026 — No GST invoice generation
 
