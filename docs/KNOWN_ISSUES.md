@@ -982,7 +982,20 @@ rather than folded in silently.
 | **Area** | Observability |
 | **Status** | PARTIAL (verified 3 Sep 2026) |
 
-**Update.** The wiring exists; the credentials do not. `@sentry/nextjs` and `posthog-js`
+**Update, 20 Oct 2026 (branch `feat/monitoring`).** Sentry is now initialised per runtime
+(`sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation-client.ts`, loaded by
+`instrumentation.ts` before the payment boot guard, so a failed guard is itself reported);
+unhandled request errors go through `onRequestError`; `app/global-error.tsx` captures shell
+errors. Environment comes from `VE_DEPLOY_ENV` (server) / `NEXT_PUBLIC_SENTRY_ENVIRONMENT`
+(browser), because `NODE_ENV` is "production" on staging too. No stack-frame locals and no
+default PII are sent: customer names, phones and addresses leaving for a third party is an
+owner decision. The CSP admits only the DSN's ingest origin, never its key
+(`lib/observability/__tests__/sentry-csp.test.ts`). **Still configuration:** a Sentry
+project and `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` secrets per environment (owner), and an
+external uptime check on `/api/health` (runbook: handover doc 11). Until both exist, a
+total outage is still discovered by a customer.
+
+**Earlier update.** The wiring exists; the credentials do not. `@sentry/nextjs` and `posthog-js`
 are dependencies, `lib/observability/index.ts` initialises both, and
 `instrumentation.ts` calls `initSentry()` at server boot. Both degrade to no-ops when
 their keys are unset, which is what they are in production today.
