@@ -72,8 +72,10 @@ export function isCancellable(current: OrderStatus): boolean {
  * Nothing in ORDER_FLOW leads to it — `delivered` and `cancelled` are both
  * terminal — so `refunded`, whose only route in is through it, is unreachable
  * too. Refunding is therefore impossible through the state machine, which
- * matches the state of the system: there is no refund entity and no workflow
- * (ISS-025), and `refundPayment` calls Razorpay but nothing calls it.
+ * matches the state of the system: since 19 Oct an operator can refund money
+ * that was never owed (a capture on a cancelled order, a second capture), but
+ * that is recorded on the payment (`payment_refunds`, lib/services/refunds.ts)
+ * and never moves the order; refunds of delivered goods wait for policy (ISS-025).
  *
  * Left as-is deliberately. Adding an edge would make the machine claim a
  * capability the application does not have, and the refund policy — window,

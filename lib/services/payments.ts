@@ -40,12 +40,36 @@ export interface CapturedLookup {
   status?: "captured" | "authorized";
 }
 
+/** A refund the gateway accepted: `processed` (money moved) or `pending` (queued on the slow rail). */
+export interface RefundAccepted {
+  refundId: string;
+  status: "processed" | "pending";
+}
+
+/** A refund as the gateway reports it. */
+export interface GatewayRefund {
+  refundId: string;
+  status: "processed" | "pending" | "failed";
+  amountPaise: number;
+}
+
 export interface PaymentProvider {
   readonly id: string;
   createOrder(params: CreateOrderParams): Promise<CreateOrderResult>;
   verifyPayment(params: VerifyPaymentParams): boolean;
   verifyWebhook(rawBody: string, signature: string): boolean;
-  refundPayment(paymentId: string, amountPaise: number): Promise<boolean>;
+  /**
+   * Ask the gateway to send `amountPaise` of a captured payment back. Resolves
+   * only when the gateway accepted the refund; throws otherwise. `receipt` is
+   * our refund row id, echoed back by the refund webhook.
+   */
+  refundPayment(paymentId: string, amountPaise: number, receipt?: string): Promise<RefundAccepted>;
+  /**
+   * The gateway's own record of the refund we asked for under `receipt`, or
+   * null when it has none. Throws when the gateway cannot be asked — never
+   * read "could not find out" as "no refund", or money could go back twice.
+   */
+  findRefund(paymentId: string, receipt: string): Promise<GatewayRefund | null>;
   healthCheck(): Promise<boolean>;
   /**
    * The captured payment of a gateway order, or null when none is captured.
@@ -127,9 +151,14 @@ class DummyPaymentProvider implements PaymentProvider {
     return true;
   }
 
-  async refundPayment(): Promise<boolean> {
+  async refundPayment(_paymentId: string, _amountPaise: number, receipt?: string): Promise<RefundAccepted> {
     if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
-    return true;
+    return { refundId: `dummy_rfnd_${receipt ?? Date.now()}`, status: "processed" };
+  }
+
+  async findRefund(): Promise<GatewayRefund | null> {
+    if (isProduction()) throw new PaymentConfigError("DUMMY_GATEWAY_IN_PRODUCTION");
+    return null;
   }
 
   async healthCheck(): Promise<boolean> {
@@ -171,7 +200,11 @@ class CodPaymentProvider implements PaymentProvider {
    * Until there is a cash-handling operation to record it against (ISS-010),
    * this refuses rather than lies.
    */
-  async refundPayment(): Promise<boolean> {
+  async refundPayment(): Promise<RefundAccepted> {
+    throw new Error("COD_REFUND_NOT_AUTOMATABLE");
+  }
+
+  async findRefund(): Promise<GatewayRefund | null> {
     throw new Error("COD_REFUND_NOT_AUTOMATABLE");
   }
 
@@ -263,7 +296,7 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
    * Omitting it would refund the full payment — it is always passed explicitly
    * so a partial refund cannot silently become a full one.
    */
-  async refundPayment(paymentId: string, amountPaise: number): Promise<boolean> {
+  async refundPayment(paymentId: string, amountPaise: number, receipt?: string): Promise<RefundAccepted> {
     const { keyId, keySecret } = this.creds();
 
     if (!Number.isInteger(amountPaise) || amountPaise <= 0) {
@@ -278,7 +311,11 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
           "Content-Type": "application/json",
           Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}`,
         },
-        body: JSON.stringify({ amount: amountPaise, speed: "optimum" }),
+        body: JSON.stringify({ amount: amountPaise, speed: "optimum", ...(receipt ? { receipt } : {}) }),
+        /* A hung request must not hold an operator's screen. A timeout is an
+           unknown outcome, not a failure: the caller keeps the refund in
+           flight until Razorpay's own record says what happened. */
+        signal: AbortSignal.timeout(20_000),
       }
     );
 
@@ -293,9 +330,33 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
     /* Razorpay returns `processed` when the money has moved and `pending` when
        it is queued on the slow rail. Both mean the refund was accepted and is
        real. Anything else — notably `failed` — must not read as success. */
-    if (data.status === "processed" || data.status === "pending") return true;
+    if ((data.status === "processed" || data.status === "pending") && data.id) {
+      return { refundId: data.id, status: data.status };
+    }
 
     throw new Error(`RAZORPAY_REFUND_NOT_ACCEPTED:${data.status ?? "unknown"}`);
+  }
+
+  async findRefund(paymentId: string, receipt: string): Promise<GatewayRefund | null> {
+    const { keyId, keySecret } = this.creds();
+    const res = await fetch(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refunds?count=100`,
+      {
+        headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` },
+        signal: AbortSignal.timeout(10_000),
+      }
+    );
+    if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
+    const data = (await res.json()) as {
+      items?: { id?: string; status?: string; amount?: number; receipt?: string | null }[];
+    };
+    if (!Array.isArray(data.items)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    const hit = data.items.find((r) => r.receipt === receipt);
+    if (!hit) return null;
+    if (!hit.id || !Number.isInteger(hit.amount)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+    const status = hit.status === "processed" || hit.status === "pending" || hit.status === "failed" ? hit.status : null;
+    if (!status) throw new Error(`RAZORPAY_LOOKUP_UNREADABLE:${hit.status ?? "unknown"}`);
+    return { refundId: hit.id, status, amountPaise: hit.amount as number };
   }
 
   async healthCheck(): Promise<boolean> {

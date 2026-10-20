@@ -313,3 +313,23 @@ the value stays; that is harmless.
 
 Renamed from `20261016120000_…` on 17 Oct, before it was applied anywhere shared,
 because `20261016120000_address_pin_pincode` took the same timestamp.
+
+## `payment_refunds` (migration `20261019120000_payment_refunds`, 19 Oct 2026, ISS-025)
+
+One row per refund of a captured payment: `payment_id`, `order_id`, `amount_paise`
+(> 0), `status` (`RefundStatus`: `requested` → `pending` | `processed` | `failed`),
+`gateway_refund_id` (unique), `reason` (required, the operator's words),
+`actor_email` (`razorpay-dashboard` for refunds made outside the app), `failure`
+(gateway error code only, never a body).
+
+- `requested` is committed before Razorpay is asked; Razorpay's `receipt` is the
+  row id, so the refund webhook and `checkRefundWithGateway` can always find it.
+- Partial unique index `payment_refunds_one_in_flight` on `payment_id WHERE status IN
+  ('requested','pending')`: at most one refund per payment in flight.
+- `payments.status` becomes `refunded` only when processed refunds cover the payment.
+- RLS enabled, no policies (same posture as the lockdown). FKs `ON DELETE RESTRICT`:
+  an order or payment with a refund cannot be deleted.
+
+**Rollback:** code first (earlier code never reads the table), then the table may stay
+— it is additive. Dropping it loses the refund record; do that only on a database
+where no refund was ever made.

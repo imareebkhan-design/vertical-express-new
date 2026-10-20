@@ -6,6 +6,9 @@ import { listCapturedPaymentsOnDeadOrders, listDuplicateCaptures } from "@/lib/s
 import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { listRecentRefunds } from "@/lib/services/refunds";
+import { RefundCheck, RefundControl } from "@/components/admin/refund-control";
+import { adminCheckRefund, adminRefundPayment } from "@/actions/refunds";
 
 export const dynamic = "force-dynamic";
 
@@ -19,13 +22,19 @@ export default async function AdminPayments({
   if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures] = await Promise.all([
+  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures, refunds] = await Promise.all([
     adminListPayments(page),
     adminPaymentHealth(),
     listCapturedPaymentsOnDeadOrders(),
     listDuplicateCaptures(),
+    listRecentRefunds(),
   ]);
   const refundRequired = [...onDeadOrders, ...secondCaptures];
+  /* A payment with a refund in flight stays on the list (its money has not
+     come back yet) but offers a check instead of a second refund. */
+  const inFlight = new Map(
+    refunds.filter((r) => r.status === "requested" || r.status === "pending").map((r) => [r.paymentId, r])
+  );
   const pages = Math.max(1, Math.ceil(total / perPage));
 
   let gateway = "unknown";
@@ -124,10 +133,10 @@ export default async function AdminPayments({
         Money taken on orders that are cancelled: a capture that arrived after
         the order expired, or an admin cancellation of a paid order. Also a
         second capture on an order that was already paid (two checkout windows,
-        or a retry while the first callback was lost). Nothing
-        refunds automatically (ISS-025) — until a refund policy exists this
-        list is the whole of the process, so it sits where the money is read
-        rather than only in alert logs.
+        or a retry while the first callback was lost). Nothing refunds
+        automatically: an operator refunds each one, with a reason, from this
+        list (ISS-025). These are always full refunds of money that was never
+        owed; refunds of delivered goods wait for the owner's refund policy.
       */}
       <section
         aria-labelledby="refund-required"
@@ -150,6 +159,41 @@ export default async function AdminPayments({
                 <OrderStatusChip status={p.order.status} />
                 <span className="tabular-nums">{formatPaise(p.amountPaise)}</span>
                 <span className="text-ink-500">payment {p.gatewayPaymentId ?? "—"}</span>
+                {inFlight.has(p.id) ? (
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    <StatusChip tone="warn">Refund {inFlight.get(p.id)?.status}</StatusChip>
+                    <RefundCheck refundId={inFlight.get(p.id)!.id} check={adminCheckRefund} />
+                  </span>
+                ) : (
+                  <RefundControl paymentId={p.id} amountPaise={p.amountPaise} refund={adminRefundPayment} />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="refunds" className="rounded-panel bg-white p-4 shadow-card">
+        <h2 id="refunds" className="text-[13px] font-extrabold text-ink">
+          Refunds · {refunds.length}
+        </h2>
+        {refunds.length === 0 ? (
+          <p className="mt-1 text-[12px] font-semibold text-ink-500">No refund has been made.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line">
+            {refunds.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 text-[12px] font-semibold">
+                <Link href={`/admin/orders/${r.order.orderNo}`} className="font-extrabold text-ink underline">
+                  {r.order.orderNo}
+                </Link>
+                <StatusChip tone={r.status === "processed" ? "ok" : r.status === "failed" ? "bad" : "warn"}>{r.status}</StatusChip>
+                <span className="tabular-nums">{formatPaise(r.amountPaise)}</span>
+                <span className="text-ink-500">{r.gatewayRefundId ?? "no Razorpay id yet"}</span>
+                <span className="text-ink-500">
+                  {r.actorEmail} · {r.createdAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                </span>
+                <span className="basis-full text-ink-700">{r.reason}</span>
+                {r.failure && <span className="basis-full text-[11px] text-ops-bad">{r.failure}</span>}
               </li>
             ))}
           </ul>
