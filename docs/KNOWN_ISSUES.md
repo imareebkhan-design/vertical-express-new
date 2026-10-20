@@ -232,7 +232,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-044 | Third-party branded imagery presented as own-brand goods | CRITICAL | Legal/Content | PARTIAL |
 | ISS-045 | `/categories/ceiling-fans-exhaust.webp` referenced but missing | MEDIUM | Content | PARTIAL |
 | ISS-046 | Checkout, booking and admin still authenticate against Supabase after the Firebase migration | **CRITICAL** | Auth/Commerce | FIXED |
-| ISS-047 | OTP abuse protection was lost in the Firebase migration; no App Check | HIGH | Security/Cost | OPEN |
+| ISS-047 | OTP abuse protection was lost in the Firebase migration; no App Check | HIGH | Security/Cost | PARTIAL — wired; needs site key + enforcement |
 | ISS-048 | Email/password sign-in has no password reset and no email verification | MEDIUM | Auth | FIXED |
 | ISS-049 | A contested phone/email left a fully-authenticated customer with no account | **CRITICAL** | Auth | FIXED |
 | ISS-050 | `www.verticalexpress.in` is not a Firebase authorized domain | **CRITICAL** | Auth/Config | FIXED |
@@ -2396,7 +2396,13 @@ reaches Supabase over `DATABASE_URL`, which does not involve the Supabase SDK.
 |---|---|
 | **Severity** | HIGH |
 | **Area** | Security / Cost |
-| **Status** | OPEN |
+| **Status** | PARTIAL (reconciled 20 Oct 2026) |
+
+**Reconciliation, 20 Oct 2026.** The client wiring exists and is tested (`lib/firebase/client.ts`,
+`lib/__tests__/app-check.test.ts`): App Check starts only when a site key is configured, and a broken
+App Check cannot take sign-in down. What remains is configuration, not code: a reCAPTCHA site key in
+the environment, the app registered in Firebase Console → App Check, then enforcement switched on for
+Authentication after watching the metrics. Owner gate G-4. Until then SMS pumping is unprotected.
 
 **Description.** The retired Supabase path rate-limited OTP sends:
 `rateLimit("otp:" + identifier, 5, 15 * 60 * 1000, { failClosed: true })`, with a comment
