@@ -65,14 +65,15 @@ test("ISS-012 is not OPEN while Sentry and PostHog are wired", () => {
   const wired =
     pkg.includes("@sentry/nextjs") &&
     pkg.includes("posthog-js") &&
-    instrumentation.includes("initSentry");
+    /* Since 20 Oct the runtime configs initialise Sentry; instrumentation.ts loads them. */
+    (instrumentation.includes("initSentry") || instrumentation.includes("./sentry.server.config"));
   assert.ok(wired, "the observability wiring has been removed");
 
   assert.notEqual(
     statusOf("ISS-012"),
     "OPEN",
     "ISS-012 says there is no monitoring, but Sentry and PostHog are dependencies " +
-      "and initSentry runs at boot. What is missing is the keys, which is PARTIAL."
+      "and Sentry is initialised at boot. What is missing is the keys, which is PARTIAL."
   );
 });
 
