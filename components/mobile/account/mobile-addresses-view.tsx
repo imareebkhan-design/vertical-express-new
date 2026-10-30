@@ -11,7 +11,7 @@ import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import { safeNextPath } from "@/lib/safe-next";
 import { AddressLocation } from "@/components/location/address-location";
-import { pinnedFromAddress, pinnedFromPlace, placeFieldsToAsk, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { pinnedFromAddress, pinnedFromPlace, placeFromPin, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 
 interface MobileAddressesViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -36,7 +36,11 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
   /* The map half of the address (see lib/location/address-pin.ts); `manual` is the no-map escape hatch. */
   const [pinned, setPinned] = useState<PinnedLocation | null>(null);
   const [manual, setManual] = useState(false);
-  const ask = placeFieldsToAsk(manual, pinned);
+  /* A new pin re-fills city and state from the new place; the customer can still correct them. */
+  const choosePin = (pin: PinnedLocation | null) => {
+    setPinned(pin);
+    if (pin) setAddressForm((prev) => ({ ...prev, ...placeFromPin(pin) }));
+  };
 
   const [addressForm, setAddressForm] = useState<AddressFormValues>({
     label: "site",
@@ -63,6 +67,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
 
   const openAddAddressSheet = () => {
     triggerHaptic("light");
+    const startPin = pinnedFromPlace(chosenPlace, chosenPincode, chosenCity);
     setAddressFormError(null);
     setEditingAddressId(null);
     setAddressForm({
@@ -72,14 +77,14 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
       line1: "",
       line2: "",
       landmark: "",
-      city: "",
-      state: "",
+      city: placeFromPin(startPin).city ?? "",
+      state: placeFromPin(startPin).state ?? "",
       /* Never a pincode the customer did not give us (W-13): the one they
          confirmed for delivery, else empty. */
       pincode: chosenPincode ?? "",
       isDefault: false,
     });
-    setPinned(pinnedFromPlace(chosenPlace, chosenPincode, chosenCity));
+    setPinned(startPin);
     setManual(false);
     setIsAddressFormOpen(true);
   };
@@ -288,7 +293,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
             </p>
           ) : (
             <div className="space-y-2">
-              <AddressLocation value={pinned} onChange={setPinned} />
+              <AddressLocation value={pinned} onChange={choosePin} />
               <button type="button" onClick={() => setManual(true)} className="text-[11px] font-bold text-ink/50 underline underline-offset-2">
                 Can&apos;t find it? Enter the address without the map
               </button>
@@ -382,10 +387,8 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
           </div>
           ) : null}
 
-          {/* City and state: from the pin when it has them, otherwise typed — never assumed. */}
-          {ask.city || ask.state ? (
-            <div className="grid grid-cols-2 gap-3">
-              {ask.city ? (
+          {/* City and state: pre-filled from the pin when it has them, always the customer's to correct — never assumed. */}
+          <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label htmlFor="address-city" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">City</label>
                   <input
@@ -397,8 +400,6 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                     className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
                   />
                 </div>
-              ) : null}
-              {ask.state ? (
                 <div>
                   <label htmlFor="address-state" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">State</label>
                   <input
@@ -410,9 +411,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                     className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
                   />
                 </div>
-              ) : null}
-            </div>
-          ) : null}
+          </div>
 
           {/* Landmark, delivery instructions, and the pincode when typed by hand */}
           <div className="grid grid-cols-2 gap-3">

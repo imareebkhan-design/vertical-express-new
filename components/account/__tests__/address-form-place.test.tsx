@@ -24,8 +24,17 @@ mock.module("@/actions/address", {
 mock.module("@/hooks/use-delivery-pincode", {
   namedExports: { useDeliveryPincode: () => ({ pincode: null, city: null, place: null, setPincode() {}, setPlace() {} }) },
 });
+/* The map picker stand-in confirms one place when pressed (the real picker is covered in components/location). */
+const RAJBAGH = {
+  label: "Rajbagh", formattedAddress: "12 Bund Road, Rajbagh, Srinagar 190008", pincode: "190008",
+  city: "Srinagar", state: "Jammu and Kashmir", lat: 34.0681, lng: 74.8275, placeId: "ChIJ-raj",
+};
 mock.module("@/components/location/address-location", {
-  namedExports: { AddressLocation: () => null },
+  namedExports: {
+    AddressLocation: ({ onChange }: { onChange: (p: typeof RAJBAGH) => void }) => (
+      <button type="button" onClick={() => onChange(RAJBAGH)}>confirm Rajbagh</button>
+    ),
+  },
 });
 
 /* Loaded after the mocks are registered (this package is compiled as CommonJS, so no top-level await). */
@@ -65,4 +74,24 @@ test("a typed Delhi address is saved as Delhi, without coordinates", async () =>
   assert.equal(saved[0].city, "New Delhi");
   assert.equal(saved[0].state, "Delhi");
   assert.equal(saved[0].latitude, null);
+});
+
+test("a confirmed pin pre-fills city and state, and the customer's correction is what is saved (issue #1)", async () => {
+  RTL.render(<AddressForm onDone={() => {}} />);
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "confirm Rajbagh" }));
+  const city = RTL.screen.getByLabelText("City") as HTMLInputElement;
+  const state = RTL.screen.getByLabelText("State") as HTMLInputElement;
+  assert.deepEqual([city.value, state.value], ["Srinagar", "Jammu and Kashmir"], "shown, pre-filled from the place");
+
+  const type = (label: string, value: string) => RTL.fireEvent.change(RTL.screen.getByLabelText(label), { target: { value } });
+  type("Full name", "Test Customer");
+  type("Phone", "9000000001");
+  type("House / flat / floor", "House 12");
+  type("City", "Budgam");
+  RTL.fireEvent.submit(RTL.screen.getByRole("button", { name: "Save address" }).closest("form")!);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].city, "Budgam", "the correction wins over Google's locality");
+  assert.equal(saved[0].state, "Jammu and Kashmir");
+  assert.deepEqual([saved[0].latitude, saved[0].pincode], [34.0681, "190008"], "the pin and its pincode are kept");
 });

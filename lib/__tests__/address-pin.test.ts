@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { areaLine, pinPincodeCheck, pinnedFromAddress, pinnedFromPlace, placeFieldsToAsk, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { areaLine, pinPincodeCheck, pinnedFromAddress, pinnedFromPlace, placeFromPin, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 
 /**
  * The split between what Google decided (area, pincode, city, state,
@@ -39,7 +39,7 @@ test("a pinned address carries the pin's coordinates, pincode and area; the cust
   const saved = withPinnedLocation(TYPED, PIN);
   assert.deepEqual([saved.latitude, saved.longitude, saved.pincode, saved.placeId], [34.0681, 74.8275, "190008", "ChIJ-raj"]);
   assert.equal(saved.line2, "12 Bund Road, Rajbagh");
-  assert.equal(saved.state, "Jammu and Kashmir");
+  assert.equal(saved.state, "Jammu & Kashmir", "city and state in the form are the customer's (pre-filled from the pin, then theirs to correct)");
   assert.deepEqual([saved.line1, saved.landmark, saved.accessNote, saved.name], [TYPED.line1, TYPED.landmark, TYPED.accessNote, TYPED.name]);
 });
 
@@ -67,12 +67,19 @@ test("a new address starts from the place confirmed in the location sheet, and f
   assert.equal(pinnedFromPlace(place, null, null), null);
 });
 
-test("city and state are asked for whenever no pin decided them (issue #1: no silent Srinagar / J&K)", () => {
-  assert.deepEqual(placeFieldsToAsk(true, PIN), { city: true, state: true }, "typed by hand: both");
-  assert.deepEqual(placeFieldsToAsk(false, null), { city: true, state: true }, "no pin yet: both");
-  assert.deepEqual(placeFieldsToAsk(false, PIN), { city: false, state: false }, "Google decided both");
+test("a new pin pre-fills only the city and state Google gave; nothing is assumed (issue #1: no silent Srinagar / J&K)", () => {
+  assert.deepEqual(placeFromPin(PIN), { city: "Srinagar", state: "Jammu and Kashmir" });
+  assert.deepEqual(placeFromPin(null), {});
   const fromSheet = pinnedFromPlace({ label: "CP", formattedAddress: "Connaught Place, New Delhi 110001", lat: 28.63, lng: 77.21, placeId: null }, "110001", "New Delhi");
-  assert.deepEqual(placeFieldsToAsk(false, fromSheet), { city: false, state: true }, "the location sheet carries no state");
+  assert.deepEqual(placeFromPin(fromSheet), { city: "New Delhi" }, "the location sheet carries no state: the customer types it");
+});
+
+test("the customer's correction of a pin's city or state is what is saved; the pin fills only an empty field", () => {
+  const corrected = withPinnedLocation({ ...TYPED, city: "Budgam", state: "Jammu and Kashmir" }, PIN);
+  assert.equal(corrected.city, "Budgam", "Google said Srinagar; the customer corrected it");
+  const empty = withPinnedLocation({ ...TYPED, city: "", state: "  " }, PIN);
+  assert.deepEqual([empty.city, empty.state], ["Srinagar", "Jammu and Kashmir"]);
+  assert.equal(corrected.pincode, PIN.pincode, "the pincode stays the pin's: correcting it means moving the pin");
 });
 
 /* Issue #1, acceptance 7 — the owner keeps a mismatched pin (16 Oct); ops must see it. */
