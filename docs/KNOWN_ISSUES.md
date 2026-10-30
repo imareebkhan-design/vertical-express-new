@@ -4169,3 +4169,30 @@ channel configured` and returns `{ sent: false }`. The only caller (`adminTransi
 behaviour is unchanged. The log line no longer carries the message title/body. Test: `notifications.test.ts` (2; both
 failed before). **Owner:** choose a channel (SMS/WhatsApp/push/email) or confirm that launch has no status messages;
 the site must not promise them either.
+
+---
+
+## ISS-096 — Web address forms hid a pin's city and state, so a wrong locality could not be corrected
+
+**Status:** FIXED on branch `claude/editable-place-fields` (`5165f63`, 31 Oct 2026); not yet in the RC or on staging.
+
+Issue #1's agreed flow pre-fills city, state and pincode from the confirmed place "with corrections available when
+location services are inaccurate". On the desktop `AddressForm` and the mobile-web checkout/account sheets, a pin
+carrying a city and state hid both fields, and `withPinnedLocation` overwrote the form's values, so a customer whose
+Google locality was wrong could only abandon the pin. The Expo app was already correct.
+
+**Fix.** City and State are always shown and editable, pre-filled from the pin (`placeFromPin`, only what Google
+gave); `withPinnedLocation` keeps the customer's non-empty value. The pincode stays the pin's (moving the pin changes
+it). Tests: `address-pin.test.ts` (+2), `address-form-place.test.tsx` (+1, fails on the RC). **Rollback:** revert
+`5165f63`.
+
+## ISS-097 — `v1-category-landing` fails on a reused local test database
+
+**Status:** OPEN (test environment), found 31 Oct 2026.
+
+`category landing: every brand offered actually has products in that category` fails with "BuildPro" 5 ≠ 4 on the
+local `ve_rc_test` database — identically on the untouched RC `fdfbdc8` and on `5165f63`, so it is not caused by a
+code change. The 21 Oct suite passed 1341/1341 on a fresh database. Likely a row left behind by an earlier run that
+the test counts. Also observed: a full suite run grew local disk use by ≈10 GB (Postgres), which filled this Mac's
+disk once. **Next:** recreate the test database before a release run; make the test scope its count to its own
+fixture.
