@@ -4,6 +4,8 @@ import { getAuthUserId } from "@/lib/auth/current-user";
 import { getOrderByNo, type OrderAddressSnapshot } from "@/lib/services/orders";
 import { formatPaise } from "@/lib/money";
 import { Logo } from "@/components/ui/logo";
+import { db } from "@/lib/db";
+import { summaryPayment, summaryTotals } from "@/lib/order-summary";
 import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
 
 /* The body of this page stopped calling itself a tax invoice in 677d08a; the
@@ -29,43 +31,12 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
   // Backwards compatibility check
   const hasSnapshots = order.items.every((item) => item.subtotalPaise !== null);
 
-  let cgstPaise = 0;
-  let sgstPaise = 0;
-  let igstPaise = 0;
-  let taxPaise = order.taxPaise;
-  let ratePct = 18;
-  let intraState = true;
-
-  if (hasSnapshots) {
-    order.items.forEach((item) => {
-      cgstPaise += item.cgstPaise ?? 0;
-      sgstPaise += item.sgstPaise ?? 0;
-      igstPaise += item.igstPaise ?? 0;
-    });
-    intraState = igstPaise === 0;
-    ratePct = order.subtotalPaise > 0 ? Math.round((taxPaise * 100) / order.subtotalPaise) : 18;
-  } else {
-    // Old exclusive math fallback (since computeGst has become inclusive, compute old exclusive values)
-    const taxableBase = Math.max(0, order.subtotalPaise - order.discountPaise);
-    const computedTax = Math.round(taxableBase * 0.18);
-    taxPaise = computedTax;
-    intraState = addr.state ? (addr.state.toLowerCase().includes("jammu") || addr.state.toLowerCase().includes("kashmir") || addr.state.toLowerCase() === "jk") : true;
-    if (intraState) {
-      sgstPaise = Math.floor(computedTax / 2);
-      cgstPaise = computedTax - sgstPaise;
-    } else {
-      igstPaise = computedTax;
-    }
-  }
-
-  const gst = {
-    intraState,
-    ratePct,
-    taxPaise,
-    cgstPaise,
-    sgstPaise,
-    igstPaise,
-  };
+  const totals = summaryTotals(order, hasSnapshots);
+  const payments = await db.payment.findMany({
+    where: { orderId: order.id },
+    select: { status: true, amountPaise: true, refunds: { select: { status: true, amountPaise: true } } },
+  });
+  const paymentText = summaryPayment(order.paymentMethod, payments);
 
   return (
     <div className="min-h-screen bg-neutral-100 py-8 px-4 font-sans print:bg-white print:p-0">
@@ -133,7 +104,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
               Method: {order.paymentMethod === "cod" ? "Pay on Delivery (COD)" : "Online Payment"}
             </p>
             <p className="font-semibold text-neutral-600">
-              Status: {order.status === "delivered" || order.status === "confirmed" ? "PAID / AUTHORIZED" : order.status.toUpperCase()}
+              Status: {paymentText}
             </p>
           </div>
         </div>
@@ -175,37 +146,14 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
         {/* Totals Summary */}
         <div className="mt-6 flex justify-end border-t border-neutral-200 pt-4">
           <dl className="w-64 space-y-1.5 text-xs font-semibold">
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Subtotal</dt>
-              <dd className="font-extrabold text-ink">{formatPaise(order.subtotalPaise)}</dd>
-            </div>
-            {order.discountPaise > 0 && (
-              <div className="flex justify-between text-success">
-                <dt>Discount</dt>
-                <dd>-{formatPaise(order.discountPaise)}</dd>
+            {totals.lines.map(line => (
+              <div key={line.label} className="flex justify-between">
+                <dt className="text-neutral-500">{line.label}</dt>
+                <dd>{line.value}</dd>
               </div>
-            )}
-            {!gst.intraState ? (
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">IGST ({gst.ratePct}%)</dt>
-                <dd>{formatPaise(gst.taxPaise)}</dd>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">CGST ({(gst.ratePct / 2).toFixed(1)}%)</dt>
-                  <dd>{formatPaise(gst.cgstPaise)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">SGST ({(gst.ratePct / 2).toFixed(1)}%)</dt>
-                  <dd>{formatPaise(gst.sgstPaise)}</dd>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Delivery Fee</dt>
-              <dd>{order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}</dd>
-            </div>
+            ))}
+            {totals.discountNote && <div className="text-success">{totals.discountNote}</div>}
+            {totals.note && <div>{totals.note}</div>}
             <div className="flex justify-between border-t-2 border-neutral-200 pt-2 text-sm font-extrabold text-ink">
               <dt>Total (Incl. Taxes)</dt>
               <dd>{formatPaise(order.totalPaise)}</dd>
@@ -222,8 +170,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
               needs a supplier GSTIN, an HSN code per line and the place of
               supply, and none of those exists yet. */}
           <p className="mt-1">
-            This is an order summary, not a GST tax invoice. The tax shown is what you
-            were charged. A tax invoice will be issued separately once GST registration
+            This is an order summary, not a GST tax invoice. Amounts are shown from the stored order record. A tax invoice will be issued separately once GST registration
             is in place.
           </p>
         </div>

@@ -206,6 +206,46 @@ test("native placement: a malformed total is a validation failure, not a pass", 
   assert.equal(await orderCount(), before);
 });
 
+/* Audit F2: the app's placement queues the same confirmation as the web, and
+   may carry an optional receipt email (a per-order contact, never the account's). */
+test("native COD placement queues one confirmation, to the receipt email given", async () => {
+  await addItem(userId, null, variantId, 1);
+  const res = await json(
+    await handlePlaceOrder(
+      req({ addressId, paymentMethod: "cod", idempotencyKey: `idem-${randomUUID()}`, contactEmail: "  Receipts@Example.test " }),
+      { verify }
+    )
+  );
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  const order = await db.order.findFirstOrThrow({ where: { orderNo: res.body.data.orderNo }, include: { orderEmail: true } });
+  assert.equal(order.status, "confirmed");
+  assert.equal((order.address as { email?: string }).email, "receipts@example.test");
+  assert.equal(order.orderEmail?.state, "queued");
+  assert.equal(order.orderEmail?.recipient, "receipts@example.test");
+});
+
+test("native placement: a malformed receipt email is refused and nothing is written", async () => {
+  await addItem(userId, null, variantId, 1);
+  const before = await orderCount();
+  const res = await json(
+    await handlePlaceOrder(req({ addressId, paymentMethod: "cod", idempotencyKey: `idem-${randomUUID()}`, contactEmail: "not-an-email" }), { verify })
+  );
+  assert.equal(res.status, 400, JSON.stringify(res.body));
+  assert.equal(res.body.error.code, "VALIDATION");
+  assert.equal(await orderCount(), before);
+});
+
+test("native placement without any email still places the order; the confirmation is skipped", async () => {
+  await addItem(userId, null, variantId, 1);
+  const res = await json(
+    await handlePlaceOrder(req({ addressId, paymentMethod: "cod", idempotencyKey: `idem-${randomUUID()}` }), { verify })
+  );
+  assert.equal(res.status, 200, JSON.stringify(res.body));
+  const order = await db.order.findFirstOrThrow({ where: { orderNo: res.body.data.orderNo }, include: { orderEmail: true, user: true } });
+  if (order.user.email) assert.equal(order.orderEmail?.recipient, order.user.email);
+  else assert.deepEqual([order.orderEmail?.state, order.orderEmail?.recipient], ["skipped", null]);
+});
+
 /* COMMERCE_MODE=catalogue (owner decision, 31 Oct 2026): a crafted app request
    cannot place an order, online or COD, and nothing is written or reserved. */
 test("catalogue mode: native placement is refused with ORDERING_CLOSED and nothing is written", async () => {

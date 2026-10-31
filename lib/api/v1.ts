@@ -1,4 +1,5 @@
 import "server-only";
+import { normaliseContactEmail } from "@/lib/contact-email";
 import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
 import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
@@ -659,6 +660,7 @@ export async function handleValidateCoupon(request: Request, deps: ApiDeps = {})
 }
 
 const placeSchema = z.object({
+  contactEmail: z.string().max(254).nullish().refine(v => !v || normaliseContactEmail(v) !== null, "Invalid email"),
   addressId: z.string().uuid(),
   paymentMethod: z.enum(["online", "cod"]),
   idempotencyKey: z.string().min(8).max(80),
@@ -691,6 +693,7 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
         addressId: body.data.addressId,
         paymentMethod: method,
         notes: body.data.notes,
+        contactEmail: normaliseContactEmail(body.data.contactEmail),
         idempotencyKey: body.data.idempotencyKey,
         couponCode: body.data.couponCode,
         wantsExpress: body.data.wantsExpress,

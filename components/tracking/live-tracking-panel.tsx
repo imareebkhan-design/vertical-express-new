@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OrderTracking, ShipmentTracking } from "@/lib/services/tracking";
 import { decodePolyline, haversineM } from "@/lib/tracking/geo";
-import { liveTrackingView } from "@/lib/tracking/policy";
+import { ageText, liveTrackingView } from "@/lib/tracking/policy";
 import type { GMap, GMaps, GMarker, GPolyline } from "@/lib/tracking/maps-loader";
 
 /**
@@ -290,7 +290,7 @@ export function LiveTrackingPanel({
           <div>
             <dt className="font-semibold text-ink-500">Last updated</dt>
             <dd className="mt-0.5 text-[14px] font-bold tabular-nums text-ink">
-              {ageS === null ? "—" : ageS < 60 ? `${ageS}s ago` : `${Math.floor(ageS / 60)} min ago`}
+              {ageText(ageS)}
             </dd>
           </div>
         </dl>

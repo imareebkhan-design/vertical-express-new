@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { brandsForSearchEntry, closestInStock, listProducts } from "@/lib/services/catalog";
 import { db } from "@/lib/db";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 
 /**
  * The two states a search screen spends most of its time in: before anything is
@@ -16,13 +17,33 @@ import { db } from "@/lib/db";
  */
 
 test("only brands with something published behind them are offered", async () => {
-  const offered = await brandsForSearchEntry();
+  /* "What it leads to" is the public listing (`catalogListingWhere`, the
+     approval gate since 9 Oct), not every row marked published: a published
+     product with no recorded approval is never listed. Counting raw rows made
+     this fail on a reused local database ("BuildPro" 5 ≠ 4) — the ISS-097 flaw,
+     here in the search screen's test. The test brings its own unlisted product
+     of an offered brand so the difference is always exercised. */
+  const listed = await db.brand.findFirstOrThrow({
+    where: { isActive: true, products: { some: catalogListingWhere() } },
+    orderBy: { slug: "asc" },
+    select: { id: true },
+  });
+  const anyCategory = await db.category.findFirstOrThrow({ select: { id: true } });
+  const unlisted = await db.product.create({
+    data: { slug: `iss097-search-${randomUUID()}`, title: "Published, never approved (test fixture)", status: "published", brandId: listed.id, categoryId: anyCategory.id },
+  });
+  let offered;
+  try {
+    offered = await brandsForSearchEntry();
+  } finally {
+    await db.product.delete({ where: { id: unlisted.id } });
+  }
   assert.ok(offered.length > 0, "no brands offered at all — this guard would be vacuous");
 
   for (const b of offered) {
     assert.ok(b.count > 0, `"${b.name}" is offered as a shortcut with nothing behind it`);
     const real = await db.product.count({
-      where: { brand: { slug: b.slug }, status: "published" },
+      where: { AND: [catalogListingWhere()], brand: { slug: b.slug } },
     });
     assert.equal(real, b.count, `the count shown for "${b.name}" is not what it leads to`);
   }

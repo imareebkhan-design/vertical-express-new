@@ -20,8 +20,9 @@ export interface OrderAddressSnapshot {
    * Where to send updates about *this order*. Optional, and not an identity.
    *
    * The market signs in by phone, and a phone sign-in carries no email — so
-   * `emailOrderConfirmation` returned early and the customer most likely to
-   * order was the one who heard nothing back. Checkout now offers a field.
+   * the confirmation used to return early and the customer most likely to
+   * order was the one who heard nothing back. Checkout (web and app) now offers
+   * a field; `lib/services/order-emails.ts` reads it first.
    *
    * It lives on the order rather than on `User` for two reasons. `User.email`
    * is `@unique`, so writing a typed address there can collide with somebody
