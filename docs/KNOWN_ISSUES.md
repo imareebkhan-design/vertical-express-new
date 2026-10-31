@@ -4169,3 +4169,35 @@ channel configured` and returns `{ sent: false }`. The only caller (`adminTransi
 behaviour is unchanged. The log line no longer carries the message title/body. Test: `notifications.test.ts` (2; both
 failed before). **Owner:** choose a channel (SMS/WhatsApp/push/email) or confirm that launch has no status messages;
 the site must not promise them either.
+
+---
+
+## ISS-096 — Web address forms hid a pin's city and state, so a wrong locality could not be corrected
+
+**Status:** FIXED on branch `claude/editable-place-fields` (`5165f63`, 31 Oct 2026); not yet in the RC or on staging.
+
+Issue #1's agreed flow pre-fills city, state and pincode from the confirmed place "with corrections available when
+location services are inaccurate". On the desktop `AddressForm` and the mobile-web checkout/account sheets, a pin
+carrying a city and state hid both fields, and `withPinnedLocation` overwrote the form's values, so a customer whose
+Google locality was wrong could only abandon the pin. The Expo app was already correct.
+
+**Fix.** City and State are always shown and editable, pre-filled from the pin (`placeFromPin`, only what Google
+gave); `withPinnedLocation` keeps the customer's non-empty value. The pincode stays the pin's (moving the pin changes
+it). Tests: `address-pin.test.ts` (+2), `address-form-place.test.tsx` (+1, fails on the RC). **Rollback:** revert
+`5165f63`.
+
+## ISS-097 — `v1-category-landing` counted rows the listing never shows
+
+**Status:** FIXED in the test on branch `claude/category-landing-test` (`f219ff2`, 31 Oct 2026). No product code
+changed.
+
+`category landing: every brand offered actually has products in that category` compared the API's brand count (the
+public listing, `catalogListingWhere` — the approval gate since 9 Oct, `9029275`) with a raw count of every
+`published` row, and chose its category with an unordered `findFirst`. On a reused local database holding a published
+product with no recorded approval it failed ("BuildPro" 5 ≠ 4, identically on the untouched RC `fdfbdc8`); on other
+row orders it passed without checking anything. The test now picks a category that has a listing, creates its own
+published-but-unapproved product (removed afterwards) and asserts the count equals the listing. It fails if the API
+counts raw published rows.
+
+(An earlier note here blamed the test database for ≈10 GB of disk growth. That was wrong: Postgres held 285 MB; the
+growth was the Claude desktop app's VM image under `~/Library/Application Support/Claude/vm_bundles`.)

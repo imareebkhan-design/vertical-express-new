@@ -35,7 +35,15 @@ export function areaLine(pin: Pick<PinnedLocation, "formattedAddress" | "pincode
   return line.slice(0, LINE2_MAX);
 }
 
-/** The address fields a confirmed pin decides. Customer-entered fields are left exactly as typed. */
+/**
+ * The address fields a confirmed pin decides. Customer-entered fields are left exactly as typed.
+ *
+ * City and state are pre-filled from the pin (`placeFromPin`) but stay the
+ * customer's to correct — Google's locality is wrong often enough on Srinagar
+ * lanes that the agreed flow keeps them editable (issue #1). A value the
+ * customer left in the field therefore wins; the pin fills only an empty one.
+ * The pincode is the pin's: correcting it means moving the pin.
+ */
 export function withPinnedLocation<T extends AddressFields>(
   values: T,
   pin: PinnedLocation
@@ -43,8 +51,8 @@ export function withPinnedLocation<T extends AddressFields>(
   return {
     ...values,
     line2: areaLine(pin) || null,
-    city: pin.city ?? values.city,
-    state: pin.state ?? values.state,
+    city: values.city?.trim() ? values.city : pin.city ?? values.city,
+    state: values.state?.trim() ? values.state : pin.state ?? values.state,
     pincode: pin.pincode,
     latitude: pin.lat,
     longitude: pin.lng,
@@ -80,18 +88,17 @@ export function pinnedFromPlace(
 }
 
 /**
- * Which of city and state the customer must type, because nothing else
- * decided them.
- *
- * A pin carries Google's city and state; a pin from the location sheet often
- * carries neither (`pinnedFromPlace` has no state), and an address typed by
- * hand has no pin at all. Whatever is left must be asked for — the forms used
- * to start from "Srinagar" / "Jammu & Kashmir" without showing the fields, so a
- * Delhi site was saved as one in J&K and nobody saw it happen.
+ * The city and state a newly confirmed pin puts in the form, for the customer
+ * to check and correct. Only what Google gave: a pin from the location sheet
+ * carries no state, and nothing is ever assumed in its place — the forms used
+ * to start from "Srinagar" / "Jammu & Kashmir", so a Delhi site was saved as one
+ * in J&K and nobody saw it happen.
  */
-export function placeFieldsToAsk(manual: boolean, pin: Pick<PinnedLocation, "city" | "state"> | null): { city: boolean; state: boolean } {
-  if (manual || !pin) return { city: true, state: true };
-  return { city: !pin.city, state: !pin.state };
+export function placeFromPin(pin: Pick<PinnedLocation, "city" | "state"> | null): { city?: string; state?: string } {
+  return {
+    ...(pin?.city?.trim() ? { city: pin.city } : {}),
+    ...(pin?.state?.trim() ? { state: pin.state } : {}),
+  };
 }
 
 export type PinPincodeCheck = { kind: "match" } | { kind: "mismatch"; pinPincode: string } | { kind: "unchecked" } | { kind: "no_pin" };
