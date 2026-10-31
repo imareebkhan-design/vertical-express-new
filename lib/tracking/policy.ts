@@ -288,3 +288,19 @@ export function liveTrackingView(
     showRoute: true,
   };
 }
+
+/**
+ * "Last updated" for the rider's position, in the largest whole unit. A stale
+ * position is already flagged by `liveTrackingView`; this only keeps its age
+ * readable ("13 days ago", not "19752 min ago").
+ */
+export function ageText(ageS: number | null): string {
+  if (ageS === null) return "—";
+  if (ageS < 60) return `${ageS}s ago`;
+  const min = Math.floor(ageS / 60);
+  if (min < 60) return `${min} min ago`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `${h} h ago`;
+  const days = Math.floor(h / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
+}
