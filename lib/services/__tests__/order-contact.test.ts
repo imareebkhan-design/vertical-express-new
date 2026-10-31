@@ -152,16 +152,14 @@ test("no address given leaves the order exactly as it was before", async (t) => 
 test("the confirmation prefers the order's address over the account's", () => {
   /* Source order matters: the account email is the fallback, not the source.
      Reading `user.email` first would send a phone customer's receipt nowhere
-     while an address sat on the order. */
-  const src = readFileSync(join(ROOT, "actions/checkout.ts"), "utf8");
+     while an address sat on the order. Since audit F2 the recipient is chosen
+     where the confirmation is queued (lib/services/order-emails.ts);
+     order-confirmation-outbox.test.ts proves both branches by behaviour. */
+  const src = readFileSync(join(ROOT, "lib/services/order-emails.ts"), "utf8");
   assert.match(
     src,
-    /const toEmail = addr\?\.email \?\? accountEmail/,
+    /normaliseContactEmail\(address\?\.email\) \?\? normaliseContactEmail\(order\.user\.email\)/,
     "the confirmation no longer prefers the address stored on the order"
-  );
-  assert.ok(
-    !/async function emailOrderConfirmation\([^)]*\)\s*\{\s*if \(!toEmail\) return;/.test(src),
-    "the early return on the account email is back — a phone customer gets nothing again"
   );
 });
 

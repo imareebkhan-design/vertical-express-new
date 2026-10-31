@@ -20,13 +20,15 @@ export function emailEnabled(): boolean {
 }
 
 interface SendArgs {
+  from?: string;
+  idempotencyKey?: string;
   to: string;
   subject: string;
   html: string;
 }
 
 /** Low-level send. Resolves to true on success, false on any failure (never throws). */
-export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolean> {
+export async function sendEmail({ to, subject, html, from, idempotencyKey }: SendArgs): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     // Not configured — succeed silently so callers stay simple in the prototype.
@@ -40,21 +42,23 @@ export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolea
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || DEFAULT_FROM,
+        from: from || process.env.EMAIL_FROM || DEFAULT_FROM,
         to: [to],
         subject,
         html,
       }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      console.error(`[email] Resend ${res.status}: ${await res.text()}`);
+      console.error(`[email] provider status ${res.status}`);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error("[email] send failed", err);
+  } catch {
+    console.error("[email] send failed or outcome unknown");
     return false;
   }
 }

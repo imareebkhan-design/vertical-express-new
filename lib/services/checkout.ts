@@ -1,4 +1,5 @@
 import "server-only";
+import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
@@ -550,6 +551,10 @@ export async function placeOrder(params: {
         },
       });
 
+      /* An order confirmed at placement (COD, or the dummy gateway) queues its
+         confirmation here, in the order's own transaction (audit F2). */
+      if (created.status === "confirmed") await enqueueOrderConfirmation(tx, created.id);
+
       /* Spend the coupon inside the same transaction as the order.
        *
        * resolveCoupon() decided this coupon was usable, but that check and this
@@ -810,6 +815,9 @@ export async function settleCapturedPayment(params: {
           note: note ?? (source === "webhook" ? "Razorpay webhook: payment captured" : "Payment verified"),
         },
       });
+      /* The one pending→confirmed transition, whichever of callback, webhook or
+         gateway check gets here first; the queue row is unique per order. */
+      await enqueueOrderConfirmation(tx, orderId);
       return "confirmed";
     }
 
