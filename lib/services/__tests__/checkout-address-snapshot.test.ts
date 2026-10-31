@@ -15,6 +15,8 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { addItem } from "../cart";
 import { placeOrder } from "../checkout";
+import { createAddress, listAddresses, updateAddress } from "../addresses";
+import { addressInputSchema } from "@/lib/validators";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
 
@@ -124,4 +126,25 @@ test("someone else's address is refused, never replaced by the customer's own", 
   const before = await db.order.count({ where: { userId: USER } });
   await assert.rejects(place(ids.strangers));
   assert.equal(await db.order.count({ where: { userId: USER } }), before);
+});
+
+test("a customer's city correction reaches the order; a served pincode's state is the one the order carries", async () => {
+  /* Audit F4: the city the customer typed is theirs and is kept; for a pincode
+     we serve, the state is the pincode's (lib/services/addresses.ts stateFor).
+     Both must hold through save, edit, reopening and checkout. */
+  const input = {
+    label: "site", name: "Correction Buyer", phone: "9876543210", line1: "House 3", city: "Srinagar",
+    state: "Jammu and Kashmir", pincode: PINCODE, latitude: 34.07, longitude: 74.81, placeId: "place-correction",
+  };
+  const created = await createAddress(USER, addressInputSchema.parse(input), async () => ({ kind: "no_pincode" as const }));
+  await updateAddress(USER, created.id, addressInputSchema.parse({ ...input, city: "Lal Chowk, Srinagar", state: "Punjab" }), async () => ({ kind: "no_pincode" as const }));
+
+  const reopened = (await listAddresses(USER)).find((a) => a.id === created.id)!;
+  assert.equal(reopened.city, "Lal Chowk, Srinagar", "the city correction is kept");
+  assert.equal(reopened.state, STATE, "a served pincode decides the state");
+
+  const a = await snapshot((await place(created.id)).orderNo);
+  assert.equal(a.city, "Lal Chowk, Srinagar");
+  assert.equal(a.state, STATE);
+  assert.equal(a.pincode, PINCODE);
 });

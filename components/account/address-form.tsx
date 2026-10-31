@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { AddressLocation } from "@/components/location/address-location";
 import type { PinnedLocation } from "@/lib/location/address-pin";
-import { pinnedFromAddress, pinnedFromPlace, placeFromPin, withPinnedLocation } from "@/lib/location/address-pin";
+import { pinnedFromAddress, pinnedFromPlace, placeFromPin, STATE_FROM_PINCODE_NOTE, withPinnedLocation } from "@/lib/location/address-pin";
 
 export interface AddressFormValues {
   id?: string;
@@ -175,6 +175,7 @@ export function AddressForm({
           </Field>
         ) : null}
       </div>
+      <p className="-mt-2 text-xs font-semibold text-neutral-500">{STATE_FROM_PINCODE_NOTE}</p>
 
       <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-neutral-700">
         <input

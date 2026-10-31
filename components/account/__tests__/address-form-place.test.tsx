@@ -95,3 +95,9 @@ test("a confirmed pin pre-fills city and state, and the customer's correction is
   assert.equal(saved[0].state, "Jammu and Kashmir");
   assert.deepEqual([saved[0].latitude, saved[0].pincode], [34.0681, "190008"], "the pin and its pincode are kept");
 });
+
+test("the form says, beside State, that a served pincode sets the state (audit F4)", () => {
+  RTL.render(<AddressForm onDone={() => {}} />);
+  assert.ok(RTL.screen.getByText(/For pincodes we deliver to, the state is set by the pincode/));
+  assert.ok(RTL.screen.getByText(/Your city is saved as you enter it/));
+});

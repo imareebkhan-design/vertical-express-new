@@ -11,7 +11,7 @@ import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
 import { safeNextPath } from "@/lib/safe-next";
 import { AddressLocation } from "@/components/location/address-location";
-import { pinnedFromAddress, pinnedFromPlace, placeFromPin, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { pinnedFromAddress, pinnedFromPlace, placeFromPin, STATE_FROM_PINCODE_NOTE, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 
 interface MobileAddressesViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -412,6 +412,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                   />
                 </div>
           </div>
+          <p className="text-[10px] font-semibold text-ink/50">{STATE_FROM_PINCODE_NOTE}</p>
 
           {/* Landmark, delivery instructions, and the pincode when typed by hand */}
           <div className="grid grid-cols-2 gap-3">
