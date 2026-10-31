@@ -19,6 +19,7 @@ import { PageLoader } from "@/components/page-loader";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { paiseToRupees } from "@/lib/money";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 // Mobile Components
 import { MobileProductView } from "@/components/mobile/product/mobile-product-view";
@@ -33,6 +34,7 @@ interface ProductSwitcherProps {
 export function ProductSwitcher({ product, related, boughtWith }: ProductSwitcherProps) {
   const { isNative } = useNativeShell();
   const { ready, isMobile } = useMobileSurface(isNative);
+  const orderingOpen = useOrderingOpen();
 
   if (!ready) {
     return <PageLoader />;
@@ -143,8 +145,8 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
             </div>
 
             {/* Dispatch, returns and the delivery check describe buying it;
-                a catalog-only product cannot be bought yet. */}
-            {product.purchasable && (
+                a catalog-only product — or any product in catalogue mode — cannot be bought yet. */}
+            {product.purchasable && orderingOpen && (
               <>
                 <PdpPromises
                   speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}

@@ -14,10 +14,13 @@ import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-pane
 import { SpeedChip } from "@/components/ui/speed-chip";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { CartLoadError } from "@/components/shop/cart-load-error";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ORDERING_CLOSED_MESSAGE } from "@/lib/commerce-mode";
 
 /** Full cart page body — reads the live server cart from context. */
 export function CartView() {
   const { summary, loaded, loadFailed, refresh, updateItem, removeItem, pending } = useCart();
+  const orderingOpen = useOrderingOpen();
 
   if (!loaded) return loadFailed ? <CartLoadError onRetry={refresh} /> : <CartLoading />;
   if (summary.lines.length === 0) {
@@ -198,6 +201,11 @@ export function CartView() {
             </span>
             <span className="tabular-nums">{formatPaise(subtotalPaise)}</span>
           </div>
+          {/* COMMERCE_MODE=catalogue: a cart from before the switch can still be
+              seen and emptied; checkout says it is closed instead of being offered. */}
+          {!orderingOpen ? (
+            <p className="mt-5 text-sm font-semibold text-ink-700">{ORDERING_CLOSED_MESSAGE}</p>
+          ) : (
           <Link href="/checkout" className="mt-5 block no-underline">
             <Button size="lg" className="w-full h-12 rounded-full font-bold">
               {/* Was "Choose delivery slots". Slot booking does not exist
@@ -209,6 +217,7 @@ export function CartView() {
               {pending ? <Loader2 className="animate-spin" /> : "Checkout"}
             </Button>
           </Link>
+          )}
           <Link
             href="/categories"
             className="mt-3 block text-center text-xs font-bold text-ink-500 hover:text-ink no-underline"

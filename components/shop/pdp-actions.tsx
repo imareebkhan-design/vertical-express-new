@@ -10,6 +10,7 @@ import type { ProductDetail } from "@/lib/services/catalog";
 import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
 import { discountPercent } from "@/lib/money";
 import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 import { ProductEnquiry } from "@/components/shop/product-enquiry";
 
 /**
@@ -19,6 +20,7 @@ import { ProductEnquiry } from "@/components/shop/product-enquiry";
  */
 export function PdpActions({ product }: { product: ProductDetail }) {
   const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [variantId, setVariantId] = useState(
     product.variants.find((v) => v.isDefault)?.id ?? product.variants[0]?.id
   );
@@ -38,6 +40,20 @@ export function PdpActions({ product }: { product: ProductDetail }) {
       .sort((a, b) => b.minQty - a.minQty)[0];
     return applicable?.pricePaise ?? variant.pricePaise;
   }, [variant, qty]);
+
+  /* COMMERCE_MODE=catalogue: the price stays as published, the cart controls
+     become the enquiry form. The server refuses the add regardless. */
+  if (product.purchasable && variant && !orderingOpen) {
+    return (
+      <div className="flex flex-col gap-4">
+        <span className="text-3xl font-extrabold tabular-nums tracking-[-0.02em]">{formatPaise(variant.pricePaise)}</span>
+        <p className="-mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+          Price {product.unitLabel.replace(/^per\s+/i, "per ")}, <strong className="font-bold">including GST</strong>.
+        </p>
+        <ProductEnquiry productId={product.id} productTitle={product.title} />
+      </div>
+    );
+  }
 
   // Catalog-only (or nothing sellable): state it plainly, offer no cart control.
   if (!product.purchasable || !variant) {

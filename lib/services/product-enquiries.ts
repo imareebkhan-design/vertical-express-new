@@ -3,13 +3,15 @@ import { randomBytes } from "node:crypto";
 import type { Prisma, ProductEnquiryStatus } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
-import { publicProductWhere } from "@/lib/catalog-policy";
+import { catalogListingWhere, publicProductWhere } from "@/lib/catalog-policy";
+import { orderingOpen } from "@/lib/commerce-mode";
 
 /**
- * Product enquiries — "Enquire about this product" on catalog-only listings.
+ * Product enquiries — "Enquire about this product".
  *
  * A catalog-only product has no price to sell from, so the customer's only next
- * step is to ask. The enquiry lands in the admin queue (app/admin/enquiries).
+ * step is to ask. In COMMERCE_MODE=catalogue nothing can be bought, so every
+ * product the storefront shows takes an enquiry instead (lib/commerce-mode.ts). The enquiry lands in the admin queue (app/admin/enquiries).
  * No email/WhatsApp notification is sent: no business contact detail or
  * notification policy is confirmed (owner decision, 9 Oct 2026).
  *
@@ -18,9 +20,17 @@ import { publicProductWhere } from "@/lib/catalog-policy";
  * the storefront would not show as catalog-only right now.
  */
 
-/** Products a customer may enquire about: exactly the public catalog-only set
- *  (lib/catalog-policy.ts — recorded identity + primary photo approval, active taxonomy). */
+/** Products a customer may enquire about.
+ *
+ *  Transactional mode: exactly the public catalog-only set (lib/catalog-policy.ts —
+ *  recorded identity + primary photo approval, active taxonomy); a published
+ *  product is bought, not enquired about.
+ *  Catalogue mode: exactly what the storefront lists and opens (`catalogListingWhere`,
+ *  the rule `getProductBySlug` reads), so an enquiry is possible wherever a product
+ *  page is, and never for a draft, an archived product or a published one the
+ *  storefront hides. Fails closed with `orderingOpen`: an unknown mode is catalogue. */
 export function enquirableProductWhere(): Prisma.ProductWhereInput {
+  if (!orderingOpen()) return catalogListingWhere();
   return { AND: [publicProductWhere(), { status: "catalog_only" }] };
 }
 

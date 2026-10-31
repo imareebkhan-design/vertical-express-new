@@ -32,6 +32,8 @@ import { speedClassFor } from "@/components/ui/speed-chip";
 import { etaPhrase } from "@/lib/order-display";
 import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 import { ProductEnquiry } from "@/components/shop/product-enquiry";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ENQUIRE_LABEL } from "@/lib/catalog-visibility";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -47,6 +49,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
   const { summary, refresh, wishlistIds, setWishlisted, updateItem, removeItem } = useCart();
   const [isPending, startTransition] = useTransition();
   const [, startWishlist] = useTransition();
+  const orderingOpen = useOrderingOpen();
 
   // Variant state
   /* Undefined for a catalog-only product (no variants are exposed): the view
@@ -323,6 +326,13 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
               Inclusive of all taxes
             </span>
           )}
+          {/* COMMERCE_MODE=catalogue: the published price stays, the cart bar
+              below offers this form instead (the server refuses the add). */}
+          {selectedVariant && !orderingOpen && (
+            <div id="enquiry" className="mt-3 scroll-mt-20">
+              <ProductEnquiry productId={product.id} productTitle={product.title} />
+            </div>
+          )}
         </div>
 
         {/* Variant Selector */}
@@ -350,8 +360,9 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
           </div>
         )}
 
-        {/* Serviceability / Delivery Check — only for something that can be bought. */}
-        {selectedVariant && (
+        {/* Serviceability / Delivery Check — only for something that can be bought
+            (not in COMMERCE_MODE=catalogue; the desktop PDP hides it the same way). */}
+        {selectedVariant && orderingOpen && (
         <div className="border-t border-mist/10 pt-4 space-y-3">
           <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
             Check delivery
@@ -432,7 +443,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
         */}
         {/* Dispatch and returns describe buying it; a catalog-only product cannot
             be bought yet (same rule as the desktop PDP in product-switcher). */}
-        {product.purchasable && (
+        {product.purchasable && orderingOpen && (
           <PdpPromises
             speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
             categorySlug={product.categorySlug}
@@ -566,6 +577,16 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
       {!selectedVariant ? (
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 shadow-2xl">
         <p className="text-sm font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+      </div>
+      ) : !orderingOpen ? (
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">
+        <span className="text-base font-extrabold text-ink">{formatPaise(selectedVariant.pricePaise)}</span>
+        <a
+          href="#enquiry"
+          className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md no-underline"
+        >
+          {ENQUIRE_LABEL}
+        </a>
       </div>
       ) : (
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">

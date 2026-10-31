@@ -8,6 +8,7 @@ import type { Prisma } from "@/prisma/generated/client/client";
 import { settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
 import { captureException, triggerAlert } from "@/lib/observability";
+import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { recordSystemMovement, recordUnresolvedRestock } from "@/lib/services/inventory-movements";
 
 export type { CapturedLookup };
@@ -338,6 +339,9 @@ export async function cancelOrder(
 
 /** Copy a past order's items back into the active cart. */
 export async function reorder(userId: string, orderNo: string) {
+  /* Fills a cart, like the cart's own add (lib/services/cart.ts): nothing new
+     goes in one while COMMERCE_MODE=catalogue. */
+  if (!orderingOpen()) throw new Error(ORDERING_CLOSED);
   const order = await db.order.findFirst({ where: { orderNo, userId }, include: { items: true } });
   if (!order) throw new Error("NOT_FOUND");
 

@@ -63,8 +63,9 @@ interface OrderAgainRailProps {
   items: OrderAgainItem[];
   /** All orders, for "See all N". */
   totalOrders: number;
-  /** Adds one at today's price; the rail never quotes the price paid. */
-  onAdd: (item: OrderAgainItem) => void;
+  /** Adds one at today's price; the rail never quotes the price paid. Absent in
+   *  COMMERCE_MODE=catalogue: the tiles still link to the product page. */
+  onAdd?: (item: OrderAgainItem) => void;
 }
 
 /** `Main`'s "Order again" — the customer's own orders, newest first. */
@@ -105,6 +106,7 @@ export function OrderAgainRail({ items, totalOrders, onAdd }: OrderAgainRailProp
                 Last: {lastOrderedLabel(item)}
               </div>
             </Link>
+            {onAdd && (
             <button
               type="button"
               onClick={() => onAdd(item)}
@@ -113,6 +115,7 @@ export function OrderAgainRail({ items, totalOrders, onAdd }: OrderAgainRailProp
             >
               <Plus className="size-4" aria-hidden />
             </button>
+            )}
           </li>
         ))}
       </ul>

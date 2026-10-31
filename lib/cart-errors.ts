@@ -1,4 +1,5 @@
 import { fail, type ActionResult } from "@/lib/validators";
+import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE } from "@/lib/commerce-mode";
 
 /**
  * Turning a cart service throw into a result the caller can render.
@@ -49,6 +50,10 @@ export function classifyCartError<T>(error: unknown, requestedQty: number): Acti
   const raw = error instanceof Error ? error.message : "";
   const separator = raw.indexOf(":");
   const prefix = separator === -1 ? raw : raw.slice(0, separator);
+
+  /* Catalogue mode refuses every add (lib/services/cart.ts). Its own code, so
+     the app can say why instead of "unavailable". */
+  if (raw === ORDERING_CLOSED) return fail(ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE);
 
   if (!STOCK_CODES.includes(prefix as StockCode)) {
     return fail("NOT_FOUND", "This product is unavailable");

@@ -9,9 +9,12 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import { groupCartByShipment } from "@/lib/cart-shipments";
 import { CartShipmentGroups } from "@/components/mobile/cart/cart-shipment-groups";
 import { CartLoadError } from "@/components/shop/cart-load-error";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ORDERING_CLOSED_MESSAGE } from "@/lib/commerce-mode";
 
 export function MobileCartView() {
   const { summary, loaded, loadFailed, refresh, updateItem, removeItem, pending } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [refreshing, setRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -166,7 +169,8 @@ export function MobileCartView() {
               onRemove={handleItemRemove}
             />
 
-            {/* Delivery serviceability info card */}
+            {/* Delivery serviceability info card — it points at checkout, so not in COMMERCE_MODE=catalogue. */}
+            {orderingOpen && (
             <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs space-y-3">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
                 Delivery Details
@@ -175,6 +179,7 @@ export function MobileCartView() {
                 Vertical Express delivers building materials across Srinagar. Choose your exact delivery address on the next screen.
               </p>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -192,6 +197,10 @@ export function MobileCartView() {
             </span>
           </div>
 
+          {/* COMMERCE_MODE=catalogue: checkout is closed; say so instead of offering it. */}
+          {!orderingOpen ? (
+            <p className="max-w-[55%] text-[11px] font-semibold leading-snug text-ink/70">{ORDERING_CLOSED_MESSAGE}</p>
+          ) : (
           <Link
             href="/checkout"
             onClick={() => triggerHaptic("medium")}
@@ -199,6 +208,7 @@ export function MobileCartView() {
           >
             Checkout <ArrowRight className="ml-1.5 size-4" />
           </Link>
+          )}
         </div>
       )}
     </div>

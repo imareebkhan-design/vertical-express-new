@@ -14,7 +14,8 @@ import { useCart } from "@/hooks/use-cart";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
-import { PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
+import { ENQUIRE_LABEL, PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 const MotionImage = motion(Image);
 
@@ -26,6 +27,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   const { summary, refresh, wishlistIds, setWishlisted, updateItem, removeItem } = useCart();
   const [isPending, startTransition] = useTransition();
   const [, startWishlist] = useTransition();
+  const orderingOpen = useOrderingOpen();
 
   const saved = wishlistIds.has(item.id);
   // Catalog-only cards carry no variant or price and never reach the cart.
@@ -40,7 +42,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!sellable || !item.inStock || isPending) return;
+    if (!sellable || !orderingOpen || !item.inStock || isPending) return;
 
     triggerHaptic("medium");
 
@@ -190,7 +192,12 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
         )}
 
         {/* Button / Quantity Selector */}
-        {!sellable ? null : cartItem && item.inStock ? (
+        {!sellable ? null : !orderingOpen ? (
+          /* COMMERCE_MODE=catalogue: the card is a link to the product page and its enquiry form. */
+          <span className="flex h-8 items-center rounded-xl bg-brand-deep px-3 text-[11px] font-extrabold text-white">
+            {ENQUIRE_LABEL}
+          </span>
+        ) : cartItem && item.inStock ? (
           <div className="flex h-8 items-center bg-brand-deep text-white rounded-xl px-1">
             <button
               type="button"

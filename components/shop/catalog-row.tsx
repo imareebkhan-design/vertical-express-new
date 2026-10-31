@@ -7,7 +7,8 @@ import type { CatalogItem } from "@/lib/services/catalog";
 import { formatPaise, discountPercent } from "@/lib/money";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { AddToCartButton } from "@/components/shop/add-to-cart-button";
-import { PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
+import { ENQUIRE_LABEL, PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 /**
  * Dense one-column row for spec-driven categories — cement, wire, ply, pipe.
@@ -18,6 +19,7 @@ import { PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibil
  * do not use the grid. See lib/catalog-presentation.ts.
  */
 export function CatalogRow({ item }: { item: CatalogItem }) {
+  const orderingOpen = useOrderingOpen();
   /* Catalog-only: no price, unit, stock or cart control — its unit label is a
      schema default, not a confirmed selling unit. */
   const sellable = isPurchasableItem(item) ? item : null;
@@ -90,14 +92,15 @@ export function CatalogRow({ item }: { item: CatalogItem }) {
       </div>
 
       <div className="flex flex-none flex-col items-end justify-between gap-3 self-stretch py-0.5">
-        {sellable ? (
+        {sellable && orderingOpen ? (
           <AddToCartButton variantId={sellable.variantId} title={item.title} disabled={!item.inStock} />
         ) : (
+          /* Catalog-only, or any product in COMMERCE_MODE=catalogue: the product page has the enquiry form. */
           <Link
             href={`/product/${item.slug}`}
             className="rounded-full border border-line px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-wider text-ink hover:bg-canvas"
           >
-            View
+            {sellable ? ENQUIRE_LABEL : "View"}
           </Link>
         )}
       </div>

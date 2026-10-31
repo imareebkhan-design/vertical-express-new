@@ -28,6 +28,7 @@ import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/o
 import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import type { PaymentStateName } from "@/lib/payment-status-copy";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 interface MobileOrderDetailViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,6 +46,7 @@ const TIMELINE_LABEL: Record<string, string> = {
 
 export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailViewProps) {
   const router = useRouter();
+  const orderingOpen = useOrderingOpen();
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -375,8 +377,9 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
 
         {/* Action Controls */}
         <div className="flex flex-col gap-2 pt-2">
-          {/* Payment retry banner */}
-          {isPendingPayment && (
+          {/* Payment retry banner. Not in COMMERCE_MODE=catalogue, where the server
+              refuses a new payment; a payment already made is still checked. */}
+          {isPendingPayment && orderingOpen && (
             <button
               onClick={handleRetryPayment}
               disabled={pending}

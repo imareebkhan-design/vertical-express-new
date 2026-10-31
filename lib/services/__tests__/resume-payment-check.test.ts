@@ -228,3 +228,59 @@ test("the check racing the webhook for the same payment: one confirmation", asyn
     assert.equal(s.payments.length, 1, `run ${i}: same payment, one row`);
   }
 });
+
+/* COMMERCE_MODE=catalogue: no NEW payment is offered, but money that already
+   moved is still handled — the gateway check settles it and so does a signed
+   webhook (lib/commerce-mode.ts). */
+async function inCatalogueMode<T>(fn: () => Promise<T>): Promise<T> {
+  const saved = process.env.COMMERCE_MODE;
+  process.env.COMMERCE_MODE = "catalogue";
+  try {
+    return await fn();
+  } finally {
+    if (saved === undefined) delete process.env.COMMERCE_MODE;
+    else process.env.COMMERCE_MODE = saved;
+  }
+}
+
+test("catalogue mode, nothing paid: no checkout details are offered and the order is left as it was", async () => {
+  const o = await pendingOrder();
+  const d = await inCatalogueMode(async () => body(await get(o.orderNo, async () => null)));
+  assert.equal(d.status, "pending_payment");
+  assert.equal(d.razorpay, null, "no payment may be started in catalogue mode");
+  const s = await state(o.id);
+  assert.equal(s.payments.length, 1);
+  assert.equal(s.payments[0].status, "created");
+});
+
+test("catalogue mode, already paid at Razorpay: the existing payment still settles the order", async () => {
+  const o = await pendingOrder();
+  const p = `pay_${randomUUID().slice(0, 12)}`;
+  const d = await inCatalogueMode(async () => body(await get(o.orderNo, async () => ({ gatewayPaymentId: p, amountPaise: o.amount }))));
+  assert.equal(d.status, "confirmed");
+  assert.equal(d.razorpay, null);
+  const s = await state(o.id);
+  assert.equal(s.payments[0].status, "captured");
+  assert.equal(transitions(s), 1);
+});
+
+test("catalogue mode: a signed payment.captured webhook still confirms the order once", async () => {
+  const o = await pendingOrder();
+  const p = `pay_${randomUUID().slice(0, 12)}`;
+  const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: p, order_id: o.gw, amount: o.amount } } } });
+  const hook = new NextRequest("http://localhost/api/webhooks/razorpay", {
+    method: "POST",
+    headers: {
+      "x-razorpay-signature": createHmac("sha256", WEBHOOK_SECRET).update(raw).digest("hex"),
+      "x-razorpay-event-id": `evt_${randomUUID().slice(0, 10)}`,
+      "content-type": "application/json",
+    },
+    body: raw,
+  });
+  const res = await inCatalogueMode(() => webhook(hook));
+  assert.equal(res.status, 200);
+  const s = await state(o.id);
+  assert.equal(s.status, "confirmed");
+  assert.equal(s.payments[0].status, "captured");
+  assert.equal(transitions(s), 1);
+});

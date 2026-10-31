@@ -3,6 +3,8 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
 import { CartProvider } from "@/hooks/use-cart";
+import { CommerceModeProvider } from "@/components/shop/commerce-mode-provider";
+import { orderingOpen } from "@/lib/commerce-mode";
 import { NativeShellProvider } from "@/components/mobile/native-shell-provider";
 
 // One geometric sans throughout. Headlines mix weights inside a single line:
@@ -88,9 +90,12 @@ export default function RootLayout({
           Skip to main content
         </a>
         <SmoothScrollProvider>
-          <CartProvider>
-            <NativeShellProvider>{children}</NativeShellProvider>
-          </CartProvider>
+          {/* COMMERCE_MODE: purchase controls become "Enquire" in catalogue mode. */}
+          <CommerceModeProvider orderingOpen={orderingOpen()}>
+            <CartProvider>
+              <NativeShellProvider>{children}</NativeShellProvider>
+            </CartProvider>
+          </CommerceModeProvider>
         </SmoothScrollProvider>
 
         {/*

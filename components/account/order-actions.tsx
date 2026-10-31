@@ -12,6 +12,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { CONTACT } from "@/lib/data";
 import type { CancelState } from "@/lib/order-display";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 /** Cancel / reorder / retry controls on the order detail page. */
 export function OrderActions({
@@ -27,6 +28,9 @@ export function OrderActions({
 }) {
   const cancellable = cancelState.kind === "allowed";
   const router = useRouter();
+  /* COMMERCE_MODE=catalogue: no new payment and no reorder (the server refuses
+     both). Cancelling and checking a payment already made still work. */
+  const orderingOpen = useOrderingOpen();
   const { refresh } = useCart();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -157,14 +161,16 @@ export function OrderActions({
         />
       )}
       <div className="flex flex-wrap gap-3">
-        {isPendingPayment && (
+        {isPendingPayment && orderingOpen && (
           <Button onClick={doRetryPayment} disabled={pending} className="bg-brand-deep text-white hover:opacity-90">
             {pending ? <Loader2 className="animate-spin" /> : <CreditCard className="size-4" />} Complete Payment
           </Button>
         )}
+        {orderingOpen && (
         <Button variant="outline" onClick={doReorder} disabled={pending}>
           {pending ? <Loader2 className="animate-spin" /> : <RotateCcw className="size-4" />} Reorder
         </Button>
+        )}
         <Link href={`/account/orders/${orderNo}/invoice`} target="_blank">
           <Button variant="outline">
             <FileText className="size-4" /> View order summary

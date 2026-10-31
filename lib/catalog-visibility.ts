@@ -28,6 +28,20 @@ export function isPurchasableStatus(status: string): boolean {
   return status === PURCHASABLE_PRODUCT_STATUS;
 }
 
+/**
+ * Which action a shown product offers. A product is bought only when it is
+ * purchasable AND the deployment takes orders (COMMERCE_MODE, lib/commerce-mode.ts);
+ * otherwise it takes an enquiry — always for catalog-only, and for every shown
+ * product in catalogue mode. The server applies the same rule
+ * (`enquirableProductWhere`), so the button and the refusal cannot disagree.
+ */
+export function productAction(purchasable: boolean, orderingOpen: boolean): "buy" | "enquire" {
+  return purchasable && orderingOpen ? "buy" : "enquire";
+}
+
+/** The label used wherever a purchase control becomes an enquiry. */
+export const ENQUIRE_LABEL = "Enquire";
+
 /** A card that can be sold: it has a variant and a price. */
 export type PurchasableCatalogItem = CatalogItem & { purchasable: true; variantId: string; pricePaise: number };
 

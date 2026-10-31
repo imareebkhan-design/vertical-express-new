@@ -10,7 +10,8 @@ import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
-import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { ENQUIRE_LABEL, PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 interface ProductCardProps {
   product: Product;
@@ -23,6 +24,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, href, productId, wishlisted = false }: ProductCardProps) {
   const { addItem, wishlistIds, setWishlisted } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [qty, setQty] = useState(1);
   const [imageFailed, setImageFailed] = useState(false);
   const [added, setAdded] = useState(false);
@@ -45,8 +47,12 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
   const hasDiscount = price != null && compareAt != null && compareAt > price;
   const discount = hasDiscount ? Math.round(((compareAt - price) / compareAt) * 100) : 0;
 
+  /* COMMERCE_MODE=catalogue: the price stays, the stepper and Add become a
+     link to the product page's enquiry form. */
+  const enquireOnly = !onRequest && !orderingOpen;
+
   const handleAdd = async () => {
-    if (onRequest) return;
+    if (onRequest || enquireOnly) return;
     const ok = await addItem(product.id, qty, product.title);
     if (ok) {
       setAdded(true);
@@ -138,14 +144,14 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           </p>
         )}
 
-        {onRequest ? (
+        {onRequest || enquireOnly ? (
           <div className="mt-auto pt-4">
             {href && (
               <Link
                 href={href}
                 className="flex h-9 items-center justify-center rounded-full border border-neutral-200 text-xs font-extrabold uppercase tracking-wider text-ink transition-colors hover:bg-surface-soft"
               >
-                View details
+                {enquireOnly ? ENQUIRE_LABEL : "View details"}
               </Link>
             )}
           </div>

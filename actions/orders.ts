@@ -1,6 +1,6 @@
 "use server";
 
-import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
+import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentTermsFor, PAYMENT_PENDING_MESSAGE, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId } from "@/lib/auth/current-user";
@@ -42,7 +42,8 @@ export async function reorder(orderNo: string): Promise<ActionResult<null>> {
     await reorderService(userId, orderNo);
     revalidatePath("/cart");
     return succeed(null);
-  } catch {
+  } catch (e) {
+    if (e instanceof Error && e.message === ORDERING_CLOSED) return fail(ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE);
     return fail("NOT_FOUND", "Order not found");
   }
 }
