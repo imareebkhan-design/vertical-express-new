@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { isPurchasableStatus } from "@/lib/catalog-visibility";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
+import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
 
 const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
@@ -240,6 +241,11 @@ export async function addItem(
   variantId: string,
   qty: number
 ) {
+  /* COMMERCE_MODE=catalogue: nothing can be checked out, so nothing new goes
+     in a cart. The web hides the controls; this answers a cached page or an
+     older app that still shows them. Before the cart is created, so a refused
+     guest gets no cart row. Classified by lib/cart-errors.ts. */
+  if (!orderingOpen()) throw new Error(ORDERING_CLOSED);
   const cart = await getOrCreateCart(userId, anonId);
   if (!cart) throw new Error("No cart context");
 

@@ -5,11 +5,12 @@ import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import Link from "next/link";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import { isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
+import { ENQUIRE_LABEL, isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
 import { useState } from "react";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
   return (
@@ -40,6 +41,7 @@ export function Deals({ items }: { items: CatalogItem[] }) {
 
 function DealCard({ item }: { item: PurchasableCatalogItem }) {
   const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [added, setAdded] = useState(false);
 
   const priceRupees = item.pricePaise / 100;
@@ -83,7 +85,13 @@ function DealCard({ item }: { item: PurchasableCatalogItem }) {
           </div>
         )}
 
-        {/* Plus Action Button */}
+        {/* Plus Action Button. COMMERCE_MODE=catalogue: the tile is already a link
+            to the product page, where the enquiry form is; it says so instead. */}
+        {!orderingOpen ? (
+          <span className="absolute right-2.5 top-2.5 flex h-[34px] items-center rounded-full bg-ink px-3 text-[11px] font-extrabold text-white shadow-card">
+            {ENQUIRE_LABEL}
+          </span>
+        ) : (
         <button
           onClick={handleAdd}
           aria-label={`Add ${item.title} to cart`}
@@ -91,6 +99,7 @@ function DealCard({ item }: { item: PurchasableCatalogItem }) {
         >
           {added ? <Check className="size-4 text-brand" /> : <Plus className="size-4" />}
         </button>
+        )}
       </Link>
 
       <div className="flex flex-1 flex-col p-2">

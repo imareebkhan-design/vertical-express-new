@@ -7,9 +7,10 @@ import Link from "next/link";
 import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
 import { ChevronRight, Plus, Check } from "lucide-react";
 import type { CatalogItem } from "@/lib/services/catalog";
-import { isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
+import { ENQUIRE_LABEL, isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
 import { useCart } from "@/hooks/use-cart";
 import { formatINR } from "@/lib/utils";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 export function OrderedMost({ items }: { items: CatalogItem[] }) {
   /* Evidence-bound, like every other "most ordered" rail in this codebase
@@ -51,6 +52,7 @@ export function OrderedMost({ items }: { items: CatalogItem[] }) {
 
 function OrderedMostCard({ item }: { item: PurchasableCatalogItem }) {
   const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [added, setAdded] = useState(false);
 
   const priceRupees = item.pricePaise / 100;
@@ -131,8 +133,16 @@ function OrderedMostCard({ item }: { item: PurchasableCatalogItem }) {
         </div>
       </div>
 
-      {/* Right: Add to cart button */}
+      {/* Right: Add to cart button — an enquiry link in COMMERCE_MODE=catalogue. */}
       <div className="shrink-0">
+        {!orderingOpen ? (
+          <Link
+            href={`/product/${item.slug}`}
+            className="flex h-10 items-center rounded-full bg-ink px-4 text-[12px] font-extrabold text-white no-underline shadow-card"
+          >
+            {ENQUIRE_LABEL}
+          </Link>
+        ) : (
         <button
           onClick={handleAdd}
           aria-label={`Add ${item.title} to cart`}
@@ -140,6 +150,7 @@ function OrderedMostCard({ item }: { item: PurchasableCatalogItem }) {
         >
           {added ? <Check className="size-4 text-brand" /> : <Plus className="size-4" />}
         </button>
+        )}
       </div>
     </div>
   );

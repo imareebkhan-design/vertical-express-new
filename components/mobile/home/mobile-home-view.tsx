@@ -21,6 +21,7 @@ import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
 import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
 import type { DealProduct } from "@/lib/merchandising/deal";
 import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 /**
  * The phone-web home screen.
@@ -67,6 +68,7 @@ export function MobileHomeView({
 }: MobileHomeViewProps) {
   const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
   /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
   const [facts, setFacts] = useState<MyHomeFacts | null>(null);
   useEffect(() => {
@@ -137,7 +139,7 @@ export function MobileHomeView({
         <OrderAgainRail
           items={facts?.orderAgain ?? []}
           totalOrders={facts?.totalOrders ?? 0}
-          onAdd={(item) => void addItem(item.variantId, 1, item.title)}
+          onAdd={orderingOpen ? (item) => void addItem(item.variantId, 1, item.title) : undefined}
         />
       )}
 

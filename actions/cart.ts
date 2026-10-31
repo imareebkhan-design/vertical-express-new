@@ -13,6 +13,7 @@ import {
 } from "@/lib/services/cart";
 import { cartItemInputSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 import { classifyCartError } from "@/lib/cart-errors";
+import { ORDERING_CLOSED } from "@/lib/commerce-mode";
 import { runWithContext, trackEvent, MetricsTracker, captureException } from "@/lib/observability";
 import { mergeGuestCartSafely, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
 
@@ -85,7 +86,8 @@ export async function addToCart(input: { variantId: string; qty: number }): Prom
       metric.end("add_to_cart_success");
       return succeed(await getCartSummary(userId, anonId));
     } catch (error: unknown) {
-      captureException(error, { input });
+      /* Catalogue mode refusing an add is expected, not a fault to report. */
+      if (!(error instanceof Error && error.message === ORDERING_CLOSED)) captureException(error, { input });
       /* Shared with POST /api/v1/cart/items via lib/cart-errors.ts. Both
          surfaces perform the same operation and must refuse it for the same
          reasons with the same numbers; two copies of this block would agree

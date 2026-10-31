@@ -1,6 +1,6 @@
 import "server-only";
 import { normaliseContactEmail } from "@/lib/contact-email";
-import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
+import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
 import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
@@ -224,7 +224,12 @@ export async function handleGetProduct(request: Request, slug: string): Promise<
        render does not have — it throws "incrementalCache missing". The cached
        variant is for Server Components; this path is an API handler. */
     const boughtWith = await boughtWithProductRaw(slug);
-    return apiOk({ ...product, boughtWith, storageGuidance: storageGuidanceFor(product.categorySlug) });
+    /* Additive, for the app to choose between "Add to cart" and "Enquire":
+       `orderingOpen` is the deployment's COMMERCE_MODE, `enquirable` whether this
+       product takes an enquiry (lib/services/product-enquiries.ts). An app that
+       predates them ignores both and the server still refuses the cart add. */
+    const open = orderingOpen();
+    return apiOk({ ...product, boughtWith, storageGuidance: storageGuidanceFor(product.categorySlug), orderingOpen: open, enquirable: !product.purchasable || !open });
   });
 }
 
@@ -876,6 +881,8 @@ export async function handleGetOrder(
       ...orderDto(order, { detail: true }),
       ...(status.canPay && orderingOpen() ? {} : { razorpay: null }),
       paymentState: status.state,
+      /* Additive: lets the app hide Reorder in catalogue mode (the server refuses it anyway). */
+      orderingOpen: orderingOpen(),
     };
     const tracked = await getShipmentsForOrder(userId, orderNo);
     return apiOk({
@@ -911,6 +918,7 @@ export async function handleReorder(request: Request, orderNo: string, deps: Api
       await reorder(userId, orderNo);
     } catch (e) {
       if (e instanceof Error && e.message === "NOT_FOUND") return apiFail("NOT_FOUND", "Order not found");
+      if (e instanceof Error && e.message === ORDERING_CLOSED) return apiFail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE);
       captureException(e, { route: "reorder" });
       return apiFail("CONFLICT", "Could not add those items to your cart");
     }

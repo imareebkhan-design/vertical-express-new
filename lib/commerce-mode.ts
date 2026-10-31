@@ -43,5 +43,6 @@ export function orderingOpen(): boolean {
 /** The thrown marker; `classifyPlaceOrderError` turns it into ORDERING_CLOSED. */
 export const ORDERING_CLOSED = "ORDERING_CLOSED";
 
+/* Owner wording, 1 Nov 2026. */
 export const ORDERING_CLOSED_MESSAGE =
-  "We're not taking orders online yet. Send us an enquiry from the product page and we'll reply with price and availability.";
+  "Online ordering isn’t available yet. Send an enquiry to confirm pricing, availability and delivery.";
