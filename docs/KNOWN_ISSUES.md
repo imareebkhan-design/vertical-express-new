@@ -4186,13 +4186,18 @@ gave); `withPinnedLocation` keeps the customer's non-empty value. The pincode st
 it). Tests: `address-pin.test.ts` (+2), `address-form-place.test.tsx` (+1, fails on the RC). **Rollback:** revert
 `5165f63`.
 
-## ISS-097 — `v1-category-landing` fails on a reused local test database
+## ISS-097 — `v1-category-landing` counted rows the listing never shows
 
-**Status:** OPEN (test environment), found 31 Oct 2026.
+**Status:** FIXED in the test on branch `claude/category-landing-test` (`f219ff2`, 31 Oct 2026). No product code
+changed.
 
-`category landing: every brand offered actually has products in that category` fails with "BuildPro" 5 ≠ 4 on the
-local `ve_rc_test` database — identically on the untouched RC `fdfbdc8` and on `5165f63`, so it is not caused by a
-code change. The 21 Oct suite passed 1341/1341 on a fresh database. Likely a row left behind by an earlier run that
-the test counts. Also observed: a full suite run grew local disk use by ≈10 GB (Postgres), which filled this Mac's
-disk once. **Next:** recreate the test database before a release run; make the test scope its count to its own
-fixture.
+`category landing: every brand offered actually has products in that category` compared the API's brand count (the
+public listing, `catalogListingWhere` — the approval gate since 9 Oct, `9029275`) with a raw count of every
+`published` row, and chose its category with an unordered `findFirst`. On a reused local database holding a published
+product with no recorded approval it failed ("BuildPro" 5 ≠ 4, identically on the untouched RC `fdfbdc8`); on other
+row orders it passed without checking anything. The test now picks a category that has a listing, creates its own
+published-but-unapproved product (removed afterwards) and asserts the count equals the listing. It fails if the API
+counts raw published rows.
+
+(An earlier note here blamed the test database for ≈10 GB of disk growth. That was wrong: Postgres held 285 MB; the
+growth was the Claude desktop app's VM image under `~/Library/Application Support/Claude/vm_bundles`.)
