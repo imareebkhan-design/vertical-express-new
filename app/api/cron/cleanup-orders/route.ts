@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import crypto from "node:crypto";
 import { cleanupExpiredPendingOrders } from "@/lib/services/orders";
 import { pruneRateLimits } from "@/lib/services/rate-limit";
+import { deliverOrderEmails } from "@/lib/services/order-emails";
 import { runWithContext, MetricsTracker, captureException } from "@/lib/observability";
 
 /**
@@ -65,8 +66,10 @@ export async function GET(request: NextRequest) {
       } catch (err: unknown) {
         captureException(err);
       }
+      let emails = null;
+      try { emails = await deliverOrderEmails(); } catch (err) { captureException(err); }
       metric.end("cleanup_orders_cron_success", { cancelledCount, prunedRateLimits });
-      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits });
+      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits, emails });
     } catch (err: unknown) {
       captureException(err);
       metric.end("cleanup_orders_cron_failed");

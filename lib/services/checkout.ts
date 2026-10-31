@@ -1,4 +1,5 @@
 import "server-only";
+import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
@@ -550,6 +551,10 @@ export async function placeOrder(params: {
         },
       });
 
+      /* An order confirmed at placement (COD, or the dummy gateway) queues its
+         confirmation here, in the order's own transaction (audit F2). */
+      if (created.status === "confirmed") await enqueueOrderConfirmation(tx, created.id);
+
       /* Spend the coupon inside the same transaction as the order.
        *
        * resolveCoupon() decided this coupon was usable, but that check and this
@@ -782,6 +787,20 @@ export async function settleCapturedPayment(params: {
   };
 
   const outcome = await db.$transaction(async (tx): Promise<SettleOutcome> => {
+    /* Lock the order (NO KEY UPDATE still lets a refund row's foreign-key check
+       on it through), then the payment, in that order — the same order as the
+       refund writers — so a capture replay and a refund completing cannot
+       interleave. A refund is final: the capture evidence that preceded it,
+       replayed by the client or redelivered by Razorpay under a new event id,
+       must not put the payment back to `captured` (audit F1). A *different*
+       capture falls through and is recorded below. */
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId}::uuid FOR NO KEY UPDATE`;
+    await tx.$queryRaw`SELECT id FROM payments WHERE id = ${paymentId}::uuid FOR UPDATE`;
+    const prior = await tx.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { status: true, gatewayPaymentId: true } });
+    if (prior.status === "refunded" && (!gatewayPaymentId || prior.gatewayPaymentId === gatewayPaymentId)) {
+      const order = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
+      return isDeadOrder(order.status) ? "late_already_recorded" : "already_confirmed";
+    }
     const moved = await tx.order.updateMany({
       where: { id: orderId, status: "pending_payment" },
       data: { status: "confirmed" },
@@ -796,13 +815,17 @@ export async function settleCapturedPayment(params: {
           note: note ?? (source === "webhook" ? "Razorpay webhook: payment captured" : "Payment verified"),
         },
       });
+      /* The one pending→confirmed transition, whichever of callback, webhook or
+         gateway check gets here first; the queue row is unique per order. */
+      await enqueueOrderConfirmation(tx, orderId);
       return "confirmed";
     }
 
     const current = await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } });
-    /* First writer wins: a payment already `captured` keeps its payment id. */
+    /* First writer wins: a payment already `captured` keeps its payment id;
+       a `refunded` one stays refunded. */
     const first = await tx.payment.updateMany({
-      where: { id: paymentId, status: { not: "captured" } },
+      where: { id: paymentId, status: { notIn: ["captured", "refunded"] } },
       data: captured,
     });
 
@@ -818,9 +841,9 @@ export async function settleCapturedPayment(params: {
         select: { gateway: true, gatewayPaymentId: true },
       });
       if (existing.gatewayPaymentId && existing.gatewayPaymentId !== gatewayPaymentId) {
-        await tx.$queryRaw`SELECT id FROM orders WHERE id = ${orderId}::uuid FOR UPDATE`;
+        /* Already recorded, and possibly refunded since: the same money, not new money. */
         const known = await tx.payment.findFirst({
-          where: { orderId, gatewayPaymentId, status: "captured" },
+          where: { orderId, gatewayPaymentId, status: { in: ["captured", "refunded"] } },
           select: { id: true },
         });
         if (known) return isDeadOrder(current.status) ? "late_already_recorded" : "already_confirmed";
