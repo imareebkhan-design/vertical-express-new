@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { handleGetCategory } from "@/lib/api/v1";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 
 /**
  * The category landing — the `Subcategory` artboard's two evidence-bound lists.
@@ -39,18 +40,49 @@ test("category landing: returns the category with its brands and most-ordered li
 
 test("category landing: every brand offered actually has products in that category", async () => {
   /* THE CASE THAT MATTERS. A brand chip that leads nowhere tells the customer
-     we stock a brand and then shows them nothing. */
+     we stock a brand and then shows them nothing.
+
+     "What it leads to" is the public listing (`catalogListingWhere`, the approval
+     gate since 9 Oct), not every row marked published: a published product with
+     no recorded approval is never listed, and counting it made this test depend
+     on which unordered row Postgres returned first (ISS-097). The category is one
+     that has a listing, so the loop below has something to check. */
   const category = await db.category.findFirstOrThrow({
-    where: { isActive: true, products: { some: { status: "published" } } },
+    where: { isActive: true, products: { some: { AND: [catalogListingWhere()] } } },
+    orderBy: { slug: "asc" },
     select: { slug: true },
   });
 
-  const res = await json(await handleGetCategory(req("/x"), category.slug));
+  /* A published product of an offered brand with no recorded approval: it is in
+     the table but never in the listing, so it must not be counted. Synthetic,
+     removed afterwards. */
+  const offered = await db.brand.findFirstOrThrow({
+    where: { isActive: true, products: { some: { AND: [catalogListingWhere()], category: { slug: category.slug } } } },
+    orderBy: { slug: "asc" },
+    select: { id: true },
+  });
+  const categoryRow = await db.category.findUniqueOrThrow({ where: { slug: category.slug }, select: { id: true } });
+  const unlisted = await db.product.create({
+    data: {
+      slug: `iss097-unlisted-${Date.now()}`,
+      title: "ISS-097 published but never approved (test fixture)",
+      status: "published",
+      brandId: offered.id,
+      categoryId: categoryRow.id,
+    },
+  });
+  let res;
+  try {
+    res = await json(await handleGetCategory(req("/x"), category.slug));
+  } finally {
+    await db.product.delete({ where: { id: unlisted.id } });
+  }
+  assert.ok(res.body.data.brands.length > 0, "a category with a listing offers at least one brand");
 
   for (const brand of res.body.data.brands) {
     assert.ok(brand.productCount > 0, `"${brand.name}" is offered with nothing behind it`);
     const real = await db.product.count({
-      where: { status: "published", brand: { slug: brand.slug }, category: { slug: category.slug } },
+      where: { AND: [catalogListingWhere()], brand: { slug: brand.slug }, category: { slug: category.slug } },
     });
     assert.equal(real, brand.productCount, `the count shown for "${brand.name}" is not what it leads to`);
   }
