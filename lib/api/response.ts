@@ -53,6 +53,9 @@ export const STATUS_FOR_CODE: Record<ActionErrorCode, number> = {
   /* 503: a dependency we do not control (the geocoder) could not answer. The
      request may succeed unchanged later, and the caller has a manual path. */
   UNAVAILABLE: 503,
+  /* 403, not 503: ordering is closed on purpose (COMMERCE_MODE=catalogue), so
+     retrying later will not help; the screen offers an enquiry instead. */
+  ORDERING_CLOSED: 403,
 };
 
 /** A successful response. 200 unless the caller says otherwise. */

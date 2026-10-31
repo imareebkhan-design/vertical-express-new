@@ -1,5 +1,6 @@
 import "server-only";
 import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
+import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
@@ -339,6 +340,8 @@ export async function placeOrder(params: {
    */
   expectedTotalPaise?: number;
 }): Promise<PlaceOrderResult> {
+  /* COMMERCE_MODE=catalogue: no order from any surface (lib/commerce-mode.ts). */
+  if (!orderingOpen()) throw new Error(ORDERING_CLOSED);
   const metric = new MetricsTracker("checkout-service");
   const { userId, addressId, paymentMethod, notes, idempotencyKey, couponCode, contactEmail, wantsExpress, expectedTotalPaise } =
     params;
