@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { decodePolyline, distanceToPathM, haversineM, validLatLng } from "@/lib/tracking/geo";
 import {
   TRACKING_CONFIG,
+  ageText,
   checkPing,
   etaMinutes,
   isStale,
@@ -248,4 +249,16 @@ test("a long silence is said plainly, not as 'updating' (393 minutes on staging,
   assert.equal(v.state, "updating_location");
   assert.equal(v.headline, "Rider's location hasn't updated recently");
   assert.equal(v.minutes, null);
+});
+
+test("last-updated age reads in the largest sensible unit, never thousands of minutes", () => {
+  assert.equal(ageText(null), "—");
+  assert.equal(ageText(12), "12s ago");
+  assert.equal(ageText(3 * 60 + 12), "3 min ago");
+  assert.equal(ageText(59 * 60 + 59), "59 min ago");
+  assert.equal(ageText(60 * 60), "1 h ago");
+  assert.equal(ageText(5 * 3600 + 59 * 60), "5 h ago");
+  assert.equal(ageText(24 * 3600), "1 day ago");
+  /* The 17 Oct staging shipment, seen on 31 Oct: was "19752 min ago". */
+  assert.equal(ageText(19752 * 60), "13 days ago");
 });
