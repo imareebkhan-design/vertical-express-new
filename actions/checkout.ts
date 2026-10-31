@@ -13,51 +13,9 @@ import {
 } from "@/lib/services/checkout";
 import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
 import { classifyPlaceOrderError } from "@/lib/checkout-errors";
-import { getOrderByNo } from "@/lib/services/orders";
-import { sendOrderConfirmationEmail } from "@/lib/services/email";
+import { normaliseContactEmail } from "@/lib/contact-email";
 import { gatePlaceOrderReplay, type PaymentState } from "@/lib/services/payment-status";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
-
-/**
- * A contact address, or null when there is nothing usable.
- *
- * Deliberately conservative rather than clever: no attempt to correct a typo,
- * because guessing that "gmial" meant "gmail" sends somebody's receipt to a
- * stranger. Blank is not an error — the field is optional.
- */
-function normaliseContactEmail(raw: string | null | undefined): string | null {
-  if (typeof raw !== "string") return null;
-  const value = raw.trim().toLowerCase();
-  if (value === "" || value.length > 254) return null;
-  return /^[^@\s]+@[^@\s.]+(\.[^@\s.]+)+$/.test(value) ? value : null;
-}
-
-/**
- * Fire the order-confirmation email for a freshly-confirmed order (P1-1).
- *
- * The account's email is the fallback, not the source. A phone sign-in carries
- * none — and phone is this market's default identity — so the address the
- * customer typed at checkout is read first. It lives on the order, and it is
- * the only thing that reaches somebody who signed in with a phone number.
- */
-async function emailOrderConfirmation(userId: string, orderNo: string, accountEmail: string | null) {
-  const order = await getOrderByNo(userId, orderNo);
-  if (!order || order.status === "pending_payment") return;
-  const addr = order.address as { name?: string; email?: string | null } | null;
-  const toEmail = addr?.email ?? accountEmail;
-  if (!toEmail) return;
-  await sendOrderConfirmationEmail(toEmail, {
-    orderNo: order.orderNo,
-    paymentMethod: order.paymentMethod,
-    items: order.items.map((i) => ({ title: i.title, qty: i.qty, lineTotalPaise: i.lineTotalPaise })),
-    subtotalPaise: order.subtotalPaise,
-    taxPaise: order.taxPaise,
-    deliveryFeePaise: order.deliveryFeePaise,
-    totalPaise: order.totalPaise,
-    etaMinutes: order.etaMinutes,
-    customerName: addr?.name ?? null,
-  });
-}
 
 /** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability, optional coupon). */
 export async function getCheckoutTotals(
@@ -124,7 +82,6 @@ export async function placeOrder(input: {
   const user = await getAuthUser();
   if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const userId = user.id;
-  const userEmail = user.email;
 
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
@@ -155,11 +112,6 @@ export async function placeOrder(input: {
     revalidatePath("/cart");
     revalidatePath("/account/orders");
 
-    // P1-1: order-confirmation email for immediately-confirmed orders (COD/dummy).
-    // Pending-payment (Razorpay) orders are emailed after payment is verified.
-    if (!result.requiresPaymentConfirmation && !result.replayed) {
-      await emailOrderConfirmation(userId, result.orderNo, userEmail);
-    }
     return succeed({
       orderNo: result.orderNo,
       /* Set on a replay: "pending" means a payment may already be on its way —
@@ -201,6 +153,5 @@ export async function confirmRazorpayPayment(input: {
     signature: input.signature,
   });
   if (!res.ok) return fail("PAYMENT_FAILED", "Payment could not be verified");
-  await emailOrderConfirmation(userId, input.orderNo, user.email);
   return succeed({ orderNo: input.orderNo });
 }
