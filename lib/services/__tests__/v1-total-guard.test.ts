@@ -5,6 +5,7 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { addItem, updateItemQty } from "@/lib/services/cart";
 import { handleCheckoutTotals, handlePlaceOrder } from "@/lib/api/v1";
+import { placeOrder } from "@/lib/services/checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
 const SUITE_START = new Date();
@@ -203,4 +204,26 @@ test("native placement: a malformed total is a validation failure, not a pass", 
     assert.equal(res.body.error.code, "VALIDATION");
   }
   assert.equal(await orderCount(), before);
+});
+
+/* COMMERCE_MODE=catalogue (owner decision, 31 Oct 2026): a crafted app request
+   cannot place an order, online or COD, and nothing is written or reserved. */
+test("catalogue mode: native placement is refused with ORDERING_CLOSED and nothing is written", async () => {
+  await addItem(userId, null, variantId, 1);
+  const before = { orders: await orderCount(), stock: await onHand() };
+  const saved = process.env.COMMERCE_MODE;
+  process.env.COMMERCE_MODE = "catalogue";
+  try {
+    for (const paymentMethod of ["cod", "online"] as const) {
+      const res = await json(await handlePlaceOrder(req({ addressId, paymentMethod, idempotencyKey: `idem-${randomUUID()}` }), { verify }));
+      assert.equal(res.status, 403, JSON.stringify(res.body));
+      assert.equal(res.body.error.code, "ORDERING_CLOSED");
+    }
+    /* The service itself refuses too — the web action and any future caller go through it. */
+    await assert.rejects(placeOrder({ userId, addressId, paymentMethod: "cod", idempotencyKey: `idem-${randomUUID()}` }), /ORDERING_CLOSED/);
+  } finally {
+    if (saved === undefined) delete process.env.COMMERCE_MODE;
+    else process.env.COMMERCE_MODE = saved;
+  }
+  assert.deepEqual({ orders: await orderCount(), stock: await onHand() }, before);
 });

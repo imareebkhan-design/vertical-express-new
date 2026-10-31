@@ -2,6 +2,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   activeGateway,
+  assertBootConfig,
   assertPaymentConfig,
   getPaymentProvider,
   PaymentConfigError,
@@ -20,6 +21,7 @@ const ENV_KEYS = [
   "DATABASE_URL",
   "ALLOW_TEST_GATEWAY",
   "NEXT_PUBLIC_RAZORPAY_KEY_ID",
+  "COMMERCE_MODE",
 ] as const;
 
 type MutableEnv = Record<string, string | undefined>;
@@ -41,6 +43,7 @@ beforeEach(() => {
   setEnv("RAZORPAY_KEY_SECRET", undefined);
   setEnv("RAZORPAY_WEBHOOK_SECRET", undefined);
   setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", undefined);
+  setEnv("COMMERCE_MODE", undefined);
 });
 
 afterEach(() => {
@@ -210,4 +213,50 @@ test("live mode with live key ids (browser id equal or unset) starts", () => {
   assert.doesNotThrow(() => assertPaymentConfig());
   setEnv("NEXT_PUBLIC_RAZORPAY_KEY_ID", "rzp_live_abc123");
   assert.doesNotThrow(() => assertPaymentConfig());
+});
+
+/* ------------------------------------------------- commerce mode at boot */
+
+test("boot: transactional (the default) is exactly assertPaymentConfig — production without a gateway still refuses", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", undefined);
+  assert.throws(() => assertBootConfig(), PaymentConfigError);
+});
+
+test("boot: catalogue mode in production needs no gateway", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("COMMERCE_MODE", "catalogue");
+  setEnv("PAYMENT_GATEWAY", undefined);
+  assert.doesNotThrow(() => assertBootConfig());
+});
+
+test("boot: catalogue mode does not excuse a bad gateway — dummy, unauthorised TEST and live-on-test-key are still refused", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("COMMERCE_MODE", "catalogue");
+  setEnv("PAYMENT_GATEWAY", "dummy");
+  assert.throws(() => assertBootConfig(), PaymentConfigError);
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_x");
+  setEnv("RAZORPAY_KEY_SECRET", "s");
+  setEnv("ALLOW_TEST_GATEWAY", undefined);
+  assert.throws(() => assertBootConfig(), PaymentConfigError);
+  setEnv("PAYMENT_GATEWAY", "razorpay-live");
+  setEnv("RAZORPAY_WEBHOOK_SECRET", "w");
+  assert.throws(() => assertBootConfig(), PaymentConfigError);
+});
+
+test("boot: catalogue mode with a valid live gateway (to settle and refund what was paid before) boots", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("COMMERCE_MODE", "catalogue");
+  setEnv("PAYMENT_GATEWAY", "razorpay-live");
+  setEnv("RAZORPAY_KEY_ID", "rzp_live_x");
+  setEnv("RAZORPAY_KEY_SECRET", "s");
+  setEnv("RAZORPAY_WEBHOOK_SECRET", "w");
+  assert.doesNotThrow(() => assertBootConfig());
+});
+
+test("boot: an unknown COMMERCE_MODE refuses to boot", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("COMMERCE_MODE", "catalog");
+  assert.throws(() => assertBootConfig(), /Invalid COMMERCE_MODE/);
 });

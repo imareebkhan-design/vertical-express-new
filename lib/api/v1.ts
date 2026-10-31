@@ -1,4 +1,5 @@
 import "server-only";
+import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
 import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
@@ -681,6 +682,7 @@ export async function handlePlaceOrder(request: Request, deps: ApiDeps = {}): Pr
   return withApiUser(request, "co-place", deps, async ({ userId }) => {
     const body = placeSchema.safeParse(await readJson(request));
     if (!body.success) return apiFail("VALIDATION", "Invalid order", { field: body.error.issues[0]?.path[0]?.toString() });
+    if (!orderingOpen()) return apiFail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE, { metadata: { orderingClosed: true } });
 
     try {
       const method: PaymentMethodId = body.data.paymentMethod === "cod" ? "cod" : activeGateway();
@@ -733,7 +735,7 @@ export async function handleFindOrderByKey(request: Request, deps: ApiDeps = {})
        order detail: checkout details only when nothing was paid or is in flight. */
     const status = await paymentStatusFor(order);
     const fresh = status.orderStatus !== order.status ? ((await getOrderByIdempotencyKey(userId, key.data)) ?? order) : order;
-    return apiOk({ ...orderDto(fresh, { detail: true }), ...(status.canPay ? {} : { razorpay: null }), paymentState: status.state });
+    return apiOk({ ...orderDto(fresh, { detail: true }), ...(status.canPay && orderingOpen() ? {} : { razorpay: null }), paymentState: status.state });
   });
 }
 
@@ -869,7 +871,7 @@ export async function handleGetOrder(
     if (status.orderStatus !== order.status) order = (await getOrderByNo(userId, orderNo)) ?? order;
     const dto = {
       ...orderDto(order, { detail: true }),
-      ...(status.canPay ? {} : { razorpay: null }),
+      ...(status.canPay && orderingOpen() ? {} : { razorpay: null }),
       paymentState: status.state,
     };
     const tracked = await getShipmentsForOrder(userId, orderNo);

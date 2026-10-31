@@ -1,5 +1,6 @@
 "use server";
 
+import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentTermsFor, PAYMENT_PENDING_MESSAGE, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId } from "@/lib/auth/current-user";
@@ -58,6 +59,9 @@ export async function retryOrderPayment(orderNo: string): Promise<ActionResult<{
   if (order.status !== "pending_payment") {
     return fail("CONFLICT", "This order is not awaiting payment");
   }
+  /* Catalogue mode: no new payment attempt. A payment already made is still
+     settled by the webhook and "Check payment status"; the unpaid order expires. */
+  if (!orderingOpen()) return fail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE, undefined, { orderingClosed: true });
 
   /* E5 + payment safety (10 Oct): ask Razorpay before offering Checkout again.
      Checkout is offered only when the server can establish that nothing was
