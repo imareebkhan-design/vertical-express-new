@@ -244,6 +244,8 @@ test("native placement without any email still places the order; the confirmatio
   const order = await db.order.findFirstOrThrow({ where: { orderNo: res.body.data.orderNo }, include: { orderEmail: true, user: true } });
   if (order.user.email) assert.equal(order.orderEmail?.recipient, order.user.email);
   else assert.deepEqual([order.orderEmail?.state, order.orderEmail?.recipient], ["skipped", null]);
+});
+
 /* COMMERCE_MODE=catalogue (owner decision, 31 Oct 2026): a crafted app request
    cannot place an order, online or COD, and nothing is written or reserved. */
 test("catalogue mode: native placement is refused with ORDERING_CLOSED and nothing is written", async () => {
