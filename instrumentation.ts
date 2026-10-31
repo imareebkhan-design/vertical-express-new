@@ -25,8 +25,10 @@ export async function register(): Promise<void> {
 
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
 
-  const { assertPaymentConfig } = await import("@/lib/services/payments");
-  assertPaymentConfig();
+  /* COMMERCE_MODE=catalogue boots without a gateway; transactional is checked
+     exactly as before (lib/commerce-mode.ts). */
+  const { assertBootConfig } = await import("@/lib/services/payments");
+  assertBootConfig();
 }
 
 /**

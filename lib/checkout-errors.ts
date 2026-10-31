@@ -1,3 +1,4 @@
+import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE } from "@/lib/commerce-mode";
 import { fail, type ActionResult } from "@/lib/validators";
 import { couponNoLongerAppliesMessage, isCouponRefusal } from "@/lib/coupon-refusal";
 
@@ -17,6 +18,9 @@ export const isTotalChangedError = (error: { metadata?: unknown }) =>
 
 export function classifyPlaceOrderError<T>(e: unknown): ActionResult<T> {
   const msg = e instanceof Error ? e.message : "Could not place order";
+  if (msg === ORDERING_CLOSED) {
+    return fail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE, undefined, { orderingClosed: true });
+  }
   if (msg.startsWith("OUT_OF_STOCK:")) {
     return fail("OUT_OF_STOCK", `${msg.split(":")[1]} is out of stock`);
   }

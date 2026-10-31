@@ -1,5 +1,6 @@
 import "server-only";
 import crypto from "crypto";
+import { commerceMode } from "@/lib/commerce-mode";
 
 /**
  * Payment provider abstraction. The dummy provider simulates a gateway so the
@@ -548,6 +549,21 @@ export function assertPaymentConfig(): void {
   } else {
     console.info(`[payments] payment gateway active: ${gateway}`);
   }
+}
+
+/**
+ * Boot-time configuration check for the deployment's commerce mode
+ * (lib/commerce-mode.ts). Transactional: exactly `assertPaymentConfig`, as
+ * before. Catalogue: no gateway is needed because nothing can be paid; a gateway
+ * that IS configured (to settle or refund what was paid before the switch) must
+ * still pass every production check. An unknown mode throws.
+ */
+export function assertBootConfig(): void {
+  const mode = commerceMode();
+  if (mode === "transactional") return assertPaymentConfig();
+  if (!process.env.DATABASE_URL) throw new PaymentConfigError("DATABASE_URL environment variable is missing.");
+  if (process.env.PAYMENT_GATEWAY) assertPaymentConfig();
+  console.info("[commerce] catalogue mode — orders and payment starts are refused; enquiries are open.");
 }
 
 /** Verify the signature Razorpay returns to the browser after Checkout.

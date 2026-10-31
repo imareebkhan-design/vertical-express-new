@@ -1,5 +1,6 @@
 "use server";
 
+import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentTermsFor } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
@@ -82,6 +83,7 @@ export async function placeOrder(input: {
   const user = await getAuthUser();
   if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const userId = user.id;
+  if (!orderingOpen()) return fail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE, undefined, { orderingClosed: true });
 
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
