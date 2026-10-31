@@ -74,11 +74,6 @@ const BANNED: { pattern: RegExp; why: string }[] = [
    here rather than skipped so the scan fails the day the file changes shape. */
 const KNOWN: { file: string; match: string; tracked: string }[] = [
   {
-    file: "app/(account)/account/orders/[orderNo]/invoice/page.tsx",
-    match: "GST ({gst.ratePct",
-    tracked: "docs/WEB_APP_AUDIT.md — invoice rate labels, P2 (needs a per-rate tax breakdown)",
-  },
-  {
     file: "components/mobile/home/mobile-header.tsx",
     match: 'pincode = "190001"',
     tracked: "docs/WEB_APP_AUDIT.md — Batch 2: MobileHeader has no importers (dead code), P3",
