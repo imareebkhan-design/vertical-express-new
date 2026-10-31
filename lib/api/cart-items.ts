@@ -6,6 +6,7 @@ import { classifyCartError } from "@/lib/cart-errors";
 import { resolveApiIdentity, type TokenVerifier } from "@/lib/auth/api-identity";
 import { rateLimit, getClientIp } from "@/lib/services/rate-limit";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
+import { ORDERING_CLOSED } from "@/lib/commerce-mode";
 import { withShipments } from "@/lib/api/cart-shipments";
 import { runWithContext, trackEvent, MetricsTracker, captureException } from "@/lib/observability";
 
@@ -106,7 +107,8 @@ export async function handleAddCartItem(
     try {
       await addItem(userId, null, variantId, qty);
     } catch (error: unknown) {
-      captureException(error, { variantId, qty });
+      /* Catalogue mode refusing an add is expected, not a fault to report. */
+      if (!(error instanceof Error && error.message === ORDERING_CLOSED)) captureException(error, { variantId, qty });
       /* Shared with `addToCart`. A stock refusal keeps its code and its
          numbers; anything else becomes NOT_FOUND. */
       return apiResult(classifyCartError(error, qty));

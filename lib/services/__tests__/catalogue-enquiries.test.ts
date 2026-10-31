@@ -135,3 +135,16 @@ test("GET /api/v1/products/:slug tells the app which action to offer; hidden pro
   assert.equal((await read(`catenq-${tag}-pubHidden`)).status, 404);
   assert.equal((await read(`catenq-${tag}-draft`)).status, 404);
 });
+
+test("every cart response tells the app whether checkout is open (additive field)", async () => {
+  const { withShipments } = await import("@/lib/api/cart-shipments");
+  const empty = { cartId: null, lines: [], count: 0, subtotalPaise: 0, freeDeliveryThresholdPaise: 0, freeDeliveryRemainingPaise: 0, qualifiesFreeDelivery: false };
+  setMode("catalogue");
+  assert.equal(withShipments(empty).orderingOpen, false);
+  setMode("transactional");
+  assert.equal(withShipments(empty).orderingOpen, true);
+});
+
+test("the closed-ordering message is the owner's wording (1 Nov 2026)", () => {
+  assert.equal(ORDERING_CLOSED_MESSAGE, "Online ordering isn’t available yet. Send an enquiry to confirm pricing, availability and delivery.");
+});

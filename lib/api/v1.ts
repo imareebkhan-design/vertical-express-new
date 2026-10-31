@@ -881,6 +881,8 @@ export async function handleGetOrder(
       ...orderDto(order, { detail: true }),
       ...(status.canPay && orderingOpen() ? {} : { razorpay: null }),
       paymentState: status.state,
+      /* Additive: lets the app hide Reorder in catalogue mode (the server refuses it anyway). */
+      orderingOpen: orderingOpen(),
     };
     const tracked = await getShipmentsForOrder(userId, orderNo);
     return apiOk({
