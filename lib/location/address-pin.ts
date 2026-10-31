@@ -117,3 +117,10 @@ export function pinPincodeCheck(snapshot: Record<string, unknown> | null | undef
   if (typeof s.pinPincode !== "string" || !s.pinPincode) return { kind: "unchecked" };
   return s.pinPincode === s.pincode ? { kind: "match" } : { kind: "mismatch", pinPincode: s.pinPincode };
 }
+
+/**
+ * Said beside the State field. For a pincode we deliver to, the saved state is
+ * the pincode's (lib/services/addresses.ts `stateFor`), whatever was typed; the
+ * city is always the customer's (audit F4).
+ */
+export const STATE_FROM_PINCODE_NOTE = "For pincodes we deliver to, the state is set by the pincode. Your city is saved as you enter it.";
