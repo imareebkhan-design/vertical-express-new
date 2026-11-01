@@ -80,9 +80,16 @@ export type ApplyResult =
 class StaleWrite extends Error {}
 
 function finish(rows: PlannedRow[], parseIssues: UpdateIssue[]): UpdatePlan {
+  /* One entry per line, so the counts are rows: a row with four problems is
+     one row to fix, and its message lists all four. */
+  const byLine = new Map<number, UpdateIssue[]>();
+  for (const i of parseIssues) byLine.set(i.line, [...(byLine.get(i.line) ?? []), i]);
   const all = [
     ...rows,
-    ...parseIssues.map((i) => ({ line: i.line, action: "invalid" as const, scope: i.column ?? "", sku: "", changes: [], message: i.message })),
+    ...[...byLine].map(([line, list]) => ({
+      line, action: "invalid" as const, scope: "", sku: "", changes: [],
+      message: list.map((i) => (i.column && i.column !== "row" ? `${i.column}: ${i.message}` : i.message)).join(" · "),
+    })),
   ].sort((a, b) => a.line - b.line);
   const counts: Record<RowAction, number> = { create: 0, update: 0, unchanged: 0, invalid: 0, conflict: 0 };
   for (const r of all) counts[r.action]++;
