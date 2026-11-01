@@ -19,6 +19,7 @@ import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import { ChevronRight, MapPin } from "lucide-react";
 import Link from "next/link";
 import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
+import { DeliveryCodeCard, type DeliveryCodeShipment } from "@/components/orders/delivery-code-card";
 
 // Mobile Components
 import { MobileOrderDetailView } from "@/components/mobile/account/mobile-order-detail-view";
@@ -34,7 +35,7 @@ const TIMELINE_LABEL: Record<string, string> = {
 interface OrderDetailSwitcherProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
-  shipments: ({ speedClass: string } & DeliverySelectionShipment)[];
+  shipments: ({ speedClass: string } & DeliverySelectionShipment & Partial<DeliveryCodeShipment>)[];
 }
 
 export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherProps) {
@@ -102,6 +103,10 @@ export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherPro
             {eta && <p className="mt-4 text-center text-sm font-bold text-success">{eta}</p>}
           </div>
         )}
+
+        <div className="mb-8 empty:hidden">
+          <DeliveryCodeCard orderNo={order.orderNo} shipments={shipments.map((s) => ({ sequence: s.sequence, deliveryCode: s.deliveryCode ?? null }))} />
+        </div>
 
         {isLatePaid(order) ? (
           <div role="status" className="mb-8 rounded-card border border-brand/40 bg-brand/15 p-4 text-sm font-bold text-ink">

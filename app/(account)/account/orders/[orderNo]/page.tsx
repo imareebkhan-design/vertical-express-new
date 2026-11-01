@@ -25,7 +25,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ or
   /* Vehicle class controls the existing ETA; the saved express marker identifies
      the selected upgrade independently of that historical class name. */
   const shipments = (withShipments?.shipments ?? []).map((s) => ({
-    speedClass: s.speedClass, sequence: s.sequence, expressRun: s.expressRun,
+    speedClass: s.speedClass, sequence: s.sequence, expressRun: s.expressRun, deliveryCode: s.deliveryCode,
   }));
   /* `OrderItem.gstRate` is a Prisma Decimal, which cannot cross into a client
      component — see `withPlainGstRate`. */
