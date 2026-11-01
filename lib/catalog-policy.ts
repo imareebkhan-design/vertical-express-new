@@ -1,6 +1,7 @@
 import type { Prisma } from "@/prisma/generated/client/client";
 import { QA_FIXTURE_PREFIX } from "@/lib/catalog/qa-fixture-ids";
 import { strictCatalogue } from "@/lib/deploy-env";
+import { orderingOpen } from "@/lib/commerce-mode";
 
 /**
  * Licence codes that record attested reuse rights for a product photo.
@@ -46,8 +47,21 @@ export function catalogIdentityWhere(): Prisma.ProductWhereInput {
   };
 }
 
+/**
+ * Which statuses the storefront shows, by how this deployment trades.
+ *
+ * Transactional (the agreed launch: browse, see a price, order, pay): only
+ * `published`. A catalogue-only product is incomplete — no confirmed price,
+ * stock or variant — and stays out of the shop rather than being shown with
+ * an enquiry button in place of a price. Catalogue mode shows both, because
+ * there nothing is bought and every product takes an enquiry.
+ */
+export function shownProductStatuses(): ("published" | "catalog_only")[] {
+  return orderingOpen() ? ["published"] : ["catalog_only", "published"];
+}
+
 export function publicProductWhere(): Prisma.ProductWhereInput {
-  const base: Prisma.ProductWhereInput = { ...catalogIdentityWhere(), status: { in: ["catalog_only", "published"] } };
+  const base: Prisma.ProductWhereInput = { ...catalogIdentityWhere(), status: { in: shownProductStatuses() } };
   /* The staging QA fixture can never be shown or sold where real money moves,
      even if a staging copy reached that database. */
   return strictCatalogue() ? { ...base, NOT: { slug: { startsWith: QA_FIXTURE_PREFIX } } } : base;
@@ -68,5 +82,6 @@ export function catalogListingWhere(minPaise?: number, maxPaise?: number): Prism
       { inventory: { none: { warehouse: { isActive: true } } } },
     ] } },
   };
-  return { AND: [publicProductWhere(), priced ? sellable : { OR: [sellable, { status: "catalog_only" }] }] };
+  const withCatalogueOnly = !priced && shownProductStatuses().includes("catalog_only");
+  return { AND: [publicProductWhere(), withCatalogueOnly ? { OR: [sellable, { status: "catalog_only" }] } : sellable] };
 }

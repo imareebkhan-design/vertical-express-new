@@ -1,9 +1,19 @@
-import { test, after } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { listProducts } from "../catalog";
 import { getSuggestions } from "../search";
 import { approveSyntheticProductForSale } from "../../../test-support/catalogue-fixtures";
+
+/* Catalogue-only visibility exists only in catalogue mode; a transactional shop
+   shows only purchasable products (lib/catalog-policy.ts, shownProductStatuses). */
+const savedCommerceMode = process.env.COMMERCE_MODE;
+before(() => { process.env.COMMERCE_MODE = "catalogue"; });
+after(() => {
+  if (savedCommerceMode === undefined) delete process.env.COMMERCE_MODE;
+  else process.env.COMMERCE_MODE = savedCommerceMode;
+});
+
 
 const suffix = `${Date.now()}-${process.pid}`;
 const productIds: string[] = [];

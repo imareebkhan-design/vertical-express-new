@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import type { Prisma, ProductEnquiryStatus } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
-import { catalogListingWhere, publicProductWhere } from "@/lib/catalog-policy";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 import { orderingOpen } from "@/lib/commerce-mode";
 
 /**
@@ -31,7 +31,10 @@ import { orderingOpen } from "@/lib/commerce-mode";
  *  storefront hides. Fails closed with `orderingOpen`: an unknown mode is catalogue. */
 export function enquirableProductWhere(): Prisma.ProductWhereInput {
   if (!orderingOpen()) return catalogListingWhere();
-  return { AND: [publicProductWhere(), { status: "catalog_only" }] };
+  /* Transactional: no product takes an enquiry. Products are bought, and an
+     incomplete one is not shown at all (`shownProductStatuses`). Enquiries
+     already received stay in Operations › Enquiries. */
+  return { id: { in: [] } };
 }
 
 /** A double tap or a resubmitted form within this window returns the first enquiry. */
