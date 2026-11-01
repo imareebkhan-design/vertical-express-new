@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { CONTACT } from "@/lib/data";
 import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
 import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
+import { DeliveryCodeCard, type DeliveryCodeShipment } from "@/components/orders/delivery-code-card";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import type { PaymentStateName } from "@/lib/payment-status-copy";
 import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
@@ -33,7 +34,7 @@ import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 interface MobileOrderDetailViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
-  shipments: ({ speedClass: string } & DeliverySelectionShipment)[];
+  shipments: ({ speedClass: string } & DeliverySelectionShipment & Partial<DeliveryCodeShipment>)[];
 }
 
 const TIMELINE = ["confirmed", "packed", "out_for_delivery", "delivered"] as const;
@@ -299,6 +300,8 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
             )}
           </div>
         )}
+
+        <DeliveryCodeCard orderNo={order.orderNo} shipments={shipments.map((s) => ({ sequence: s.sequence, deliveryCode: s.deliveryCode ?? null }))} />
 
         {isLatePaid(order) ? (
           <div role="status" className="rounded-2xl bg-brand/15 p-4 text-xs font-bold text-ink">
