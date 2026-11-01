@@ -52,8 +52,10 @@ export async function upsertQaFixture(client: DbClient, o: QaFixtureOptions): Pr
   });
   const variant = await client.productVariant.upsert({
     where: { sku: QA_FIXTURE_SKU },
-    create: { productId: product.id, sku: QA_FIXTURE_SKU, name: "QA unit", pricePaise: o.pricePaise, isDefault: true, isActive: true },
-    update: { pricePaise: o.pricePaise, compareAtPaise: null, isDefault: true, isActive: true },
+    /* Synthetic MRP equal to the synthetic price: the publish gate needs an
+       MRP, and equal means no discount is shown. */
+    create: { productId: product.id, sku: QA_FIXTURE_SKU, name: "QA unit", pricePaise: o.pricePaise, compareAtPaise: o.pricePaise, isDefault: true, isActive: true },
+    update: { pricePaise: o.pricePaise, compareAtPaise: o.pricePaise, isDefault: true, isActive: true },
     select: { id: true, name: true },
   });
   await client.inventory.upsert({
@@ -83,7 +85,7 @@ export async function upsertQaFixture(client: DbClient, o: QaFixtureOptions): Pr
       commercialReview: {
         approvedBy: QA_FIXTURE_APPROVER, approvedAt: now.toISOString(), reason: "Synthetic staging QA prices and stock — not owner data",
         unitLabel: product.unitLabel, deliverySpeed, hsn: tax.hsn, gstRatePct: tax.ratePct, inventoryMode: "tracked",
-        variants: [{ sku: QA_FIXTURE_SKU, pack: variant.name, name: variant.name, isDefault: true, pricePaise: o.pricePaise, compareAtPaise: null }],
+        variants: [{ sku: QA_FIXTURE_SKU, pack: variant.name, name: variant.name, isDefault: true, pricePaise: o.pricePaise, compareAtPaise: o.pricePaise }],
       },
     },
   });

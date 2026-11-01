@@ -7,7 +7,7 @@ import Image from "next/image";
 import { Plus, Star, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CatalogItem } from "@/lib/services/catalog";
-import { formatPaise, discountPercent } from "@/lib/money";
+import { formatPaise, discountPercent, struckMrpPaise } from "@/lib/money";
 import { addToCart } from "@/actions/cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { useCart } from "@/hooks/use-cart";
@@ -35,6 +35,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   // "Sold out" is a stock claim; a catalog-only card has no stock to claim.
   const soldOut = sellable !== null && !item.inStock;
   const discount = sellable ? discountPercent(sellable.pricePaise, sellable.compareAtPaise) : null;
+  const struckMrp = sellable ? struckMrpPaise(sellable.pricePaise, sellable.compareAtPaise) : null;
 
   // Find if item is already in cart
   const cartItem = sellable ? summary?.lines?.find((l) => l.variantId === sellable.variantId) : undefined;
@@ -185,8 +186,8 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
         ) : (
         <div>
           <p className="text-xs font-extrabold text-ink leading-tight">{formatPaise(sellable.pricePaise)}</p>
-          {sellable.compareAtPaise && (
-            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(sellable.compareAtPaise)}</p>
+          {struckMrp != null && (
+            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(struckMrp)}</p>
           )}
         </div>
         )}

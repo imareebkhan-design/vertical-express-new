@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
-import { formatPaise, discountPercent } from "@/lib/money";
+import { formatPaise, discountPercent, struckMrpPaise } from "@/lib/money";
 import { useCart } from "@/hooks/use-cart";
 import { addToCart } from "@/actions/cart";
 import { toggleWishlist } from "@/actions/wishlist";
@@ -80,6 +80,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
 
   const saved = wishlistIds.has(product.id);
   const discount = selectedVariant ? discountPercent(selectedVariant.pricePaise, selectedVariant.compareAtPaise) : null;
+  const struckMrp = selectedVariant ? struckMrpPaise(selectedVariant.pricePaise, selectedVariant.compareAtPaise) : null;
 
   // Cart item matching selected variant
   const cartItem = selectedVariant ? summary?.lines?.find((l) => l.variantId === selectedVariant.id) : undefined;
@@ -309,9 +310,9 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
             <span className="text-base font-extrabold text-ink">
               {formatPaise(selectedVariant.pricePaise)}
             </span>
-            {selectedVariant.compareAtPaise && (
+            {struckMrp != null && (
               <span className="text-xs text-ink/40 line-through">
-                {formatPaise(selectedVariant.compareAtPaise)}
+                {formatPaise(struckMrp)}
               </span>
             )}
             {discount && (

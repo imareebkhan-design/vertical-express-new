@@ -18,6 +18,14 @@ export function formatPaise(paise: number): string {
   })}`;
 }
 
+/**
+ * The MRP to show struck through, or null. Only an MRP above the price is a
+ * saving; at MRP (the normal starting point) nothing is struck through.
+ */
+export function struckMrpPaise(pricePaise: number, compareAtPaise?: number | null): number | null {
+  return compareAtPaise != null && compareAtPaise > pricePaise ? compareAtPaise : null;
+}
+
 /** Percentage discount between compare-at and price, rounded. */
 export function discountPercent(pricePaise: number, compareAtPaise?: number | null): number | null {
   if (!compareAtPaise || compareAtPaise <= pricePaise) return null;

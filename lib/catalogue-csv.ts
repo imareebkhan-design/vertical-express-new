@@ -482,10 +482,10 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
       const mrp = parseMoney(mrpRaw);
       if (mrp === null) {
         bad("mrp_rupees", `"${mrpRaw}" is not a rupee amount`);
-      } else if (pricePaise !== null && mrp <= pricePaise) {
-        /* Otherwise the storefront shows a struck-through price that is not a
-           discount, which is a fabricated claim in the literal sense. */
-        bad("mrp_rupees", `The MRP for "${title}" is not above its price, so there is no saving to show`);
+      } else if (pricePaise !== null && mrp < pricePaise) {
+        /* Equal is allowed and shows no saving (the storefront strikes through
+           only an MRP above the price); selling above the MRP is not. */
+        bad("mrp_rupees", `The price of "${title}" is above its MRP`);
       } else {
         compareAtPaise = mrp;
       }

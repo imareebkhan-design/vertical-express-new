@@ -54,7 +54,9 @@ export function priceProblem(pricePaise: number, compareAtPaise: number | null):
   if (compareAtPaise !== null) {
     if (!Number.isSafeInteger(compareAtPaise)) return "The MRP is not a rupee amount";
     if (compareAtPaise > MAX_STORED_PAISE) return "The MRP is too large to store";
-    if (compareAtPaise <= pricePaise) return "The MRP must be above the selling price, or left blank";
+    /* Equal is the normal case: the owner sells at MRP and discounts later.
+       Selling above the printed MRP is not allowed. */
+    if (compareAtPaise < pricePaise) return "The selling price cannot be above the MRP";
   }
   return null;
 }

@@ -162,15 +162,15 @@ test("rupees become paise with no float in the way", () => {
   if (res.ok) assert.equal(res.rows[0].pricePaise, 1999);
 });
 
-test("an MRP that is not above the price is not a discount", () => {
-  for (const mrp of ["385", "300"]) {
-    const res = parseCatalogueCsv(file(row({ price_rupees: "385", mrp_rupees: mrp })));
-    assert.equal(res.ok, false, `an MRP of ${mrp} against a price of 385 was accepted`);
-    assert.ok(on(res, "mrp_rupees").length > 0);
+test("a price above the MRP is refused; equal or below is kept as the MRP", () => {
+  const above = parseCatalogueCsv(file(row({ price_rupees: "385", mrp_rupees: "300" })));
+  assert.equal(above.ok, false, "a price of 385 against an MRP of 300 was accepted");
+  assert.ok(on(above, "mrp_rupees").length > 0);
+  for (const [mrp, paise] of [["385", 38500], ["440", 44000]] as const) {
+    const good = parseCatalogueCsv(file(row({ price_rupees: "385", mrp_rupees: mrp })));
+    assert.equal(good.ok, true, `an MRP of ${mrp} against a price of 385 was refused`);
+    if (good.ok) assert.equal(good.rows[0].compareAtPaise, paise);
   }
-  const good = parseCatalogueCsv(file(row({ price_rupees: "385", mrp_rupees: "440" })));
-  assert.equal(good.ok, true);
-  if (good.ok) assert.equal(good.rows[0].compareAtPaise, 44000);
 });
 
 test("a blank MRP means no struck-through price, not zero", () => {

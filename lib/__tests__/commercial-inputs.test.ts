@@ -44,11 +44,17 @@ test("nothing is guessed: every missing business value on a Y row is a problem, 
   assert.equal(r.sellable.length, 0);
 });
 
-test("MRP equal to the selling price is refused, as the price editor refuses it", () => {
+test("MRP equal to the selling price is accepted, as the price editor accepts it", () => {
   const r = run([row("a", "general-hardware-tools", "Y,1 unit,express,500,500,3,,")]);
+  assert.deepEqual(r.problems, []);
+  assert.equal(r.sellable[0].compareAtPaise, 50000);
+});
+
+test("a selling price above the MRP is refused, on the MRP column", () => {
+  const r = run([row("a", "general-hardware-tools", "Y,1 unit,express,500,450,3,,")]);
   assert.equal(r.problems.length, 1);
   assert.equal(r.problems[0].column, "MRP_INR");
-  assert.match(r.problems[0].problem, /MRP must be above/);
+  assert.match(r.problems[0].problem, /cannot be above the MRP/);
 });
 
 test("a category without confirmed GST blocks its products until sheet 2 confirms it", () => {
