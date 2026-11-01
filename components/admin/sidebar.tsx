@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  FileSpreadsheet,
   BarChart3,
   Box,
   CreditCard,
@@ -62,6 +63,7 @@ export const GROUPS: { heading: string; items: { href: string; label: string; ic
     items: [
       { href: "/admin/listing", label: "Listing", icon: PlusSquare },
       { href: "/admin/products", label: "Products", icon: Box },
+      { href: "/admin/catalogue-update", label: "Prices & stock files", icon: FileSpreadsheet },
       { href: "/admin/catalogue-approvals", label: "Approvals", icon: BadgeCheck },
       { href: "/admin/brands", label: "Brands", icon: Tag },
       { href: "/admin/categories", label: "Categories", icon: FolderTree },
