@@ -82,7 +82,7 @@ npx -y firebase-tools@latest apphosting:backends:create --backend ve-staging \
 # 3. migrations are applied by hand (step 1) — NEVER from the build (see Migrations)
 
 # 4. deploy
-npx -y firebase-tools@latest deploy --only apphosting
+npx -y firebase-tools@latest deploy --only apphosting:ve-staging   # name the backend: firebase.json lists staging AND production
 ```
 
 **Backend created 2026-09-21:** `ve-staging`, region **`asia-southeast1`** (App Hosting offers only asia-east1, asia-southeast1, europe-west4, us-central1, us-east4, us-east5 — `asia-south1`/Mumbai is not available; Singapore is closest), runtime nodejs22, URL `https://ve-staging--vertical-express.asia-southeast1.hosted.app` (serves nothing until the first rollout). Secrets created and granted: `firebase-client-email`, `firebase-private-key`, `razorpay-key-secret`, `razorpay-webhook-secret`, `cron-secret`. **Still missing: `database-url`** (needs the real `.env.staging`).
