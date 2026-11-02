@@ -138,10 +138,46 @@ the Cloud Scheduler job `ve-staging-cleanup-orders` (asia-southeast1, `*/5 * * *
 was never a moment with no expiry job. Local `.vercel/` / `.vercel-old/` folders are untracked and safe to delete.
 A production backend needs its own scheduler job pointing at its host.
 
-## Production later
+## Production — `ve-production` (set up 3 Nov 2026)
 
-A separate backend (`ve-prod`) with its own config: `PAYMENT_GATEWAY=razorpay-live`, no `ALLOW_TEST_GATEWAY`,
-live Razorpay secrets, the production database, `verticalexpress.in` as a custom domain (DNS change = owner).
+Backend **`ve-production`**, region `asia-southeast1`, environment name `production`, URL
+`https://ve-production--vertical-express.asia-southeast1.hosted.app`.
+
+Config is split by environment. App Hosting reads `apphosting.yaml` (shared: runConfig, Firebase web config,
+Firebase Admin, server-only Google keys, `ADMIN_EMAILS`, the product-photo bucket) and then the file named after
+the backend's environment: `apphosting.staging.yaml` for `ve-staging` (environment `staging`) and
+`apphosting.production.yaml` for `ve-production`. An environment file can replace a variable but not remove one
+(App Hosting rejects empty values), so **nothing that differs between staging and production may go in
+`apphosting.yaml`** — above all no payment setting. `lib/__tests__/apphosting-production.test.ts` enforces this.
+
+Production runs **catalogue mode** (`COMMERCE_MODE=catalogue`, `VE_DEPLOY_ENV=production`): browsing and
+enquiries, no orders, no payments, and no payment variable at all. Its own secrets: `database-url-production`
+(the production Supabase project `gsfslnxvwmrgulzqypdp`, transaction pooler) and `cron-secret-production` (value
+also in the gitignored `.env.production.secrets`).
+
+Deploy: `npx -y firebase-tools@latest deploy --only apphosting:ve-production`. Migrations first, by hand, with the
+guard's explicit production confirmation and a backup taken first:
+`VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gsfslnxvwmrgulzqypdp VE_CONFIRM_PRODUCTION_DB=gsfslnxvwmrgulzqypdp npx prisma migrate deploy`.
+
+Production database, 3 Nov 2026: restored from Supabase's pause; backed up (`pg_dump`) before any change; all 38
+migrations applied; the 59 fictional August demo products **archived** (not deleted); the 263 reviewed
+catalogue-only products (XTRA POWER 211, SGW 27, HI-MAX 25) with their 265 approved photos, 3 brands and 3 new
+categories copied from staging in one transaction (categories matched by slug).
+
+Cleanup cron: Cloud Scheduler job `ve-production-cleanup-orders` (asia-southeast1, `*/5 * * * *`, Bearer
+`cron-secret-production`), created and test-run successfully on 3 Nov 2026.
+
+Domains on `ve-production`: `www.verticalexpress.in` (serves the site; canonical) and `verticalexpress.in` (to
+redirect 301 to www — set once Firebase finishes creating it, which waits on the DNS change). DNS is at GoDaddy
+and is the owner's change; the records App Hosting asks for are shown under the backend's domains in the
+Firebase console.
+
+Still open for production:
+- **Live payments** — `COMMERCE_MODE=transactional`, `PAYMENT_GATEWAY=razorpay-live`, live keys and the live
+  webhook, together, after the owner's approval (`PRODUCTION_ROADMAP.md` 5.5).
+- **Browser Maps key** restricted to `verticalexpress.in` (`NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`); unset, so maps
+  show their fallback.
+- **Own product-photo bucket** — production reads the one public bucket `ve-staging-product-images`.
 
 ## EAS (mobile builds)
 

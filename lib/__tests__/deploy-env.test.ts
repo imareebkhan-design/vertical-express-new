@@ -79,10 +79,10 @@ test("local development and the test runner (nothing declared, not a production 
 });
 
 test("the staging backend's own config declares itself consistently", async () => {
-  /* apphosting.yaml is the staging backend. If it ever stops declaring staging
+  /* apphosting.staging.yaml is the staging backend. If it ever stops declaring staging
      consistently, its catalogue would silently switch to production rules. */
   const { readFileSync } = await import("node:fs");
-  const yaml = readFileSync(new URL("../../apphosting.yaml", import.meta.url), "utf8");
+  const yaml = readFileSync(new URL("../../apphosting.staging.yaml", import.meta.url), "utf8");
   const value = (name: string) => yaml.match(new RegExp(`variable: ${name}\\n\\s+value: "?([^"\\n]+)"?`))?.[1];
   const env: Env = {
     NODE_ENV: "production",

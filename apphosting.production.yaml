@@ -1,23 +1,20 @@
 # Firebase App Hosting — the PRODUCTION backend ("ve-production").
 #
-# App Hosting reads apphosting.yaml first and then this file, because the
-# ve-production backend's environment name is "production". A variable named
-# here replaces the one in apphosting.yaml; anything not named here is
-# inherited. apphosting.yaml is the STAGING config, so every staging-only value
-# it carries is overridden below. Inherited unchanged: the public Firebase web
-# config, runConfig, the Firebase Admin credentials (same Firebase project),
-# ADMIN_EMAILS, the server-only Google Geocoding/Places/Routes keys, and
-# NEXT_PUBLIC_PRODUCT_IMAGE_BASE (the one public product-photo bucket; the
-# production catalogue shows only photos with an attested licence).
+# Layered on apphosting.yaml (shared settings) because ve-production's
+# environment name is "production". Staging's settings live in
+# apphosting.staging.yaml and never reach this backend.
 #
 # Catalogue mode (lib/commerce-mode.ts, owner decision 31 Oct 2026): browsing
 # and enquiries only, no orders and no payments. Live Razorpay is not
 # configured and needs the owner's approval (PRODUCTION_ROADMAP.md 5.5), so
-# this backend has NO payment gateway. The empty values below remove the
-# staging test gateway, its opt-in, its key id and both Razorpay secrets: a
-# production server must never hold test-mode payment configuration. Turning
-# ordering on means setting COMMERCE_MODE=transactional, PAYMENT_GATEWAY=
-# razorpay-live and live keys here, together, after that approval.
+# this backend sets NO payment variable at all. Turning ordering on means
+# adding COMMERCE_MODE=transactional, PAYMENT_GATEWAY=razorpay-live and the
+# live keys here, together, after that approval.
+#
+# Not set yet: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY. The staging browser key is
+# restricted to the staging host; a production key restricted to
+# verticalexpress.in is still to be created. Until then the map components show
+# their no-map fallback.
 
 env:
   - variable: VE_DEPLOY_ENV
@@ -38,38 +35,8 @@ env:
       - BUILD
       - RUNTIME
 
-  # --- no payment gateway (see above)
-  - variable: PAYMENT_GATEWAY
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: ALLOW_TEST_GATEWAY
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: RAZORPAY_KEY_ID
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
-    value: ""
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: RAZORPAY_KEY_SECRET
-    value: ""
-    availability:
-      - RUNTIME
-  - variable: RAZORPAY_WEBHOOK_SECRET
-    value: ""
-    availability:
-      - RUNTIME
-
-  # --- the production database (Supabase project "vertical-express"). Never the
-  # staging secret `database-url`.
+  # --- the production database (Supabase project "vertical-express"); BUILD
+  # too, because static pages query the catalogue while building.
   - variable: DATABASE_URL
     secret: database-url-production
     availability:
@@ -80,13 +47,4 @@ env:
   - variable: CRON_SECRET
     secret: cron-secret-production
     availability:
-      - RUNTIME
-
-  # --- the staging browser Maps key is restricted to the staging host. A
-  # production key restricted to verticalexpress.in is still to be created;
-  # until then the map components show their no-map fallback.
-  - variable: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
-    value: ""
-    availability:
-      - BUILD
       - RUNTIME
