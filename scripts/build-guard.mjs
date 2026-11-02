@@ -12,9 +12,9 @@
  * restart. The only repair is exactly that, and it is not obvious from the
  * error, which names a temp file that never existed.
  *
- * This runs as `prebuild`, so it fires for `npm run build`. It deliberately
- * does NOT fire on Vercel: `vercel-build` calls `next build` directly rather
- * than going through `npm run build`, so this cannot interfere with a deploy.
+ * This runs as `prebuild`, so it fires for `npm run build` — including the
+ * Firebase App Hosting build, which starts from a clean checkout with no
+ * `.next/static/development`, so it never trips there.
  *
  * Detection is the dev server's own marker file. A port check would be wrong
  * in both directions — a dev server on another port still shares `.next`, and

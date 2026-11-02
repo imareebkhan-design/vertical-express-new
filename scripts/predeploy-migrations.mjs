@@ -18,6 +18,11 @@
  *
  *     npm run db:deploy      # apply, when you have chosen to
  *
+ * NOT CURRENTLY WIRED. It ran from the `vercel-build` script, removed with Vercel
+ * (2 Nov 2026). Firebase App Hosting runs `npm run build`, which does not call
+ * it, so a pending migration is not caught at build time on App Hosting.
+ * Apply migrations by hand first (docs/DEPLOY_FIREBASE.md → Migrations).
+ *
  * Escape hatch, for a genuine emergency where the two must ship together:
  *     ALLOW_AUTO_MIGRATE=1   # applies migrations during the build, as before
  * It is loud on purpose. Reach for it knowingly, not by habit.

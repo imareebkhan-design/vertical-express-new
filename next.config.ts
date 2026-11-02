@@ -243,7 +243,7 @@ function config(phase: string): NextConfig {
      *   Timed out fetching a new connection from the connection pool
      *
      * It failed on a different product each run, which is the signature of pool
-     * exhaustion rather than a bad page. Because `vercel-build` runs `next build`,
+     * exhaustion rather than a bad page. Because the deploy build runs `next build`,
      * a flaky prerender is a flaky deploy.
      *
      * Concurrency is held below the connection limit so queued pages wait on the

@@ -215,9 +215,10 @@ does not exist yet.
 - Every schema change gets a named Prisma migration and a note in `docs/DATABASE_SCHEMA.md`.
 - Never drop a column in the same release that stops writing it. Expand → migrate →
   contract, across releases.
-- Migrations currently run automatically in `vercel-build`. **This is a known risk
-  (see KNOWN_ISSUES ISS-024).** Until it is gated, treat every migration as
-  production-affecting.
+- Migrations never run from the build. They are applied by hand (`npm run db:deploy`,
+  see `docs/DEPLOY_FIREBASE.md` → Migrations). The App Hosting build does not check for
+  pending migrations either, so apply them before the rollout that needs them, and
+  treat every migration as production-affecting.
 
 **Secrets**
 - Never print, log, or commit a credential.
