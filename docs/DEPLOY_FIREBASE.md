@@ -27,8 +27,8 @@ Backend id: **`ve-staging`** — a TEST backend. Config: `apphosting.yaml`, `fir
 | Session cookie | COMPATIBLE — named `__session`, the one cookie Firebase's CDN forwards to the backend |
 | Reserved env names | REQUIRES SMALL CODE CHANGE — App Hosting **rejects env vars starting `FIREBASE_`** (also `X_GOOGLE_`, `EXT_`, `KIT_`). Found at first use, not in the original audit. The Firebase Admin credentials are therefore supplied as `FB_ADMIN_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY`; `lib/auth/firebase-admin.ts` reads those first and still accepts the legacy `FIREBASE_*` names (verified with a real ID token). `NEXT_PUBLIC_FIREBASE_*` is unaffected. |
 | Payments guard | REQUIRES SMALL CODE CHANGE — App Hosting always runs `NODE_ENV=production`, which refused the test gateway. Added the guarded `ALLOW_TEST_GATEWAY=1` opt-in (only with `rzp_test_` keys; `dummy` stays forbidden). Tested. |
-| Vercel-specific code | none in `app/`, `lib/`, `actions/` — only `vercel.json` (cron) and the `vercel-build` script |
-| Cron | REQUIRES REPLACEMENT — Cloud Scheduler (below) |
+| Vercel-specific code | none. `vercel.json` (cron) and the `vercel-build` script were removed on 2 Nov 2026 |
+| Cron | REPLACED — Cloud Scheduler job `ve-staging-cleanup-orders` (below) |
 
 ## Before anything: owner actions
 
@@ -95,9 +95,10 @@ After the first rollout the backend has a URL of the form
 
 ## Migrations
 
-The build does **not** touch the database and must not. `vercel-build` (with `predeploy-migrations.mjs`, the
-ISS-024 gate) is not used by App Hosting, which runs `npm run build`. Apply migrations deliberately from a
-machine with `DIRECT_URL`: `npm run db:deploy`.
+The build does **not** touch the database and must not. App Hosting runs `npm run build`, which does **not**
+run `scripts/predeploy-migrations.mjs` (the ISS-024 pending-migration gate; it was wired only to the removed
+`vercel-build` script). Nothing at build time catches a pending migration, so apply them before the rollout that needs them,
+deliberately, from a machine with `DIRECT_URL`: `npm run db:deploy`.
 
 **Pending migration `20260920120000_payments_gateway_order_unique`** makes `payments.gateway_order_id` unique.
 It FAILS if duplicates exist (intended). Before applying it to any shared/real database run:
@@ -130,10 +131,12 @@ gcloud scheduler jobs create http ve-cleanup-orders \
 The endpoint stays protected: without the header it answers 401. Note `gcloud` is not installed on the
 current dev machine; the same job can be created in the Cloud Console (Cloud Scheduler → Create job).
 
-## Vercel leftovers (remove once the new backend is verified live)
+## Vercel leftovers — removed 2 Nov 2026
 
-`vercel.json` (its only content is the cron now replaced), the `vercel-build` script, `.vercel/`, `.vercel-old/`.
-Left in place until the Cloud Scheduler job exists, so there is never a moment with no expiry job configured.
+`vercel.json` (its only content was the cron) and the `vercel-build` script are gone. They were removed only once
+the Cloud Scheduler job `ve-staging-cleanup-orders` (asia-southeast1, `*/5 * * * *`) was confirmed ENABLED, so there
+was never a moment with no expiry job. Local `.vercel/` / `.vercel-old/` folders are untracked and safe to delete.
+A production backend needs its own scheduler job pointing at its host.
 
 ## Production later
 

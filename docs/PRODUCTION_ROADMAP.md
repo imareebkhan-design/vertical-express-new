@@ -72,7 +72,7 @@ No secrets, connection strings or tokens appear in this document, by design.
 | Guarded test-gateway opt-in (`ALLOW_TEST_GATEWAY=1` + `rzp_test_` key; `dummy` stays forbidden in production) | **VERIFIED** by tests |
 | Order-expiry scheduling (Vercel cron replacement) | **BLOCKED** — Cloud Scheduler job not created (needs billing and a backend URL; `gcloud` not installed on the dev machine). |
 | CI (`.github/workflows/ci.yml`) | **IMPLEMENTED**; GitHub Actions results not checked. |
-| Vercel leftovers (`vercel.json`, `vercel-build`, `.vercel*`) | Intentionally **kept** until the scheduler job exists. |
+| Vercel leftovers (`vercel.json`, `vercel-build`, `.vercel*`) | **Removed** 2 Nov 2026, after the scheduler job `ve-staging-cleanup-orders` was confirmed enabled. |
 
 ### Accounts / Environments
 
