@@ -25,6 +25,8 @@ import { CategoryComingSoon } from "@/components/shop/category-coming-soon";
 import type { DirectoryEntry } from "@/lib/category-directory";
 import Link from "next/link";
 
+import { useBackOr } from "@/hooks/use-back-or";
+
 // Mobile Components
 import { MobileCategoryView } from "@/components/mobile/category/mobile-category-view";
 
@@ -62,13 +64,7 @@ export function CategorySwitcher(props: CategorySwitcherProps) {
       return (
         <div className="flex min-h-screen flex-col bg-canvas pb-24">
           <div className="sticky top-0 z-30 flex items-center gap-3 bg-canvas/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)] backdrop-blur-md">
-            <Link
-              href="/categories"
-              aria-label="Back to categories"
-              className="flex size-9 items-center justify-center rounded-full bg-paper text-ink no-underline shadow-card"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-            </Link>
+            <BackButton fallback="/categories" />
             <h1 className="text-base font-extrabold leading-none text-ink">{comingSoon.name}</h1>
           </div>
           <div className="px-4 pt-6">{panel}</div>
@@ -174,5 +170,20 @@ export function CategorySwitcher(props: CategorySwitcherProps) {
       </main>
       <Footer />
     </>
+  );
+}
+
+/** The phone header's Back: real history when there is some, else the category index. */
+function BackButton({ fallback }: { fallback: string }) {
+  const goBack = useBackOr(fallback);
+  return (
+    <button
+      type="button"
+      onClick={goBack}
+      aria-label="Back"
+      className="flex size-9 items-center justify-center rounded-full bg-paper text-ink shadow-card"
+    >
+      <ArrowLeft className="size-4" aria-hidden />
+    </button>
   );
 }

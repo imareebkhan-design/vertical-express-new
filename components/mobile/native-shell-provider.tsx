@@ -14,6 +14,7 @@ import { MobileTabBar } from "@/components/mobile/navigation/mobile-tab-bar";
 import { showsTabBar } from "@/components/mobile/navigation/tab-bar-visibility";
 import { useCart } from "@/hooks/use-cart";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
+import { useBackStackTracker } from "@/hooks/use-back-or";
 
 interface NativeShellContextType {
   isNative: boolean;
@@ -43,6 +44,8 @@ export function useNativeShell() {
 export function NativeShellProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  /* Feeds the in-app Back arrows (hooks/use-back-or.ts). */
+  useBackStackTracker();
   const [isNative, setIsNative] = useState(false);
   const { isMobile } = useMobileSurface(isNative);
   const cart = useCart();
