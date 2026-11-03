@@ -4201,3 +4201,35 @@ counts raw published rows.
 
 (An earlier note here blamed the test database for ≈10 GB of disk growth. That was wrong: Postgres held 285 MB; the
 growth was the Claude desktop app's VM image under `~/Library/Application Support/Claude/vm_bundles`.)
+
+## ISS-098 — In-app Back arrows disagreed with the phone's back button (category, product)
+
+**Status:** FIXED on branch `claude/dazzling-turing-4e3pb2` (issue #26, 3 Nov 2026). Not deployed.
+
+The phone category screen's arrow did `router.push("/categories")`, adding a history entry: Home → Tiling → arrow →
+Categories → system back returned to Tiling (a loop). The product screen's arrow did `router.back()` unconditionally,
+so a product opened from a shared link or a cold start of the app shell had a dead arrow. Reproduced in Playwright on
+a local production build.
+
+**Fix.** `lib/back-stack.ts` (pure): with in-app history, pop it; entered directly, `replace` with the logical parent.
+`hooks/use-back-or.ts` counts route changes per tab (mounted in `NativeShellProvider`). Tests:
+`lib/__tests__/back-stack.test.ts`. **Rollback:** revert the commit "in-app Back pops real history".
+
+## ISS-099 — A coming-soon category in an empty department was a near dead end
+
+**Status:** FIXED on branch `claude/dazzling-turing-4e3pb2` (issue #26). Not deployed.
+
+The coming-soon page offered only stocked siblings in its own department, so when a whole department had nothing
+approved (Plumbing can), the only next step was "Browse all categories". `comingSoonNextSteps()` now tops the list up
+from other departments' stocked categories. The "Coming soon" label (owner, 12 Oct) is unchanged. Tests:
+`category-directory.test.ts` (+5), `category-coming-soon.test.tsx`. **Rollback:** revert that commit.
+
+## ISS-100 — The whole storefront fails if the Firebase web config is absent
+
+**Status:** OPEN (found during issue #26 QA; not fixed: out of scope).
+
+With no `NEXT_PUBLIC_FIREBASE_*` values, `AccountButton`'s effect throws "Firebase web config is missing", which
+reaches the root error boundary: every desktop page (including `/categories` and `/category/*`) renders "Something went
+wrong". Production has the config, so this is a robustness gap, not a live outage. A misconfigured preview or a
+rotated key would take browsing down with sign-in, though. Suggested fix: the account button degrades to a "Sign in"
+link when auth is not configured.
