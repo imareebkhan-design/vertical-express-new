@@ -46,7 +46,7 @@ type CategorySwitcherProps =
       category: Category;
       slug: string;
       /** A designated category with no visible product yet (lib/category-directory.ts). */
-      comingSoon: { name: string; siblings: DirectoryEntry[] };
+      comingSoon: { name: string; siblings: DirectoryEntry[]; elsewhere: DirectoryEntry[] };
     };
 
 export function CategorySwitcher(props: CategorySwitcherProps) {
@@ -59,7 +59,7 @@ export function CategorySwitcher(props: CategorySwitcherProps) {
 
   if (props.comingSoon) {
     const { slug, comingSoon } = props;
-    const panel = <CategoryComingSoon slug={slug} name={comingSoon.name} siblings={comingSoon.siblings} />;
+    const panel = <CategoryComingSoon slug={slug} name={comingSoon.name} siblings={comingSoon.siblings} elsewhere={comingSoon.elsewhere} />;
     if (isMobile) {
       return (
         <div className="flex min-h-screen flex-col bg-canvas pb-24">

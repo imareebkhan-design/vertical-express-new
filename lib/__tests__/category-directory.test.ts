@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   buildCategoryDirectory,
+  comingSoonNextSteps,
   directoryEntries,
   isCuratedCategory,
   isDiscoverable,
@@ -77,4 +78,43 @@ test("which category pages exist", () => {
   assert.equal(isDiscoverable(row("power-tools", 0, true, "tools")), false);
   assert.equal(isDiscoverable(row("power-tools", 1, true, "tools")), true);
   assert.equal(isCuratedCategory("steel-rebars"), false);
+});
+
+/* Issue #26: a coming-soon page always has somewhere to go, and never offers
+   another empty page. */
+test("coming-soon next steps: department siblings first, only stocked ones", () => {
+  const d = buildCategoryDirectory([row("cement", 0), row("tiling", 3), row("painting", 0), row("fevicol", 1)]);
+  const next = comingSoonNextSteps(d, "cement");
+  assert.deepEqual(next.department.map((c) => c.slug), ["tiling", "fevicol"]);
+  assert.equal(next.department.some((c) => c.slug === "cement" || c.state !== "available"), false);
+});
+
+test("coming-soon next steps: an empty department is topped up from the others", () => {
+  const d = buildCategoryDirectory([
+    row("cpvc-pipes-overhead-tanks", 0, true, "plumbing_bath"),
+    row("sanitary-bath-fittings", 0, true, "plumbing_bath"),
+    row("tiling", 2),
+    row("lighting", 1, true, "electrical"),
+    row("cement", 0),
+  ]);
+  const next = comingSoonNextSteps(d, "cpvc-pipes-overhead-tanks");
+  assert.deepEqual(next.department, []);
+  assert.deepEqual(next.elsewhere.map((c) => c.slug), ["tiling", "lighting"]);
+});
+
+test("coming-soon next steps: a well-stocked department needs nothing from elsewhere", () => {
+  const d = buildCategoryDirectory([row("cement", 0), row("tiling", 1), row("painting", 1), row("waterproofing", 1), row("fevicol", 1), row("lighting", 1, true, "electrical")]);
+  const next = comingSoonNextSteps(d, "cement");
+  assert.equal(next.department.length, 4);
+  assert.deepEqual(next.elsewhere, []);
+});
+
+test("coming-soon next steps: nothing stocked anywhere yields empty lists, not an error", () => {
+  const d = buildCategoryDirectory([row("cement", 0), row("tiling", 0)]);
+  assert.deepEqual(comingSoonNextSteps(d, "cement"), { department: [], elsewhere: [] });
+});
+
+test("a category with exactly one visible product is available, not coming soon", () => {
+  const [entry] = directoryEntries(buildCategoryDirectory([row("tiling", 1)]));
+  assert.equal(entry.state, "available");
 });
