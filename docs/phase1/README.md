@@ -51,7 +51,7 @@ code is used here:
 
 | Work | Where | State |
 |---|---|---|
-| Issue #26: category, subcategory, listing and PDP browsing on web and mobile | Cloud session `task_8fee5356` | Running. No branch or PR had reached `origin` when this was written. This plan treats it as the owner of roadmap phase P2 |
+| Issue #26: category, subcategory, listing and PDP browsing on web and mobile | Cloud session `task_8fee5356` | Draft PR #27 (`claude/dazzling-turing-4e3pb2`): back stack, deep links, no dead-end coming-soon pages, L1 parity. This plan treats it as the owner of roadmap phase P2 |
 | Production backend in catalogue mode | PR #25 `claude/production-backend` (draft) | Deployed. `www.verticalexpress.in` serves it and the apex 301-redirects to www [L] |
 | Release candidate to `main` | PR #24 `release/rc-2026-10-19` | Open, CI green |
 | Master catalogue V2.2 | PR #22 `claude/scan-review-register` (draft) | Open |
