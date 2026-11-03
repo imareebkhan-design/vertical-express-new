@@ -110,8 +110,12 @@ export function CategoriesSwitcher({ directory }: { directory: DirectoryGroup[] 
               aria-labelledby={`all-${group.key}`}
               className="ve-reveal mx-auto max-w-[1200px] scroll-mt-24 px-6"
             >
-              <h2 id={`all-${group.key}`} className="mb-5 text-[22px] font-bold tracking-[-0.02em] text-ink">
+              <h2 id={`all-${group.key}`} className="mb-5 flex items-baseline gap-2.5 text-[22px] font-bold tracking-[-0.02em] text-ink">
+                <span aria-hidden className="size-3 flex-none self-center rounded-full" style={{ background: group.tint }} />
                 {group.title}
+                <span className="text-[13.5px] font-semibold text-ink-500">
+                  {group.categories.length} {group.categories.length === 1 ? "category" : "categories"}
+                </span>
               </h2>
               <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                 {group.categories.map((entry) => (

@@ -20,6 +20,9 @@ import type { DirectoryGroup } from "@/lib/category-directory";
 export function MobileCategoriesView({ directory = [] }: { directory?: readonly DirectoryGroup[] }) {
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
   const groups = activeGroup ? directory.filter((g) => g.key === activeGroup) : directory;
+  /* The artboard's "21 categories · everything we stock" — only the count is
+     kept: with categories still coming soon, "everything we stock" is untrue. */
+  const total = directory.reduce((n, g) => n + g.categories.length, 0);
 
   return (
     <div className="flex flex-col bg-canvas">
@@ -27,7 +30,12 @@ export function MobileCategoriesView({ directory = [] }: { directory?: readonly 
       <div className="h-[59px] flex-none" />
 
       <div className="flex items-start justify-between px-4 pt-2">
-        <h1 className="text-[23px] font-extrabold leading-7 tracking-[-0.022em] text-ink">Categories</h1>
+        <div>
+          <h1 className="text-[23px] font-extrabold leading-7 tracking-[-0.022em] text-ink">Categories</h1>
+          {total > 0 ? (
+            <p className="mt-0.5 text-[12.5px] font-medium leading-4 text-ink-500">{total} categories</p>
+          ) : null}
+        </div>
         <Link
           href="/search"
           aria-label="Search"
@@ -65,8 +73,13 @@ export function MobileCategoriesView({ directory = [] }: { directory?: readonly 
 
       {groups.map((group) => (
         <section key={group.key} id={group.key} aria-labelledby={`m-${group.key}`} className="scroll-mt-4 px-4 pt-5">
-          <h2 id={`m-${group.key}`} className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+          <h2 id={`m-${group.key}`} className="flex items-center gap-2 text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+            <span aria-hidden className="size-2.5 flex-none rounded-full" style={{ background: group.tint }} />
             {group.title}
+            <span className="text-[12.5px] font-semibold text-ink-500">
+              {group.categories.length}
+              <span className="sr-only"> categories</span>
+            </span>
           </h2>
           <ul className="mt-3 grid grid-cols-4 gap-x-2 gap-y-3">
             {group.categories.map((entry) => (
