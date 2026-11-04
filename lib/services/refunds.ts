@@ -160,7 +160,10 @@ export async function requestRefund(
         action: "payment.refund_requested",
         entityType: "payment",
         entityId: params.paymentId,
-        after: { refundId: row.id, amountPaise: eligible.remainingPaise, basis: eligible.basis, reason, by: params.actorEmail },
+        /* What was still owed on the payment before this claim, so the row
+           shows the money moving, not only the request. */
+        before: { refundablePaise: eligible.remainingPaise },
+        after: { refundId: row.id, refundablePaise: 0, amountPaise: eligible.remainingPaise, basis: eligible.basis, reason, by: params.actorEmail },
       });
       return {
         ok: true as const,

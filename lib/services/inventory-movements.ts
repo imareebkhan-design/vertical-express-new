@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { log } from "@/lib/observability";
 import type { Prisma, StockMovementReason } from "@/prisma/generated/client/client";
+import { recordAudit } from "@/lib/services/audit";
 
 /**
  * Changing stock, with a reason attached.
@@ -38,8 +39,10 @@ export async function adjustStock(params: {
   reason: StockMovementReason;
   note?: string | null;
   actorEmail: string;
+  /** The operator's `users.id`, for the audit row. Null only for scripts. */
+  actorId?: string | null;
 }): Promise<AdjustResult> {
-  const { variantId, warehouseId, qtyDelta, reason, note, actorEmail } = params;
+  const { variantId, warehouseId, qtyDelta, reason, note, actorEmail, actorId = null } = params;
 
   if (qtyDelta === 0) return { ok: false, error: "would_go_negative" };
 
@@ -65,6 +68,17 @@ export async function adjustStock(params: {
 
       await tx.stockMovement.create({
         data: { variantId, warehouseId, qtyDelta, qtyAfter, reason, note: note ?? null, actorEmail },
+      });
+      /* The movement says what happened to the shelf; the audit row says which
+         operator account did it, in the same transaction (ISS-015). */
+      await recordAudit(tx, {
+        actorType: actorId ? "admin" : "system",
+        actorId,
+        action: "inventory.adjusted",
+        entityType: "inventory",
+        entityId: `${variantId}:${warehouseId}`,
+        before: { qtyOnHand: row.qtyOnHand },
+        after: { qtyOnHand: qtyAfter, qtyDelta, reason, note: note ?? null, actorEmail },
       });
 
       return { ok: true, qtyAfter } as const;
@@ -109,8 +123,10 @@ export async function recountStock(params: {
   expectedOnHand: number;
   note: string;
   actorEmail: string;
+  /** The operator's `users.id`, for the audit row. Null only for scripts. */
+  actorId?: string | null;
 }): Promise<RecountResult> {
-  const { variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail } = params;
+  const { variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail, actorId = null } = params;
   if (!Number.isInteger(countedQty) || countedQty < 0 || !Number.isInteger(expectedOnHand)) {
     return { ok: false, error: "invalid" };
   }
@@ -142,6 +158,15 @@ export async function recountStock(params: {
 
     await tx.stockMovement.create({
       data: { variantId, warehouseId, qtyDelta, qtyAfter: countedQty, reason: "recount", note, actorEmail },
+    });
+    await recordAudit(tx, {
+      actorType: actorId ? "admin" : "system",
+      actorId,
+      action: "inventory.recounted",
+      entityType: "inventory",
+      entityId: `${variantId}:${warehouseId}`,
+      before: { qtyOnHand: row.qtyOnHand },
+      after: { qtyOnHand: countedQty, qtyDelta, note, actorEmail },
     });
     return { ok: true, qtyAfter: countedQty, qtyDelta } as const;
   });

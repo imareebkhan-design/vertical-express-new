@@ -161,7 +161,8 @@ export async function setVariantActive(variantId: string, active: boolean, actor
       action: active ? "catalogue.variant_restored" : "catalogue.variant_retired",
       entityType: "product",
       entityId: v.productId,
-      after: { variantId, by: actor.email },
+      before: { variantId, isActive: v.isActive },
+      after: { variantId, isActive: active, by: actor.email },
     });
     return { ok: true as const, variantId };
   });
