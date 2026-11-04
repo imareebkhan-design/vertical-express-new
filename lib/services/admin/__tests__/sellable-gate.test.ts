@@ -69,8 +69,12 @@ test("a product complete in every respect is sellable", async () => {
   assert.deepEqual(await sellableReasons(db, await complete("ok")), []);
 });
 
-test("MRP is optional", async () => {
-  assert.deepEqual(await sellableReasons(db, await complete("nomrp", { mrp: null })), []);
+test("an MRP equal to the selling price is sellable: no discount is required", async () => {
+  assert.deepEqual(await sellableReasons(db, await complete("eqmrp", { mrp: 120000, price: 120000 })), []);
+});
+
+test("a variant without a recorded MRP cannot be published", async () => {
+  assert.ok((await sellableReasons(db, await complete("nomrp", { mrp: null }))).some((r) => /no MRP recorded/.test(r)));
 });
 
 test("licence and checksum alone cannot approve a product photo", async () => {

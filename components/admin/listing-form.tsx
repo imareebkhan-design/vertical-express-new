@@ -262,7 +262,7 @@ export function ListingForm({ options }: { options: ListingOptions }) {
             />
           </Field>
 
-          <Field label="MRP" hint="Optional. Must be above the selling price, or leave it blank.">
+          <Field label="MRP" hint="The printed MRP. The selling price can equal it or be lower, never higher.">
             <input
               value={form.mrp}
               onChange={(e) => set("mrp", e.target.value)}

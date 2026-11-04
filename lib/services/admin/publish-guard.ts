@@ -56,8 +56,11 @@ export async function catalogOnlyReason(client: DbClient, productId: string): Pr
  * which only asks for a priced variant:
  *
  *  - an active DEFAULT variant priced above zero (listings sell the default);
- *  - every active variant priced above zero, with MRP (compare-at) absent or
- *    at least the price;
+ *  - every active variant priced above zero, with a recorded MRP (compare-at)
+ *    at least the price. The owner's rule: the verified MRP is stored for
+ *    every sellable variant, selling starts at MRP, and a discount is a later
+ *    explicit price change. Historical rows without an MRP stay readable; they
+ *    just cannot be newly published;
  *  - an inventory record for the default variant — stock is configured, even
  *    if it is an explicit zero; "unknown" is not allowed to sell;
  *  - an explicit HSN/GST mapping for the category (lib/services/tax.ts). The
@@ -90,6 +93,7 @@ export async function sellableReasons(client: DbClient, productId: string): Prom
   if (!def) reasons.push("No active default variant");
   else if (def.pricePaise <= 0) reasons.push("The default variant has no selling price above zero");
   if (p.variants.some((v) => v.pricePaise <= 0)) reasons.push("An active variant has no selling price above zero");
+  if (p.variants.some((v) => v.compareAtPaise == null)) reasons.push("An active variant has no MRP recorded");
   if (p.variants.some((v) => v.compareAtPaise != null && v.compareAtPaise < v.pricePaise)) {
     reasons.push("An MRP is below its selling price");
   }

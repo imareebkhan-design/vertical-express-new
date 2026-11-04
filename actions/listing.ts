@@ -65,8 +65,8 @@ const schema = z
     if (v.mrp !== "") {
       const mrp = parseRupeeInput(v.mrp);
       if (mrp === null) bad("The MRP is not a rupee amount");
-      else if (price !== null && mrp <= price) {
-        bad("The MRP must be above the selling price, or left blank");
+      else if (price !== null && mrp < price) {
+        bad("The selling price cannot be above the MRP");
       }
     }
 

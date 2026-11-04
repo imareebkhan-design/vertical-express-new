@@ -103,8 +103,8 @@ test("the listing form's rules, plus the column's limit", () => {
   assert.match(priceProblem(0, null)!, /more than zero/);
   assert.match(priceProblem(-100, null)!, /more than zero/);
   assert.match(priceProblem(385.5, null)!, /not a rupee amount/);
-  assert.match(priceProblem(38500, 38500)!, /MRP must be above/);
-  assert.match(priceProblem(38500, 30000)!, /MRP must be above/);
+  assert.equal(priceProblem(38500, 38500), null, "selling at MRP is the normal starting point");
+  assert.match(priceProblem(38500, 30000)!, /cannot be above the MRP/);
   assert.match(priceProblem(MAX_STORED_PAISE + 1, null)!, /too large/);
   assert.equal(priceProblem(MAX_STORED_PAISE - 1, MAX_STORED_PAISE), null);
 });
@@ -202,4 +202,26 @@ test("an open cart shows the new price, and a checkout still showing the old tot
   assert.equal(fresh, 21500);
   const placed = await placeOrder({ userId: USER, addressId, paymentMethod: "cod", idempotencyKey: randomUUID(), expectedTotalPaise: fresh });
   assert.equal((await db.order.findUniqueOrThrow({ where: { orderNo: placed.orderNo } })).totalPaise, 21500);
+});
+
+test("selling at MRP, then an explicit discount: the MRP is kept and checkout charges the discounted price", async () => {
+  const atMrp = await setVariantPrice(change(25000, 25000, { pricePaise: 20000, compareAtPaise: 25000 }), ADMIN);
+  assert.ok(atMrp.ok && atMrp.changed);
+  assert.deepEqual(await variant(), { pricePaise: 25000, compareAtPaise: 25000 });
+
+  const discounted = await setVariantPrice(change(22500, 25000, { pricePaise: 25000, compareAtPaise: 25000 }), ADMIN);
+  assert.ok(discounted.ok && discounted.changed);
+  assert.deepEqual(await variant(), { pricePaise: 22500, compareAtPaise: 25000 }, "lowering the price leaves the MRP alone");
+  const rows = await audits();
+  assert.deepEqual(rows.at(-1)!.after, { pricePaise: 22500, compareAtPaise: 25000 });
+
+  await approveTestProductsCreatedSince(SUITE_START); // owner re-review after a price edit (offer changes revoke approval)
+  await addItem(USER, null, variantId, 2);
+  assert.equal((await getCartSummary(USER, null)).subtotalPaise, 45000, "the cart prices from the server, at the discounted price");
+});
+
+test("a selling price above the MRP is refused and nothing is written", async () => {
+  const res = await setVariantPrice(change(26000, 25000, { pricePaise: 20000, compareAtPaise: 25000 }), ADMIN);
+  assert.ok(!res.ok && res.reason === "invalid" && /cannot be above the MRP/.test(res.message));
+  assert.deepEqual(await variant(), { pricePaise: 20000, compareAtPaise: 25000 });
 });
