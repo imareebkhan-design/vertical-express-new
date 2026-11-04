@@ -11,6 +11,33 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 ---
 
+## Status reconciliation — 4 November 2026
+
+Many entries below say "local only", "not committed" or "on branch X, not in the RC".
+On 4 Nov they were checked against `origin/release/rc-2026-10-19` (`06d19d7`). The
+individual entries are **not** rewritten; this table supersedes their status lines where
+the two disagree.
+
+| Issue(s) | Entry says | Checked 4 Nov | How |
+|---|---|---|---|
+| ISS-095 | fixed on `feat/admin-catalogue`, not deployed | **In the RC** | merge `b10b7bc` |
+| ISS-096 | fixed on `claude/editable-place-fields`, not in the RC | **In the RC** | branch has 0 commits outside the RC; `c2e4ef4` |
+| ISS-097 | fixed in the test on `claude/category-landing-test` | **In the RC** | branch has 0 commits outside the RC |
+| ISS-068 | fixed locally, not pushed | **In the RC** | `60b879c` |
+| ISS-078, ISS-083 | resolved locally | **In the RC** | `7e0b4a8` |
+| ISS-069, 073–077, 079–082, 084, 085, 087, 088 | resolved in the working tree / local only | **Committed: the regression test each entry names is in the RC** (e.g. `expiry-gateway-check`, `duplicate-capture`, `resume-payment-check`, `cancel-lost-callback`, `coupon-e6`, `use-checkout-quote`, `cart-shipments-express`, `payments`, `notifications`) | file present on the RC |
+| ISS-070, 071, 072 | resolved in the working tree | **Unconfirmed**: no test is named in the entry | re-check by reproducing |
+| ISS-025 (owed-money refunds) | partial, built 19 Oct | `feat/refund-execution` **is in the RC**; policy refunds still wait on the owner | 0 commits outside the RC |
+| ISS-012 | partial | `feat/monitoring` **is in the RC** (Sentry configs present); production DSN and uptime alerting unconfirmed | 0 commits outside the RC |
+| ISS-014, ISS-015 | OPEN | **Re-check needed**: `lib/order-flow.ts`, `lib/shipment-flow.ts` and an `AuditLog` model exist, so the entries may be partly stale | code present |
+| ISS-024 | OPEN (migrations run on deploy) | Contradicted by `CLAUDE.md` and `DEPLOY_FIREBASE.md`: migrations are applied by hand. `package.json` `build` is `next build --turbopack` (no `migrate deploy`; there is no `vercel-build`), so this is **effectively FIXED** by the Firebase move. Close it after one more look at the App Hosting build log | `package.json` |
+
+New findings from the Phase 1 audit (GAP-C-01 to GAP-T-02, 3 Nov) are in
+`docs/phase1/03-GAPS-AND-DEFECTS.md` (PR #28). They will be copied here once the owner
+approves that register.
+
+---
+
 ## Catalogue safety gate — 9 October 2026
 
 **FIXED locally; rollout belongs to the release integrator.** Provenance alone previously qualified catalogue-only photographs, while some customer readers and purchase paths relied on status alone. `lib/catalog-policy.ts` now requires explicit identity/image evidence and active taxonomy across those readers. Publication, cart and transactional checkout also enforce owner commercial review. Database constraints and invalidation triggers prevent reusing approval after identity, image or offer changes. Persistent catalogue caches were removed so revoked approval does not remain visible until a cache expires.

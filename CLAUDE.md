@@ -13,11 +13,18 @@
 
 ```
 github.com/imareebkhan-design/vertical-express-new     ← the code you are reading
-        ↓ deploys via the Vercel Git integration
-Vercel project "homerun-clone"  (team areeb2)
-        ↓ production branch
-main  →  a push here deploys to production, immediately, with no approval step
+        ↓ deployed by hand: firebase deploy --only apphosting:<backend>
+Firebase App Hosting, project vertical-express, region asia-southeast1
+        ├─ ve-staging      ← staging (Razorpay TEST keys, staging database)
+        └─ ve-production   ← www.verticalexpress.in, COMMERCE_MODE=catalogue
 ```
+
+**State on 4 Nov 2026 (verify before relying on it):** the working line is
+`release/rc-2026-10-19` (PR #24 → `main`). `main` is the August Prisma 7 merge and is
+hundreds of commits behind it. `ve-production` was deployed from draft PR #25
+(`claude/production-backend`), not from a merged branch. The repository configures no
+automatic rollout on push; check the App Hosting console before assuming one exists.
+Vercel is no longer the deploy target (see "Before you push to `main`" below).
 
 **`github.com/imareebkhan-design/vertical-express` (no `-new`) is dead.** It was
 archived on 31 August 2026. The two repositories share history and forked at
@@ -42,18 +49,20 @@ repository.
 
 ### Branch conventions
 
-`main` is the production branch and deploys on push. `design-system/apply-tokens`
-has served as the integration line, with feature branches cut from it and merged
-back. Feature branches deploy to Vercel *previews*, which is safe — but the Preview
-environment has **no environment variables**, so a preview build fails at
-`generateStaticParams`, which queries Prisma. That failure is expected and is not a
-code defect.
+`main` is the intended production branch. The integration line is now the release
+branch (`release/rc-2026-10-19`); feature branches are cut from it and merged back
+through PRs. *(Historical: before Firebase, `design-system/apply-tokens` was the
+integration line and `main` deployed to Vercel on push. Neither is true now.)*
 
 ### Before you push to `main`
 
-Production **cannot boot** without live Razorpay credentials. `assertPaymentConfig()`
-in `instrumentation.ts` throws at server start unless `PAYMENT_GATEWAY=razorpay-live`
-and all three Razorpay secrets are present, so every request returns 500.
+In **transactional** mode, production **cannot boot** without live Razorpay
+credentials: `assertPaymentConfig()` throws at server start unless
+`PAYMENT_GATEWAY=razorpay-live` and all three Razorpay secrets are present, so every
+request returns 500. In **catalogue** mode (`COMMERCE_MODE=catalogue`, owner decision
+31 Oct 2026, `lib/commerce-mode.ts`) the server refuses every order and payment and
+boots with no payment configuration at all. That is how `ve-production` runs today
+(`apphosting.production.yaml` carries no payment variable).
 
 Read that carefully, because the intuition runs the wrong way: **not having Razorpay
 credentials is precisely what breaks a production deploy.** The guard exists so the
@@ -105,21 +114,21 @@ See `docs/CURRENT_SYSTEM_AUDIT.md` for the full assessment.
 
 | | |
 |---|---|
-| Framework | Next.js 15.5.20 App Router, React 19.1, TypeScript strict, Turbopack |
+| Framework | Next.js 15.5.28 App Router, React 19.1, TypeScript strict, Turbopack |
 | Styling | Tailwind CSS v4 + `class-variance-authority` (no shadcn/Radix) |
 | Database | PostgreSQL via Supabase (`ap-south-1`), pooled 6543 / direct 5432 |
-| ORM | Prisma **7.9** — 37 models, 17 enums, 15 migrations. Client is generated to `prisma/generated/client`; import from `@/prisma/generated/client/client`, never `@prisma/client`. Datasource URL lives in `prisma.config.ts`, not the schema |
+| ORM | Prisma **7.9** — 48 models, 24 enums, 39 migrations (counted 4 Nov 2026). Client is generated to `prisma/generated/client`; import from `@/prisma/generated/client/client`, never `@prisma/client`. Datasource URL lives in `prisma.config.ts`, not the schema |
 | Auth | **Firebase Auth** — phone OTP and Google, session cookies verified server-side. `lib/auth/current-user.ts` is the only identity reader; `lib/auth/link-policy.ts` holds the account-linking rules |
-| API | Server Actions primary (`actions/*.ts`) + 6 route handlers (`app/api/*`) |
+| API | Server Actions (`actions/*.ts`) + 40 route handlers (`app/api/*`), of which `/api/v1/*` is the HTTP API the Expo app uses |
 | Domain logic | `lib/services/*.ts`, all `import "server-only"` |
 | Validation | Zod 4 (`lib/validators/index.ts`) |
-| Payments | Razorpay fully implemented; **`dummy` gateway active by default** — production refuses to boot on anything but `razorpay-live` |
-| Mobile | Capacitor 8 scaffolded (`capacitor.config.ts`, `mobile-shell/`) — not built |
-| Hosting | Vercel, `bom1` edge |
+| Payments | Razorpay fully implemented and verified on TEST keys only. Production refuses dummy and test gateways (ISS-002, ISS-087). `COMMERCE_MODE` switches between `transactional` and `catalogue` |
+| Mobile | **Expo SDK 57 / React Native 0.86** app in the *workspace* repo (`vertical-express-workspace/mobile/`), calling `/api/v1/*`; includes delivery-partner mode. Not in any store yet. The Capacitor scaffold here is a leftover (owner question 16 in the workspace `docs/UI_PARITY_MATRIX.md`) |
+| Hosting | **Firebase App Hosting**, `asia-southeast1`, backends `ve-staging` and `ve-production` (`docs/DEPLOY_FIREBASE.md`) |
 | Tests | **544 tests, 90 files** (`lib/**/*.test.ts`) — run against a local Postgres behind `test-support/db-guard.mjs`, `npm test`. Counted 12 Sep 2026; it said 328/60 for weeks, which is what the warning below is about |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — typecheck, lint, test on every push |
 
-Scale: ~346 TS/TSX files, 23 domain services.
+Scale: 35 domain service modules in `lib/services/` (4 Nov 2026); 1,348 backend tests at the 31 Oct integration check (workspace handover).
 
 > **This table drifts.** It claimed Supabase email OTP, 6 migrations and no tests
 > long after all three were wrong, and a manual that "wins over everything else"
@@ -222,8 +231,8 @@ does not exist yet.
 
 **Secrets**
 - Never print, log, or commit a credential.
-- Never ask the owner to paste a key into a chat. Tell them which env var to set; they
-  set it in Vercel themselves.
+- Never ask the owner to paste a key into a chat. Tell them which secret or env var to
+  set; they set it in Secret Manager / `apphosting.*.yaml` themselves.
 - `NEXT_PUBLIC_*` is browser-visible. Nothing sensitive goes there.
 
 **Production safety**
@@ -282,6 +291,13 @@ audit, the audit wins.
 ---
 
 ## Current Priorities
+
+> **Status, 4 Nov 2026.** Rows 1–6 and 8 are FIXED in code (`docs/KNOWN_ISSUES.md`
+> ISS-001 to 006, 011, 016); auth is Firebase phone OTP plus Google, with real SMS still
+> unverified. Rows 7 and 9–12 are open, partial or blocked on the owner; row 13 is
+> largely done (`/api/v1/*`). The live plan is the
+> Phase 1 roadmap: `docs/phase1/05-ROADMAP.md` (PR #28). The table below is kept as the
+> original ordering and its reasoning.
 
 In order. Do not jump ahead without a reason.
 
