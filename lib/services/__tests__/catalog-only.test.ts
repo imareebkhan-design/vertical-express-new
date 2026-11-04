@@ -5,9 +5,22 @@ import { db } from "@/lib/db";
 import { addItem, getCartSummary, resolveWarehouseId } from "../cart";
 import { getProductBySlug, listProducts } from "../catalog";
 import { getSuggestions } from "../search";
+import { createProductEnquiry } from "../product-enquiries";
 import { catalogOnlyReason, unpublishableReason } from "../admin/publish-guard";
 import { CATEGORY_TAX_CONFIGS } from "../tax";
 import { approveSyntheticProductForSale, createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
+
+/* Catalogue-only visibility exists only in catalogue mode; a transactional shop
+   shows only purchasable products (lib/catalog-policy.ts, shownProductStatuses). */
+async function inCatalogueMode(fn: () => Promise<void>) {
+  const saved = process.env.COMMERCE_MODE;
+  process.env.COMMERCE_MODE = "catalogue";
+  try { await fn(); } finally {
+    if (saved === undefined) delete process.env.COMMERCE_MODE;
+    else process.env.COMMERCE_MODE = saved;
+  }
+}
+
 
 /**
  * Catalog-only products: visible, never purchasable.
@@ -97,62 +110,70 @@ after(async () => {
 });
 
 test("listing shows a catalog-only product with its photo, no price, no variant", async () => {
-  const { items } = await listProducts({ categorySlug: `co-cat-${tag}`, perPage: 48 });
-  const bySlug = new Map(items.map((i) => [i.slug, i]));
-  const card = bySlug.get(slug("visible"));
-  assert.ok(card, "catalog-only product with a primary photo is listed");
-  assert.equal(card.purchasable, false);
-  assert.equal(card.pricePaise, null);
-  assert.equal(card.compareAtPaise, null);
-  assert.equal(card.variantId, null);
-  assert.equal(card.inStock, false);
-  assert.equal(card.imageUrl, "https://example.test/visible.webp");
+  await inCatalogueMode(async () => {
+    const { items } = await listProducts({ categorySlug: `co-cat-${tag}`, perPage: 48 });
+    const bySlug = new Map(items.map((i) => [i.slug, i]));
+    const card = bySlug.get(slug("visible"));
+    assert.ok(card, "catalog-only product with a primary photo is listed");
+    assert.equal(card.purchasable, false);
+    assert.equal(card.pricePaise, null);
+    assert.equal(card.compareAtPaise, null);
+    assert.equal(card.variantId, null);
+    assert.equal(card.inStock, false);
+    assert.equal(card.imageUrl, "https://example.test/visible.webp");
 
-  const withVariant = bySlug.get(slug("withvariant"));
-  assert.ok(withVariant, "listed even though it has a variant");
-  assert.equal(withVariant.pricePaise, null, "an existing variant's price is never exposed while catalog-only");
-  assert.equal(withVariant.variantId, null);
+    const withVariant = bySlug.get(slug("withvariant"));
+    assert.ok(withVariant, "listed even though it has a variant");
+    assert.equal(withVariant.pricePaise, null, "an existing variant's price is never exposed while catalog-only");
+    assert.equal(withVariant.variantId, null);
 
-  assert.equal(bySlug.has(slug("nophoto")), false, "no photo → stays hidden");
-  assert.equal(bySlug.has(slug("draft")), false, "draft stays hidden");
-  const sold = bySlug.get(slug("published"));
-  assert.ok(sold && sold.purchasable && sold.pricePaise === 39000, "published product unchanged");
+    assert.equal(bySlug.has(slug("nophoto")), false, "no photo → stays hidden");
+    assert.equal(bySlug.has(slug("draft")), false, "draft stays hidden");
+    const sold = bySlug.get(slug("published"));
+    assert.ok(sold && sold.purchasable && sold.pricePaise === 39000, "published product unchanged");
+  });
 });
 
 test("a price filter or price sort never surfaces or misorders catalog-only products", async () => {
-  const filtered = await listProducts({ categorySlug: `co-cat-${tag}`, minPaise: 0, maxPaise: 10_000_000 });
-  assert.deepEqual(filtered.items.map((i) => i.slug), [slug("published")]);
+  await inCatalogueMode(async () => {
+    const filtered = await listProducts({ categorySlug: `co-cat-${tag}`, minPaise: 0, maxPaise: 10_000_000 });
+    assert.deepEqual(filtered.items.map((i) => i.slug), [slug("published")]);
 
-  for (const sort of ["price_asc", "price_desc"] as const) {
-    const { items } = await listProducts({ categorySlug: `co-cat-${tag}`, sort });
-    assert.equal(items[0]?.slug, slug("published"), `${sort}: priced first`);
-    assert.ok(items.slice(1).every((i) => i.pricePaise === null), `${sort}: unpriced last`);
-  }
+    for (const sort of ["price_asc", "price_desc"] as const) {
+      const { items } = await listProducts({ categorySlug: `co-cat-${tag}`, sort });
+      assert.equal(items[0]?.slug, slug("published"), `${sort}: priced first`);
+      assert.ok(items.slice(1).every((i) => i.pricePaise === null), `${sort}: unpriced last`);
+    }
+  });
 });
 
 test("search and suggestions find catalog-only products and report no price", async () => {
-  const { items } = await listProducts({ search: `Catalog Only Probe ${tag}`, perPage: 48 });
-  const card = items.find((i) => i.slug === slug("visible"));
-  assert.ok(card, "search returns it");
-  assert.equal(card.pricePaise, null);
-  assert.ok(!items.some((i) => i.slug === slug("nophoto") || i.slug === slug("draft")));
+  await inCatalogueMode(async () => {
+    const { items } = await listProducts({ search: `Catalog Only Probe ${tag}`, perPage: 48 });
+    const card = items.find((i) => i.slug === slug("visible"));
+    assert.ok(card, "search returns it");
+    assert.equal(card.pricePaise, null);
+    assert.ok(!items.some((i) => i.slug === slug("nophoto") || i.slug === slug("draft")));
 
-  const suggestions = await getSuggestions(`Catalog Only Probe ${tag}`);
-  const s = suggestions.products.find((p) => p.slug === slug("visible"));
-  assert.ok(s, "suggested");
-  assert.equal(s.pricePaise, null, "never ₹0");
-  assert.ok(!suggestions.products.some((p) => p.slug === slug("draft")));
+    const suggestions = await getSuggestions(`Catalog Only Probe ${tag}`);
+    const s = suggestions.products.find((p) => p.slug === slug("visible"));
+    assert.ok(s, "suggested");
+    assert.equal(s.pricePaise, null, "never ₹0");
+    assert.ok(!suggestions.products.some((p) => p.slug === slug("draft")));
+  });
 });
 
 test("the PDP returns a catalog-only product as not purchasable with no variants", async () => {
-  const detail = await getProductBySlug(slug("withvariant"));
-  assert.ok(detail);
-  assert.equal(detail.purchasable, false);
-  assert.deepEqual(detail.variants, [], "no variant, price or stock reaches the page");
-  assert.equal(await getProductBySlug(slug("nophoto")), null);
-  assert.equal(await getProductBySlug(slug("draft")), null);
-  const sold = await getProductBySlug(slug("published"));
-  assert.ok(sold?.purchasable && sold.variants.length === 1);
+  await inCatalogueMode(async () => {
+    const detail = await getProductBySlug(slug("withvariant"));
+    assert.ok(detail);
+    assert.equal(detail.purchasable, false);
+    assert.deepEqual(detail.variants, [], "no variant, price or stock reaches the page");
+    assert.equal(await getProductBySlug(slug("nophoto")), null);
+    assert.equal(await getProductBySlug(slug("draft")), null);
+    const sold = await getProductBySlug(slug("published"));
+    assert.ok(sold?.purchasable && sold.variants.length === 1);
+  });
 });
 
 test("addItem refuses a catalog-only product's variant even with stock", async () => {
@@ -192,4 +213,25 @@ test("catalogOnlyReason demands an exact provenance photo and active brand/categ
 test("catalog-only does not weaken the publish guard", async () => {
   const id = (await db.product.findUniqueOrThrow({ where: { slug: slug("visible") }, select: { id: true } })).id;
   assert.match((await unpublishableReason(db, id))!, /price|variant/);
+});
+
+test("transactional launch: a catalog-only product is not listed, searched, suggested or shown, and takes no enquiry", async () => {
+  const saved = process.env.COMMERCE_MODE;
+  process.env.COMMERCE_MODE = "transactional";
+  try {
+    const { items } = await listProducts({ categorySlug: `co-cat-${tag}`, perPage: 48 });
+    assert.deepEqual(items.map((i) => i.slug), [slug("published")], "only the purchasable product is in the shop");
+    const found = await listProducts({ search: `Catalog Only Probe ${tag}`, perPage: 48 });
+    assert.ok(!found.items.some((i) => !i.purchasable), "search shows nothing that cannot be bought");
+    const suggestions = await getSuggestions(`Catalog Only Probe ${tag}`);
+    assert.ok(!suggestions.products.some((p) => p.slug === slug("visible")));
+    assert.equal(await getProductBySlug(slug("visible")), null, "its page is not found rather than an enquiry form");
+    assert.ok((await getProductBySlug(slug("published")))?.purchasable);
+    const visible = await db.product.findUniqueOrThrow({ where: { slug: slug("visible") }, select: { id: true } });
+    const res = await createProductEnquiry({ productId: visible.id, name: "Test Buyer", phone: "9876543210", message: null });
+    assert.deepEqual(res, { ok: false, reason: "NOT_ENQUIRABLE" });
+  } finally {
+    if (saved === undefined) delete process.env.COMMERCE_MODE;
+    else process.env.COMMERCE_MODE = saved;
+  }
 });

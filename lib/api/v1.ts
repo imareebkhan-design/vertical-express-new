@@ -226,10 +226,12 @@ export async function handleGetProduct(request: Request, slug: string): Promise<
     const boughtWith = await boughtWithProductRaw(slug);
     /* Additive, for the app to choose between "Add to cart" and "Enquire":
        `orderingOpen` is the deployment's COMMERCE_MODE, `enquirable` whether this
-       product takes an enquiry (lib/services/product-enquiries.ts). An app that
-       predates them ignores both and the server still refuses the cart add. */
+       product takes an enquiry (lib/services/product-enquiries.ts): only in
+       catalogue mode. A transactional shop shows only purchasable products and
+       takes no enquiries. An app that predates them ignores both and the server
+       still refuses the cart add. */
     const open = orderingOpen();
-    return apiOk({ ...product, boughtWith, storageGuidance: storageGuidanceFor(product.categorySlug), orderingOpen: open, enquirable: !product.purchasable || !open });
+    return apiOk({ ...product, boughtWith, storageGuidance: storageGuidanceFor(product.categorySlug), orderingOpen: open, enquirable: !open });
   });
 }
 

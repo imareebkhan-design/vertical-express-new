@@ -6,6 +6,16 @@ import { db } from "@/lib/db";
 import { publicProductWhere } from "@/lib/catalog-policy";
 import { recordCatalogueApproval, recordBatchApproval, APPROVAL_BATCHES, type ApprovalInput } from "../catalogue-approval";
 
+/* Catalogue-only visibility exists only in catalogue mode; a transactional shop
+   shows only purchasable products (lib/catalog-policy.ts, shownProductStatuses). */
+const savedCommerceMode = process.env.COMMERCE_MODE;
+before(() => { process.env.COMMERCE_MODE = "catalogue"; });
+after(() => {
+  if (savedCommerceMode === undefined) delete process.env.COMMERCE_MODE;
+  else process.env.COMMERCE_MODE = savedCommerceMode;
+});
+
+
 /**
  * Owner approval recording. One decision per product, by the signed-in admin,
  * against exactly what the screen showed. Approval makes a catalog-only product
