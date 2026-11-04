@@ -13,6 +13,7 @@ import {
 import { rupeesToPaise } from "@/lib/money";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
 import { attributeConfigFor } from "@/lib/catalog-attributes";
+import { comingSoonNextSteps } from "@/lib/category-directory";
 
 export const dynamic = "force-dynamic";
 
@@ -60,15 +61,17 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
      department's stocked categories as somewhere to go. No product query runs,
      so nothing unapproved can appear (lib/category-directory.ts). */
   if ((await visibleProductCount(category.id)) === 0) {
-    const group = (await listCategoryDirectory()).find((g) => g.categories.some((c) => c.slug === slug));
-    const entry = group?.categories.find((c) => c.slug === slug);
+    const directory = await listCategoryDirectory();
+    const entry = directory.flatMap((g) => g.categories).find((c) => c.slug === slug);
+    const next = comingSoonNextSteps(directory, slug);
     return (
       <CategorySwitcher
         category={category}
         slug={slug}
         comingSoon={{
           name: entry?.name ?? category.name,
-          siblings: (group?.categories ?? []).filter((c) => c.state === "available"),
+          siblings: next.department,
+          elsewhere: next.elsewhere,
         }}
       />
     );

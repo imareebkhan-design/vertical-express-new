@@ -199,3 +199,26 @@ export function isDiscoverable(row: Pick<DirectoryRow, "slug" | "isActive" | "_c
 export function directoryEntries(groups: readonly DirectoryGroup[]): DirectoryEntry[] {
   return groups.flatMap((g) => g.categories);
 }
+
+/**
+ * Where a coming-soon category page sends the customer next (issue #26): never
+ * a dead end. Stocked categories from its own department first; when that
+ * department has fewer than `limit` (all of Plumbing can be empty at once),
+ * stocked categories from the other departments fill the gap, in directory
+ * order. Only `available` entries are offered — nothing that would open onto
+ * another empty page.
+ */
+export function comingSoonNextSteps(
+  groups: readonly DirectoryGroup[],
+  slug: string,
+  limit = 4
+): { department: DirectoryEntry[]; elsewhere: DirectoryEntry[] } {
+  const home = groups.find((g) => g.categories.some((c) => c.slug === slug));
+  const department = (home?.categories ?? []).filter((c) => c.slug !== slug && c.state === "available").slice(0, limit);
+  const elsewhere = groups
+    .filter((g) => g !== home)
+    .flatMap((g) => g.categories)
+    .filter((c) => c.state === "available")
+    .slice(0, Math.max(0, limit - department.length));
+  return { department, elsewhere };
+}

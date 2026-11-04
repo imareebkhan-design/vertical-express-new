@@ -4,7 +4,6 @@ import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Heart,
@@ -34,6 +33,7 @@ import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 import { ProductEnquiry } from "@/components/shop/product-enquiry";
 import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 import { ENQUIRE_LABEL } from "@/lib/catalog-visibility";
+import { useBackOr } from "@/hooks/use-back-or";
 
 interface MobileProductViewProps {
   product: ProductDetail;
@@ -43,7 +43,9 @@ interface MobileProductViewProps {
 }
 
 export function MobileProductView({ product, related, boughtWith }: MobileProductViewProps) {
-  const router = useRouter();
+  /* Opened from a shared link there is nothing behind this page; Back then
+     goes to the product's category rather than nowhere (lib/back-stack.ts). */
+  const goBack = useBackOr(`/category/${product.categorySlug}`);
 
   // Cart & Wishlist hooks
   const { summary, refresh, wishlistIds, setWishlisted, updateItem, removeItem } = useCart();
@@ -207,7 +209,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
         <button
           onClick={() => {
             triggerHaptic("light");
-            router.back();
+            goBack();
           }}
           aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"

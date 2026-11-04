@@ -12,6 +12,7 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import { rupeesToPaise } from "@/lib/money";
 import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
 import { listingLayoutFor } from "@/lib/catalog-presentation";
+import { useBackOr } from "@/hooks/use-back-or";
 import { CatalogRow } from "@/components/shop/catalog-row";
 import { BrandStrip } from "@/components/shop/brand-strip";
 import { MostOrdered } from "@/components/shop/most-ordered";
@@ -37,6 +38,9 @@ export function MobileCategoryView({
      uses, so a category does not change shape between surfaces. */
   const layout = listingLayoutFor(slug);
   const router = useRouter();
+  /* Pops real history; entered directly (a shared link), it goes to the
+     category index instead of doing nothing (lib/back-stack.ts). */
+  const goBack = useBackOr("/categories");
   const searchParams = useSearchParams();
 
   // Feed states
@@ -236,9 +240,9 @@ export function MobileCategoryView({
           <button
             onClick={() => {
               triggerHaptic("light");
-              router.push("/categories");
+              goBack();
             }}
-            aria-label="Back to categories"
+            aria-label="Back"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
