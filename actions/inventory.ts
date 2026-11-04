@@ -62,6 +62,7 @@ export async function adminAdjustStock(input: unknown): Promise<ActionResult<{ q
     reason,
     note,
     actorEmail: admin.email,
+    actorId: admin.id,
   });
 
   logAdjustment(result, { variantId, warehouseId, qtyDelta, reason, actor: admin.email });
@@ -114,7 +115,7 @@ export async function adminRecountStock(input: unknown): Promise<ActionResult<{ 
   }
   const { variantId, warehouseId, countedQty, expectedOnHand, note } = parsed.data;
 
-  const result = await recountStock({ variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail: admin.email });
+  const result = await recountStock({ variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail: admin.email, actorId: admin.id });
 
   if (!result.ok) {
     logAdjustment({ ok: false, error: result.error === "stale" ? "raced" : result.error === "not_found" ? "not_found" : "would_go_negative" }, {
