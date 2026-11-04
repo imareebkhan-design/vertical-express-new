@@ -14,28 +14,28 @@ journey) · MEDIUM (undermines confidence) · LOW (quality).
 
 | ID | Sev | Area | Finding | Evidence | Owner | Phase |
 |---|---|---|---|---|---|---|
-| GAP-C-01 | HIGH | Categories | **19 of 23 live categories are empty (`coming_soon`)**. Only `general-hardware-tools` (4 products) among the original 20 has stock. 256 of the 260 visible products sit in 3 "tools" categories that are not on the canvas. This is the root of "categories feel unfinished" | [L] `/api/v1/categories` on www | OWNER (catalogue data) + ENG (presentation, #26) | P1/P2 |
+| GAP-C-01 | HIGH | Categories | **19 of 23 live categories are empty (`coming_soon`)**. Only `general-hardware-tools` (4 products) among the original 20 contains visible products (re-probed 4 Nov, unchanged). 256 of the 260 visible products sit in 3 "tools" categories that are not on the canvas. This is the root of "categories feel unfinished" | [L] `/api/v1/categories` on www | OWNER (catalogue data) + ENG (presentation, #26) | P1/P2 |
 | GAP-C-02 | HIGH | Taxonomy | The canvas defines **4 groups / 21 categories**. Production serves **5 display groups** (an extra `tools_equipment`, mapped in code onto the `tools` enum) **/ 23 categories** | [L][C] | OWNER (D-01) | P2 |
 | GAP-C-03 | HIGH | Taxonomy | No level-3 subcategory ("Shop by grade/type"). `Category` has no parent, and product attributes are free-form, so the facets drawn (grade, size, finish, room) cannot be built honestly | [C] `prisma/schema.prisma` | OWNER (D-02) + ENG | P2 |
 | GAP-C-04 | MEDIUM | Imagery | The 3 populated categories (`power-tools`, `outdoor-agriculture-equipment`, `spare-parts-accessories`) have **no tile image** | [L] `imageUrl` null | OWNER (asset approval) + ENG | P2 |
-| GAP-C-05 | MEDIUM | Home | Home hero CTAs "Shop tiling" and "Shop electricals" lead to empty categories | [S] | ENG (local fix on `claude/category-navigation-slice`, uncommitted) | P2 |
+| GAP-C-05 | MEDIUM | Home | Home hero CTAs "Shop tiling" and "Shop electricals" lead to empty categories | [S] | ENG: the 3 Nov local fix cannot be located (see README); check PR #27 before re-doing it | P2 |
 | GAP-L-01 | MEDIUM | Listing | First page shows 24 of N, and infinite scroll adds pages slowly (120 of 202 after six scrolls) | [S] | ENG | P2 |
 | GAP-L-02 | MEDIUM | Listing | Back from a PDP resets the listing to the first page and the top | [S] | ENG | P2 |
-| GAP-L-03 | MEDIUM | Listing | Price sort and price-range filters are offered on listings where no product is priced, so they do nothing visible | [S] | ENG (local fix pending) | P2 |
+| GAP-L-03 | MEDIUM | Listing | Price sort and price-range filters are offered on listings where no product is priced, so they do nothing visible | [S] | ENG: the 3 Nov local fix cannot be located (see README); check PR #27 before re-doing it | P2 |
 | GAP-L-04 | LOW | API | `/api/v1/products` reads `perPage` and silently ignores `limit` (default cap 20) | [S] | ENG (document or accept both) | P2 |
 | GAP-P-01 | HIGH | PDP | Mobile-web sticky bottom bar shows "Price on request" **with no control**, so a phone user has no next step | [S] | ENG | P2 |
 | GAP-M-01 | **CRITICAL for any app release** | Mobile | Catalogue-mode handling (no cart, enquiry, ORDERING_CLOSED treated as final) is on workspace branch `claude/catalogue-mode-app` and **is not in** the current mobile branch `claude/location-first-address`. A build from the current branch would show a cart that production refuses | [C] `grep orderingOpen mobile/src` returns nothing on the current branch | ENG | P1 |
-| GAP-R-01 | HIGH | Release | Production (`ve-production`, now serving www) was deployed from **draft PR #25**, not from a merged release branch. `main` is 316 commits behind the RC | [C][L] | OWNER + ENG (D-11) | P1 |
-| GAP-R-02 | HIGH | Release | Work exists only on the owner's Mac: `claude/mrp-equals-price`, `claude/catalogue-update-import`, `claude/transactional-launch-surfaces` (unpushed), plus uncommitted edits in `claude/category-navigation-slice`. A disk failure loses it | [C] `git ls-remote` | OWNER (approve push) + ENG | P1 |
+| GAP-R-01 | MEDIUM | Release | *Updated 4 Nov.* PR #25 is now merged (`40f171c`). Production still serves `build-2026-11-02-002`, uploaded from a local working tree before the merge: its code matches `40f171c` file for file, but it is not built from git, and RC PRs #29–#33 are not deployed. `main` is still the August merge; PR #24 is open and held | [L4][C] | OWNER (D-11) + ENG | P1.7 |
+| GAP-R-02 | LOW | Release | **Resolved 4 Nov** for the three branches: merged into the RC as PRs #29, #30, #31. `claude/category-navigation-slice` has no commits and its worktree folder is gone, so its uncommitted edits cannot be located; its scope belongs to PR #27 | [C] | ENG | — |
 | GAP-R-03 | LOW | Release | **Checked, and resolved.** All 18 pushed fix and feature branches have 0 commits outside the RC, including Next 15.5.28, runtime deps, outbox, refund replay, ISS-096, ISS-097, `feat/admin-catalogue`, `feat/refund-execution`, `feat/monitoring` and the inventory ledger. `KNOWN_ISSUES.md` still describes many of them as "not in the RC" | [C] `git rev-list --count` | ENG (register update) | P1 |
-| GAP-R-04 | LOW | Release | Open PRs #3, #4, #5 and #6 (16–17 Oct) target branches whose commits are already in the RC. They are stale and should be closed as superseded once the owner agrees. PR #2 (image hybrid handoff, draft) needs a decision | [C] | OWNER + ENG | P1 |
+| GAP-R-04 | LOW | Release | PRs #3–#6 are **closed** (4 Nov). PR #2 (image hybrid handoff, draft) still needs a decision (D-11) | [C] | OWNER | P1 |
 | GAP-I-01 | HIGH | Images | **Production reads the staging image bucket** (`ve-staging-product-images`) | [L] product `imageUrl`. PR #25 | ENG + OWNER (bucket) | P1 |
-| GAP-I-02 | HIGH | Licence | The HomeRun "licence" is an owner statement (17 Oct, in writing). **No licence instrument exists in the repo**. The source folder is a browser "save page" of HomeRun's home page, with "no licence documents or source notes". 35 photos were relicensed under the code, and 15 repo category composites match HomeRun by perceptual hash | [D] workspace `docs/catalog/homerun-production-images-2026-10-17/README.md` | OWNER (D-03) | P0 gate |
+| GAP-I-02 | MEDIUM | Records | **The owner's HomeRun image authorisation is recorded** (17 Oct, in writing; licence code `homerun-library-owner-licensed`). What is missing is the *supporting licence documentation*: the source folder is a browser "save page" of HomeRun's home page with "no licence documents or source notes", so the underlying licence or grant is not on file. This is a records gap, not a missing approval. 35 photos carry the code; 15 repo category composites match HomeRun by perceptual hash | [D] workspace `docs/catalog/homerun-production-images-2026-10-17/README.md` | OWNER (DOC-01) | Before sale, if the owner requires it (T7) |
 | GAP-A-01 | MEDIUM | A11y | Category tile images have empty `alt` | [S] | ENG | P2 |
 | GAP-PF-01 | MEDIUM | Performance | Staging home requests all 27 images at a 393 px viewport | [S] | ENG | P3 |
-| GAP-D-01 | MEDIUM | Docs | `CLAUDE.md` is stale on hosting (Vercel), mobile (Capacitor), model and migration counts, and the priority table. `OWNER_INPUT_REQUIRED.md` has no recorded answers despite three written owner decisions | [C] | ENG (doc PR) | P1 |
-| GAP-T-01 | MEDIUM | QA | No end-to-end browser or device test suite (no Playwright, Detox or Maestro). CI runs typecheck, lint, unit/service, UI, design-system and asset checks only | [C] `.github/workflows/ci.yml` | ENG | P1–P3 |
-| GAP-T-02 | MEDIUM | QA | Nothing has been device-verified. Ops pages are source-audited only, never rendered with an admin login | [D] parity matrix | EXT (device) + OWNER (admin test account) | P3 |
+| GAP-D-01 | LOW | Docs | **Resolved 4 Nov** by PR #32 (manual, answer log, issue statuses). Remaining: the ISS-068–088 confirmation pass (roadmap I-9). `OWNER_INPUT_REQUIRED.md` still calls the HomeRun documentation "open decision D-03"; it should say DOC-01 | [C] | ENG | P1 |
+| GAP-T-01 | MEDIUM | QA | *Updated 4 Nov.* A Playwright smoke of the anonymous browse journey was added (PR #33, `e2e-smoke.yml`, manual dispatch only). No scheduled E2E, accessibility, performance or device suite yet | [C] | ENG (I-7) | P3 |
+| GAP-T-02 | MEDIUM | QA | Nothing has been device-verified. Ops pages are source-audited only, never rendered with an admin login. They are to be rendered with the **owner's existing verified admin account** (no new account) | [D] parity matrix | EXT (device) + OWNER (signs in) | P3 |
 
 ## 2. Open issues carried from `KNOWN_ISSUES.md`
 
@@ -46,14 +46,14 @@ journey) · MEDIUM (undermines confidence) · LOW (quality).
 | 010 | HIGH | COD collection and reconciliation | OPEN | OWNER + ENG |
 | 012 | MEDIUM | Monitoring, uptime, analytics | PARTIAL | ENG |
 | 014 | MEDIUM | Order transition enforcement | OPEN (re-check; `lib/order-flow.ts` exists) | ENG |
-| 015 | MEDIUM | Audit log on money, stock, price | OPEN (re-check; `AuditLog` model exists) | ENG |
+| 015 | HIGH | Audit log on money, stock, price | PARTIAL. **Mandatory before transactional launch** (T20, P4b) | ENG |
 | 017 | HIGH | Legal pages | BLOCKED | LEGAL |
 | 018 | MEDIUM | Canonical URLs and sitemap host | OPEN (verify on www) | ENG |
 | 020 | LOW | Search typo tolerance | OPEN | ENG |
 | 024 | MEDIUM | Migrations on deploy | OPEN in the register, but `CLAUDE.md` says migrations are manual; reconcile | ENG |
 | 025 | HIGH | Refunds (policy refunds) | PARTIAL | OWNER |
 | 026 | CRITICAL | GST invoice | BLOCKED | CA |
-| 027 | HIGH | Admin RBAC | OPEN | OWNER (roles) + ENG |
+| 027 | HIGH | Admin RBAC | OPEN. **Mandatory before transactional launch** (T20, P4b) | ENG (mechanism) + OWNER (roles, D-15) |
 | 039 | LOW | Amber body text contrast | OPEN | ENG |
 | 044/045 | MEDIUM | Branded imagery residuals; a missing fan tile file | PARTIAL | ENG |
 | 047 | HIGH | OTP abuse protection | PARTIAL | ENG |

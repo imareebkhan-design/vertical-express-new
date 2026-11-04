@@ -1,6 +1,6 @@
 # A. Master PRD: Vertical Express
 
-**Version:** Phase 1 draft for owner review · **Date:** 3 Nov 2026 · **Status:** awaiting owner approval
+**Version:** Phase 1 draft for owner review · **Date:** 3 Nov 2026, corrected 4 Nov 2026 · **Status:** awaiting owner approval
 **Evidence tags:** [C] code · [L] live probe · [D] documented, not re-verified · [S] staging observation (see `README.md`)
 
 ---
@@ -16,8 +16,8 @@ has three surfaces on one backend:
 3. **Operations console**: `/admin/*` in the same Next.js app
 
 **Today's operating state:** production is live in **catalogue/enquiry mode**
-(`COMMERCE_MODE=catalogue`). Customers can browse 260 approved products and send an
-enquiry. Nothing can be bought: no price, stock figure, GST rate or delivery promise is shown
+(`COMMERCE_MODE=catalogue`). Customers can browse 260 publicly visible products (approved
+identity and photo) and send an enquiry. Visibility is not evidence of physical stock. Nothing can be bought: no price, stock figure, GST rate or delivery promise is shown
 [L]. The site stays in this mode until the gates in `07-PRODUCTION-READINESS.md` are met.
 
 ### Design authorities (in order)
@@ -73,7 +73,7 @@ Build Yet" and `DECISIONS.md`.
 
 | ID | Requirement | Status | Evidence / note |
 |---|---|---|---|
-| WEB-01 | Home (desktop and mobile web compositions) with search, location, category entry and merchandising | IMPROVE | [C][S] Home CTAs "Shop tiling" and "Shop electricals" lead to empty `coming_soon` categories. Tiles are hard-coded by slug in `lib/merchandising/home.ts`. A local fix (`claude/category-navigation-slice`) hides those banners but is uncommitted |
+| WEB-01 | Home (desktop and mobile web compositions) with search, location, category entry and merchandising | IMPROVE | [C][S] Home CTAs "Shop tiling" and "Shop electricals" lead to empty `coming_soon` categories. Tiles are hard-coded by slug in `lib/merchandising/home.ts`. A 3 Nov local fix that hid those banners was never committed and cannot be located (P2) |
 | WEB-02 | Every public route returns 200 or a correct redirect, and an unknown product returns 404 | VERIFIED | [L] `/category/cement` 200, unknown PDP 404. Apex 301 → www |
 | WEB-03 | Content pages: contact, FAQ, terms, privacy, refunds, shipping, how-we-work, downloads | PARTIAL | [C] All 8 routes exist. Legal content is BLOCKED on owner and legal input (ISS-017): legal entity, address, phone, return window |
 | WEB-04 | Canonical host, sitemap, robots, OG tags use `www.verticalexpress.in` | PARTIAL | [D] ISS-018 is OPEN. Production sets `NEXT_PUBLIC_SITE_URL` (PR #25). Needs a live check |
@@ -96,10 +96,10 @@ Build Yet" and `DECISIONS.md`.
 
 | ID | Requirement | Status | Evidence / note |
 |---|---|---|---|
-| CAT-01 | Level 1: four department groups (Civil & Interiors, Furniture & Hardware, Electrical, Plumbing & Bath), as drawn | IMPROVE | [L] Production returns **5** display groups: a `tools_equipment` group holds the only stocked categories (power tools 202, outdoor/agri 39, spare parts 15). The canvas draws 4 groups and 21 categories. **Owner decision D-01** |
-| CAT-02 | Level 2: categories with name, tile image, product count and availability state | IMPROVE | [L] 23 categories. **19 are `coming_soon` with 0 products**. Only `general-hardware-tools` (4) among the original 20 has stock. The 3 populated tools categories have **no tile image** (`imageUrl` null) |
+| CAT-01 | Level 1: four department groups (Civil & Interiors, Furniture & Hardware, Electrical, Plumbing & Bath), as drawn | IMPROVE | [L] Production returns **5** display groups: a `tools_equipment` group holds 3 of the 4 categories that contain visible products (power tools 202, outdoor/agri 39, spare parts 15). The canvas draws 4 groups and 21 categories. **Owner decision D-01** |
+| CAT-02 | Level 2: categories with name, tile image, product count and availability state | IMPROVE | [L] 23 categories. **19 are `coming_soon` with 0 products**. Only `general-hardware-tools` (4) among the original 20 contains visible products. The 3 populated tools categories have **no tile image** (`imageUrl` null) |
 | CAT-03 | Level 3: "Shop by grade/type" subcategory (canvas: PPC / OPC 43 / OPC 53 / PSC / White / Ready-mix, with counts) | MISSING | [C] `Category` is flat (no `parentId`). Products carry free-form `attributes`/`specs`. There are no structured facet keys, and the API has no spec facets |
-| CAT-04 | An empty category never 404s from live navigation and offers a truthful next step (enquire, nearest stocked category) | PARTIAL | [C][L] Returns 200 with an empty state and sibling categories (owner decision 12 Oct). Whether the "next action" is helpful is under #26 |
+| CAT-04 | An empty category never 404s from live navigation and offers a truthful next step (enquire, nearest category with visible products) | PARTIAL | [C][L] Returns 200 with an empty state and sibling categories (owner decision 12 Oct). Whether the "next action" is helpful is under #26 |
 | CAT-05 | Category order, launch set and naming are owner-confirmed (e.g. `fevicol` holds no Fevicol products) | BLOCKED | OWNER 3.1, ISS-007 |
 | CAT-06 | Shop by room (Room/RoomCategory) | BLOCKED | [D] Model, API and both UIs are built. 0 rooms are curated (OWNER parity decision #5) |
 | CAT-07 | Category admin: create, edit and retire, with an image | PARTIAL | [D] `/admin/categories` is in the RC [C]. `feat/admin-catalogue` (category edit, photo upload) is merged into the RC [C]. Issue #7's inline create from the product form is still open |
@@ -111,12 +111,12 @@ Build Yet" and `DECISIONS.md`.
 | CLG-01 | Public visibility needs approved identity, approved photo with attested licence (in production), active brand and category, and a status of `catalog_only` or `published` | VERIFIED | [C] `lib/catalog-policy.ts` `publicProductWhere()`. [L] 260 visible in production, 261 on staging. PR #25 says 3 are hidden pending photo review [D] |
 | CLG-02 | Sellable needs `published`, owner commercial review, a priced default variant (>0) and stock rows in an active warehouse | VERIFIED (code) | [C] `catalogListingWhere()`. DB triggers clear approval when a product is edited [D] |
 | CLG-03 | Listing pagination is reliable and keeps scroll position on back | IMPROVE | [S] Power tools rendered 24 of 202, infinite scroll reached 120 after six scrolls, and back from a PDP reset the list to the top. The API reads `perPage` and ignores `limit` (`limit` is capped at 20) |
-| CLG-04 | Sort: relevance, popular, newest, price, discount | IMPROVE | [S] Price sort and price filters **visibly do nothing** on a catalogue with no prices. A local fix hides price controls when nothing is priced (uncommitted). "Popular" was removed because there is no rating data. ISS-058: the default sort needs a decision |
+| CLG-04 | Sort: relevance, popular, newest, price, discount | IMPROVE | [S] Price sort and price filters **visibly do nothing** on a catalogue with no prices. A 3 Nov local fix hiding price controls was never committed and cannot be located (P2). "Popular" was removed because there is no rating data. ISS-058: the default sort needs a decision |
 | CLG-05 | Facets: brand (with counts), category (search) | PARTIAL | [D] Brand facets are live. Size, finish, room, grade and delivery-speed facets (drawn) need structured attributes (CAT-03) |
 | CLG-06 | Search: debounced, suggest, brand shortcuts, closest match, empty state | PARTIAL | [C] `/api/search/suggest`, `/api/v1/search/closest`, synonyms model. No typo tolerance (ISS-020, `pg_trgm` not used) |
 | CLG-07 | "Searched most in Srinagar" trending chips | BLOCKED | ISS-060: logging search queries needs a data-retention decision |
 | CLG-08 | "Request this item" from empty search | BLOCKED | Owner process decision: who receives the request |
-| CLG-09 | Catalogue import: CSV dry run → apply, with SKU, MRP, price and variant validation | PARTIAL | [D] The importer exists. The 2 Nov dry run of 996 rows found **996 invalid** (MRP and price blank on all 996, SKU blank on 976). Update-import work is on the unpushed `claude/catalogue-update-import` |
+| CLG-09 | Catalogue import: CSV dry run → apply, with SKU, MRP, price and variant validation | PARTIAL | [D] The importer exists. The 2 Nov dry run of 996 rows found **996 invalid** (MRP and price blank on all 996, SKU blank on 976). Update-import work is merged into the RC (PR #30, 4 Nov), not deployed |
 | CLG-10 | Every product has a verified MRP, selling price, SKU, HSN/GST, pack/UoM and weight | **BLOCKED** | OWNER 2.2, 2.3, 3.7, 3.8, 4.1. **No MRP is verified for any product** |
 
 ### 3.5 Product detail page (PDP)
@@ -187,11 +187,11 @@ Build Yet" and `DECISIONS.md`.
 | ID | Requirement | Status | Evidence / note |
 |---|---|---|---|
 | OPS-01 | 32 admin pages covering orders, products, approvals, categories, brands, inventory, stock ledger, dispatch, drivers, COD cash, payments, returns, coupons, customers, enquiries, serviceability, settings, staff, suppliers, purchasing, invoices, credit, support, BI | PARTIAL | [C] Routes exist. [D] Parity matrix: "source-audited 27/27, none rendered live". Several pages honestly state there is no data model behind them (support, credit, invoices) |
-| OPS-02 | Catalogue approval: identity, photo and commercial review, with specs visible | VERIFIED (code) | [C] ISS-095 fix is in the RC (`feat/admin-catalogue` merged). Not rendered live with an admin login |
+| OPS-02 | Catalogue approval: identity, photo and commercial review, with specs visible. **The owner is the final approver** (4 Nov) | VERIFIED (code) | [C] ISS-095 fix is in the RC (`feat/admin-catalogue` merged). To be rendered on staging with the owner's existing verified admin account (P3) |
 | OPS-03 | Product media upload with review gate | PARTIAL | [C] `/api/admin/product-images` exists. Hosting needs `roles/storage.objectCreator` [D]. **Production reads the staging bucket** (PR #25) |
-| OPS-04 | Role-based access (beyond an environment allowlist) | MISSING | ISS-027 OPEN. Roles are OWNER 10.8 |
+| OPS-04 | Role-based access (beyond an environment allowlist). **Mandatory before transactional launch** (T20) | MISSING | ISS-027 OPEN. Mechanism needs no decision (roadmap I-2); role assignment is D-15 |
 | OPS-05 | Enquiry inbox with status | VERIFIED (code) | [C] `/admin/enquiries`, `enquiry-status.tsx` |
-| OPS-06 | Bulk catalogue update import (MRP/price/SKU) | PARTIAL | Unpushed `claude/catalogue-update-import` |
+| OPS-06 | Bulk catalogue update import (MRP/price/SKU) | PARTIAL | [C] Merged into the RC (PR #30). Not deployed. No owner price data loaded |
 
 ### 3.11 Mobile driver workflows
 
@@ -226,9 +226,9 @@ Build Yet" and `DECISIONS.md`.
 | SEC-01 | Secrets in Secret Manager; no credentials in the repo | VERIFIED (process) | [D] PR #25 |
 | SEC-02 | Rate limits fail closed on OTP; atomic; rows reclaimed | VERIFIED (code) | ISS-021, 041, 042 |
 | SEC-03 | Cron endpoint authenticated | VERIFIED | [D] 401 without the secret (PR #25) |
-| SEC-04 | Admin RBAC and audit trail | MISSING / PARTIAL | ISS-027, ISS-015 |
+| SEC-04 | Admin RBAC and audit trail. **Mandatory before transactional launch** (T20, roadmap P4b) | MISSING / PARTIAL | ISS-027, ISS-015 |
 | SEC-05 | Dependency patching (Next 15.5.28 RCE fix, runtime deps) | VERIFIED (code) | [C] RC `package.json`: next 15.5.28, zod 4.6.7, @sentry/nextjs 10.78. The owner's local checkout on `claude/location-first-address` is still on 15.5.23 |
-| OPS-DEP-01 | Firebase App Hosting: staging and production backends, environment split, manual migrations | VERIFIED (deployed) | [L] Both healthy. PR #25 is still **draft**, so production was deployed from an unmerged branch |
+| OPS-DEP-01 | Firebase App Hosting: staging and production backends, environment split, manual migrations | VERIFIED (deployed) / IMPROVE | [L4] Both healthy. PR #25 merged 4 Nov (`40f171c`). Production serves `build-2026-11-02-002`, uploaded from a local tree whose code matches `40f171c`; it is not built from git and does not include RC PRs #29–#33 |
 | OPS-DEP-02 | Production photo bucket separate from staging | MISSING | PR #25 "Not done" |
 | OPS-DEP-03 | Monitoring: Sentry, uptime, alerting | PARTIAL | [C] Sentry configs are present. ISS-012 partial. Uptime alerting is unconfirmed |
 | OPS-DEP-04 | Backups and rollback runbook | PARTIAL | [D] `pg_dump` taken before the production copy. `docs/release/v1.1-rollback-plan.md` exists. No restore drill is recorded |
@@ -245,6 +245,10 @@ Build Yet" and `DECISIONS.md`.
 
 ## 5. Open product questions (summary; full list in `07` §4)
 
-D-01 taxonomy (4 groups vs 5) · D-02 subcategory model · D-03 HomeRun licence instrument ·
-D-04 launch categories · D-05 pricing (GST-inclusive?) · D-06 delivery policy · D-07 COD ·
-D-08 returns · D-09 legal identity · D-10 driver model · D-11 merge order of in-flight branches.
+Open: D-01 taxonomy (4 groups vs 5) · D-02 subcategory model · D-04 categories launched for sale ·
+D-05 pricing (GST-inclusive?) · D-06 delivery policy · D-07 COD · D-08 returns · D-09 legal identity ·
+D-10 driver model · D-11 PR #24 into `main` · D-12 to D-16. Requested document: DOC-01 (HomeRun
+supporting licence documentation). Already answered and not re-asked: owner as final
+catalogue and image approver, the existing verified admin account, HomeRun image authorisation
+(17 Oct), catalogue mode, `coming_soon` empty categories. Each decision blocks only the work
+listed against it in `07` §4.2.

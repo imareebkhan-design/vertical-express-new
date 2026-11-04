@@ -59,7 +59,7 @@ partner mode, which corresponds to the ops `Delivery` artboard), `wishlist` and
 | CategoryLanding | `/category/[slug]` | VV (23 Sep) | PARTIAL | "Shop by grade" (L3) missing. Empty categories render the agreed empty state. Delivery line BLOCKED | Grade counts with IS codes, ₹ prices, "Tomorrow, 8 AM" |
 | ListingGrid | `/category/[slug]` (grid) | SRC | IMPROVE | Facets drawn: Brand, Size, Finish, Room, Delivery speed. Only Brand (and price) are real. 24-item first page and back-reset (CLG-03) | Facet counts, speed counts |
 | ListingRows | `/category/[slug]` (rows) | SRC | IMPROVE | As above | — |
-| MobilePlp | `/category/[slug]` at 380 px | SRC | IMPROVE | Filter sheet: price controls shown where nothing is priced (local fix pending) | — |
+| MobilePlp | `/category/[slug]` at 380 px | SRC | IMPROVE | Filter sheet: price controls shown where nothing is priced (the 3 Nov local fix cannot be located; P2) | — |
 | SearchResults | `/search` | VV | PARTIAL | Sort fixed 23 Sep. No typo tolerance | — |
 | ProductDetail | `/product/[slug]` | SRC | PARTIAL | Catalogue mode shows "Price on request" and the enquiry form. Estimator, stock and batch BLOCKED | ₹465, "240 bags", "1:6 mix", batch code |
 | MobilePdp | `/product/[slug]` at 380 px | SRC | IMPROVE | Sticky bar shows "Price on request" **with no action** [S] | — |

@@ -34,7 +34,7 @@ updated. UI work adds the following, because the memory rule for this project is
 | AC-LST-1 | The first page renders within budget. "Load more" or scrolling reaches the last product, and the total matches the API `total` |
 | AC-LST-2 | Price sort and price range appear only if ≥ 1 listed product is priced. When they appear, the result order is strictly monotonic |
 | AC-LST-3 | Brand facet counts equal the number of results after that facet is applied |
-| AC-LST-4 | An empty search shows the closest stocked alternatives. No "request" button until CLG-08 is decided |
+| AC-LST-4 | An empty search shows the closest alternatives that are publicly visible. No "request" button until CLG-08 is decided |
 
 ### PDP
 
@@ -60,7 +60,8 @@ updated. UI work adds the following, because the memory rule for this project is
 |---|---|
 | AC-DEL-1 | Tracking never shows an ETA that is not `promisedAt`. "Not scheduled yet" otherwise |
 | AC-DRV-1 | Only a rostered phone reaches driver mode. A driver sees only their own shipments. Delivery needs the customer's code |
-| AC-OPS-1 | Each ops page renders with a real admin login and shows no fabricated figure |
+| AC-OPS-1 | Each ops page renders on staging with the owner's existing verified admin account (the owner signs in; no new account is created) and shows no fabricated figure |
+| AC-OPS-2 | Before transactional launch: every `/api/admin/*` route enforces a role server-side, and every money, stock, price and approval action writes an `AuditLog` row with actor and before/after (T20) |
 
 ### Mobile release
 
