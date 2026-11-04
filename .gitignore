@@ -72,3 +72,7 @@ firebase-debug.log*
 # Official manufacturer photos used on the login showcase: served from the product-image
 # bucket in deployed environments; never committed to this public repository.
 public/login/xp-*.webp
+
+# playwright (browser smoke)
+/test-results/
+/playwright-report/
