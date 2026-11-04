@@ -10,6 +10,20 @@ import {
   type ImportResult,
 } from "@/lib/services/admin/catalogue-import";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { parseStockCounts, parseVariantUpdates } from "@/lib/catalogue-update-csv";
+import {
+  applyStockCounts,
+  applyVariantUpdates,
+  exportStockSheet,
+  exportVariantSheet,
+  planStockCounts,
+  planVariantUpdates,
+  sha256,
+  type ApplyResult,
+  type UpdatePlan,
+} from "@/lib/services/admin/catalogue-update";
 
 /**
  * Bulk-listing the catalogue from a file.
@@ -123,4 +137,59 @@ export async function adminImportCatalogue(csv: unknown): Promise<ActionResult<I
   revalidatePath("/", "layout");
 
   return succeed(res.result);
+}
+
+/* ------------------------------------------------------------------ */
+/* Updating products already in the catalogue                          */
+/* ------------------------------------------------------------------ */
+
+const updateKind = z.enum(["variants", "stock"]);
+
+/** Classify every row of a variant or stock file. Writes nothing. */
+export async function adminPreviewCatalogueUpdate(input: unknown): Promise<ActionResult<UpdatePlan>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = z.object({ kind: updateKind, csv: z.string() }).safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Choose which file this is, then a CSV file");
+  const payload = readPayload(parsed.data.csv);
+  if (!payload.ok) return fail("VALIDATION", payload.message);
+  const plan = parsed.data.kind === "variants"
+    ? await planVariantUpdates(db, parseVariantUpdates(payload.text))
+    : await planStockCounts(db, parseStockCounts(payload.text));
+  return succeed(plan);
+}
+
+/**
+ * Apply exactly the previewed plan. The file is re-read and re-planned inside
+ * the transaction; a different plan (the shop changed since the preview)
+ * writes nothing and comes back for another look.
+ */
+export async function adminApplyCatalogueUpdate(input: unknown): Promise<ActionResult<ApplyResult>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = z.object({ kind: updateKind, csv: z.string(), digest: z.string().regex(/^[a-f0-9]{64}$/) }).safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Preview the file before applying it");
+  const payload = readPayload(parsed.data.csv);
+  if (!payload.ok) return fail("VALIDATION", payload.message);
+  const { kind, digest } = parsed.data;
+  const file = { sha256: sha256(payload.text) };
+  const res = kind === "variants"
+    ? await applyVariantUpdates(parseVariantUpdates(payload.text), digest, admin, file)
+    : await applyStockCounts(parseStockCounts(payload.text), digest, admin, file);
+  if (res.ok) {
+    revalidatePath("/admin/products");
+    revalidatePath("/admin/inventory");
+    revalidatePath("/admin/catalogue-approvals");
+    revalidatePath("/", "layout");
+  }
+  return succeed(res);
+}
+
+/** The current catalogue in the update file's shape, to edit and upload back. */
+export async function adminExportCatalogueUpdate(input: unknown): Promise<ActionResult<{ csv: string }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = z.object({ kind: updateKind }).safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Which file?");
+  return succeed({ csv: parsed.data.kind === "variants" ? await exportVariantSheet(db) : await exportStockSheet(db) });
 }
