@@ -53,7 +53,7 @@ GST/HSN, and legal for the policy pages.
 
 | # | Work | State (4 Nov) |
 |---|---|---|
-| 1.1 | Push the local-only branches | **Done**: merged into the RC as PRs #29, #30, #31. `claude/category-navigation-slice` has no commits and its worktree is gone; its scope belongs to PR #27 |
+| 1.1 | Push the local-only branches | **Done**: merged into the RC as PRs #29, #30, #31. `claude/category-navigation-slice` edits are **unrecovered, not proven lost**. Check Git history, reflogs, stashes, available backups and PR #27 for equivalent fixes before recreating work; coordinate remaining scope with PR #27 |
 | 1.2 | Merge order: PR #25 into the RC; RC (#24) into `main`; close stale PRs #3–#6 | #25 **merged** (`40f171c`). #3–#6 **closed**. #24 **open, held** for owner approval (D-11) |
 | 1.3 | Mobile: one line that honours `orderingOpen` (GAP-M-01) | Open (I-1) |
 | 1.4 | Production image bucket and copy of approved images (GAP-I-01) | Open, needs D-16 |
