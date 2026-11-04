@@ -1,0 +1,50 @@
+# Firebase App Hosting — the PRODUCTION backend ("ve-production").
+#
+# Layered on apphosting.yaml (shared settings) because ve-production's
+# environment name is "production". Staging's settings live in
+# apphosting.staging.yaml and never reach this backend.
+#
+# Catalogue mode (lib/commerce-mode.ts, owner decision 31 Oct 2026): browsing
+# and enquiries only, no orders and no payments. Live Razorpay is not
+# configured and needs the owner's approval (PRODUCTION_ROADMAP.md 5.5), so
+# this backend sets NO payment variable at all. Turning ordering on means
+# adding COMMERCE_MODE=transactional, PAYMENT_GATEWAY=razorpay-live and the
+# live keys here, together, after that approval.
+#
+# Not set yet: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY. The staging browser key is
+# restricted to the staging host; a production key restricted to
+# verticalexpress.in is still to be created. Until then the map components show
+# their no-map fallback.
+
+env:
+  - variable: VE_DEPLOY_ENV
+    value: production
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: COMMERCE_MODE
+    value: catalogue
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- the canonical public host (ISS-018); browser-visible
+  - variable: NEXT_PUBLIC_SITE_URL
+    value: "https://www.verticalexpress.in"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- the production database (Supabase project "vertical-express"); BUILD
+  # too, because static pages query the catalogue while building.
+  - variable: DATABASE_URL
+    secret: database-url-production
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- its own cron secret, so a staging leak cannot call production's cron
+  - variable: CRON_SECRET
+    secret: cron-secret-production
+    availability:
+      - RUNTIME

@@ -1,20 +1,22 @@
-# Firebase App Hosting — the STAGING / TEST backend ("ve-staging").
+# Firebase App Hosting — settings SHARED by every backend.
 #
-# Serves the existing Next.js app (website + /api/v1) from Google Cloud instead
-# of Vercel. Nothing here is a business rule; it is where the app runs and what
-# it is told about its environment.
+# Serves the existing Next.js app (website + /api/v1) from Google Cloud. Nothing
+# here is a business rule; it is where the app runs and what it is told about
+# its environment.
 #
-# THIS FILE IS THE TEST BACKEND. It runs Razorpay in TEST mode with explicit
-# opt-in (see ALLOW_TEST_GATEWAY in lib/services/payments.ts). A production
-# backend must be a separate backend with its own config that sets
-# PAYMENT_GATEWAY=razorpay-live and does NOT set ALLOW_TEST_GATEWAY. Do not point
-# a production backend at this file.
+# App Hosting reads this file, then the file for the backend's environment name:
+#   ve-staging    → apphosting.staging.yaml     (test payments, staging database)
+#   ve-production → apphosting.production.yaml  (catalogue mode, production database)
+# A variable in the environment file replaces one of the same name here.
+#
+# Nothing that differs between staging and production belongs in this file —
+# above all no payment setting. An environment file can replace a value but not
+# remove one (App Hosting rejects an empty value), so anything put here reaches
+# production too.
 #
 # SECRETS are never written here: `secret:` names an entry in Cloud Secret
 # Manager, created with `scripts/apphosting-secrets.sh`. PUBLIC values (the
-# Firebase web config, the Razorpay *key id*) are browser-visible by design.
-#
-# NEXT_PUBLIC_SITE_URL is the backend's own URL, set after the first rollout.
+# Firebase web config) are browser-visible by design.
 
 runConfig:
   cpu: 1
@@ -24,12 +26,6 @@ runConfig:
   concurrency: 80
 
 env:
-  # --- this backend's own URL (known after the first rollout; browser-visible)
-  - variable: NEXT_PUBLIC_SITE_URL
-    value: "https://ve-staging--vertical-express.asia-southeast1.hosted.app"
-    availability:
-      - BUILD
-      - RUNTIME
 
   # --- product photographs: public-read Cloud Storage bucket (Task 6). Browser-visible by
   # design; next.config.ts allows exactly this path in CSP img-src and images.remotePatterns.
@@ -71,44 +67,6 @@ env:
       - BUILD
       - RUNTIME
 
-  # --- Which deployment this is (lib/deploy-env.ts). Staging, declared explicitly:
-  # an undeclared or contradictory backend applies PRODUCTION catalogue rules
-  # (attested image licences only, no QA fixture). BUILD too: static pages query
-  # the catalogue at build time. A production backend sets "production".
-  - variable: VE_DEPLOY_ENV
-    value: staging
-    availability:
-      - BUILD
-      - RUNTIME
-
-  # --- Razorpay: TEST mode only. The key id is public; the secret is a secret.
-  - variable: PAYMENT_GATEWAY
-    value: razorpay-test
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: ALLOW_TEST_GATEWAY
-    value: "1"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: RAZORPAY_KEY_ID
-    value: "rzp_test_Ted08j3HWqN0s4"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: NEXT_PUBLIC_RAZORPAY_KEY_ID
-    value: "rzp_test_Ted08j3HWqN0s4"
-    availability:
-      - BUILD
-      - RUNTIME
-  - variable: RAZORPAY_KEY_SECRET
-    secret: razorpay-key-secret
-  - variable: RAZORPAY_WEBHOOK_SECRET
-    secret: razorpay-webhook-secret
-  - variable: DATABASE_URL
-    secret: database-url
-
   # --- Firebase Admin (verifies the app's ID tokens and the web session cookie).
   # Named FB_ADMIN_* because App Hosting reserves the FIREBASE_ prefix; lib/auth/firebase-admin.ts reads either.
   - variable: FB_ADMIN_PROJECT_ID
@@ -121,10 +79,6 @@ env:
       - RUNTIME
   - variable: FB_ADMIN_PRIVATE_KEY
     secret: firebase-private-key
-    availability:
-      - RUNTIME
-  - variable: CRON_SECRET
-    secret: cron-secret
     availability:
       - RUNTIME
   # Server-side only. A key restricted in Google Cloud to the Geocoding API and
@@ -146,15 +100,6 @@ env:
   - variable: GOOGLE_ROUTES_API_KEY
     secret: google-routes-api-key
     availability:
-      - RUNTIME
-  # Browser Maps key for the customer live map (lib/tracking/maps-loader.ts).
-  # Inlined into the browser bundle at BUILD, so it is public by design; its
-  # protection is the key's own restrictions — Maps JavaScript API only, and
-  # this staging host only. Kept in Secret Manager so the repo carries no key.
-  - variable: NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY
-    secret: google-maps-browser-key-staging
-    availability:
-      - BUILD
       - RUNTIME
   # Operators allowed into /admin: comma-separated, verified Google emails
   # (lib/services/admin/authz.ts). A secret, not a value, because this repo is
