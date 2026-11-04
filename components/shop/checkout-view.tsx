@@ -64,9 +64,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
   /* The choice is kept in `?address=`, so a reload, coming back, or the layout
      switching to the phone one does not change it (use-checkout-address.ts). */
   const { addressId, select: setAddressId, requestedMissing } = useCheckoutAddressSelection(addresses);
-  // Prototype: Pay-on-delivery is the default/primary method until a live
-  // payment gateway is wired. Online pay stays available via the test gateway.
-  const [method, setMethod] = useState<PayMethod>("cod");
+  const [method, setMethod] = useState<PayMethod>("online");
   const [error, setError] = useState<string | null>(null);
   const [placing, startPlacing] = useTransition();
   /* E8: bumped when placement is refused because the cart moved, so the quote
@@ -266,7 +264,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
     rz.open();
   };
 
-  const codDisabled = totals ? !totals.codAllowed : false;
+  const codDisabled = !totals?.codAllowed;
 
   const applyCouponHandler = async () => {
     if (!couponCode.trim() || !selected) return;
@@ -444,7 +442,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
             carry one and invoices exist; until then it is not shown.) */}
         <Section step={4} title="Payment">
           <div className="space-y-3">
-            <PayOption
+            {!codDisabled && <PayOption
               active={method === "cod"}
               onSelect={() => !codDisabled && setMethod("cod")}
               icon={Banknote}
@@ -457,7 +455,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
                     : "Pay the driver at your gate"
               }
               disabled={codDisabled}
-            />
+            />}
 
             {/* Two shipments means two drivers and two separate cash handovers.
                 Saying so here is the difference between a buyer having the right
@@ -477,7 +475,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
               onSelect={() => setMethod("online")}
               icon={CreditCard}
               title="Pay online"
-              caption="Cards, UPI, netbanking (test gateway)"
+              caption="Cards, UPI, netbanking"
             />
           </div>
         </Section>

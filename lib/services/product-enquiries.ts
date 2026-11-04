@@ -94,11 +94,12 @@ export async function createProductEnquiry(input: CreateProductEnquiryInput): Pr
   });
 }
 
-export async function listProductEnquiries(status?: ProductEnquiryStatus, take = 100) {
+export async function listProductEnquiries(status?: ProductEnquiryStatus, take = 100, skip = 0) {
   return db.productEnquiry.findMany({
     where: status ? { status } : undefined,
-    orderBy: { createdAt: "desc" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take,
+    skip,
     select: {
       id: true, enquiryNo: true, productTitle: true, brandName: true, name: true, phone: true,
       quantity: true, message: true, status: true, adminNotes: true, createdAt: true,

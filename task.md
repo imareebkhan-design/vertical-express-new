@@ -86,3 +86,18 @@
 - [x] Guarded /admin layout (redirect non-admins) + StatusControl client component
 - [x] /admin dashboard (KPI cards: orders/GMV/AOV/products/low-stock/bookings/customers), /admin/orders (table + status advance), /admin/products (stock/price/status), /admin/bookings (queue + status advance)
 - [x] E2E verified: KPIs (45 products), transition rules (confirmed→packed ok, confirmed→delivered blocked, delivered→none), allowlist allow/deny, guard redirects guest; prod build green (4 routes)
+
+## Launch readiness continuation — 5 Nov 2026
+
+# Launch readiness checklist
+
+- [x] Inspect RC and isolate work from Claude.
+- [x] Bring existing PR #27 fixes into isolated candidate.
+- [x] Fix catalogue-only mobile enquiry action.
+- [x] Harden enquiry submission; verify local persisted enquiry and inbox service tests. Staging owner session remains pending.
+- [x] Resolve reported UI test failures (213/213).
+- [ ] Complete image cutover. 260 copies verified; approval-reset trigger blocks URL relocation.
+- [ ] Confirm public information and release provenance.
+- [x] Configure monitors and verify local backup restoration/guarded rollback. Alert receipt remains pending.
+- [ ] Complete final isolated tests and browser verification.
+- [x] Record business/external blockers and release handoff in docs/readiness/2026-11-05-launch-readiness.md.

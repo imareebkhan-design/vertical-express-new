@@ -119,7 +119,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   const shownTotalRef = useRef<number | null>(null);
 
   // Payments states
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("online");
   /* The express choice (W-B1-G1) — the desktop checkout's question. Re-priced
      on change because the fee is part of what is owed; the server re-resolves
      whether express is on offer when the order is placed. */
@@ -776,7 +776,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               </button>
 
               {/* COD */}
-              <button
+              {totals.codAllowed && <button
                 type="button"
                 aria-pressed={paymentMethod === "cod"}
                 onClick={() => {
@@ -797,7 +797,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   <span>Pay on Delivery (Cash / UPI)</span>
                 </div>
                 {paymentMethod === "cod" && <Check className="size-4 text-brand-deep" />}
-              </button>
+              </button>}
 
               {/* Two shipments means two drivers and two separate cash
                   handovers, a day apart. Saying so is the difference between a

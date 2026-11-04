@@ -17,6 +17,24 @@
 # their no-map fallback.
 
 env:
+  - variable: NEXT_PUBLIC_PRODUCT_IMAGE_BASE
+    value: "https://storage.googleapis.com/ve-production-product-images"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Cutover/rollback compatibility only. Remove after the database URL switch
+  # and the previous build's rollback window have been verified.
+  - variable: NEXT_PUBLIC_PRODUCT_IMAGE_PREVIOUS_BASE
+    value: "https://storage.googleapis.com/ve-staging-product-images"
+    availability:
+      - BUILD
+      - RUNTIME
+  # Owner decision, 4 Nov 2026: no new COD orders.
+  - variable: COD_DISABLED
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: VE_DEPLOY_ENV
     value: production
     availability:

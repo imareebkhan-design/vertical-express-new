@@ -22,10 +22,14 @@ export function EnquiryStatus({ id, status }: { id: string; status: string }) {
           setValue(next);
           setError(null);
           start(async () => {
-            const r = await adminSetProductEnquiryStatus({ enquiryId: id, status: next });
-            if (!r.ok) {
+            try {
+              const r = await adminSetProductEnquiryStatus({ enquiryId: id, status: next });
+              if (r.ok) return;
               setValue(prev);
               setError(r.error.message);
+            } catch {
+              setValue(prev);
+              setError("Could not confirm the status change. Refresh the inbox before retrying.");
             }
           });
         }}

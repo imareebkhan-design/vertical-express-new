@@ -9,6 +9,11 @@
 # NEXT_PUBLIC_SITE_URL is the backend's own URL.
 
 env:
+  - variable: COD_DISABLED
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
   # --- this backend's own URL (known after the first rollout; browser-visible)
   - variable: NEXT_PUBLIC_SITE_URL
     value: "https://ve-staging--vertical-express.asia-southeast1.hosted.app"

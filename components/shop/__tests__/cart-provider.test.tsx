@@ -163,11 +163,12 @@ test("sign-in/out clears a previous load failure", async () => {
 test("an add whose action throws returns false, rolls back the count and never says added", async () => {
   const h = setup({ addThrows: true });
   await act(async () => { h.carts[0].resolve({ ...summary("guest"), count: 0 }); h.wishes[0].resolve([]); });
-  let ok!: boolean;
-  await act(async () => { ok = await h.result.current.addItem("variant", 1, "QA TEST ITEM"); });
-  assert.equal(ok, false);
+  let adding!: Promise<boolean>;
+  await act(async () => { adding = h.result.current.addItem("variant", 1, "QA TEST ITEM"); });
   assert.equal(h.result.current.lastAddedTitle, null);
-  await act(async () => { h.carts[1].resolve({ ...summary("guest"), count: 0 }); });
+  // A failed write waits for its authoritative re-read. Resolve that read
+  // before awaiting the write; otherwise the test deadlocks on its own mock.
+  await act(async () => { h.carts[1].resolve({ ...summary("guest"), count: 0 }); assert.equal(await adding, false); });
   assert.equal(h.result.current.count, 0, "the optimistic badge does not stick");
 });
 

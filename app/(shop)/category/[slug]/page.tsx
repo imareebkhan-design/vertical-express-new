@@ -4,15 +4,13 @@ import { categoryForPage } from "./data";
 import {
   listCategorySlugs,
   listProducts,
-  type CatalogSort,
   mostOrderedInCategory,
   brandsInCategory,
   listCategoryDirectory,
   visibleProductCount,
 } from "@/lib/services/catalog";
-import { rupeesToPaise } from "@/lib/money";
+import { categoryQueryFromParams } from "@/lib/category-query";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
-import { attributeConfigFor } from "@/lib/catalog-attributes";
 import { comingSoonNextSteps } from "@/lib/category-directory";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     title: { absolute: category.seoTitle ?? `${category.name} | Vertical Express` },
     description:
       category.seoDescription ??
-      `Buy ${category.name.toLowerCase()} at trade prices delivered across Srinagar.`,
+      `Browse ${category.name.toLowerCase()} and enquire about pricing, availability and delivery in Srinagar.`,
     alternates: { canonical: `/category/${slug}` },
     /* A coming-soon category is a real page with nothing on it yet; keep it out
        of the index until it has something to find. */
@@ -77,28 +75,16 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     );
   }
 
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-  const brandSlugs = Array.isArray(sp.brand) ? sp.brand : sp.brand ? [sp.brand] : [];
-
-  /* Only the attributes this category is configured to browse by are honoured,
-     so a hand-edited query string cannot filter on an arbitrary field. */
-  const attrs: Record<string, string> = {};
-  for (const label of attributeConfigFor(slug).attributes) {
-    const value = one(sp[label.toLowerCase()]);
-    if (value) attrs[label] = value;
+  const queryParams = new URLSearchParams();
+  for (const [key, values] of Object.entries(sp)) {
+    for (const value of Array.isArray(values) ? values : values === undefined ? [] : [values]) queryParams.append(key, value);
   }
-
-  const minPrice = one(sp.minPrice);
-  const maxPrice = one(sp.maxPrice);
-  const result = await listProducts({
-    categorySlug: slug,
-    brandSlugs,
-    attrs,
-    minPaise: minPrice ? rupeesToPaise(Number(minPrice)) : undefined,
-    maxPaise: maxPrice ? rupeesToPaise(Number(maxPrice)) : undefined,
-    sort: (one(sp.sort) as CatalogSort) ?? "popular",
-    page: one(sp.page) ? parseInt(one(sp.page)!, 10) || 1 : 1,
-  });
+  const query = categoryQueryFromParams(slug, queryParams);
+  const brandSlugs = query.brandSlugs ?? [];
+  const attrs = query.attrs ?? {};
+  const minPrice = queryParams.get("minPrice");
+  const maxPrice = queryParams.get("maxPrice");
+  const result = await listProducts(query);
   /* The two artboard sections that need their own reads: what this category has
      actually sold, and which brands it stocks. Both return empty naturally —
      "most ordered" before any orders exist, brands for a category with none —

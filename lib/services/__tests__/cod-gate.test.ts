@@ -4,6 +4,7 @@ import test from "node:test";
 import { db } from "@/lib/db";
 import { computeTotals } from "@/lib/services/checkout";
 import type { CartSummary } from "@/lib/services/cart";
+import { checkServiceability } from "@/lib/services/serviceability";
 
 /**
  * Cash on delivery is off until somebody turns it on.
@@ -71,5 +72,21 @@ test("anything other than an explicit yes reads as off", async () => {
     const allowed = await codAllowedFor(odd);
     if (allowed === null) return;
     assert.equal(allowed, false, `"${odd}" must not enable cash collection`);
+  }
+});
+
+test("owner COD stop overrides both stored permissions without changing pincode values", async () => {
+  const previous = process.env.COD_DISABLED;
+  const pin = await db.serviceablePincode.findFirstOrThrow({
+    where: { isActive: true, codAllowed: true, city: { isLive: true } },
+  });
+  try {
+    process.env.COD_DISABLED = "1";
+    assert.equal(await codAllowedFor("true"), false);
+    assert.equal((await checkServiceability(pin.pincode)).codAllowed, false);
+    assert.deepEqual(await db.serviceablePincode.findUniqueOrThrow({ where: { pincode: pin.pincode } }), pin);
+  } finally {
+    if (previous === undefined) delete process.env.COD_DISABLED;
+    else process.env.COD_DISABLED = previous;
   }
 });

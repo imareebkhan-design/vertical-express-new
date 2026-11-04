@@ -46,17 +46,18 @@ export function ProductEnquiryForm({ productId, productTitle, submit }: { produc
     const els = e.currentTarget.elements;
     const v = (name: string) => (els.namedItem(name) as HTMLInputElement | HTMLTextAreaElement | null)?.value ?? "";
     setError(null);
+    const input = {
+      productId, name: v("name"), phone: v("phone"), quantity: v("quantity"),
+      message: v("message"), website: v("website"),
+    };
     start(async () => {
-      const r = await submit({
-        productId,
-        name: v("name"),
-        phone: v("phone"),
-        quantity: v("quantity"),
-        message: v("message"),
-        website: v("website"),
-      });
-      if (r.ok) setDone(r.data.enquiryNo);
-      else setError(r.error.message);
+      try {
+        const r = await submit(input);
+        if (r.ok) setDone(r.data.enquiryNo);
+        else setError(r.error.message);
+      } catch {
+        setError("We couldn't confirm your enquiry was sent. Your details are still here — please try again.");
+      }
     });
   }
 
@@ -82,6 +83,9 @@ export function ProductEnquiryForm({ productId, productTitle, submit }: { produc
       {/* Honeypot: hidden from people and assistive tech; bots fill it. */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="hidden" />
       {error && <p role="alert" className="text-sm font-bold text-danger">{error}</p>}
+      <p className="text-xs text-neutral-500">
+        We use your name, mobile number and message to respond to this product enquiry. Read our <a href="/privacy" className="underline">privacy notice</a>.
+      </p>
       <Button type="submit" size="lg" className="w-full" disabled={pending}>
         {pending ? <Loader2 className="animate-spin" aria-label="Sending" /> : "Send enquiry"}
       </Button>

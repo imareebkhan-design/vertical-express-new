@@ -24,7 +24,12 @@ const supabaseOrigin = originOf(process.env.NEXT_PUBLIC_SUPABASE_URL);
    https://storage.googleapis.com/<bucket>. Unset = no external image host; only
    same-origin pictures render, exactly as before. */
 const productImageBase = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE;
+// Explicit, temporary allowlist during a verified bucket cutover. It permits
+// the old rows until the database transaction switches them; never all GCS.
+const previousProductImageBase = process.env.NEXT_PUBLIC_PRODUCT_IMAGE_PREVIOUS_BASE;
 const productImageOrigin = originOf(productImageBase);
+const productImageBases = [productImageBase, previousProductImageBase]
+  .filter((base): base is string => Boolean(base && originOf(base)));
 /* CSP source with the bucket path, not just the origin: storage.googleapis.com
    serves every Google Cloud customer's public files. */
 const productImageSource =
@@ -130,7 +135,7 @@ export function contentSecurityPolicy(isDev: boolean): string {
   `style-src 'self' 'unsafe-inline' ${MAPS_FONTS_CSS}`,
   // Supabase Storage is the provisioned image host (DEC-011); product imagery
   // moves there with admin product management (ISS-019).
-  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, productImageSource, GSTATIC, "https://*.googleusercontent.com", MAPS_IMAGES]
+  [`img-src 'self' data: blob:`, RAZORPAY, supabaseOrigin, productImageSource, previousProductImageBase ? `${previousProductImageBase.replace(/\/$/, "")}/` : null, GSTATIC, "https://*.googleusercontent.com", MAPS_IMAGES]
     .filter(Boolean)
     .join(" "),
   `font-src 'self' data: ${MAPS_FONTS}`,
@@ -221,8 +226,8 @@ function config(phase: string): NextConfig {
 
     /* Only the configured product-image host and path prefix — never a wildcard. */
     images:
-      productImageBase && productImageOrigin
-        ? { remotePatterns: [new URL(`${productImageBase.replace(/\/$/, "")}/**`)] }
+      productImageBases.length
+        ? { remotePatterns: productImageBases.map((base) => new URL(`${base.replace(/\/$/, "")}/**`)) }
         : undefined,
 
     outputFileTracingRoot: process.cwd(),

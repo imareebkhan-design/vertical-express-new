@@ -25,7 +25,9 @@ export async function checkServiceability(pincode: string): Promise<Serviceabili
     serviceable: true,
     etaMinutes: row.etaMinutes,
     deliveryFeePaise: row.deliveryFeePaise,
-    codAllowed: row.codAllowed,
+    // Owner decision, 4 Nov 2026: deployment-level stop overrides stored
+    // pincode permissions without rewriting the existing service-area values.
+    codAllowed: process.env.COD_DISABLED !== "1" && row.codAllowed,
     state: row.city.state,
   };
 }

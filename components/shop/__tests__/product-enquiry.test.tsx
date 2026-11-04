@@ -44,3 +44,21 @@ test("a refusal is shown as an alert and the form stays", async () => {
   assert.match(screen.getByRole("alert").textContent ?? "", /Too many enquiries/);
   assert.ok(screen.getByRole("button", { name: "Send enquiry" }));
 });
+
+test("a network failure preserves the entered details and permits a successful retry", async () => {
+  let attempts = 0;
+  render(<ProductEnquiryForm productId={PID} productTitle="Drill" submit={async () => {
+    if (++attempts === 1) throw new Error("Network unavailable");
+    return { ok: true, data: { enquiryNo: "ENQ-RETRY" } };
+  }} />);
+  fireEvent.click(screen.getByRole("button", { name: /Enquire about this product/ }));
+  fireEvent.change(screen.getByLabelText("Your name"), { target: { value: "Asha" } });
+  fireEvent.change(screen.getByLabelText("Mobile number"), { target: { value: "9876543210" } });
+  fireEvent.submit(screen.getByRole("form", { name: "Enquire about Drill" }));
+  await waitFor(() => assert.match(screen.getByRole("alert").textContent ?? "", /couldn't confirm/));
+  assert.equal((screen.getByLabelText("Your name") as HTMLInputElement).value, "Asha");
+  assert.equal(screen.getByRole("link", { name: "privacy notice" }).getAttribute("href"), "/privacy");
+  fireEvent.submit(screen.getByRole("form", { name: "Enquire about Drill" }));
+  await waitFor(() => assert.match(screen.getByRole("status").textContent ?? "", /ENQ-RETRY/));
+  assert.equal(attempts, 2);
+});

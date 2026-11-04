@@ -4,12 +4,12 @@ import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCw, SlidersHorizontal, Loader2, AlertCircle, Check } from "lucide-react";
 import type { Category } from "@/prisma/generated/client/client";
-import type { CatalogResult, CatalogItem, CatalogSort } from "@/lib/services/catalog";
+import type { CatalogResult, CatalogItem } from "@/lib/services/catalog";
 import { fetchProductsAction } from "@/actions/catalog";
 import { MobileProductCard } from "../home/mobile-product-card";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { triggerHaptic } from "@/lib/native/haptics";
-import { rupeesToPaise } from "@/lib/money";
+import { categoryQueryFromParams } from "@/lib/category-query";
 import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
 import { listingLayoutFor } from "@/lib/catalog-presentation";
 import { useBackOr } from "@/hooks/use-back-or";
@@ -42,11 +42,17 @@ export function MobileCategoryView({
      category index instead of doing nothing (lib/back-stack.ts). */
   const goBack = useBackOr("/categories");
   const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+  const currentResult = useRef(initialResult);
+  currentResult.current = initialResult;
+  const loadingRequest = useRef<object | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const hasPrices = initialResult.facets.priceRange.maxPaise > 0;
 
   // Feed states
   const [products, setProducts] = useState<CatalogItem[]>(initialResult.items);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialResult.items.length < initialResult.total);
+  const [page, setPage] = useState(initialResult.page);
+  const [hasMore, setHasMore] = useState(initialResult.page * initialResult.perPage < initialResult.total);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -76,36 +82,54 @@ export function MobileCategoryView({
   // Reset list when url search filters or base query changes
   useEffect(() => {
     setProducts(initialResult.items);
-    setPage(1);
-    setHasMore(initialResult.items.length < initialResult.total);
+    setPage(initialResult.page);
+    setHasMore(initialResult.page * initialResult.perPage < initialResult.total);
     setLoadingMore(false);
+    setLoadError(false);
+    loadingRequest.current = null;
   }, [initialResult]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    const query = categoryQueryFromParams(slug, params);
+    setSort(query.sort ?? "newest");
+    setSelectedBrands(query.brandSlugs ?? []);
+    setMinPrice(params.get("minPrice") ?? "");
+    setMaxPrice(params.get("maxPrice") ?? "");
+    setInStockOnly(false);
+  }, [queryString, slug]);
 
   // Load more pages for infinite scroll
   const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingRequest.current || !hasMore) return;
+    const request = {};
+    loadingRequest.current = request;
+    const resultAtStart = initialResult;
     setLoadingMore(true);
+    setLoadError(false);
 
     try {
-      const activeBrands = selectedBrands.filter(Boolean);
       const nextResult = await fetchProductsAction({
-        categorySlug: slug,
+        ...categoryQueryFromParams(slug, new URLSearchParams(queryString)),
         page: page + 1,
-        sort: sort as CatalogSort,
-        brandSlugs: activeBrands.length ? activeBrands : undefined,
-        minPaise: minPrice ? rupeesToPaise(Number(minPrice)) : undefined,
-        maxPaise: maxPrice ? rupeesToPaise(Number(maxPrice)) : undefined,
+        perPage: initialResult.perPage,
       });
+      if (currentResult.current !== resultAtStart) return;
 
       if (nextResult.items.length > 0) {
         setProducts((prev) => [...prev, ...nextResult.items]);
         setPage((p) => p + 1);
-        setHasMore(products.length + nextResult.items.length < nextResult.total);
+        setHasMore(nextResult.page * nextResult.perPage < nextResult.total);
       } else {
         setHasMore(false);
       }
-    } catch {} finally {
-      setLoadingMore(false);
+    } catch {
+      if (currentResult.current === resultAtStart) setLoadError(true);
+    } finally {
+      if (loadingRequest.current === request) {
+        loadingRequest.current = null;
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -113,7 +137,7 @@ export function MobileCategoryView({
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadError) {
           loadMore();
         }
       },
@@ -127,7 +151,7 @@ export function MobileCategoryView({
       if (currentTarget) observer.unobserve(currentTarget);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore, loadingMore, page]);
+  }, [hasMore, loadingMore, page, loadError, queryString, initialResult]);
 
   // Pull to refresh handlers
   const handleRefresh = () => {
@@ -175,9 +199,10 @@ export function MobileCategoryView({
     setIsFilterOpen(false);
 
     startTransition(() => {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams(queryString);
+      for (const key of ["page", "sort", "brand", "minPrice", "maxPrice"]) params.delete(key);
       if (sort !== "newest") params.set("sort", sort);
-      if (selectedBrands.length) params.set("brand", selectedBrands.join(","));
+      for (const brand of selectedBrands) params.append("brand", brand);
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
       router.push(`/category/${slug}?${params.toString()}`);
@@ -327,6 +352,7 @@ export function MobileCategoryView({
         <div ref={observerTarget} className="h-10 w-full flex items-center justify-center">
           {loadingMore && <Loader2 className="size-5 animate-spin text-brand-deep" />}
         </div>
+        {loadError && <div role="alert" className="p-4 text-center text-sm">Could not load more products. <button type="button" onClick={loadMore} className="underline">Retry</button></div>}
       </div>
 
       {/* Filter Bottom Sheet */}
@@ -347,7 +373,7 @@ export function MobileCategoryView({
                 { id: "price_asc", label: "Price: Low to High" },
                 { id: "price_desc", label: "Price: High to Low" },
                 { id: "discount", label: "Highest Discount" },
-              ].map((s) => (
+              ].filter((s) => hasPrices || s.id === "newest" || s.id === sort).map((s) => (
                 <button
                   key={s.id}
                   onClick={() => {
@@ -366,7 +392,7 @@ export function MobileCategoryView({
           </div>
 
           {/* Availability */}
-          <div>
+          {hasPrices && <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
               Availability
             </h4>
@@ -383,7 +409,7 @@ export function MobileCategoryView({
               <span>Exclude Out of Stock (In Stock Only)</span>
               {inStockOnly && <Check className="size-4 text-brand-deep" />}
             </button>
-          </div>
+          </div>}
 
           {/* Brands */}
           {initialResult.facets.brands.length > 0 && (
@@ -412,7 +438,7 @@ export function MobileCategoryView({
           )}
 
           {/* Price Range */}
-          <div>
+          {(hasPrices || minPrice || maxPrice) && <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
               Price Range (₹)
             </h4>
@@ -433,7 +459,7 @@ export function MobileCategoryView({
                 className="flex-1 rounded-xl border border-mist/20 bg-surface p-2.5 text-xs font-bold text-ink outline-none focus:border-brand-deep text-center"
               />
             </div>
-          </div>
+          </div>}
 
           {/* Action CTAs */}
           <div className="flex gap-2 pt-4 border-t border-mist/10">

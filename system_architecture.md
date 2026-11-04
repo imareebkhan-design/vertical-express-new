@@ -8,3 +8,15 @@ The operating manual remains authoritative. This checkpoint records only the cat
 - Tests create synthetic approvals only in an explicitly disposable local database. Historical business records are never automatically approved.
 
 Schema details and rollout constraints: `docs/DATABASE_SCHEMA.md`. Verified results and release-integrator handoff: `docs/CATALOGUE_SAFETY_HANDOFF.md`.
+
+
+# Launch readiness continuation
+
+This note supplements CLAUDE.md; it does not replace the operating manual.
+
+- Category listing URL filters are parsed by lib/category-query.ts on the server and mobile pagination path. Infinite-scroll responses belong to the initialResult identity and cannot overwrite a new filtered result.
+- Product enquiries remain server-validated and stored in the existing admin queue. The owner operates that inbox; no alert transport or new response-time promise is implied. Pagination sorts by createdAt and id.
+- COD_DISABLED=1 overrides pincode COD eligibility; checkout also retains the existing cod.enabled business setting. This changes eligibility, not historical records or stored service-area business values.
+- Image approvals are tied to URL and content metadata by the existing database trigger. A URL update revokes approval. The rehome script must verify approval after updating and roll back on invalidation; it must not disable triggers or manufacture approvals. Copying exact bytes into another bucket alone does not complete the cutover.
+- Hosting allows both exact image bucket paths during a future cutover/rollback window. No wildcard Google Storage image allowance was introduced.
+- Local restore and backend test databases are distinct. Private production dumps, credentials and row-verification outputs remain outside git under the protected ve-readiness-private directory.

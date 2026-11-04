@@ -25,6 +25,9 @@ mock.module("@/actions/product-enquiry", {
   namedExports: { submitProductEnquiryAction: async () => ({ ok: true, data: { enquiryNo: "ENQ-20261101-ABCDEF12" } }) },
 });
 mock.module("@/actions/wishlist", { namedExports: { toggleWishlist: async () => ({ ok: true, data: { added: true } }) } });
+mock.module("@/actions/cart", { namedExports: { addToCart: async () => { throw new Error("Unexpected cart write"); } } });
+mock.module("@/hooks/use-back-or", { namedExports: { useBackOr: () => () => {} } });
+mock.module("@/lib/native/haptics", { namedExports: { triggerHaptic() {} } });
 
 let RTL: typeof import("@testing-library/react");
 let CommerceModeProvider: typeof import("../commerce-mode-provider").CommerceModeProvider;
@@ -32,6 +35,7 @@ let PdpActions: typeof import("../pdp-actions").PdpActions;
 let ProductCard: typeof import("@/components/product-card").ProductCard;
 let CatalogRow: typeof import("../catalog-row").CatalogRow;
 let productAction: typeof import("@/lib/catalog-visibility").productAction;
+let MobileProductView: typeof import("@/components/mobile/product/mobile-product-view").MobileProductView;
 before(async () => {
   RTL = await import("@testing-library/react");
   ({ CommerceModeProvider } = await import("../commerce-mode-provider"));
@@ -39,6 +43,7 @@ before(async () => {
   ({ ProductCard } = await import("@/components/product-card"));
   ({ CatalogRow } = await import("../catalog-row"));
   ({ productAction } = await import("@/lib/catalog-visibility"));
+  ({ MobileProductView } = await import("@/components/mobile/product/mobile-product-view"));
 });
 
 afterEach(() => { RTL.cleanup(); added.length = 0; });
@@ -107,4 +112,15 @@ test("dense row: the add button becomes an Enquire link in catalogue mode only",
 test("without the provider a component behaves as before catalogue mode existed", () => {
   RTL.render(<PdpActions product={detail} />);
   assert.ok(RTL.screen.getAllByRole("button", { name: /Add/ }).length >= 1);
+});
+
+test("mobile catalogue-only PDP: the sticky Enquire action targets the working enquiry form", () => {
+  inMode(false, <MobileProductView product={{ ...detail, purchasable: false, variants: [] }} related={[]} boughtWith={[]} />);
+  const link = RTL.screen.getByRole("link", { name: "Enquire" });
+  assert.equal(link.getAttribute("href"), "#enquiry");
+  const target = document.getElementById("enquiry");
+  assert.ok(target);
+  RTL.fireEvent.click(RTL.within(target).getByRole("button", { name: /Enquire about this product/ }));
+  RTL.within(target).getByRole("form", { name: `Enquire about ${detail.title}` });
+  assert.equal(RTL.screen.queryAllByRole("button", { name: /add to cart/i }).length, 0);
 });

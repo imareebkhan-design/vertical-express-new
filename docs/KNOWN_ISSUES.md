@@ -4260,3 +4260,12 @@ reaches the root error boundary: every desktop page (including `/categories` and
 wrong". Production has the config, so this is a robustness gap, not a live outage. A misconfigured preview or a
 rotated key would take browsing down with sign-in, though. Suggested fix: the account button degrades to a "Sign in"
 link when auth is not configured.
+
+
+## Launch readiness continuation — 5 Nov 2026
+
+Candidate codex/launch-readiness repairs mobile catalogue enquiry navigation, filter/pagination consistency, enquiry network retry and inbox pagination. COD is disabled by owner instruction. These application changes are not deployed.
+
+**Image cutover blocker:** the existing invalidate_catalogue_image_review trigger clears approval on URL changes. A local restored-production rehearsal exposed this; production URLs were not changed. The cutover script now checks post-update approval inside the transaction and rolls back on invalidation. All 260 copied production objects were hash-verified, but copies are not a completed cutover. Do not bypass the trigger or recreate owner approvals automatically.
+
+**Remaining release gates:** signed-in owner admin verification on staging, production image cutover with approval provenance preserved, legal/contact/policy facts, verified sellable SKU prices and physical inventory, LIVE payments/refunds, fulfilment/tracking acceptance, end-to-end alert receipt. PR #24 remains held.

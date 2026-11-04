@@ -188,6 +188,7 @@ export const CONTENT: Record<string, ContentDoc> =
         "heading": "What we collect",
         "body": [
           "Your phone number, which is one of the two ways you sign in. If you sign in with Google instead, we receive and store the email address on that account. Your name and delivery addresses, including any access notes you add about your site. Your order history. If you give us a GSTIN for invoicing, we store that too.",
+          "When you submit a product enquiry, we store your name, mobile number, the product you asked about and any quantity or message you provide. The owner handles these enquiries through the private admin inbox and uses those details to respond to you. An enquiry is not an order or a payment.",
           "We do not ask for and do not store card numbers. Online payments are handled by our payment gateway."
         ]
       },

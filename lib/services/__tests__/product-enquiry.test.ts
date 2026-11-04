@@ -92,6 +92,20 @@ test("a resubmission within the window returns the same enquiry, no second row",
   assert.equal(await db.productEnquiry.count({ where: { productId: p.co, phone: ph } }), 1);
 });
 
+test("the inbox can page through enquiries without losing equal-timestamp rows", async () => {
+  const stamp = new Date("2040-01-01T00:00:00Z");
+  for (let i = 0; i < 3; i++) {
+    await db.productEnquiry.create({ data: {
+      productId: p.co!, productTitle: "Paging probe", brandName: "Test",
+      name: "Paging test", phone: phone(), enquiryNo: `PAGE-${tag}-${i}`, createdAt: stamp,
+    } });
+  }
+  const first = await listProductEnquiries("new", 2, 0);
+  const second = await listProductEnquiries("new", 1, 2);
+  assert.equal(new Set([...first, ...second].map((e) => e.id)).size, 3);
+  assert.ok([...first, ...second].every((e) => e.enquiryNo.startsWith(`PAGE-${tag}-`)));
+});
+
 test("validation: bad phone, short name, filled honeypot, oversize message", async () => {
   const base = { productId: p.co, name: "Asha", phone: phone() };
   for (const bad of [{ ...base, phone: "12345" }, { ...base, name: "A" }, { ...base, website: "http://spam" }, { ...base, message: "x".repeat(1001) }]) {

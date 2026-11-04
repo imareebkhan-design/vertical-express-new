@@ -27,7 +27,7 @@ export function BrandStrip({
     <section aria-labelledby="brands-heading" className="px-4 pt-5">
       <div className="flex items-baseline justify-between">
         <h2 id="brands-heading" className="text-[17px] font-extrabold tracking-[-0.02em] text-ink">
-          Brands we stock
+          Browse by brand
         </h2>
         <Link
           href={`/category/${slug}`}

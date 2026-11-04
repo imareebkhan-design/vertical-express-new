@@ -22,6 +22,9 @@ for (const key of Object.getOwnPropertyNames(dom.window)) {
 }
 g.window = dom.window;
 g.document = dom.window.document;
+// React constructs FormData from the submitted HTML form. Node's fetch
+// implementation does not accept an HTMLFormElement; use the DOM constructor.
+g.FormData = dom.window.FormData;
 // Node may expose its own incomplete Web Storage object. UI tests must use
 // the same storage implementation as the jsdom window under test.
 Object.defineProperty(globalThis, "localStorage", { value: dom.window.localStorage, configurable: true });

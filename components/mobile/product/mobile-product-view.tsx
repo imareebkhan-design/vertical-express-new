@@ -302,7 +302,7 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
             <>
               <p className="mt-2 text-base font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
               {!product.purchasable && (
-                <div className="mt-3">
+                <div id="enquiry" className="mt-3 scroll-mt-20">
                   <ProductEnquiry productId={product.id} productTitle={product.title} />
                 </div>
               )}
@@ -578,8 +578,13 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
 
       {/* Sticky Bottom Buy Drawer/CTA bar */}
       {!selectedVariant ? (
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 shadow-2xl">
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between gap-3 shadow-2xl">
         <p className="text-sm font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+        {!product.purchasable && (
+          <a href="#enquiry" className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md no-underline">
+            {ENQUIRE_LABEL}
+          </a>
+        )}
       </div>
       ) : !orderingOpen ? (
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">

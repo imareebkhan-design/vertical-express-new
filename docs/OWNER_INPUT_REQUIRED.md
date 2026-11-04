@@ -104,10 +104,10 @@ the first time.
 |---|---|---|---|---|
 | 7.1 | Razorpay merchant account status | **BLOCKS P0A** | Onboarding takes 3–7 days and needs GST, PAN, bank proof and business registration. **On the critical path — start now.** *(Status only. Never paste keys into a chat.)* | AWAITING |
 | 7.2 | Which online methods at launch — UPI, cards, net banking | BLOCKS P0B | UPI alone covers most of this market | AWAITING |
-| 7.3 | Is COD required at launch? | **BLOCKS P0A** | Likely a large share of GMV; shapes the fulfilment build | AWAITING |
-| 7.4 | **COD maximum order value** | **BLOCKS P0A** | **There is currently no limit at all** — a ₹5,00,000 COD order is accepted (ISS-010) | AWAITING |
-| 7.5 | COD cap for first-time customers | **BLOCKS P0A** | Standard fraud control; none exists | AWAITING |
-| 7.6 | Who physically collects COD cash | **BLOCKS P0A** | Determines the reconciliation model (ISS-010) | AWAITING |
+| 7.3 | Is COD required at launch? | ANSWERED | Owner disabled COD on 4 Nov 2026; no new COD orders | DISABLED |
+| 7.4 | **COD maximum order value** | DEFERRED WHILE COD DISABLED | **There is currently no limit at all** — a ₹5,00,000 COD order is accepted (ISS-010) | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
+| 7.5 | COD cap for first-time customers | DEFERRED WHILE COD DISABLED | Standard fraud control; none exists | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
+| 7.6 | Who physically collects COD cash | DEFERRED WHILE COD DISABLED | Determines the reconciliation model (ISS-010) | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
 | 7.7 | Who reconciles cash, and how often | **BLOCKS P0A** | Untracked cash is the most common quiet loss in hyperlocal commerce | AWAITING |
 | 7.8 | Cancellation policy and window | BLOCKS P0B | Currently unenforced | AWAITING |
 | 7.9 | Refund process and who approves | BLOCKS P0B | No refund entity or workflow exists (ISS-025) | AWAITING |
@@ -247,7 +247,14 @@ Status to `CONFIRMED` above and note where the value now lives in code or config
 | 11 Oct 2026 | Image rights (relates to 3.6) | In production an approved photo also needs an *attested* reuse-rights licence code; an approval recorded with rights unconfirmed can never become a production listing on its own | `lib/catalog-policy.ts` `approvedImageWhere()` |
 | 12 Oct 2026 | Category discovery (relates to 3.1) | Discovery is separate from publication: an active category in the original departments is shown even with no approved product, labelled "Coming soon", with no count, price, stock or basket action | `lib/category-directory.ts` |
 | 16 Oct 2026 | Address pin vs Google pincode | Keep the customer's pin; record Google's pincode beside it; flag the difference for ops before dispatch rather than refusing the address | `lib/services/addresses.ts`, `lib/location/address-pin.ts` |
-| 17 Oct 2026 | HomeRun image library (relates to 3.6) | The owner wrote that the library they downloaded is licensed for Vertical Express product photos (licence code `homerun-library-owner-licensed`). **Rights only**: each photo still needs mapping and per-photo approval. Branding, logos, banners and copy stay off-limits. **No licence document is on file**; the source folder is a saved copy of HomeRun's home page with no licence notes. Supplying that document is open decision D-03 | `lib/catalog-policy.ts`, `CLAUDE.md`, workspace `docs/catalog/homerun-production-images-2026-10-17/` |
+| 17 Oct 2026 | HomeRun image library (relates to 3.6) | The owner wrote that the library they downloaded is licensed for Vertical Express product photos (licence code `homerun-library-owner-licensed`). **Rights only**: each photo still needs mapping and per-photo approval. Branding, logos, banners and copy stay off-limits. **No licence document is on file**; the source folder is a saved copy of HomeRun's home page with no licence notes. Supplying that supporting document is document request DOC-01, not an outstanding owner approval | `lib/catalog-policy.ts`, `CLAUDE.md`, workspace `docs/catalog/homerun-production-images-2026-10-17/` |
 | 31 Oct 2026 | Trading mode | Build a catalogue-and-enquiries mode alongside the transactional one. `ve-production` runs `COMMERCE_MODE=catalogue` (no ordering, no payment configuration) | `lib/commerce-mode.ts`, `apphosting.production.yaml` (PR #25) |
 | 2 Nov 2026 | MRP and launch mode *(in unmerged PRs, not yet in the release branch)* | (a) A variant may sell at its verified MRP and be discounted later; selling above MRP is refused. (b) The agreed launch is transactional; in that mode catalogue-only products are hidden and take no enquiries | PR #29 (`claude/mrp-equals-price`), PR #31 (`claude/transactional-launch-surfaces`) |
 | 3 Nov 2026 | Domain *(observed, not an answer to 1.6)* | `www.verticalexpress.in` serves `ve-production` and the apex 301-redirects to it, so the DNS change was made. The owner should still confirm 1.6 as final | Live probe, 3 Nov |
+
+
+## Owner clarifications — 4 Nov 2026
+
+- The owner personally handles enquiries through the existing admin inbox. Email and WhatsApp alerts are not part of this launch workflow.
+- COD is disabled from now on. Existing historic COD records remain intact; this does not authorize any invented stock, prices, delivery policy or payment credentials.
+- Public legal identity, business contact, confirmed prices/physical stock, delivery and returns remain unresolved unless separately evidenced.
