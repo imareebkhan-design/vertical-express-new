@@ -1222,6 +1222,17 @@ called `nextBookingStatuses` — the validation existed but was dead, so any boo
 jump to any status, including backwards or straight to completed. Now validated,
 transactional and audited, matching how orders already worked. (Relates to ISS-014.)
 
+**Update 5 Nov 2026 (branch `claude/admin-access-audit`).** A sweep of every `admin*`
+server action found four console paths that changed stock or catalogue identity with no
+`AuditLog` row: stock adjustment and stock recount (they wrote only a `StockMovement`
+keyed by email, not the operator's user id), and the three brand actions (create/edit,
+retire/restore, reassign a product's brand), which wrote only an application log line.
+Each now writes `AuditLog` with `actorType: admin`, the operator's `users.id` and
+before/after values, in the same transaction. Refund requests and variant retire/restore
+gained a `before`. `admin-audit-coverage.test.ts` fails if any mutating admin action
+cannot reach `recordAudit`. Staff role changes remain uncovered because there are no
+roles yet (ISS-027).
+
 **Owner input required.** No.
 
 ---

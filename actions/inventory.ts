@@ -30,7 +30,7 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
  */
 const schema = z.object({
   variantId: z.string().uuid(),
-  warehouseId: z.string().uuid(),
+  warehouseId: z.guid(), // seeded main warehouse is 00000000-…-0001; see warehouse-id-validation.test.ts
   qtyDelta: z
     .number()
     .int("Stock moves in whole units")
@@ -62,6 +62,7 @@ export async function adminAdjustStock(input: unknown): Promise<ActionResult<{ q
     reason,
     note,
     actorEmail: admin.email,
+    actorId: admin.id,
   });
 
   logAdjustment(result, { variantId, warehouseId, qtyDelta, reason, actor: admin.email });
@@ -86,7 +87,7 @@ export async function adminAdjustStock(input: unknown): Promise<ActionResult<{ q
 
 const recountSchema = z.object({
   variantId: z.string().uuid(),
-  warehouseId: z.string().uuid(),
+  warehouseId: z.guid(), // seeded main warehouse is 00000000-…-0001; see warehouse-id-validation.test.ts
   countedQty: z
     .number()
     .int("Stock is counted in whole units")
@@ -114,7 +115,7 @@ export async function adminRecountStock(input: unknown): Promise<ActionResult<{ 
   }
   const { variantId, warehouseId, countedQty, expectedOnHand, note } = parsed.data;
 
-  const result = await recountStock({ variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail: admin.email });
+  const result = await recountStock({ variantId, warehouseId, countedQty, expectedOnHand, note, actorEmail: admin.email, actorId: admin.id });
 
   if (!result.ok) {
     logAdjustment({ ok: false, error: result.error === "stale" ? "raced" : result.error === "not_found" ? "not_found" : "would_go_negative" }, {

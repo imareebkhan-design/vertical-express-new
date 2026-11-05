@@ -36,7 +36,7 @@ const editSchema = z.object({
   pincode: z.string().trim().regex(INDIA_PINCODE, "A pincode is six digits and does not start with 0"),
   cityId: z.string().uuid("Pick the city this pincode belongs to"),
   area: z.string().trim().max(80),
-  warehouseId: z.string().uuid("Pick a warehouse"),
+  warehouseId: z.guid("Pick a warehouse"),
   /** Blank means no promise. Never defaulted. */
   etaMinutes: z
     .string()
@@ -163,7 +163,7 @@ export async function adminSetCityLive(input: unknown): Promise<ActionResult<nul
 const includeSchema = z.object({
   cityId: z.string().uuid("Pick a city"),
   pincodes: z.string().max(20_000),
-  warehouseId: z.string().uuid("Pick a warehouse"),
+  warehouseId: z.guid("Pick a warehouse"),
   area: z.string().trim().max(80),
   etaMinutes: editSchema.shape.etaMinutes,
   deliveryFee: editSchema.shape.deliveryFee,

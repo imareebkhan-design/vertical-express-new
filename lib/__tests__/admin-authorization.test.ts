@@ -56,6 +56,53 @@ test("the admin layout is what gates the console", () => {
   assert.ok(pages.length >= 20, `only ${pages.length} admin pages found`);
 });
 
+test("every admin page checks the operator itself, before loading anything", () => {
+  /* The layout is not enough on its own. On a client-side navigation the App
+     Router renders only the segments that changed, so a request for one page's
+     payload does not re-run the shared layout above it. Each page therefore
+     carries its own check, and it must come before the page's first await of
+     anything else, so no data is read for a visitor who is then refused. */
+  const pages = walk(join(ROOT, "app/admin")).filter((f) => f.endsWith("page.tsx"));
+  assert.ok(pages.length >= 30, `only ${pages.length} admin pages found`);
+  for (const file of pages) {
+    const rel = relative(ROOT, file);
+    const src = readFileSync(file, "utf8");
+    const start = src.search(/export default async function/);
+    assert.ok(start >= 0, `${rel}: the page is not an async server component`);
+    const body = src.slice(start);
+    const firstAwait = body.search(/await /);
+    const guard = body.search(/await (getAdminUser|adminGate)\(\)/);
+    assert.ok(guard >= 0, `${rel}: no getAdminUser()/adminGate() check`);
+    assert.equal(guard, firstAwait, `${rel}: something is awaited before the admin check`);
+    assert.match(
+      body.slice(Math.max(0, guard - 12), guard + 160),
+      /(if \(!\(await getAdminUser\(\)\)\) return null|await adminGate\(\);\s*if \(gate\.state !== "admin"\) return null|const admin = await getAdminUser\(\);\s*if \(!admin\) return null)/,
+      `${rel}: the admin check does not stop the page for a non-admin`
+    );
+  }
+});
+
+test("every admin server action refuses a non-admin before doing any work", () => {
+  /* Stronger than "calls getAdminUser() somewhere near the top": the result
+     must be checked, and a non-admin must be turned away, as the first
+     statements of the action. */
+  for (const file of walk(join(ROOT, "actions")).filter((f) => f.endsWith(".ts"))) {
+    const rel = relative(ROOT, file);
+    const src = readFileSync(file, "utf8");
+    for (const m of src.matchAll(/export async function (admin[A-Za-z0-9_]*)\(/g)) {
+      const fn = src.slice(m.index ?? 0, (m.index ?? 0) + 1200);
+      const guard = fn.search(/await getAdminUser\(\)/);
+      assert.ok(guard >= 0, `${rel}: ${m[1]} never calls getAdminUser()`);
+      assert.equal(fn.search(/await /), guard, `${rel}: ${m[1]} awaits something before the admin check`);
+      assert.match(
+        fn.slice(guard - 20, guard + 160),
+        /const (\w+) = await getAdminUser\(\);\s*if \(!\1\) return fail\("FORBIDDEN"/,
+        `${rel}: ${m[1]} does not refuse a non-admin straight after the check`
+      );
+    }
+  }
+});
+
 test("every admin server action checks the operator itself", () => {
   /* A layout cannot help here — an action is reachable by POST without any page
      being rendered, so each one carries its own check. */

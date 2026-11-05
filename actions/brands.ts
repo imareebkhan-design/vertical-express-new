@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { log } from "@/lib/observability";
+import { recordAudit } from "@/lib/services/audit";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -67,14 +68,27 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
   if (originalSlug) {
     const existing = await db.brand.findUnique({
       where: { slug: originalSlug },
-      select: { slug: true, name: true },
+      select: { id: true, slug: true, name: true, isActive: true },
     });
     if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
 
     try {
-      await db.brand.update({
-        where: { slug: originalSlug },
-        data: { name, slug, isActive },
+      /* The audit row shares the edit's transaction (ISS-015): a brand's name
+         is what every one of its product pages claims to be. */
+      await db.$transaction(async (tx) => {
+        await tx.brand.update({
+          where: { slug: originalSlug },
+          data: { name, slug, isActive },
+        });
+        await recordAudit(tx, {
+          actorType: "admin",
+          actorId: admin.id,
+          action: "brand.edited",
+          entityType: "brand",
+          entityId: existing.id,
+          before: { name: existing.name, slug: existing.slug, isActive: existing.isActive },
+          after: { name, slug, isActive },
+        });
       });
     } catch {
       return fail("CONFLICT", "Another brand already uses that name or slug");
@@ -96,7 +110,17 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
     });
   } else {
     try {
-      await db.brand.create({ data: { slug, name, isActive } });
+      await db.$transaction(async (tx) => {
+        const created = await tx.brand.create({ data: { slug, name, isActive }, select: { id: true } });
+        await recordAudit(tx, {
+          actorType: "admin",
+          actorId: admin.id,
+          action: "brand.created",
+          entityType: "brand",
+          entityId: created.id,
+          after: { name, slug, isActive },
+        });
+      });
     } catch {
       /* Both name and slug are unique. Either collision means the brand is
          already here — which is a thing to say, not a thing to overwrite. */
@@ -127,7 +151,24 @@ export async function adminSetBrandActive(slug: string, isActive: boolean): Prom
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
 
-  await db.brand.update({ where: { slug }, data: { isActive } });
+  const existing = await db.brand.findUnique({ where: { slug }, select: { id: true, isActive: true } });
+  if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
+  if (existing.isActive === isActive) return succeed(null);
+
+  /* Retiring a brand removes all of its products from the storefront, so it is
+     audited with the change, in one transaction. */
+  await db.$transaction(async (tx) => {
+    await tx.brand.update({ where: { slug }, data: { isActive } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: admin.id,
+      action: isActive ? "brand.restored" : "brand.retired",
+      entityType: "brand",
+      entityId: existing.id,
+      before: { isActive: existing.isActive },
+      after: { isActive },
+    });
+  });
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
   return succeed(null);
@@ -171,7 +212,18 @@ export async function adminAssignProductBrand(input: unknown): Promise<ActionRes
   if (!brand) return fail("NOT_FOUND", "Brand not found");
   if (product.brandId === brandId) return succeed(null);
 
-  await db.product.update({ where: { id: productId }, data: { brandId } });
+  await db.$transaction(async (tx) => {
+    await tx.product.update({ where: { id: productId }, data: { brandId } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: admin.id,
+      action: "product.brand_assigned",
+      entityType: "product",
+      entityId: productId,
+      before: { brandId: product.brandId },
+      after: { brandId, brandName: brand.name },
+    });
+  });
 
   /* A brand change is a change to what the product claims to be, so it leaves a
      trail. The previous brand is recorded because "it used to say something
