@@ -24,7 +24,7 @@ Built candidate on localhost:3104 against local restore: category index, coming-
 ## Quality gates
 
 - First full backend run: 1,437 passed; zero failed/cancelled/skipped.
-- Final isolated backend run: pending at checkpoint; database ve_readiness_test_20261104, zero competing connections before start.
+- Final isolated backend run: **1,443 passed, 0 failed, 0 cancelled, 0 skipped**, exit 0; database ve_readiness_test_20261104, zero competing connections before start. Duration 1,246,564 ms.
 - UI suite: 213 passed; zero failed/cancelled/skipped.
 - Typecheck, lint and final production build passed. Existing optional Capacitor plugin module warnings remain.
 - Guarded image relocation rehearsal: correctly aborts/rolls back when trigger invalidates approval; 260 original approved images retained.
@@ -47,3 +47,7 @@ No production-ready or ready-to-take-paid-orders claim is made.
 - Keep credentials, backup dumps and customer-data evidence private; only these non-sensitive summaries belong in git.
 - Claude admin-audit worktree is active, with committed d051106 and additional uncommitted fixes at the last read-only inspection. No attempt was made to integrate it here.
 - The final test database and restored production copy are distinct. Building and browser testing use the restored copy, not the backend suite database.
+
+## Verified handoff
+
+Implementation commit: 1d87aa7769a0d6d0d9152b56d81d9235959c95e8. This documentation follow-up records the completed final run. No schema migration or application deployment was performed; deployment ID: none. Ready for Claude to review/integrate the verified fixes, not for transactional production release.

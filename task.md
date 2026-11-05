@@ -99,5 +99,5 @@
 - [ ] Complete image cutover. 260 copies verified; approval-reset trigger blocks URL relocation.
 - [ ] Confirm public information and release provenance.
 - [x] Configure monitors and verify local backup restoration/guarded rollback. Alert receipt remains pending.
-- [ ] Complete final isolated tests and browser verification.
+- [x] Complete final isolated tests (1,443/1,443 backend; 213/213 UI), build, typecheck, lint and local browser enquiry verification. Staging acceptance is still pending.
 - [x] Record business/external blockers and release handoff in docs/readiness/2026-11-05-launch-readiness.md.
