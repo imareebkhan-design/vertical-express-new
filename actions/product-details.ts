@@ -46,7 +46,7 @@ const variantSchema = z.object({
   sku: z.string(),
   price: z.string(),
   mrp: z.string(),
-  warehouseId: z.union([z.uuid(), z.literal("")]),
+  warehouseId: z.union([z.guid(), z.literal("")]),
 });
 
 export async function adminAddVariant(input: unknown): Promise<ActionResult<{ variantId: string }>> {
