@@ -30,7 +30,7 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
  */
 const schema = z.object({
   variantId: z.string().uuid(),
-  warehouseId: z.string().uuid(),
+  warehouseId: z.guid(), // seeded main warehouse is 00000000-…-0001; see warehouse-id-validation.test.ts
   qtyDelta: z
     .number()
     .int("Stock moves in whole units")
@@ -87,7 +87,7 @@ export async function adminAdjustStock(input: unknown): Promise<ActionResult<{ q
 
 const recountSchema = z.object({
   variantId: z.string().uuid(),
-  warehouseId: z.string().uuid(),
+  warehouseId: z.guid(), // seeded main warehouse is 00000000-…-0001; see warehouse-id-validation.test.ts
   countedQty: z
     .number()
     .int("Stock is counted in whole units")
