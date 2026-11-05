@@ -227,7 +227,7 @@ function config(phase: string): NextConfig {
     /* Only the configured product-image host and path prefix — never a wildcard. */
     images:
       productImageBases.length
-        ? { remotePatterns: productImageBases.map((base) => new URL(`${base.replace(/\/$/, "")}/**`)) }
+        ? { remotePatterns: [...productImageBases.map((base) => new URL(`${base.replace(/\/$/, "")}/**`)), ...(process.env.VE_DEPLOY_ENV === "production" && process.env.PRODUCTION_IMAGE_DELIVERY === "1" ? [{ protocol: "https" as const, hostname: "storage.googleapis.com", port: "", pathname: "/ve-production-product-images/**" }] : [])] }
         : undefined,
 
     outputFileTracingRoot: process.cwd(),

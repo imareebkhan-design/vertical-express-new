@@ -1,3 +1,4 @@
+import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
@@ -205,7 +206,7 @@ export async function getCartSummary(
       title: v.product.title,
       variantName: v.name,
       brandName: v.product.brand.name,
-      imageUrl: v.product.images[0]?.url ?? null,
+      imageUrl: productImageDeliveryUrl(v.product.images[0]),
       unitLabel: v.product.unitLabel,
       qty: lineQty,
       basePricePaise: v.pricePaise,

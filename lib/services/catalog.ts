@@ -1,3 +1,4 @@
+import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
 import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
 import { Prisma } from "@/prisma/generated/client/client";
@@ -194,7 +195,7 @@ export function toItem(p: CardSource): CatalogItem | null {
     categorySlug: p.category.slug,
     categoryIsBulk: p.category.isBulk,
     deliverySpeed: p.deliverySpeed ?? null,
-    imageUrl: p.images[0]?.url ?? null,
+    imageUrl: productImageDeliveryUrl(p.images[0]),
     unitLabel: p.unitLabel,
     gradeLabel: gradeOf(p.specs),
     attributes: attributesOf(p.specs),
@@ -687,7 +688,7 @@ export async function getProductBySlug(slug: string): Promise<ProductDetail | nu
     specs,
     ratingAvg: Number(p.ratingAvg),
     ratingCount: p.ratingCount,
-    images: p.images.map((i) => ({ url: i.url, alt: i.alt })),
+    images: p.images.map((i) => ({ url: productImageDeliveryUrl(i)!, alt: i.alt })),
     purchasable,
     variants: (purchasable ? p.variants : []).map((v) => ({
       id: v.id,

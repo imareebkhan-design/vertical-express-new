@@ -20,3 +20,7 @@ This note supplements CLAUDE.md; it does not replace the operating manual.
 - Image approvals are tied to URL and content metadata by the existing database trigger. A URL update revokes approval. The rehome script must verify approval after updating and roll back on invalidation; it must not disable triggers or manufacture approvals. Copying exact bytes into another bucket alone does not complete the cutover.
 - Hosting allows both exact image bucket paths during a future cutover/rollback window. No wildcard Google Storage image allowance was introduced.
 - Local restore and backend test databases are distinct. Private production dumps, credentials and row-verification outputs remain outside git under the protected ve-readiness-private directory.
+
+## Approval-preserving delivery — 6 Nov 2026
+
+Do not rewrite product_images.url for bucket relocation. The approved URL/hash record remains provenance; lib/catalog/image-delivery.ts maps exact id/url/hash tuples to byte-verified generation-pinned copies using a committed manifest. Existing approval queries run before serialization. PRODUCTION_IMAGE_DELIVERY=1 activates only in declared production. Disable and rebuild for rollback. Fresh snapshot coverage verification must precede each rollout; preserve pinned generations. See docs/readiness/2026-11-06-image-delivery.md.

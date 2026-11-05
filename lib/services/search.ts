@@ -1,3 +1,4 @@
+import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
 import { db } from "@/lib/db";
 import { expandedSearchTerms, matchesSearchName } from "@/lib/search-terms";
@@ -98,7 +99,7 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
       slug: p.slug,
       title: p.title,
       brandName: p.brand.name,
-      imageUrl: p.images[0]?.url ?? null,
+      imageUrl: productImageDeliveryUrl(p.images[0]),
       // A missing price is null, not ₹0; catalog-only never exposes one.
       pricePaise: p.status === "published" ? (p.variants[0]?.pricePaise ?? null) : null,
     }));

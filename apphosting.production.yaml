@@ -17,6 +17,12 @@
 # their no-map fallback.
 
 env:
+  # Exact, hash-verified delivery mapping; set to 0 and rebuild to roll back.
+  - variable: PRODUCTION_IMAGE_DELIVERY
+    value: "1"
+    availability:
+      - BUILD
+      - RUNTIME
   - variable: NEXT_PUBLIC_PRODUCT_IMAGE_BASE
     value: "https://storage.googleapis.com/ve-production-product-images"
     availability:

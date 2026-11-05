@@ -41,3 +41,13 @@ Typecheck, lint, affected UI tests, full UI suite, isolated local backend suite,
 [MODIFY] privacy enquiry explanation and brand/SEO wording; retain unresolved legal/policy facts. [MODIFY] UI test setup to use DOM FormData.
 
 [MODIFY] owner input and known issues documents; [NEW] launch-readiness evidence and architecture notes. No application deployment or release/main merge in this slice.
+
+## Approved image relocation continuation — 6 Nov 2026
+
+Owner approved proceeding one step at a time. Preserve database image identity and approval triggers; separate delivery through a reviewed immutable manifest instead of rewriting approved URLs.
+
+- [NEW] lib/catalog/image-delivery.ts and production-image-delivery.json: exact id/source URL/hash mapping to hash-verified, generation-pinned production objects; explicit production-only activation and rollback flag.
+- [MODIFY] catalog, search and cart serializers (wishlist reuses catalog serializer): use delivery resolver only after existing approval queries.
+- [MODIFY] next.config.ts: allow exact generation-pinned destinations alongside existing explicit bucket patterns; production hosting flag activates mapping, staging unchanged.
+- [NEW] focused resolver tests and scripts/verify-image-delivery.mts: verify complete current approved-row coverage, pinned object bytes, public surfaces and unchanged approval state on local restore.
+- [MODIFY] evidence, architecture and task records. No schema migration, owner approval backfill, trigger change, deployment or edits to Claude worktrees.

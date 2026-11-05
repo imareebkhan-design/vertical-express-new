@@ -101,3 +101,9 @@
 - [x] Configure monitors and verify local backup restoration/guarded rollback. Alert receipt remains pending.
 - [x] Complete final isolated tests (1,443/1,443 backend; 213/213 UI), build, typecheck, lint and local browser enquiry verification. Staging acceptance is still pending.
 - [x] Record business/external blockers and release handoff in docs/readiness/2026-11-05-launch-readiness.md.
+
+## Image delivery continuation — 6 Nov 2026
+- [x] Verify 260 pinned copies and produce immutable delivery manifest.
+- [x] Wire approved public serializers and rollback flag.
+- [x] Test 260 mappings, 324 unchanged image rows, visibility and rollback on local restore.
+- [x] Run affected regression tests (42/42), typecheck, lint and production-mode build; prepare isolated handoff.
