@@ -13,6 +13,15 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 ## Status reconciliation — 4 November 2026
 
+**Warehouse GUID validation — fixed 6 November 2026.** The seeded Srinagar Central
+warehouse ID (`00000000-0000-0000-0000-000000000001`) fails Zod 4's strict UUID
+version/variant check. Five admin warehouse fields now use `z.guid()` in inventory,
+product details and serviceability; malformed identifiers are still rejected. The
+regression is covered by `lib/__tests__/warehouse-id-validation.test.ts`. A staging
+rollout can regress this if a separately deployed branch lacks the fix; the
+`codex/staging-admin-audit` integration preserves the readiness changes and both
+admin audit commits.
+
 Many entries below say "local only", "not committed" or "on branch X, not in the RC".
 On 4 Nov they were checked against `origin/release/rc-2026-10-19` (`06d19d7`). The
 individual entries are **not** rewritten; this table supersedes their status lines where
