@@ -97,9 +97,14 @@ explicit approval separately from the application rollout.
 1. Record the currently serving build (`build-2026-11-02-002` today) — it is the rollback
    target.
 2. Back up production first (read-only dump as in B.1), named with the date and purpose.
-3. From a clean checkout of the approved SHA:
-   `npx -y firebase-tools@latest deploy --only apphosting:ve-production`.
-   Name the backend — `firebase.json` lists staging and production.
+3. Deploy a **clean snapshot** of the approved SHA, never a working tree: `git archive`
+   the commit into an empty temporary directory and run, from there, a pinned CLI
+   (`npx --yes firebase-tools@15.35.0 deploy --only apphosting:ve-production
+   --project vertical-express --non-interactive`). Name the backend — `firebase.json`
+   lists staging and production. This mirrors `npm run deploy:staging` (PR #38), which
+   exists because a direct deploy from a feature branch once replaced staging's audit
+   and warehouse fixes; there is no production equivalent of that guard yet.
+   Staging for gate A must likewise come from `npm run deploy:staging` on the release head.
 4. Confirm the new rollout reaches SUCCEEDED and 100% of traffic.
 
 ## E. Rollback
