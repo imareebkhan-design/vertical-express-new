@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const arg = (name: string) => process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=").slice(1).join("=");
 const apply = process.argv.includes("--apply");
-const artifact = arg("artifact") ?? "lib/catalog/master-2026-10-01-v2.1.json";
+const artifact = arg("artifact") ?? "lib/catalog/master-2026-10-01-v2.2.json";
 const expect = arg("expect-ref");
 
 function ref(url: string | undefined): string {
