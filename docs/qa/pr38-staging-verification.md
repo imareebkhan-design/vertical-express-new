@@ -19,8 +19,11 @@ commit `5fb6fa9117297287d107c282131308c69b35365b`:
 | inventory.recounted | 13 | 14 | +1 | 537716e9-c35c-4aa2-b2ba-064ceb925b48 |
 | inventory.adjusted (correction) | 14 | 13 | -1 | 63b69490-7ff6-4d1e-a81a-62f0f884d984 |
 
-Stored audit timestamps are respectively `2026-11-06T02:07:00.550Z` and
-`2026-11-06T02:07:20.963Z` (07:37 IST). Both have actorType `admin`, the same
+Stored audit timestamps are respectively `2026-11-06T07:37:00.550Z` and
+`2026-11-06T07:37:20.963Z` (13:07 IST). The database stores these values in UTC;
+they follow the creation of `build-2026-11-06-001` at 07:29:16Z, the first build
+containing the audit code. (An earlier revision of this document mislabelled them
+as 02:07Z / 07:37 IST.) Both have actorType `admin`, the same
 non-null actor ID, and notes identifying PR36 QA commit 5fb6fa9 and restoration.
 
 The earlier brand test was independently verified by read-only query:
@@ -55,10 +58,26 @@ These corrections are validated against disposable local/CI databases. The stagi
 evidence above establishes the original inventory and brand paths, not concurrency
 or refund processing on a shared environment. No live refund was attempted.
 
-## Release hold
+## Release status
 
-No merge or production deployment is authorized. Final-head CI and final review
-must pass, followed by explicit owner approval. After integration, use
-`npm run deploy:staging` from the clean current canonical release branch. The guard
-uploads a git archive of the verified commit and excludes local ignored files. This change
-prepares the guard; it does not perform a deployment or enable automatic rollout.
+- PR #38 was merged into `release/rc-2026-10-19` on 6 November 2026 at 20:27Z
+  (fast-forward to `f853f86`). Post-merge release CI passed at that head.
+- Staging was redeployed from the clean canonical release head with
+  `npm run deploy:staging`. Rollout `build-2026-11-06-004` (Cloud Build
+  `2bec2c1a-d36c-4509-87a8-cb10497cda1d`) succeeded and serves 100% of traffic.
+  Its uploaded source matches `git archive f853f86` file for file (only
+  deploy-excluded files such as `.env.example` and `mobile-shell/` are absent).
+  `build-2026-11-06-003` failed and was never served.
+- Read-only smoke check on that build (7 November 2026): home page 200;
+  `/api/serviceability/190001` and `/api/v1/serviceability/190001` return
+  `codAllowed: false`; `/admin/inventory` redirects unauthenticated visitors.
+- The review corrections in `7a78803`/`f853f86` are therefore deployed to staging,
+  but were not re-exercised there through the console; their evidence remains the
+  local and CI regression tests above.
+- Production is unchanged: `ve-production` still serves `build-2026-11-02-002`.
+  No production deployment is authorized by this document.
+
+Future staging deployments must use `npm run deploy:staging` from a clean checkout
+of the current canonical `release/rc-2026-10-19` head. The script refuses any other
+branch, a dirty tree, or a head that differs from the canonical remote, and uploads a
+git archive of the verified commit rather than the working directory.
