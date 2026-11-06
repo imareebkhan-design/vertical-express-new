@@ -7,6 +7,79 @@
 
 ---
 
+## Where this code lives — read this first
+
+**This is the live repository:**
+
+```
+github.com/imareebkhan-design/vertical-express-new     ← the code you are reading
+        ↓ deployed by hand: firebase deploy --only apphosting:<backend>
+Firebase App Hosting, project vertical-express, region asia-southeast1
+        ├─ ve-staging      ← staging (Razorpay TEST keys, staging database)
+        └─ ve-production   ← www.verticalexpress.in, COMMERCE_MODE=catalogue
+```
+
+**State on 4 Nov 2026 (verify before relying on it):** the working line is
+`release/rc-2026-10-19` (PR #24 → `main`). `main` is the August Prisma 7 merge and is
+hundreds of commits behind it. `ve-production` was deployed from draft PR #25
+(`claude/production-backend`), not from a merged branch. The repository configures no
+automatic rollout on push; check the App Hosting console before assuming one exists.
+Vercel is no longer the deploy target (see "Before you push to `main`" below).
+
+**`github.com/imareebkhan-design/vertical-express` (no `-new`) is dead.** It was
+archived on 31 August 2026. The two repositories share history and forked at
+`40fb913` in July; the old one holds exactly two commits that never came across,
+and both were checked and found redundant — its `robots.ts` and `sitemap.ts` work
+already exists here, and its `CLAUDE.md` is superseded by this file.
+
+**Nothing needs migrating from it. Do not push to it. Do not read it for context.**
+
+### Why this section exists
+
+Three separate agent sessions independently discovered that the working branches
+were absent from `origin`, each spent effort re-deriving why, and one of them
+pushed a documentation commit into the *dead* repository — which triggered a
+failed Vercel build and cost an afternoon of diagnosis. The Vercel project pointed
+at the old repository until 31 August 2026, so for a period **nothing built here
+could deploy at all**.
+
+If you find yourself puzzled that a branch is missing from `origin`, the answer is
+almost certainly that it is local and unpushed — not that you are in the wrong
+repository.
+
+### Branch conventions
+
+`main` is the intended production branch. The integration line is now the release
+branch (`release/rc-2026-10-19`); feature branches are cut from it and merged back
+through PRs. *(Historical: before Firebase, `design-system/apply-tokens` was the
+integration line and `main` deployed to Vercel on push. Neither is true now.)*
+
+### Before you push to `main`
+
+In **transactional** mode, production **cannot boot** without live Razorpay
+credentials: `assertPaymentConfig()` throws at server start unless
+`PAYMENT_GATEWAY=razorpay-live` and all three Razorpay secrets are present, so every
+request returns 500. In **catalogue** mode (`COMMERCE_MODE=catalogue`, owner decision
+31 Oct 2026, `lib/commerce-mode.ts`) the server refuses every order and payment and
+boots with no payment configuration at all. That is how `ve-production` runs today
+(`apphosting.production.yaml` carries no payment variable).
+
+Read that carefully, because the intuition runs the wrong way: **not having Razorpay
+credentials is precisely what breaks a production deploy.** The guard exists so the
+site refuses to serve rather than take a customer's money through a dummy gateway
+(ISS-002). Until those credentials are configured in the hosting environment, push feature
+branches freely and leave `main` alone.
+
+**Exception for a STAGING backend (added 2026-09-20).** Managed hosts run every backend
+with `NODE_ENV=production`, so a test deployment that a phone can reach would otherwise
+be impossible. `PAYMENT_GATEWAY=razorpay-test` is therefore accepted in production *only*
+with `ALLOW_TEST_GATEWAY=1` **and** a `rzp_test_` key id (`testGatewayAllowedHere()` in
+`lib/services/payments.ts`). The dummy gateway has no such opt-in. Never set
+`ALLOW_TEST_GATEWAY` on a production backend. Hosting is Firebase App Hosting
+(`docs/DEPLOY_FIREBASE.md`); Vercel is no longer the deploy target.
+
+---
+
 ## Product
 
 Vertical Express is a construction-material commerce and hyperlocal delivery platform.
@@ -41,21 +114,28 @@ See `docs/CURRENT_SYSTEM_AUDIT.md` for the full assessment.
 
 | | |
 |---|---|
-| Framework | Next.js 15.5.20 App Router, React 19.1, TypeScript strict, Turbopack |
+| Framework | Next.js 15.5.28 App Router, React 19.1, TypeScript strict, Turbopack |
 | Styling | Tailwind CSS v4 + `class-variance-authority` (no shadcn/Radix) |
 | Database | PostgreSQL via Supabase (`ap-south-1`), pooled 6543 / direct 5432 |
-| ORM | Prisma 6.19 — 25 models, 11 enums, 6 migrations |
-| Auth | Supabase Auth OTP — **currently email channel**, provider-abstracted |
-| API | Server Actions primary (`actions/*.ts`) + 3 route handlers (`app/api/*`) |
+| ORM | Prisma **7.9** — 48 models, 24 enums, 39 migrations (counted 4 Nov 2026). Client is generated to `prisma/generated/client`; import from `@/prisma/generated/client/client`, never `@prisma/client`. Datasource URL lives in `prisma.config.ts`, not the schema |
+| Auth | **Firebase Auth** — phone OTP and Google, session cookies verified server-side. `lib/auth/current-user.ts` is the only identity reader; `lib/auth/link-policy.ts` holds the account-linking rules |
+| API | Server Actions (`actions/*.ts`) + 40 route handlers (`app/api/*`), of which `/api/v1/*` is the HTTP API the Expo app uses |
 | Domain logic | `lib/services/*.ts`, all `import "server-only"` |
 | Validation | Zod 4 (`lib/validators/index.ts`) |
-| Payments | Razorpay fully implemented; **`dummy` gateway active by default** |
-| Mobile | Capacitor 8 scaffolded (`capacitor.config.ts`, `mobile-shell/`) — not built |
-| Hosting | Vercel, `bom1` edge |
-| Tests | **None.** | 
-| CI | **None.** |
+| Payments | Razorpay fully implemented and verified on TEST keys only. Production refuses dummy and test gateways (ISS-002, ISS-087). `COMMERCE_MODE` switches between `transactional` and `catalogue` |
+| Mobile | **Expo SDK 57 / React Native 0.86** app in the *workspace* repo (`vertical-express-workspace/mobile/`), calling `/api/v1/*`; includes delivery-partner mode. Not in any store yet. The Capacitor scaffold here is a leftover (owner question 16 in the workspace `docs/UI_PARITY_MATRIX.md`) |
+| Hosting | **Firebase App Hosting**, `asia-southeast1`, backends `ve-staging` and `ve-production` (`docs/DEPLOY_FIREBASE.md`) |
+| Tests | **544 tests, 90 files** (`lib/**/*.test.ts`) — run against a local Postgres behind `test-support/db-guard.mjs`, `npm test`. Counted 12 Sep 2026; it said 328/60 for weeks, which is what the warning below is about |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) — typecheck, lint, test on every push |
 
-Scale: 133 TS/TSX files, ~10,500 LOC, 60 components, 17 domain services.
+Scale: 35 domain service modules in `lib/services/` (4 Nov 2026); 1,348 backend tests at the 31 Oct integration check (workspace handover).
+
+> **This table drifts.** It claimed Supabase email OTP, 6 migrations and no tests
+> long after all three were wrong, and a manual that "wins over everything else"
+> being wrong about the auth system is worse than having no manual. Check it
+> against the code before relying on it, and correct it when you find it stale —
+> the Source of Truth Hierarchy below says the repository beats this file, and
+> that rule exists because of this table.
 
 **What is already correct and must be preserved:**
 money as integer paise throughout · cart stores no price (server resolves on read) ·
@@ -144,14 +224,15 @@ does not exist yet.
 - Every schema change gets a named Prisma migration and a note in `docs/DATABASE_SCHEMA.md`.
 - Never drop a column in the same release that stops writing it. Expand → migrate →
   contract, across releases.
-- Migrations currently run automatically in `vercel-build`. **This is a known risk
-  (see KNOWN_ISSUES ISS-024).** Until it is gated, treat every migration as
-  production-affecting.
+- Migrations never run from the build. They are applied by hand (`npm run db:deploy`,
+  see `docs/DEPLOY_FIREBASE.md` → Migrations). The App Hosting build does not check for
+  pending migrations either, so apply them before the rollout that needs them, and
+  treat every migration as production-affecting.
 
 **Secrets**
 - Never print, log, or commit a credential.
-- Never ask the owner to paste a key into a chat. Tell them which env var to set; they
-  set it in Vercel themselves.
+- Never ask the owner to paste a key into a chat. Tell them which secret or env var to
+  set; they set it in Secret Manager / `apphosting.*.yaml` themselves.
 - `NEXT_PUBLIC_*` is browser-visible. Nothing sensitive goes there.
 
 **Production safety**
@@ -191,6 +272,13 @@ no-minimum-order positioning, calculator-as-funnel, COD prominence.
 > closely (category naming, footer layout, a "Fevicol" category with no Fevicol
 > products), treat that as technical debt to diverge from, not a pattern to extend.
 
+**Owner exception, 17 Oct 2026 (in writing):** the HomeRun *image library* the owner
+downloaded is licensed for Vertical Express product photos (licence code
+`homerun-library-owner-licensed`, `lib/catalog-policy.ts`). It covers rights only — each
+photo still needs a correct product mapping and the per-photo identity approval. Branding,
+logos, promo banners, copy and code remain off-limits. Ledger:
+`docs/catalog/homerun-production-images-2026-10-17/` (workspace).
+
 ### Documents that have drifted
 
 The repository contains earlier documents — `AUDIT_REPORT.md`, `PRODUCTION_CHECKLIST.md`,
@@ -203,6 +291,13 @@ audit, the audit wins.
 ---
 
 ## Current Priorities
+
+> **Status, 4 Nov 2026.** Rows 1–6 and 8 are FIXED in code (`docs/KNOWN_ISSUES.md`
+> ISS-001 to 006, 011, 016); auth is Firebase phone OTP plus Google, with real SMS still
+> unverified. Rows 7 and 9–12 are open, partial or blocked on the owner; row 13 is
+> largely done (`/api/v1/*`). The live plan is the
+> Phase 1 roadmap: `docs/phase1/05-ROADMAP.md` (PR #28). The table below is kept as the
+> original ordering and its reasoning.
 
 In order. Do not jump ahead without a reason.
 

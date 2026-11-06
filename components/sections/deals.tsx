@@ -1,98 +1,124 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { CatalogItem } from "@/lib/services/catalog";
-import { ProductCard } from "@/components/product-card";
-import { Reveal, Stagger, StaggerItem } from "@/components/reveal";
-import { paiseToRupees } from "@/lib/money";
 import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import Link from "next/link";
+import { ChevronRight, Plus, Check } from "lucide-react";
+import type { CatalogItem } from "@/lib/services/catalog";
+import { ENQUIRE_LABEL, isPurchasableItem, type PurchasableCatalogItem } from "@/lib/catalog-visibility";
+import { useCart } from "@/hooks/use-cart";
+import { formatINR } from "@/lib/utils";
+import { useState } from "react";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 export function Deals({ items }: { items: CatalogItem[] }) {
-  const scroller = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(true);
-
-  const updateArrows = useCallback(() => {
-    const el = scroller.current;
-    if (!el) return;
-    setCanLeft(el.scrollLeft > 4);
-    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
-  }, []);
-
-  useEffect(() => {
-    updateArrows();
-    window.addEventListener("resize", updateArrows);
-    return () => window.removeEventListener("resize", updateArrows);
-  }, [updateArrows]);
-
-  const scrollBy = (dir: number) => {
-    scroller.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
-  };
-
   return (
-    <section id="deals" className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16">
-      <Reveal className="mb-6 flex items-end justify-between">
-        <div>
-          <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
-            Deals Of The Week
-          </h2>
-          <p className="mt-1 text-sm font-semibold text-neutral-500">
-            Fresh discounts every week on site essentials
-          </p>
-        </div>
-        <div className="hidden gap-2 sm:flex">
-          <button
-            onClick={() => scrollBy(-1)}
-            disabled={!canLeft}
-            aria-label="Scroll deals left"
-            className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
-              !canLeft && "pointer-events-none opacity-30"
-            )}
+    <section id="deals" className="ve-reveal pt-14">
+      <div className="mx-auto max-w-[1200px] px-6">
+        <div className="flex items-end justify-between gap-4">
+          <h2 className="text-2xl font-extrabold tracking-[-0.025em] text-ink sm:text-[28px]">Deals</h2>
+          {/* There is no deal end date in the schema, so none is shown. */}
+          <Link
+            href="/categories"
+            className="inline-flex items-center gap-1 text-[13px] font-bold text-ink no-underline hover:text-ink-700"
           >
-            <ChevronLeft className="size-5" />
-          </button>
-          <button
-            onClick={() => scrollBy(1)}
-            disabled={!canRight}
-            aria-label="Scroll deals right"
-            className={cn(
-              "grid size-10 cursor-pointer place-items-center rounded-full border border-brand-deep text-brand-deep bg-transparent transition-all hover:bg-brand-deep hover:text-white active:scale-95",
-              !canRight && "pointer-events-none opacity-30"
-            )}
-          >
-            <ChevronRight className="size-5" />
-          </button>
+            See all
+            <ChevronRight className="size-3.5" aria-hidden />
+          </Link>
         </div>
-      </Reveal>
 
-      <Stagger>
-        <div
-          ref={scroller}
-          onScroll={updateArrows}
-          className="scrollbar-hide -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0"
-        >
-          {items.map((item) => (
-            <StaggerItem key={item.id} className="flex shrink-0">
-              <ProductCard
-                href={`/product/${item.slug}`}
-                productId={item.id}
-                product={{
-                  id: item.variantId,
-                  title: item.title,
-                  brandLine: item.brandName,
-                  price: paiseToRupees(item.pricePaise),
-                  compareAt: paiseToRupees(item.compareAtPaise ?? item.pricePaise),
-                  unit: item.unitLabel,
-                  image: item.imageUrl ?? undefined,
-                  bulkNote: item.hasBulkTiers ? "Bulk prices available" : undefined,
-                }}
-              />
-            </StaggerItem>
+        {/* 4-Column Grid */}
+        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.filter(isPurchasableItem).slice(0, 4).map((item) => (
+            <DealCard key={item.id} item={item} />
           ))}
         </div>
-      </Stagger>
+      </div>
     </section>
   );
 }
+
+function DealCard({ item }: { item: PurchasableCatalogItem }) {
+  const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
+  const [added, setAdded] = useState(false);
+
+  const priceRupees = item.pricePaise / 100;
+  const mrpPaise = item.compareAtPaise !== null && item.compareAtPaise > item.pricePaise ? item.compareAtPaise : null;
+  /* Rounded down, so the badge never claims more than the real saving. */
+  const discountPercent = mrpPaise ? Math.floor(((mrpPaise - item.pricePaise) * 100) / mrpPaise) : 0;
+
+  const handleAdd = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const ok = await addItem(item.variantId, 1, item.title);
+    if (ok) {
+      setAdded(true);
+      setTimeout(() => setAdded(false), 1400);
+    }
+  };
+
+  return (
+    <div className="group flex flex-col rounded-[22px] bg-paper p-2.5 shadow-card border border-line transition-shadow hover:shadow-card-hover">
+      <Link
+        href={`/product/${item.slug}`}
+        className="relative block h-[200px] w-full overflow-hidden rounded-[16px] no-underline"
+      >
+        {!isGenericPlaceholder(item.imageUrl) ? (
+          <span className={cn("flex size-full items-center justify-center", PRODUCT_PHOTO_SURFACE)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={item.imageUrl ?? ""}
+              alt=""
+              className={cn(PRODUCT_PHOTO, "transition-transform duration-300 group-hover:scale-105")}
+            />
+          </span>
+        ) : (
+          <ProductPanel categorySlug={item.categorySlug} label={item.title} className="size-full" />
+        )}
+
+        {/* Discount Badge */}
+        {discountPercent > 0 && (
+          <div className="absolute left-2.5 top-2.5 flex h-[22px] items-center rounded-chip bg-brand px-2 text-[11px] font-extrabold text-ink">
+            {discountPercent}% off
+          </div>
+        )}
+
+        {/* Plus Action Button. COMMERCE_MODE=catalogue: the tile is already a link
+            to the product page, where the enquiry form is; it says so instead. */}
+        {!orderingOpen ? (
+          <span className="absolute right-2.5 top-2.5 flex h-[34px] items-center rounded-full bg-ink px-3 text-[11px] font-extrabold text-white shadow-card">
+            {ENQUIRE_LABEL}
+          </span>
+        ) : (
+        <button
+          onClick={handleAdd}
+          aria-label={`Add ${item.title} to cart`}
+          className="absolute right-2.5 top-2.5 flex size-[34px] items-center justify-center rounded-full bg-ink text-white shadow-card hover:bg-ink/80 transition-colors cursor-pointer"
+        >
+          {added ? <Check className="size-4 text-brand" /> : <Plus className="size-4" />}
+        </button>
+        )}
+      </Link>
+
+      <div className="flex flex-1 flex-col p-2">
+        <div className="mt-1 text-[10.5px] font-bold uppercase tracking-[0.09em] text-ink-500">{item.brandName}</div>
+        <Link
+          href={`/product/${item.slug}`}
+          className="mt-1 line-clamp-2 min-h-10 text-[14px] font-bold leading-5 text-ink no-underline transition-colors hover:text-brand-deep"
+        >
+          {item.title}
+        </Link>
+        <div className="mt-2 flex flex-wrap items-baseline gap-x-2">
+          <span className="text-[17px] font-bold tabular-nums text-ink">{formatINR(priceRupees)}</span>
+          {mrpPaise ? (
+            <span className="text-[12.5px] font-medium tabular-nums text-ink-500 line-through">{formatINR(mrpPaise / 100)}</span>
+          ) : null}
+        </div>
+        <div className="mt-0.5 text-[11.5px] font-medium text-ink-500">{item.unitLabel}</div>
+      </div>
+    </div>
+  );
+}
+

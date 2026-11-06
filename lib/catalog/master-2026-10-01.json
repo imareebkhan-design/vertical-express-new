@@ -1,0 +1,7636 @@
+{
+  "sourceId": "vertical-express-master-2026-10-01",
+  "sourceSha256": "e9ee39def49cb4a2530245b07fd690535e5b3caaca9f515e2626234de45050b5",
+  "sourceRowCount": 363,
+  "ranges": [
+    {
+      "slug": "ve-range-tata-tiscon-tmt-rebars-599ce7aed1",
+      "title": "Tata Tiscon TMT Rebars",
+      "brand": {
+        "name": "Tata Tiscon",
+        "slug": "tata-tiscon"
+      },
+      "category": {
+        "slug": "steel-rebars",
+        "name": "Steel & Rebars",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        2
+      ],
+      "sourceTypes": [
+        "Fe 415 / Fe 500 / Fe 500D / Fe 550D / SD variants"
+      ]
+    },
+    {
+      "slug": "ve-range-jindal-panther-tmt-rebars-7c0d56594e",
+      "title": "Jindal Panther TMT Rebars",
+      "brand": {
+        "name": "Jindal Panther",
+        "slug": "jindal-panther"
+      },
+      "category": {
+        "slug": "steel-rebars",
+        "name": "Steel & Rebars",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        3
+      ],
+      "sourceTypes": [
+        "Fe 500 / Fe 550D / Fe 600 / CRS variants"
+      ]
+    },
+    {
+      "slug": "ve-range-sail-tmt-seqr-tmt-rebars-273b15bdc9",
+      "title": "SAIL TMT / SeQR TMT Rebars",
+      "brand": {
+        "name": "SAIL TMT / SeQR",
+        "slug": "sail-tmt-seqr"
+      },
+      "category": {
+        "slug": "steel-rebars",
+        "name": "Steel & Rebars",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        4
+      ],
+      "sourceTypes": [
+        "TMT / SeQR variants"
+      ]
+    },
+    {
+      "slug": "ve-range-kamdhenu-nxt-tmt-rebars-07d362c445",
+      "title": "Kamdhenu NXT TMT Rebars",
+      "brand": {
+        "name": "Kamdhenu NXT",
+        "slug": "kamdhenu-nxt"
+      },
+      "category": {
+        "slug": "steel-rebars",
+        "name": "Steel & Rebars",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        5
+      ],
+      "sourceTypes": [
+        "Fe 500 / Fe 500D / Fe 550 / Fe 550D"
+      ]
+    },
+    {
+      "slug": "ve-range-prabal-tmt-rebars-21c5ac67f3",
+      "title": "Prabal TMT Rebars",
+      "brand": {
+        "name": "Prabal",
+        "slug": "prabal"
+      },
+      "category": {
+        "slug": "steel-rebars",
+        "name": "Steel & Rebars",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        7
+      ],
+      "sourceTypes": [
+        "Fe 500 / Fe 550 / Fe 550D"
+      ]
+    },
+    {
+      "slug": "ve-range-ultratech-cement-cement-01967de705",
+      "title": "UltraTech Cement Cement",
+      "brand": {
+        "name": "UltraTech",
+        "slug": "ultratech"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        8,
+        9
+      ],
+      "sourceTypes": [
+        "PPC",
+        "OPC"
+      ]
+    },
+    {
+      "slug": "ve-range-acc-gold-water-shield-cement-ccfcf378e2",
+      "title": "ACC Gold Water Shield Cement",
+      "brand": {
+        "name": "ACC",
+        "slug": "acc"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        10
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-acc-f2r-superfast-cement-fe37c19af3",
+      "title": "ACC F2R Superfast Cement",
+      "brand": {
+        "name": "ACC",
+        "slug": "acc"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        11
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-acc-concrete-xtra-strong-cement-b393249bf9",
+      "title": "ACC Concrete+ Xtra Strong Cement",
+      "brand": {
+        "name": "ACC",
+        "slug": "acc"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        12
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-acc-suraksha-power-cement-93b1e5ab12",
+      "title": "ACC Suraksha Power Cement",
+      "brand": {
+        "name": "ACC",
+        "slug": "acc"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        13
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-ambuja-cement-cement-9e7adb1155",
+      "title": "Ambuja Cement Cement",
+      "brand": {
+        "name": "Ambuja",
+        "slug": "ambuja"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        14
+      ],
+      "sourceTypes": [
+        "Blended"
+      ]
+    },
+    {
+      "slug": "ve-range-ambuja-plus-cement-08f6a24f4c",
+      "title": "Ambuja Plus Cement",
+      "brand": {
+        "name": "Ambuja",
+        "slug": "ambuja"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        15
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-ambuja-kawach-cement-c86f218be3",
+      "title": "Ambuja Kawach Cement",
+      "brand": {
+        "name": "Ambuja",
+        "slug": "ambuja"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        16
+      ],
+      "sourceTypes": [
+        "Specialised"
+      ]
+    },
+    {
+      "slug": "ve-range-jk-cement-jk-super-cement-cement-6a488ca25c",
+      "title": "JK Cement JK Super Cement Cement",
+      "brand": {
+        "name": "JK Cement",
+        "slug": "jk-cement"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        17,
+        18,
+        19,
+        20
+      ],
+      "sourceTypes": [
+        "PPC",
+        "OPC 43",
+        "OPC 53",
+        "PSC"
+      ]
+    },
+    {
+      "slug": "ve-range-khyber-cement-cement-0531a34d52",
+      "title": "Khyber Cement Cement",
+      "brand": {
+        "name": "Khyber Cement",
+        "slug": "khyber-cement"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        21
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-max-cement-cement-f5efc90c1d",
+      "title": "MAX Cement Cement",
+      "brand": {
+        "name": "MAX Cement",
+        "slug": "max-cement"
+      },
+      "category": {
+        "slug": "cement",
+        "name": "Cement",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        22
+      ],
+      "sourceTypes": [
+        "PPC / OPC / MAX Power Plus"
+      ]
+    },
+    {
+      "slug": "ve-range-kajaria-tiles-40fc1e94a0",
+      "title": "Kajaria Tiles",
+      "brand": {
+        "name": "Kajaria",
+        "slug": "kajaria"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        23,
+        27
+      ],
+      "sourceTypes": [
+        "GVT / PGVT / Glazed Vitrified",
+        "Ceramic wall"
+      ]
+    },
+    {
+      "slug": "ve-range-kajaria-the-ultima-tiles-b9e83f6d4f",
+      "title": "Kajaria The Ultima Tiles",
+      "brand": {
+        "name": "Kajaria",
+        "slug": "kajaria"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        24
+      ],
+      "sourceTypes": [
+        "Large-format GVT/PGVT"
+      ]
+    },
+    {
+      "slug": "ve-range-kajaria-vitronite-tiles-992d6f9894",
+      "title": "Kajaria Vitronite Tiles",
+      "brand": {
+        "name": "Kajaria",
+        "slug": "kajaria"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        25
+      ],
+      "sourceTypes": [
+        "Full Body / Vitrified"
+      ]
+    },
+    {
+      "slug": "ve-range-kajaria-grestough-tiles-0b861c20be",
+      "title": "Kajaria Grestough Tiles",
+      "brand": {
+        "name": "Kajaria",
+        "slug": "kajaria"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        26
+      ],
+      "sourceTypes": [
+        "Gres / Heavy-duty"
+      ]
+    },
+    {
+      "slug": "ve-range-somany-tiles-219d80bb69",
+      "title": "Somany Tiles",
+      "brand": {
+        "name": "Somany",
+        "slug": "somany"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        28,
+        29,
+        30
+      ],
+      "sourceTypes": [
+        "GVT / PGVT",
+        "Ceramic Wall & Floor",
+        "Double Charge / Vitrified"
+      ]
+    },
+    {
+      "slug": "ve-range-h-r-johnson-johnson-tiles-tiles-b031a451ab",
+      "title": "H&R Johnson Johnson Tiles Tiles",
+      "brand": {
+        "name": "H&R Johnson",
+        "slug": "h-r-johnson"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        31
+      ],
+      "sourceTypes": [
+        "Ceramic Wall & Floor"
+      ]
+    },
+    {
+      "slug": "ve-range-h-r-johnson-johnson-porselano-tiles-7bdf89e4e8",
+      "title": "H&R Johnson Johnson Porselano Tiles",
+      "brand": {
+        "name": "H&R Johnson",
+        "slug": "h-r-johnson"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        32
+      ],
+      "sourceTypes": [
+        "GVT / PGVT"
+      ]
+    },
+    {
+      "slug": "ve-range-h-r-johnson-marbonite-tiles-da20af542e",
+      "title": "H&R Johnson Marbonite Tiles",
+      "brand": {
+        "name": "H&R Johnson",
+        "slug": "h-r-johnson"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        33
+      ],
+      "sourceTypes": [
+        "Vitrified"
+      ]
+    },
+    {
+      "slug": "ve-range-varmora-tiles-7699c097e6",
+      "title": "Varmora Tiles",
+      "brand": {
+        "name": "Varmora",
+        "slug": "varmora"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        34,
+        35,
+        36,
+        37
+      ],
+      "sourceTypes": [
+        "GVT / PGVT",
+        "Ceramic Wall Tiles",
+        "Parking Tiles",
+        "Elevation Tiles"
+      ]
+    },
+    {
+      "slug": "ve-range-rak-ceramics-tiles-01113d908f",
+      "title": "RAK Ceramics Tiles",
+      "brand": {
+        "name": "RAK Ceramics",
+        "slug": "rak-ceramics"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        38,
+        39,
+        40
+      ],
+      "sourceTypes": [
+        "Ceramic / Porcelain",
+        "GVT / PGVT",
+        "Large Format Slabs"
+      ]
+    },
+    {
+      "slug": "ve-range-cera-tiles-608bf73989",
+      "title": "CERA Tiles",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        41,
+        42,
+        43
+      ],
+      "sourceTypes": [
+        "Ceramic / Vitrified",
+        "GVT / PGVT",
+        "Wall Tiles"
+      ]
+    },
+    {
+      "slug": "ve-range-hindware-italian-tiles-tiles-6b84ecb805",
+      "title": "Hindware Italian Tiles Tiles",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        44
+      ],
+      "sourceTypes": [
+        "GVT / PGVT"
+      ]
+    },
+    {
+      "slug": "ve-range-hindware-tiles-tiles-24159c05ce",
+      "title": "Hindware Tiles Tiles",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        45
+      ],
+      "sourceTypes": [
+        "Ceramic / Vitrified"
+      ]
+    },
+    {
+      "slug": "ve-range-jaquar-sanitaryware-eae87a2f08",
+      "title": "Jaquar Sanitaryware",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        46
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-faucets-b75d7b9583",
+      "title": "Jaquar Faucets",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        47
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-showers-e7d2358583",
+      "title": "Jaquar Showers",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        48
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-flushing-systems-90e6a65915",
+      "title": "Jaquar Flushing Systems",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        49
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-accessories-22cc0f00e9",
+      "title": "Jaquar Accessories",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        50
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-bath-wellness-b23969a2a8",
+      "title": "Jaquar Bath & Wellness",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        51
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-shower-enclosures-ae261297f5",
+      "title": "Jaquar Shower Enclosures",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        52
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-jaquar-water-heaters-66e62df08a",
+      "title": "Jaquar Water Heaters",
+      "brand": {
+        "name": "Jaquar",
+        "slug": "jaquar"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        53,
+        289
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-sanitaryware-ef8828d93d",
+      "title": "CERA Sanitaryware",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        54
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-faucets-showers-e1908d57ea",
+      "title": "CERA Faucets & Showers",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        55
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-accessories-c0a0256a5d",
+      "title": "CERA Accessories",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        56
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-shower-partitions-8d08d373b1",
+      "title": "CERA Shower Partitions",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        57
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-vanity-mirrors-eb91c5a3c5",
+      "title": "CERA Vanity & Mirrors",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        58
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cera-kitchen-sinks-d812b045f1",
+      "title": "CERA Kitchen Sinks",
+      "brand": {
+        "name": "CERA",
+        "slug": "cera"
+      },
+      "category": {
+        "slug": "kitchen-sinks-faucets",
+        "name": "Kitchen Sinks & Faucets",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        59
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-sanitaryware-cbc53d821d",
+      "title": "Hindware Sanitaryware",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        60
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-premium-sanitaryware-a8bc1d9c89",
+      "title": "Hindware Premium Sanitaryware",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        61
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-faucets-a3ad73fed0",
+      "title": "Hindware Faucets",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        62
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-showers-8c775ffe15",
+      "title": "Hindware Showers",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        63
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-bathroom-accessories-1f7e6036a7",
+      "title": "Hindware Bathroom Accessories",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        64
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-tiles-f196e80ff3",
+      "title": "Hindware Tiles",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "tiling",
+        "name": "Tiling",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        65
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-parryware-sanitaryware-90c7b62e46",
+      "title": "Parryware Sanitaryware",
+      "brand": {
+        "name": "Parryware",
+        "slug": "parryware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        66
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-parryware-faucets-f103feac33",
+      "title": "Parryware Faucets",
+      "brand": {
+        "name": "Parryware",
+        "slug": "parryware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        67
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-parryware-showers-6c2cdbb7e1",
+      "title": "Parryware Showers",
+      "brand": {
+        "name": "Parryware",
+        "slug": "parryware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        68
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-parryware-accessories-4ba5cda9dc",
+      "title": "Parryware Accessories",
+      "brand": {
+        "name": "Parryware",
+        "slug": "parryware"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        69
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-sanitaryware-c91d9e8ec6",
+      "title": "Kohler Sanitaryware",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        70
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-faucets-7bc16789a4",
+      "title": "Kohler Faucets",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        71
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-showers-a36e8c1eae",
+      "title": "Kohler Showers",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        72
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-bathroom-furniture-20df401f44",
+      "title": "Kohler Bathroom Furniture",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        73
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-bathtubs-5fa2e83f9c",
+      "title": "Kohler Bathtubs",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        74
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-grohe-faucets-e7bb5bf2df",
+      "title": "GROHE Faucets",
+      "brand": {
+        "name": "GROHE",
+        "slug": "grohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        75
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-grohe-showers-df75496bb0",
+      "title": "GROHE Showers",
+      "brand": {
+        "name": "GROHE",
+        "slug": "grohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        76
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-grohe-thermostats-diverters-c29c2a4067",
+      "title": "GROHE Thermostats & Diverters",
+      "brand": {
+        "name": "GROHE",
+        "slug": "grohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        77
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-grohe-accessories-420a2894d4",
+      "title": "GROHE Accessories",
+      "brand": {
+        "name": "GROHE",
+        "slug": "grohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        78
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hansgrohe-faucets-e6696e91d5",
+      "title": "Hansgrohe Faucets",
+      "brand": {
+        "name": "Hansgrohe",
+        "slug": "hansgrohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        79
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hansgrohe-showers-1db5a367b1",
+      "title": "Hansgrohe Showers",
+      "brand": {
+        "name": "Hansgrohe",
+        "slug": "hansgrohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        80
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hansgrohe-shower-controls-d07c0fb690",
+      "title": "Hansgrohe Shower Controls",
+      "brand": {
+        "name": "Hansgrohe",
+        "slug": "hansgrohe"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        81
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-essco-sanitaryware-8fae93499d",
+      "title": "Essco Sanitaryware",
+      "brand": {
+        "name": "Essco",
+        "slug": "essco"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        82
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-essco-faucets-28d6809aad",
+      "title": "Essco Faucets",
+      "brand": {
+        "name": "Essco",
+        "slug": "essco"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        83
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-essco-accessories-adf8de892f",
+      "title": "Essco Accessories",
+      "brand": {
+        "name": "Essco",
+        "slug": "essco"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        84
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-somany-sanitaryware-6ad3153117",
+      "title": "Somany Sanitaryware",
+      "brand": {
+        "name": "Somany",
+        "slug": "somany"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        85
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-somany-faucets-showers-cc21966d11",
+      "title": "Somany Faucets & Showers",
+      "brand": {
+        "name": "Somany",
+        "slug": "somany"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        86
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-somany-accessories-af51ea8cd9",
+      "title": "Somany Accessories",
+      "brand": {
+        "name": "Somany",
+        "slug": "somany"
+      },
+      "category": {
+        "slug": "sanitary-bath-fittings",
+        "name": "Sanitary & Bath Fittings",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        87
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-raktherm-ppr-d5c5de7e5b",
+      "title": "RAKtherm PPR",
+      "brand": {
+        "name": "RAKtherm",
+        "slug": "raktherm"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        88
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-raktherm-reinforced-ppr-0630bf6c7c",
+      "title": "RAKtherm Reinforced PPR",
+      "brand": {
+        "name": "RAKtherm",
+        "slug": "raktherm"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        89
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-raktherm-anti-uv-ppr-3b2b9c3403",
+      "title": "RAKtherm Anti-UV PPR",
+      "brand": {
+        "name": "RAKtherm",
+        "slug": "raktherm"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        90
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-raktherm-pex-930dc5eae4",
+      "title": "RAKtherm PEX",
+      "brand": {
+        "name": "RAKtherm",
+        "slug": "raktherm"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        91
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-raktherm-pvc-u-hdpe-fire-resistant-19bb41824c",
+      "title": "RAKtherm PVC-U / HDPE / Fire Resistant",
+      "brand": {
+        "name": "RAKtherm",
+        "slug": "raktherm"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        92
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-ppr-1d46f5b2f9",
+      "title": "Supreme PPR",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        93
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-cpvc-9175fec500",
+      "title": "Supreme CPVC",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        94
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-upvc-pvc-75f034d09b",
+      "title": "Supreme uPVC/PVC",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        95
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-swr-4728e29180",
+      "title": "Supreme SWR",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        96
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-hdpe-12a9c4422a",
+      "title": "Supreme HDPE",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        97
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-supreme-electrical-conduit-3dfed0cc21",
+      "title": "Supreme Electrical Conduit",
+      "brand": {
+        "name": "Supreme",
+        "slug": "supreme"
+      },
+      "category": {
+        "slug": "conduits-gi-boxes",
+        "name": "Conduits & GI Boxes",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        98
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-vectus-ppr-50ae5e6f6d",
+      "title": "Vectus PPR",
+      "brand": {
+        "name": "Vectus",
+        "slug": "vectus"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        99
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-vectus-cpvc-db55d6f0b6",
+      "title": "Vectus CPVC",
+      "brand": {
+        "name": "Vectus",
+        "slug": "vectus"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        100
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-vectus-composite-piping-83f6dc5032",
+      "title": "Vectus Composite Piping",
+      "brand": {
+        "name": "Vectus",
+        "slug": "vectus"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        101
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-vectus-swr-087b9cd51b",
+      "title": "Vectus SWR",
+      "brand": {
+        "name": "Vectus",
+        "slug": "vectus"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        102
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-vectus-upvc-underground-2ed0da5433",
+      "title": "Vectus uPVC Underground",
+      "brand": {
+        "name": "Vectus",
+        "slug": "vectus"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        103
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-astral-ppr-e57bb13e72",
+      "title": "Astral PPR",
+      "brand": {
+        "name": "Astral",
+        "slug": "astral"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        104
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-astral-cpvc-748c51545e",
+      "title": "Astral CPVC",
+      "brand": {
+        "name": "Astral",
+        "slug": "astral"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        105
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-astral-upvc-21c7392ee1",
+      "title": "Astral uPVC",
+      "brand": {
+        "name": "Astral",
+        "slug": "astral"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        106
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-astral-swr-a712e5b367",
+      "title": "Astral SWR",
+      "brand": {
+        "name": "Astral",
+        "slug": "astral"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        107
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-astral-hdpe-42f1a1ecac",
+      "title": "Astral HDPE",
+      "brand": {
+        "name": "Astral",
+        "slug": "astral"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        108
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-prince-ppr-6f4f292201",
+      "title": "Prince PPR",
+      "brand": {
+        "name": "Prince",
+        "slug": "prince"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        109
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-prince-cpvc-2a53af0cd3",
+      "title": "Prince CPVC",
+      "brand": {
+        "name": "Prince",
+        "slug": "prince"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        110
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-prince-upvc-pvc-ec3ed20835",
+      "title": "Prince uPVC/PVC",
+      "brand": {
+        "name": "Prince",
+        "slug": "prince"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        111
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-prince-swr-2f418e8745",
+      "title": "Prince SWR",
+      "brand": {
+        "name": "Prince",
+        "slug": "prince"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        112
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-prince-hdpe-a1d9c8fce0",
+      "title": "Prince HDPE",
+      "brand": {
+        "name": "Prince",
+        "slug": "prince"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        113
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-finolex-cpvc-98cba96356",
+      "title": "Finolex CPVC",
+      "brand": {
+        "name": "Finolex",
+        "slug": "finolex"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        114
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-finolex-upvc-626641f075",
+      "title": "Finolex uPVC",
+      "brand": {
+        "name": "Finolex",
+        "slug": "finolex"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        115
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-finolex-swr-5cca75219c",
+      "title": "Finolex SWR",
+      "brand": {
+        "name": "Finolex",
+        "slug": "finolex"
+      },
+      "category": {
+        "slug": "cpvc-pipes-overhead-tanks",
+        "name": "CPVC Pipes & Overhead Tanks",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        116
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-finolex-electrical-conduit-654cf1a54b",
+      "title": "Finolex Electrical Conduit",
+      "brand": {
+        "name": "Finolex",
+        "slug": "finolex"
+      },
+      "category": {
+        "slug": "conduits-gi-boxes",
+        "name": "Conduits & GI Boxes",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        117
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-polycab-wires-cables-35ca515790",
+      "title": "Polycab Wires & Cables",
+      "brand": {
+        "name": "Polycab",
+        "slug": "polycab"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        122
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-wires-cables-7633f71864",
+      "title": "Havells Wires & Cables",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        123
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kei-industries-wires-cables-7cc2fc91b4",
+      "title": "KEI Industries Wires & Cables",
+      "brand": {
+        "name": "KEI Industries",
+        "slug": "kei-industries"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        124
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-v-guard-wires-cables-82d51d18a6",
+      "title": "V-Guard Wires & Cables",
+      "brand": {
+        "name": "V-Guard",
+        "slug": "v-guard"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        125
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-legrand-switches-sockets-modular-accessories-eaa5af9651",
+      "title": "Legrand Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "Legrand",
+        "slug": "legrand"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        126
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-switches-sockets-modular-accessories-9d2d17d9c4",
+      "title": "Havells Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        127
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-gm-modular-switches-sockets-modular-accessories-78874ad866",
+      "title": "GM Modular Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "GM Modular",
+        "slug": "gm-modular"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        128
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-schneider-electric-switches-sockets-modular-accessories-76b394302b",
+      "title": "Schneider Electric Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "Schneider Electric",
+        "slug": "schneider-electric"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        129
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-goldmedal-switches-sockets-modular-accessories-8f00f801b6",
+      "title": "Goldmedal Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "Goldmedal",
+        "slug": "goldmedal"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        130
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-crabtree-switches-sockets-modular-accessories-4f8a09ca78",
+      "title": "Crabtree Switches, Sockets & Modular Accessories",
+      "brand": {
+        "name": "Crabtree",
+        "slug": "crabtree"
+      },
+      "category": {
+        "slug": "switches-sockets",
+        "name": "Switches & Sockets",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        131
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-schneider-electric-mcb-rccb-rcbo-db-switchgear-cac2fd95a5",
+      "title": "Schneider Electric MCB / RCCB / RCBO / DB / Switchgear",
+      "brand": {
+        "name": "Schneider Electric",
+        "slug": "schneider-electric"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        132
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-legrand-mcb-rccb-rcbo-db-switchgear-2816f071de",
+      "title": "Legrand MCB / RCCB / RCBO / DB / Switchgear",
+      "brand": {
+        "name": "Legrand",
+        "slug": "legrand"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        133
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-l-t-electrical-automation-mcb-rccb-rcbo-db-switchgear-df9a805647",
+      "title": "L&T Electrical & Automation MCB / RCCB / RCBO / DB / Switchgear",
+      "brand": {
+        "name": "L&T Electrical & Automation",
+        "slug": "l-t-electrical-automation"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        134
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-mcb-rccb-rcbo-db-switchgear-1f037b3100",
+      "title": "Havells MCB / RCCB / RCBO / DB / Switchgear",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "wires-mcb-distribution-boards",
+        "name": "Wires, MCB & Distribution Boards",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        135
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-philips-signify-led-lights-lighting-951029938b",
+      "title": "Philips / Signify LED Lights & Lighting",
+      "brand": {
+        "name": "Philips / Signify",
+        "slug": "philips-signify"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        136
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-crompton-led-lights-lighting-3986841cb8",
+      "title": "Crompton LED Lights & Lighting",
+      "brand": {
+        "name": "Crompton",
+        "slug": "crompton"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        137
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-led-lights-lighting-1065ff3292",
+      "title": "Havells LED Lights & Lighting",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        138
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bajaj-electricals-led-lights-lighting-ce11fa31fd",
+      "title": "Bajaj Electricals LED Lights & Lighting",
+      "brand": {
+        "name": "Bajaj Electricals",
+        "slug": "bajaj-electricals"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        139
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-wipro-lighting-led-lights-lighting-aeb29b7c59",
+      "title": "Wipro Lighting LED Lights & Lighting",
+      "brand": {
+        "name": "Wipro Lighting",
+        "slug": "wipro-lighting"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        140
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-syska-led-lights-lighting-f1fe6a07ec",
+      "title": "Syska LED Lights & Lighting",
+      "brand": {
+        "name": "Syska",
+        "slug": "syska"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        141
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-fans-988fc7520a",
+      "title": "Havells Fans",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "ceiling-fans-exhaust",
+        "name": "Ceiling Fans & Exhaust",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        142
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-crompton-fans-ca75ba033b",
+      "title": "Crompton Fans",
+      "brand": {
+        "name": "Crompton",
+        "slug": "crompton"
+      },
+      "category": {
+        "slug": "ceiling-fans-exhaust",
+        "name": "Ceiling Fans & Exhaust",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        143
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bajaj-fans-8224a5fbbe",
+      "title": "Bajaj Fans",
+      "brand": {
+        "name": "Bajaj",
+        "slug": "bajaj"
+      },
+      "category": {
+        "slug": "ceiling-fans-exhaust",
+        "name": "Ceiling Fans & Exhaust",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        144
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-finolex-conduit-pipes-electrical-fittings-3a61e7a78a",
+      "title": "Finolex Conduit Pipes & Electrical Fittings",
+      "brand": {
+        "name": "Finolex",
+        "slug": "finolex"
+      },
+      "category": {
+        "slug": "conduits-gi-boxes",
+        "name": "Conduits & GI Boxes",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        145
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-drawer-systems-649e5aa87b",
+      "title": "Hettich Drawer Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        147,
+        185
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-drawer-runners-5a43b0c3cf",
+      "title": "Hettich Drawer Runners",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        148
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-pantry-larder-a84d507324",
+      "title": "Hettich Pantry / Larder",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        149
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-corner-systems-bad8d494b3",
+      "title": "Hettich Corner Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        150
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-rotating-storage-a35e70461b",
+      "title": "Hettich Rotating Storage",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        151
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-lift-systems-86eb29afd5",
+      "title": "Hettich Lift Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        152
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-interior-organisation-c7fa875984",
+      "title": "Hettich Interior Organisation",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        153
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-pantry-systems-329434f186",
+      "title": "Häfele Pantry Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        154
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-corner-systems-9d1da65d85",
+      "title": "Häfele Corner Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        155
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-bottle-pull-outs-077a04bd4d",
+      "title": "Häfele Bottle Pull-outs",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        156
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-basket-systems-731b589536",
+      "title": "Häfele Basket Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        157
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-waste-management-010cc2f66f",
+      "title": "Häfele Waste Management",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        158
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-lift-up-systems-829b32648a",
+      "title": "Häfele Lift-up Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        159
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-drawer-organisation-79d7afe393",
+      "title": "Häfele Drawer Organisation",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        160
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-kitchen-lighting-cd9defde8a",
+      "title": "Häfele Kitchen Lighting",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "lighting",
+        "name": "Lighting",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        161
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-kitchen-baskets-b351efa0f8",
+      "title": "Ozone Kitchen Baskets",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        162
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-pantry-pull-outs-47dad2b1c2",
+      "title": "Ozone Pantry / Pull-outs",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        163
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-corner-accessories-ba4f68583c",
+      "title": "Ozone Corner Accessories",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        164
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-waste-management-73b7155a3d",
+      "title": "Ozone Waste Management",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        165
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-drawer-organisation-04eb500803",
+      "title": "Ozone Drawer Organisation",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        166
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-kitchen-hardware-d834f686cb",
+      "title": "Dorset Kitchen Hardware",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        167
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-storage-accessories-25c8e7ed96",
+      "title": "Dorset Storage Accessories",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        168
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-kitchen-storage-53d4c7dfc6",
+      "title": "Godrej Kitchen Storage",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        169
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-drawer-cabinet-hardware-401bbcd061",
+      "title": "Godrej Drawer / Cabinet Hardware",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        170
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-kitchen-accessories-9511c1e288",
+      "title": "Link Kitchen Accessories",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        171,
+        209
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-drawer-systems-e4237e5cb2",
+      "title": "Link Drawer Systems",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        172
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-franke-kitchen-sinks-c3d0d9c3fa",
+      "title": "Franke Kitchen Sinks",
+      "brand": {
+        "name": "Franke",
+        "slug": "franke"
+      },
+      "category": {
+        "slug": "kitchen-sinks-faucets",
+        "name": "Kitchen Sinks & Faucets",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        173
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-franke-kitchen-taps-a8f75727a1",
+      "title": "Franke Kitchen Taps",
+      "brand": {
+        "name": "Franke",
+        "slug": "franke"
+      },
+      "category": {
+        "slug": "kitchen-sinks-faucets",
+        "name": "Kitchen Sinks & Faucets",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        174
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-franke-waste-accessories-eab88e0a26",
+      "title": "Franke Waste / Accessories",
+      "brand": {
+        "name": "Franke",
+        "slug": "franke"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        175
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-kitchen-sinks-a40286e1e1",
+      "title": "Kohler Kitchen Sinks",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "kitchen-sinks-faucets",
+        "name": "Kitchen Sinks & Faucets",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        176
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-kitchen-faucets-a51f402387",
+      "title": "Kohler Kitchen Faucets",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "kitchen-sinks-faucets",
+        "name": "Kitchen Sinks & Faucets",
+        "group": "plumbing_bath"
+      },
+      "sourceRows": [
+        177
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kohler-kitchen-accessories-ac4661af32",
+      "title": "Kohler Kitchen Accessories",
+      "brand": {
+        "name": "Kohler",
+        "slug": "kohler"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        178
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-faber-kitchen-hoods-f925eaf5bb",
+      "title": "Faber Kitchen Hoods",
+      "brand": {
+        "name": "Faber",
+        "slug": "faber"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        179
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-elica-kitchen-hoods-b0cb7fd92d",
+      "title": "Elica Kitchen Hoods",
+      "brand": {
+        "name": "Elica",
+        "slug": "elica"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        180
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-kaff-kitchen-hoods-f5c5dd06c5",
+      "title": "KAFF Kitchen Hoods",
+      "brand": {
+        "name": "KAFF",
+        "slug": "kaff"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        181
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-built-in-kitchen-appliances-d43e190191",
+      "title": "Bosch Built-in Kitchen Appliances",
+      "brand": {
+        "name": "Bosch",
+        "slug": "bosch"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        182
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-hinges-bc8f75395c",
+      "title": "Hettich Hinges",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        183
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-drawer-channels-runners-2c9382e684",
+      "title": "Hettich Drawer Channels / Runners",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        184
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-handles-5996b9703b",
+      "title": "Hettich Handles",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        186
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-sliding-folding-systems-a6c67d4e3f",
+      "title": "Hettich Sliding/Folding Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        187
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-kitchen-accessories-69bddde588",
+      "title": "Hettich Kitchen Accessories",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        188
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-hinges-61c2b03d2e",
+      "title": "Häfele Hinges",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        189
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-drawer-channels-84468afed6",
+      "title": "Häfele Drawer Channels",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        190
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-drawer-systems-2beb5f094e",
+      "title": "Häfele Drawer Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        191
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-handles-7ce87b7c77",
+      "title": "Häfele Handles",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        192
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-kitchen-accessories-3fbb7c1613",
+      "title": "Häfele Kitchen Accessories",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        193
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-lift-up-fittings-892caed591",
+      "title": "Häfele Lift-up Fittings",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        194
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-hinges-e714c3beae",
+      "title": "Ozone Hinges",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        195
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-drawer-channels-a513da5f5e",
+      "title": "Ozone Drawer Channels",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        196
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-handles-c07a172a43",
+      "title": "Ozone Handles",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        197
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-kitchen-accessories-14baaaaac4",
+      "title": "Ozone Kitchen Accessories",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "kitchen-systems-accessories",
+        "name": "Kitchen Systems & Accessories",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        198
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-wardrobe-accessories-95bdab9b66",
+      "title": "Ozone Wardrobe Accessories",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        199,
+        246
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-handles-ed484f7636",
+      "title": "Dorset Handles",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        200
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-hinges-d7293ca60b",
+      "title": "Dorset Hinges",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        201
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-drawer-hardware-f13e006373",
+      "title": "Dorset Drawer Hardware",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        202
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-hinges-hardware-1a70949570",
+      "title": "Godrej Hinges & Hardware",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        203
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-drawer-fittings-023a96c5b7",
+      "title": "Godrej Drawer Fittings",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        204
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-handles-ec47dc06cb",
+      "title": "Godrej Handles",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        205
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-hinges-e75b15b118",
+      "title": "Link Hinges",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        206
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-drawer-channels-5083020eb2",
+      "title": "Link Drawer Channels",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        207
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-handles-7a11ebea00",
+      "title": "Link Handles",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "hinges-channels-handles",
+        "name": "Hinges, Channels & Handles",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        208
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-locks-latches-77484571a5",
+      "title": "Godrej Locks & Latches",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        210
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-smart-locks-aa5dbf8e59",
+      "title": "Godrej Smart Locks",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        211
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-door-hardware-b618d0322f",
+      "title": "Godrej Door Hardware",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        212
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-door-closers-2344e26202",
+      "title": "Godrej Door Closers",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        213
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-yale-mechanical-locks-c7abfed8c7",
+      "title": "Yale Mechanical Locks",
+      "brand": {
+        "name": "Yale",
+        "slug": "yale"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        214
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-yale-smart-locks-a7b24f5365",
+      "title": "Yale Smart Locks",
+      "brand": {
+        "name": "Yale",
+        "slug": "yale"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        215
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-yale-door-hardware-e2acc9e802",
+      "title": "Yale Door Hardware",
+      "brand": {
+        "name": "Yale",
+        "slug": "yale"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        216
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-mortise-locks-b746cd51ae",
+      "title": "Dorset Mortise Locks",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        217
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-handles-19176de790",
+      "title": "Dorset Handles",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        218
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-hinges-10554cda20",
+      "title": "Dorset Hinges",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        219
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-door-closers-e72ac9961d",
+      "title": "Dorset Door Closers",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        220
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-door-accessories-9ab50d5cf4",
+      "title": "Dorset Door Accessories",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        221
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-locks-cylinders-0b5d735e31",
+      "title": "Häfele Locks & Cylinders",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        222
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-handles-2fe5de114b",
+      "title": "Häfele Handles",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        223
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-hinges-ecbf04c853",
+      "title": "Häfele Hinges",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        224
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-door-closers-bc09a781b4",
+      "title": "Häfele Door Closers",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        225
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-glass-door-hardware-16aaa22cd2",
+      "title": "Häfele Glass Door Hardware",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        226
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-sliding-door-systems-28bc62972f",
+      "title": "Häfele Sliding Door Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        227
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-door-hinges-3b3f74ee7f",
+      "title": "Hettich Door Hinges",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        228
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-sliding-door-systems-c6f5e4f44c",
+      "title": "Hettich Sliding Door Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        229
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-door-hardware-d75d5c65ab",
+      "title": "Hettich Door Hardware",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        230
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-locks-5fb6a9c992",
+      "title": "Link Locks",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        231
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-door-hardware-91c09fe20d",
+      "title": "Link Door Hardware",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        232
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-wardrobe-sliding-systems-295481a471",
+      "title": "Hettich Wardrobe Sliding Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        233
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-sliding-systems-0e2bfe8939",
+      "title": "Hettich Sliding Systems",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        234
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-wardrobe-interiors-7f86a0450f",
+      "title": "Hettich Wardrobe Interiors",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        235
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-wardrobe-hardware-b5127264b1",
+      "title": "Hettich Wardrobe Hardware",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        236
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-bed-fittings-7a7828ee79",
+      "title": "Hettich Bed Fittings",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        237
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hettich-wardrobe-profiles-d6145f7c8f",
+      "title": "Hettich Wardrobe Profiles",
+      "brand": {
+        "name": "Hettich",
+        "slug": "hettich"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        238
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-wardrobe-sliding-systems-3cea5d0dfb",
+      "title": "Häfele Wardrobe Sliding Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        239
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-wardrobe-accessories-29aceb858d",
+      "title": "Häfele Wardrobe Accessories",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        240
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-wardrobe-storage-a4e2b8d28a",
+      "title": "Häfele Wardrobe Storage",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        241
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-bed-fittings-079416bd32",
+      "title": "Häfele Bed Fittings",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        242
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-bed-lift-systems-1b03e54aab",
+      "title": "Häfele Bed Lift Systems",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        243
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hafele-wardrobe-furniture-hardware-b5368d6b1f",
+      "title": "Häfele Wardrobe / Furniture Hardware",
+      "brand": {
+        "name": "Häfele",
+        "slug": "hafele"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        244
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-wardrobe-sliding-56903a57cf",
+      "title": "Ozone Wardrobe Sliding",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        245
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ozone-bed-fittings-749b484437",
+      "title": "Ozone Bed Fittings",
+      "brand": {
+        "name": "Ozone",
+        "slug": "ozone"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        247
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-wardrobe-hardware-99bc308eb2",
+      "title": "Dorset Wardrobe Hardware",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        248
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-dorset-bed-hardware-ec8a49132e",
+      "title": "Dorset Bed Hardware",
+      "brand": {
+        "name": "Dorset",
+        "slug": "dorset"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        249
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-wardrobe-hardware-825962631b",
+      "title": "Godrej Wardrobe Hardware",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        250
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-godrej-bed-hardware-126801635d",
+      "title": "Godrej Bed Hardware",
+      "brand": {
+        "name": "Godrej",
+        "slug": "godrej"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        251
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-wardrobe-hardware-6a5588f6ad",
+      "title": "Link Wardrobe Hardware",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        252
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-link-bed-hardware-51c022730e",
+      "title": "Link Bed Hardware",
+      "brand": {
+        "name": "Link",
+        "slug": "link"
+      },
+      "category": {
+        "slug": "wardrobe-bed-fittings",
+        "name": "Wardrobe & Bed Fittings",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        253
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-centuryply-plywood-0c7cf7d99b",
+      "title": "Century Ply CenturyPly Plywood",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        254
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-sainik-plywood-f6dffcdbac",
+      "title": "Century Ply Sainik Plywood",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        255
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-architect-ply-plywood-c326d87ad7",
+      "title": "Century Ply Architect Ply Plywood",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        256
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-mdf-mdf-hdhmr-a0f8ee7c96",
+      "title": "Century Ply Century MDF MDF / HDHMR",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        257
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-veneers-veneer-8d8648d90a",
+      "title": "Century Ply Century Veneers Veneer",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        258
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenply-plywood-2c00b34674",
+      "title": "Greenply Plywood",
+      "brand": {
+        "name": "Greenply",
+        "slug": "greenply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        259
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenply-green-club-plywood-d2cd6713eb",
+      "title": "Greenply Green Club Plywood",
+      "brand": {
+        "name": "Greenply",
+        "slug": "greenply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        260
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenply-green-gold-plywood-2275c4bc8e",
+      "title": "Greenply Green Gold Plywood",
+      "brand": {
+        "name": "Greenply",
+        "slug": "greenply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        261
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenpanel-engineered-boards-dc14d46ab0",
+      "title": "Greenpanel Engineered boards",
+      "brand": {
+        "name": "Greenpanel",
+        "slug": "greenpanel"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        262
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenpanel-mdf-hdf-66476d9896",
+      "title": "Greenpanel MDF / HDF",
+      "brand": {
+        "name": "Greenpanel",
+        "slug": "greenpanel"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        263
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenpanel-flooring-wood-flooring-83aaea678d",
+      "title": "Greenpanel Flooring Wood Flooring",
+      "brand": {
+        "name": "Greenpanel",
+        "slug": "greenpanel"
+      },
+      "category": {
+        "slug": "wood-flooring",
+        "name": "Wood Flooring",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        264
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-action-tesa-hdhmr-a642438a0a",
+      "title": "Action TESA HDHMR",
+      "brand": {
+        "name": "Action TESA",
+        "slug": "action-tesa"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        265
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-action-tesa-mdf-8752199a22",
+      "title": "Action TESA MDF",
+      "brand": {
+        "name": "Action TESA",
+        "slug": "action-tesa"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        266
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-action-tesa-boilo-engineered-board-2341f76795",
+      "title": "Action TESA Boilo Engineered board",
+      "brand": {
+        "name": "Action TESA",
+        "slug": "action-tesa"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        267
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-action-tesa-flooring-43821a45e1",
+      "title": "Action TESA Flooring",
+      "brand": {
+        "name": "Action TESA",
+        "slug": "action-tesa"
+      },
+      "category": {
+        "slug": "wood-flooring",
+        "name": "Wood Flooring",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        268
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-centuryply-veneers-3e1bf7edb8",
+      "title": "Century Ply CenturyPly Veneers",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        273
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-doors-flush-doors-f032f00235",
+      "title": "Century Ply Century Doors Flush Doors",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        274
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-doors-decorative-doors-12dca7bc8b",
+      "title": "Century Ply Century Doors Decorative Doors",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        275
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-doors-wpc-doors-fda7386cce",
+      "title": "Century Ply Century Doors WPC Doors",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        276
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-exteria-exterior-wood-surfaces-e5ffae5bdd",
+      "title": "Century Ply Century Exteria Exterior Wood Surfaces",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        277
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenply-veneers-d7494454fa",
+      "title": "Greenply Veneers",
+      "brand": {
+        "name": "Greenply",
+        "slug": "greenply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        278
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenply-doors-doors-0263398c3a",
+      "title": "Greenply Doors Doors",
+      "brand": {
+        "name": "Greenply",
+        "slug": "greenply"
+      },
+      "category": {
+        "slug": "door-locks-hardware",
+        "name": "Door Locks & Hardware",
+        "group": "furniture_hardware"
+      },
+      "sourceRows": [
+        279
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-action-tesa-mdf-hdhmr-dd8b6dc035",
+      "title": "Action TESA MDF / HDHMR",
+      "brand": {
+        "name": "Action TESA",
+        "slug": "action-tesa"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        280
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-greenpanel-engineered-wood-flooring-d71d3d3b46",
+      "title": "Greenpanel Engineered Wood Flooring",
+      "brand": {
+        "name": "Greenpanel",
+        "slug": "greenpanel"
+      },
+      "category": {
+        "slug": "wood-flooring",
+        "name": "Wood Flooring",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        281
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-centuryparticleboard-particle-board-6caac93229",
+      "title": "Century Ply CenturyParticleBoard Particle Board",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        283
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-century-ply-century-hdf-hdf-68e6f2a01c",
+      "title": "Century Ply Century HDF HDF",
+      "brand": {
+        "name": "Century Ply",
+        "slug": "century-ply"
+      },
+      "category": {
+        "slug": "plywood-mdf-hdhmr",
+        "name": "Plywood, MDF & HDHMR",
+        "group": "civil_interiors"
+      },
+      "sourceRows": [
+        284
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-racold-geysers-8b9412d496",
+      "title": "Racold Geysers",
+      "brand": {
+        "name": "Racold",
+        "slug": "racold"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        286
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ao-smith-geysers-aa11787626",
+      "title": "AO Smith Geysers",
+      "brand": {
+        "name": "AO Smith",
+        "slug": "ao-smith"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        287
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-havells-geysers-80331319db",
+      "title": "Havells Geysers",
+      "brand": {
+        "name": "Havells",
+        "slug": "havells"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        288
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-faber-chimneys-1d08a57fa1",
+      "title": "Faber Chimneys",
+      "brand": {
+        "name": "Faber",
+        "slug": "faber"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        290
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-faber-hobs-72ca245a47",
+      "title": "Faber Hobs",
+      "brand": {
+        "name": "Faber",
+        "slug": "faber"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        291
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-faber-built-in-appliances-bf8def1b2e",
+      "title": "Faber Built-in Appliances",
+      "brand": {
+        "name": "Faber",
+        "slug": "faber"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        292
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-faber-water-heaters-d8042f7749",
+      "title": "Faber Water Heaters",
+      "brand": {
+        "name": "Faber",
+        "slug": "faber"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        293
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-chimneys-e11bf968d1",
+      "title": "Hindware Chimneys",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        294
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-hobs-56b510d3a9",
+      "title": "Hindware Hobs",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        295
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-built-in-appliances-f1961de2ce",
+      "title": "Hindware Built-in Appliances",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        296
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hindware-home-appliances-e79458fee7",
+      "title": "Hindware Home Appliances",
+      "brand": {
+        "name": "Hindware",
+        "slug": "hindware"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        297
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-lg-refrigerators-b8def5730a",
+      "title": "LG Refrigerators",
+      "brand": {
+        "name": "LG",
+        "slug": "lg"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        298
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-lg-washing-machines-e3bac5361a",
+      "title": "LG Washing Machines",
+      "brand": {
+        "name": "LG",
+        "slug": "lg"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        299
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-lg-air-conditioners-f5657e3b81",
+      "title": "LG Air Conditioners",
+      "brand": {
+        "name": "LG",
+        "slug": "lg"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        300
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-lg-microwaves-17325ef143",
+      "title": "LG Microwaves",
+      "brand": {
+        "name": "LG",
+        "slug": "lg"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        301
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-lg-dishwashers-a2923cc978",
+      "title": "LG Dishwashers",
+      "brand": {
+        "name": "LG",
+        "slug": "lg"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        302
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-samsung-refrigerators-2340f09d60",
+      "title": "Samsung Refrigerators",
+      "brand": {
+        "name": "Samsung",
+        "slug": "samsung"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        303
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-samsung-washing-machines-13ae8d3920",
+      "title": "Samsung Washing Machines",
+      "brand": {
+        "name": "Samsung",
+        "slug": "samsung"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        304
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-samsung-air-conditioners-18b01fd9d3",
+      "title": "Samsung Air Conditioners",
+      "brand": {
+        "name": "Samsung",
+        "slug": "samsung"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        305
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-samsung-microwaves-9bdea09171",
+      "title": "Samsung Microwaves",
+      "brand": {
+        "name": "Samsung",
+        "slug": "samsung"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        306
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-whirlpool-refrigerators-a0cb3ee5fb",
+      "title": "Whirlpool Refrigerators",
+      "brand": {
+        "name": "Whirlpool",
+        "slug": "whirlpool"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        307
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-whirlpool-washing-machines-7407998280",
+      "title": "Whirlpool Washing Machines",
+      "brand": {
+        "name": "Whirlpool",
+        "slug": "whirlpool"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        308
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-whirlpool-hobs-d194ea3c57",
+      "title": "Whirlpool Hobs",
+      "brand": {
+        "name": "Whirlpool",
+        "slug": "whirlpool"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        309
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-whirlpool-microwaves-ffdd22981c",
+      "title": "Whirlpool Microwaves",
+      "brand": {
+        "name": "Whirlpool",
+        "slug": "whirlpool"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        310
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ifb-washing-machines-76dd5112b9",
+      "title": "IFB Washing Machines",
+      "brand": {
+        "name": "IFB",
+        "slug": "ifb"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        311
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ifb-dishwashers-63fb21faa0",
+      "title": "IFB Dishwashers",
+      "brand": {
+        "name": "IFB",
+        "slug": "ifb"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        312
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ifb-microwaves-ab60529f7e",
+      "title": "IFB Microwaves",
+      "brand": {
+        "name": "IFB",
+        "slug": "ifb"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        313
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-haier-refrigerators-efc1c3cbf3",
+      "title": "Haier Refrigerators",
+      "brand": {
+        "name": "Haier",
+        "slug": "haier"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        314
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-haier-washing-machines-c24b328363",
+      "title": "Haier Washing Machines",
+      "brand": {
+        "name": "Haier",
+        "slug": "haier"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        315
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-haier-air-conditioners-18e792a2d4",
+      "title": "Haier Air Conditioners",
+      "brand": {
+        "name": "Haier",
+        "slug": "haier"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        316
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-haier-dishwashers-2a18527b2e",
+      "title": "Haier Dishwashers",
+      "brand": {
+        "name": "Haier",
+        "slug": "haier"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        317
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-luminous-home-inverters-2540350257",
+      "title": "Luminous Home Inverters",
+      "brand": {
+        "name": "Luminous",
+        "slug": "luminous"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        318
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-luminous-inverter-series-9ed396ec40",
+      "title": "Luminous Inverter Series",
+      "brand": {
+        "name": "Luminous",
+        "slug": "luminous"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        319
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-luminous-batteries-76f63a4ef9",
+      "title": "Luminous Batteries",
+      "brand": {
+        "name": "Luminous",
+        "slug": "luminous"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        320
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-luminous-solar-backup-c26c117813",
+      "title": "Luminous Solar Backup",
+      "brand": {
+        "name": "Luminous",
+        "slug": "luminous"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        321
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-microtek-inverters-da898dbb5f",
+      "title": "Microtek Inverters",
+      "brand": {
+        "name": "Microtek",
+        "slug": "microtek"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        322
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-microtek-batteries-1bd161b323",
+      "title": "Microtek Batteries",
+      "brand": {
+        "name": "Microtek",
+        "slug": "microtek"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        323
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-microtek-stabilizers-2d56ed84c8",
+      "title": "Microtek Stabilizers",
+      "brand": {
+        "name": "Microtek",
+        "slug": "microtek"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        324
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-exide-batteries-d44b1adee0",
+      "title": "Exide Batteries",
+      "brand": {
+        "name": "Exide",
+        "slug": "exide"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        325
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-exide-inverters-ups-b661d8b4ee",
+      "title": "Exide Inverters / UPS",
+      "brand": {
+        "name": "Exide",
+        "slug": "exide"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        326
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-v-guard-inverters-6a267f9f20",
+      "title": "V-Guard Inverters",
+      "brand": {
+        "name": "V-Guard",
+        "slug": "v-guard"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        330
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-v-guard-batteries-2493de54d1",
+      "title": "V-Guard Batteries",
+      "brand": {
+        "name": "V-Guard",
+        "slug": "v-guard"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        331
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-v-guard-stabilizers-3e6b86469f",
+      "title": "V-Guard Stabilizers",
+      "brand": {
+        "name": "V-Guard",
+        "slug": "v-guard"
+      },
+      "category": {
+        "slug": "home-appliances-power-backup",
+        "name": "Home Appliances & Power Backup",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        332
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-drills-drivers-6b66dac008",
+      "title": "Bosch Professional Drills & Drivers",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        333
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-rotary-demolition-d3c54a33e6",
+      "title": "Bosch Professional Rotary & Demolition",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        334
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-grinding-metalworking-17f37cad7a",
+      "title": "Bosch Professional Grinding & Metalworking",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        335
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-saws-d2274205a5",
+      "title": "Bosch Professional Saws",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        336
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-woodworking-f69fc9b687",
+      "title": "Bosch Professional Woodworking",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        337
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-construction-4a7ec53642",
+      "title": "Bosch Professional Construction",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        338
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-cordless-ce4d49c84b",
+      "title": "Bosch Professional Cordless",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        339
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-bosch-professional-measuring-880019222f",
+      "title": "Bosch Professional Measuring",
+      "brand": {
+        "name": "Bosch Professional",
+        "slug": "bosch-professional"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        340
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hilti-demolition-558773fdb8",
+      "title": "Hilti Demolition",
+      "brand": {
+        "name": "Hilti",
+        "slug": "hilti"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        341
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-stanley-drills-drivers-d26ec8e0c7",
+      "title": "Stanley Drills & Drivers",
+      "brand": {
+        "name": "Stanley",
+        "slug": "stanley"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        342
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-stanley-grinders-2b2af77dff",
+      "title": "Stanley Grinders",
+      "brand": {
+        "name": "Stanley",
+        "slug": "stanley"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        343
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-stanley-saws-99492b0482",
+      "title": "Stanley Saws",
+      "brand": {
+        "name": "Stanley",
+        "slug": "stanley"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        344
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-stanley-cordless-88c0c776ef",
+      "title": "Stanley Cordless",
+      "brand": {
+        "name": "Stanley",
+        "slug": "stanley"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        345
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-black-decker-drills-drivers-46cba680d3",
+      "title": "Black+Decker Drills & Drivers",
+      "brand": {
+        "name": "Black+Decker",
+        "slug": "black-decker"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        346
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-black-decker-grinders-saws-4aa450f289",
+      "title": "Black+Decker Grinders & Saws",
+      "brand": {
+        "name": "Black+Decker",
+        "slug": "black-decker"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        347
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-black-decker-sanders-c82645f43b",
+      "title": "Black+Decker Sanders",
+      "brand": {
+        "name": "Black+Decker",
+        "slug": "black-decker"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        348
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ingco-drills-drivers-a4c91e09a0",
+      "title": "INGCO Drills & Drivers",
+      "brand": {
+        "name": "INGCO",
+        "slug": "ingco"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        349
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ingco-rotary-demolition-c23475eab3",
+      "title": "INGCO Rotary & Demolition",
+      "brand": {
+        "name": "INGCO",
+        "slug": "ingco"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        350
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ingco-grinders-saws-700ccee778",
+      "title": "INGCO Grinders & Saws",
+      "brand": {
+        "name": "INGCO",
+        "slug": "ingco"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        351
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-ingco-cordless-846e719edc",
+      "title": "INGCO Cordless",
+      "brand": {
+        "name": "INGCO",
+        "slug": "ingco"
+      },
+      "category": {
+        "slug": "general-hardware-tools",
+        "name": "General Hardware & Tools",
+        "group": "tools"
+      },
+      "sourceRows": [
+        352
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hikvision-network-cameras-e686813b7c",
+      "title": "Hikvision Network Cameras",
+      "brand": {
+        "name": "Hikvision",
+        "slug": "hikvision"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        355
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hikvision-analog-hd-4358b2e7c0",
+      "title": "Hikvision Analog HD",
+      "brand": {
+        "name": "Hikvision",
+        "slug": "hikvision"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        356
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hikvision-thermal-security-da1b00a9ad",
+      "title": "Hikvision Thermal Security",
+      "brand": {
+        "name": "Hikvision",
+        "slug": "hikvision"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        357
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-hikvision-storage-accessories-3d242c2f17",
+      "title": "Hikvision Storage & Accessories",
+      "brand": {
+        "name": "Hikvision",
+        "slug": "hikvision"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        358
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cp-plus-network-cameras-772c8fff03",
+      "title": "CP PLUS Network Cameras",
+      "brand": {
+        "name": "CP PLUS",
+        "slug": "cp-plus"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        359
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cp-plus-nvr-82f1456d61",
+      "title": "CP PLUS NVR",
+      "brand": {
+        "name": "CP PLUS",
+        "slug": "cp-plus"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        360
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cp-plus-analog-hd-a5f76f4274",
+      "title": "CP PLUS Analog HD",
+      "brand": {
+        "name": "CP PLUS",
+        "slug": "cp-plus"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        361
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cp-plus-time-attendance-a5eee76b6a",
+      "title": "CP PLUS Time Attendance",
+      "brand": {
+        "name": "CP PLUS",
+        "slug": "cp-plus"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        362
+      ],
+      "sourceTypes": []
+    },
+    {
+      "slug": "ve-range-cp-plus-storage-switches-68edd60d4a",
+      "title": "CP PLUS Storage & Switches",
+      "brand": {
+        "name": "CP PLUS",
+        "slug": "cp-plus"
+      },
+      "category": {
+        "slug": "cctv-security",
+        "name": "CCTV & Security",
+        "group": "electrical"
+      },
+      "sourceRows": [
+        363
+      ],
+      "sourceTypes": []
+    }
+  ],
+  "held": [
+    {
+      "sourceRow": 6,
+      "section": "Steel Brands & Steel Products",
+      "brand": "Shakti",
+      "type": "TMT Rebars",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 118,
+      "section": "Conduits, PPR, Plumbing Pipes & GI Fittings",
+      "brand": "Various",
+      "type": "PPR Fittings",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 119,
+      "section": "Conduits, PPR, Plumbing Pipes & GI Fittings",
+      "brand": "Various",
+      "type": "PPR Brass Fittings",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 120,
+      "section": "Conduits, PPR, Plumbing Pipes & GI Fittings",
+      "brand": "Various",
+      "type": "PPR Valves",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 121,
+      "section": "Conduits, PPR, Plumbing Pipes & GI Fittings",
+      "brand": "Various",
+      "type": "Conduit Accessories",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 146,
+      "section": "Electrical Wires & Equipment",
+      "brand": "Rajendra",
+      "type": "Conduit Pipes & Electrical Fittings",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 269,
+      "section": "Wooden Items & Timber",
+      "brand": "KD German",
+      "type": "Timber / Wood",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 270,
+      "section": "Wooden Items & Timber",
+      "brand": "KD Russian",
+      "type": "Timber / Wood",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 271,
+      "section": "Wooden Items & Timber",
+      "brand": "Walnut",
+      "type": "Hardwood",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 272,
+      "section": "Wooden Items & Timber",
+      "brand": "Rubberwood",
+      "type": "Hardwood",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand"
+      ]
+    },
+    {
+      "sourceRow": 282,
+      "section": "Wooden Items & Timber",
+      "brand": "CenturyProWud",
+      "type": "MDF",
+      "reasons": [
+        "CenturyProWud / Century Prowud identity overlap needs confirmation"
+      ]
+    },
+    {
+      "sourceRow": 285,
+      "section": "Wooden Items & Timber",
+      "brand": "Century Prowud",
+      "type": "MDF",
+      "reasons": [
+        "CenturyProWud / Century Prowud identity overlap needs confirmation"
+      ]
+    },
+    {
+      "sourceRow": 327,
+      "section": "Home Appliances, Geysers, Chimneys, Hobs & Power Backup",
+      "brand": "Livguard",
+      "type": "Inverters",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 328,
+      "section": "Home Appliances, Geysers, Chimneys, Hobs & Power Backup",
+      "brand": "Livguard",
+      "type": "Batteries",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 329,
+      "section": "Home Appliances, Geysers, Chimneys, Hobs & Power Backup",
+      "brand": "Livguard",
+      "type": "Solar",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    },
+    {
+      "sourceRow": 353,
+      "section": "Power Tools Brands & Categories",
+      "brand": "XTRA POWER",
+      "type": "ALL catalogue items",
+      "reasons": [
+        "Owner instruction needs a concrete approved item list"
+      ]
+    },
+    {
+      "sourceRow": 354,
+      "section": "Bricks",
+      "brand": "",
+      "type": "BRICKS",
+      "reasons": [
+        "No confirmed brand; do not create a fictitious brand",
+        "Owner instruction needs a concrete approved item list"
+      ]
+    },
+    {
+      "sourceRow": 364,
+      "section": "Needs Verification",
+      "brand": "Vercel",
+      "type": "",
+      "reasons": [
+        "Identity or selection is uncertain in the source"
+      ]
+    }
+  ],
+  "outcomes": [
+    {
+      "sourceRow": 2,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-tata-tiscon-tmt-rebars-599ce7aed1"
+    },
+    {
+      "sourceRow": 3,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jindal-panther-tmt-rebars-7c0d56594e"
+    },
+    {
+      "sourceRow": 4,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-sail-tmt-seqr-tmt-rebars-273b15bdc9"
+    },
+    {
+      "sourceRow": 5,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kamdhenu-nxt-tmt-rebars-07d362c445"
+    },
+    {
+      "sourceRow": 6,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 7,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prabal-tmt-rebars-21c5ac67f3"
+    },
+    {
+      "sourceRow": 8,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ultratech-cement-cement-01967de705"
+    },
+    {
+      "sourceRow": 9,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ultratech-cement-cement-01967de705"
+    },
+    {
+      "sourceRow": 10,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-acc-gold-water-shield-cement-ccfcf378e2"
+    },
+    {
+      "sourceRow": 11,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-acc-f2r-superfast-cement-fe37c19af3"
+    },
+    {
+      "sourceRow": 12,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-acc-concrete-xtra-strong-cement-b393249bf9"
+    },
+    {
+      "sourceRow": 13,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-acc-suraksha-power-cement-93b1e5ab12"
+    },
+    {
+      "sourceRow": 14,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ambuja-cement-cement-9e7adb1155"
+    },
+    {
+      "sourceRow": 15,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ambuja-plus-cement-08f6a24f4c"
+    },
+    {
+      "sourceRow": 16,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ambuja-kawach-cement-c86f218be3"
+    },
+    {
+      "sourceRow": 17,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jk-cement-jk-super-cement-cement-6a488ca25c"
+    },
+    {
+      "sourceRow": 18,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jk-cement-jk-super-cement-cement-6a488ca25c"
+    },
+    {
+      "sourceRow": 19,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jk-cement-jk-super-cement-cement-6a488ca25c"
+    },
+    {
+      "sourceRow": 20,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jk-cement-jk-super-cement-cement-6a488ca25c"
+    },
+    {
+      "sourceRow": 21,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-khyber-cement-cement-0531a34d52"
+    },
+    {
+      "sourceRow": 22,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-max-cement-cement-f5efc90c1d"
+    },
+    {
+      "sourceRow": 23,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kajaria-tiles-40fc1e94a0"
+    },
+    {
+      "sourceRow": 24,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kajaria-the-ultima-tiles-b9e83f6d4f"
+    },
+    {
+      "sourceRow": 25,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kajaria-vitronite-tiles-992d6f9894"
+    },
+    {
+      "sourceRow": 26,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kajaria-grestough-tiles-0b861c20be"
+    },
+    {
+      "sourceRow": 27,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kajaria-tiles-40fc1e94a0"
+    },
+    {
+      "sourceRow": 28,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-tiles-219d80bb69"
+    },
+    {
+      "sourceRow": 29,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-tiles-219d80bb69"
+    },
+    {
+      "sourceRow": 30,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-tiles-219d80bb69"
+    },
+    {
+      "sourceRow": 31,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-h-r-johnson-johnson-tiles-tiles-b031a451ab"
+    },
+    {
+      "sourceRow": 32,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-h-r-johnson-johnson-porselano-tiles-7bdf89e4e8"
+    },
+    {
+      "sourceRow": 33,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-h-r-johnson-marbonite-tiles-da20af542e"
+    },
+    {
+      "sourceRow": 34,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-varmora-tiles-7699c097e6"
+    },
+    {
+      "sourceRow": 35,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-varmora-tiles-7699c097e6"
+    },
+    {
+      "sourceRow": 36,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-varmora-tiles-7699c097e6"
+    },
+    {
+      "sourceRow": 37,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-varmora-tiles-7699c097e6"
+    },
+    {
+      "sourceRow": 38,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-rak-ceramics-tiles-01113d908f"
+    },
+    {
+      "sourceRow": 39,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-rak-ceramics-tiles-01113d908f"
+    },
+    {
+      "sourceRow": 40,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-rak-ceramics-tiles-01113d908f"
+    },
+    {
+      "sourceRow": 41,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-tiles-608bf73989"
+    },
+    {
+      "sourceRow": 42,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-tiles-608bf73989"
+    },
+    {
+      "sourceRow": 43,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-tiles-608bf73989"
+    },
+    {
+      "sourceRow": 44,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-italian-tiles-tiles-6b84ecb805"
+    },
+    {
+      "sourceRow": 45,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-tiles-tiles-24159c05ce"
+    },
+    {
+      "sourceRow": 46,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-sanitaryware-eae87a2f08"
+    },
+    {
+      "sourceRow": 47,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-faucets-b75d7b9583"
+    },
+    {
+      "sourceRow": 48,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-showers-e7d2358583"
+    },
+    {
+      "sourceRow": 49,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-flushing-systems-90e6a65915"
+    },
+    {
+      "sourceRow": 50,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-accessories-22cc0f00e9"
+    },
+    {
+      "sourceRow": 51,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-bath-wellness-b23969a2a8"
+    },
+    {
+      "sourceRow": 52,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-shower-enclosures-ae261297f5"
+    },
+    {
+      "sourceRow": 53,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-water-heaters-66e62df08a"
+    },
+    {
+      "sourceRow": 54,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-sanitaryware-ef8828d93d"
+    },
+    {
+      "sourceRow": 55,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-faucets-showers-e1908d57ea"
+    },
+    {
+      "sourceRow": 56,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-accessories-c0a0256a5d"
+    },
+    {
+      "sourceRow": 57,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-shower-partitions-8d08d373b1"
+    },
+    {
+      "sourceRow": 58,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-vanity-mirrors-eb91c5a3c5"
+    },
+    {
+      "sourceRow": 59,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cera-kitchen-sinks-d812b045f1"
+    },
+    {
+      "sourceRow": 60,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-sanitaryware-cbc53d821d"
+    },
+    {
+      "sourceRow": 61,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-premium-sanitaryware-a8bc1d9c89"
+    },
+    {
+      "sourceRow": 62,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-faucets-a3ad73fed0"
+    },
+    {
+      "sourceRow": 63,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-showers-8c775ffe15"
+    },
+    {
+      "sourceRow": 64,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-bathroom-accessories-1f7e6036a7"
+    },
+    {
+      "sourceRow": 65,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-tiles-f196e80ff3"
+    },
+    {
+      "sourceRow": 66,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-parryware-sanitaryware-90c7b62e46"
+    },
+    {
+      "sourceRow": 67,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-parryware-faucets-f103feac33"
+    },
+    {
+      "sourceRow": 68,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-parryware-showers-6c2cdbb7e1"
+    },
+    {
+      "sourceRow": 69,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-parryware-accessories-4ba5cda9dc"
+    },
+    {
+      "sourceRow": 70,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-sanitaryware-c91d9e8ec6"
+    },
+    {
+      "sourceRow": 71,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-faucets-7bc16789a4"
+    },
+    {
+      "sourceRow": 72,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-showers-a36e8c1eae"
+    },
+    {
+      "sourceRow": 73,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-bathroom-furniture-20df401f44"
+    },
+    {
+      "sourceRow": 74,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-bathtubs-5fa2e83f9c"
+    },
+    {
+      "sourceRow": 75,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-grohe-faucets-e7bb5bf2df"
+    },
+    {
+      "sourceRow": 76,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-grohe-showers-df75496bb0"
+    },
+    {
+      "sourceRow": 77,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-grohe-thermostats-diverters-c29c2a4067"
+    },
+    {
+      "sourceRow": 78,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-grohe-accessories-420a2894d4"
+    },
+    {
+      "sourceRow": 79,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hansgrohe-faucets-e6696e91d5"
+    },
+    {
+      "sourceRow": 80,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hansgrohe-showers-1db5a367b1"
+    },
+    {
+      "sourceRow": 81,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hansgrohe-shower-controls-d07c0fb690"
+    },
+    {
+      "sourceRow": 82,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-essco-sanitaryware-8fae93499d"
+    },
+    {
+      "sourceRow": 83,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-essco-faucets-28d6809aad"
+    },
+    {
+      "sourceRow": 84,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-essco-accessories-adf8de892f"
+    },
+    {
+      "sourceRow": 85,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-sanitaryware-6ad3153117"
+    },
+    {
+      "sourceRow": 86,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-faucets-showers-cc21966d11"
+    },
+    {
+      "sourceRow": 87,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-somany-accessories-af51ea8cd9"
+    },
+    {
+      "sourceRow": 88,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-raktherm-ppr-d5c5de7e5b"
+    },
+    {
+      "sourceRow": 89,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-raktherm-reinforced-ppr-0630bf6c7c"
+    },
+    {
+      "sourceRow": 90,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-raktherm-anti-uv-ppr-3b2b9c3403"
+    },
+    {
+      "sourceRow": 91,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-raktherm-pex-930dc5eae4"
+    },
+    {
+      "sourceRow": 92,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-raktherm-pvc-u-hdpe-fire-resistant-19bb41824c"
+    },
+    {
+      "sourceRow": 93,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-ppr-1d46f5b2f9"
+    },
+    {
+      "sourceRow": 94,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-cpvc-9175fec500"
+    },
+    {
+      "sourceRow": 95,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-upvc-pvc-75f034d09b"
+    },
+    {
+      "sourceRow": 96,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-swr-4728e29180"
+    },
+    {
+      "sourceRow": 97,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-hdpe-12a9c4422a"
+    },
+    {
+      "sourceRow": 98,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-supreme-electrical-conduit-3dfed0cc21"
+    },
+    {
+      "sourceRow": 99,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-vectus-ppr-50ae5e6f6d"
+    },
+    {
+      "sourceRow": 100,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-vectus-cpvc-db55d6f0b6"
+    },
+    {
+      "sourceRow": 101,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-vectus-composite-piping-83f6dc5032"
+    },
+    {
+      "sourceRow": 102,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-vectus-swr-087b9cd51b"
+    },
+    {
+      "sourceRow": 103,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-vectus-upvc-underground-2ed0da5433"
+    },
+    {
+      "sourceRow": 104,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-astral-ppr-e57bb13e72"
+    },
+    {
+      "sourceRow": 105,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-astral-cpvc-748c51545e"
+    },
+    {
+      "sourceRow": 106,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-astral-upvc-21c7392ee1"
+    },
+    {
+      "sourceRow": 107,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-astral-swr-a712e5b367"
+    },
+    {
+      "sourceRow": 108,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-astral-hdpe-42f1a1ecac"
+    },
+    {
+      "sourceRow": 109,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prince-ppr-6f4f292201"
+    },
+    {
+      "sourceRow": 110,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prince-cpvc-2a53af0cd3"
+    },
+    {
+      "sourceRow": 111,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prince-upvc-pvc-ec3ed20835"
+    },
+    {
+      "sourceRow": 112,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prince-swr-2f418e8745"
+    },
+    {
+      "sourceRow": 113,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-prince-hdpe-a1d9c8fce0"
+    },
+    {
+      "sourceRow": 114,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-finolex-cpvc-98cba96356"
+    },
+    {
+      "sourceRow": 115,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-finolex-upvc-626641f075"
+    },
+    {
+      "sourceRow": 116,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-finolex-swr-5cca75219c"
+    },
+    {
+      "sourceRow": 117,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-finolex-electrical-conduit-654cf1a54b"
+    },
+    {
+      "sourceRow": 118,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 119,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 120,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 121,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 122,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-polycab-wires-cables-35ca515790"
+    },
+    {
+      "sourceRow": 123,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-wires-cables-7633f71864"
+    },
+    {
+      "sourceRow": 124,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kei-industries-wires-cables-7cc2fc91b4"
+    },
+    {
+      "sourceRow": 125,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-v-guard-wires-cables-82d51d18a6"
+    },
+    {
+      "sourceRow": 126,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-legrand-switches-sockets-modular-accessories-eaa5af9651"
+    },
+    {
+      "sourceRow": 127,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-switches-sockets-modular-accessories-9d2d17d9c4"
+    },
+    {
+      "sourceRow": 128,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-gm-modular-switches-sockets-modular-accessories-78874ad866"
+    },
+    {
+      "sourceRow": 129,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-schneider-electric-switches-sockets-modular-accessories-76b394302b"
+    },
+    {
+      "sourceRow": 130,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-goldmedal-switches-sockets-modular-accessories-8f00f801b6"
+    },
+    {
+      "sourceRow": 131,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-crabtree-switches-sockets-modular-accessories-4f8a09ca78"
+    },
+    {
+      "sourceRow": 132,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-schneider-electric-mcb-rccb-rcbo-db-switchgear-cac2fd95a5"
+    },
+    {
+      "sourceRow": 133,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-legrand-mcb-rccb-rcbo-db-switchgear-2816f071de"
+    },
+    {
+      "sourceRow": 134,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-l-t-electrical-automation-mcb-rccb-rcbo-db-switchgear-df9a805647"
+    },
+    {
+      "sourceRow": 135,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-mcb-rccb-rcbo-db-switchgear-1f037b3100"
+    },
+    {
+      "sourceRow": 136,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-philips-signify-led-lights-lighting-951029938b"
+    },
+    {
+      "sourceRow": 137,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-crompton-led-lights-lighting-3986841cb8"
+    },
+    {
+      "sourceRow": 138,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-led-lights-lighting-1065ff3292"
+    },
+    {
+      "sourceRow": 139,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bajaj-electricals-led-lights-lighting-ce11fa31fd"
+    },
+    {
+      "sourceRow": 140,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-wipro-lighting-led-lights-lighting-aeb29b7c59"
+    },
+    {
+      "sourceRow": 141,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-syska-led-lights-lighting-f1fe6a07ec"
+    },
+    {
+      "sourceRow": 142,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-fans-988fc7520a"
+    },
+    {
+      "sourceRow": 143,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-crompton-fans-ca75ba033b"
+    },
+    {
+      "sourceRow": 144,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bajaj-fans-8224a5fbbe"
+    },
+    {
+      "sourceRow": 145,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-finolex-conduit-pipes-electrical-fittings-3a61e7a78a"
+    },
+    {
+      "sourceRow": 146,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 147,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-drawer-systems-649e5aa87b"
+    },
+    {
+      "sourceRow": 148,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-drawer-runners-5a43b0c3cf"
+    },
+    {
+      "sourceRow": 149,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-pantry-larder-a84d507324"
+    },
+    {
+      "sourceRow": 150,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-corner-systems-bad8d494b3"
+    },
+    {
+      "sourceRow": 151,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-rotating-storage-a35e70461b"
+    },
+    {
+      "sourceRow": 152,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-lift-systems-86eb29afd5"
+    },
+    {
+      "sourceRow": 153,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-interior-organisation-c7fa875984"
+    },
+    {
+      "sourceRow": 154,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-pantry-systems-329434f186"
+    },
+    {
+      "sourceRow": 155,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-corner-systems-9d1da65d85"
+    },
+    {
+      "sourceRow": 156,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-bottle-pull-outs-077a04bd4d"
+    },
+    {
+      "sourceRow": 157,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-basket-systems-731b589536"
+    },
+    {
+      "sourceRow": 158,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-waste-management-010cc2f66f"
+    },
+    {
+      "sourceRow": 159,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-lift-up-systems-829b32648a"
+    },
+    {
+      "sourceRow": 160,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-drawer-organisation-79d7afe393"
+    },
+    {
+      "sourceRow": 161,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-kitchen-lighting-cd9defde8a"
+    },
+    {
+      "sourceRow": 162,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-kitchen-baskets-b351efa0f8"
+    },
+    {
+      "sourceRow": 163,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-pantry-pull-outs-47dad2b1c2"
+    },
+    {
+      "sourceRow": 164,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-corner-accessories-ba4f68583c"
+    },
+    {
+      "sourceRow": 165,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-waste-management-73b7155a3d"
+    },
+    {
+      "sourceRow": 166,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-drawer-organisation-04eb500803"
+    },
+    {
+      "sourceRow": 167,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-kitchen-hardware-d834f686cb"
+    },
+    {
+      "sourceRow": 168,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-storage-accessories-25c8e7ed96"
+    },
+    {
+      "sourceRow": 169,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-kitchen-storage-53d4c7dfc6"
+    },
+    {
+      "sourceRow": 170,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-drawer-cabinet-hardware-401bbcd061"
+    },
+    {
+      "sourceRow": 171,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-kitchen-accessories-9511c1e288"
+    },
+    {
+      "sourceRow": 172,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-drawer-systems-e4237e5cb2"
+    },
+    {
+      "sourceRow": 173,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-franke-kitchen-sinks-c3d0d9c3fa"
+    },
+    {
+      "sourceRow": 174,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-franke-kitchen-taps-a8f75727a1"
+    },
+    {
+      "sourceRow": 175,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-franke-waste-accessories-eab88e0a26"
+    },
+    {
+      "sourceRow": 176,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-kitchen-sinks-a40286e1e1"
+    },
+    {
+      "sourceRow": 177,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-kitchen-faucets-a51f402387"
+    },
+    {
+      "sourceRow": 178,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kohler-kitchen-accessories-ac4661af32"
+    },
+    {
+      "sourceRow": 179,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-faber-kitchen-hoods-f925eaf5bb"
+    },
+    {
+      "sourceRow": 180,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-elica-kitchen-hoods-b0cb7fd92d"
+    },
+    {
+      "sourceRow": 181,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-kaff-kitchen-hoods-f5c5dd06c5"
+    },
+    {
+      "sourceRow": 182,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-built-in-kitchen-appliances-d43e190191"
+    },
+    {
+      "sourceRow": 183,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-hinges-bc8f75395c"
+    },
+    {
+      "sourceRow": 184,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-drawer-channels-runners-2c9382e684"
+    },
+    {
+      "sourceRow": 185,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-drawer-systems-649e5aa87b"
+    },
+    {
+      "sourceRow": 186,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-handles-5996b9703b"
+    },
+    {
+      "sourceRow": 187,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-sliding-folding-systems-a6c67d4e3f"
+    },
+    {
+      "sourceRow": 188,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-kitchen-accessories-69bddde588"
+    },
+    {
+      "sourceRow": 189,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-hinges-61c2b03d2e"
+    },
+    {
+      "sourceRow": 190,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-drawer-channels-84468afed6"
+    },
+    {
+      "sourceRow": 191,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-drawer-systems-2beb5f094e"
+    },
+    {
+      "sourceRow": 192,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-handles-7ce87b7c77"
+    },
+    {
+      "sourceRow": 193,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-kitchen-accessories-3fbb7c1613"
+    },
+    {
+      "sourceRow": 194,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-lift-up-fittings-892caed591"
+    },
+    {
+      "sourceRow": 195,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-hinges-e714c3beae"
+    },
+    {
+      "sourceRow": 196,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-drawer-channels-a513da5f5e"
+    },
+    {
+      "sourceRow": 197,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-handles-c07a172a43"
+    },
+    {
+      "sourceRow": 198,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-kitchen-accessories-14baaaaac4"
+    },
+    {
+      "sourceRow": 199,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-wardrobe-accessories-95bdab9b66"
+    },
+    {
+      "sourceRow": 200,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-handles-ed484f7636"
+    },
+    {
+      "sourceRow": 201,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-hinges-d7293ca60b"
+    },
+    {
+      "sourceRow": 202,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-drawer-hardware-f13e006373"
+    },
+    {
+      "sourceRow": 203,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-hinges-hardware-1a70949570"
+    },
+    {
+      "sourceRow": 204,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-drawer-fittings-023a96c5b7"
+    },
+    {
+      "sourceRow": 205,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-handles-ec47dc06cb"
+    },
+    {
+      "sourceRow": 206,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-hinges-e75b15b118"
+    },
+    {
+      "sourceRow": 207,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-drawer-channels-5083020eb2"
+    },
+    {
+      "sourceRow": 208,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-handles-7a11ebea00"
+    },
+    {
+      "sourceRow": 209,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-kitchen-accessories-9511c1e288"
+    },
+    {
+      "sourceRow": 210,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-locks-latches-77484571a5"
+    },
+    {
+      "sourceRow": 211,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-smart-locks-aa5dbf8e59"
+    },
+    {
+      "sourceRow": 212,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-door-hardware-b618d0322f"
+    },
+    {
+      "sourceRow": 213,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-door-closers-2344e26202"
+    },
+    {
+      "sourceRow": 214,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-yale-mechanical-locks-c7abfed8c7"
+    },
+    {
+      "sourceRow": 215,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-yale-smart-locks-a7b24f5365"
+    },
+    {
+      "sourceRow": 216,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-yale-door-hardware-e2acc9e802"
+    },
+    {
+      "sourceRow": 217,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-mortise-locks-b746cd51ae"
+    },
+    {
+      "sourceRow": 218,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-handles-19176de790"
+    },
+    {
+      "sourceRow": 219,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-hinges-10554cda20"
+    },
+    {
+      "sourceRow": 220,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-door-closers-e72ac9961d"
+    },
+    {
+      "sourceRow": 221,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-door-accessories-9ab50d5cf4"
+    },
+    {
+      "sourceRow": 222,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-locks-cylinders-0b5d735e31"
+    },
+    {
+      "sourceRow": 223,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-handles-2fe5de114b"
+    },
+    {
+      "sourceRow": 224,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-hinges-ecbf04c853"
+    },
+    {
+      "sourceRow": 225,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-door-closers-bc09a781b4"
+    },
+    {
+      "sourceRow": 226,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-glass-door-hardware-16aaa22cd2"
+    },
+    {
+      "sourceRow": 227,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-sliding-door-systems-28bc62972f"
+    },
+    {
+      "sourceRow": 228,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-door-hinges-3b3f74ee7f"
+    },
+    {
+      "sourceRow": 229,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-sliding-door-systems-c6f5e4f44c"
+    },
+    {
+      "sourceRow": 230,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-door-hardware-d75d5c65ab"
+    },
+    {
+      "sourceRow": 231,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-locks-5fb6a9c992"
+    },
+    {
+      "sourceRow": 232,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-door-hardware-91c09fe20d"
+    },
+    {
+      "sourceRow": 233,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-wardrobe-sliding-systems-295481a471"
+    },
+    {
+      "sourceRow": 234,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-sliding-systems-0e2bfe8939"
+    },
+    {
+      "sourceRow": 235,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-wardrobe-interiors-7f86a0450f"
+    },
+    {
+      "sourceRow": 236,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-wardrobe-hardware-b5127264b1"
+    },
+    {
+      "sourceRow": 237,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-bed-fittings-7a7828ee79"
+    },
+    {
+      "sourceRow": 238,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hettich-wardrobe-profiles-d6145f7c8f"
+    },
+    {
+      "sourceRow": 239,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-wardrobe-sliding-systems-3cea5d0dfb"
+    },
+    {
+      "sourceRow": 240,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-wardrobe-accessories-29aceb858d"
+    },
+    {
+      "sourceRow": 241,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-wardrobe-storage-a4e2b8d28a"
+    },
+    {
+      "sourceRow": 242,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-bed-fittings-079416bd32"
+    },
+    {
+      "sourceRow": 243,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-bed-lift-systems-1b03e54aab"
+    },
+    {
+      "sourceRow": 244,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hafele-wardrobe-furniture-hardware-b5368d6b1f"
+    },
+    {
+      "sourceRow": 245,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-wardrobe-sliding-56903a57cf"
+    },
+    {
+      "sourceRow": 246,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-wardrobe-accessories-95bdab9b66"
+    },
+    {
+      "sourceRow": 247,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ozone-bed-fittings-749b484437"
+    },
+    {
+      "sourceRow": 248,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-wardrobe-hardware-99bc308eb2"
+    },
+    {
+      "sourceRow": 249,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-dorset-bed-hardware-ec8a49132e"
+    },
+    {
+      "sourceRow": 250,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-wardrobe-hardware-825962631b"
+    },
+    {
+      "sourceRow": 251,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-godrej-bed-hardware-126801635d"
+    },
+    {
+      "sourceRow": 252,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-wardrobe-hardware-6a5588f6ad"
+    },
+    {
+      "sourceRow": 253,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-link-bed-hardware-51c022730e"
+    },
+    {
+      "sourceRow": 254,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-centuryply-plywood-0c7cf7d99b"
+    },
+    {
+      "sourceRow": 255,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-sainik-plywood-f6dffcdbac"
+    },
+    {
+      "sourceRow": 256,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-architect-ply-plywood-c326d87ad7"
+    },
+    {
+      "sourceRow": 257,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-mdf-mdf-hdhmr-a0f8ee7c96"
+    },
+    {
+      "sourceRow": 258,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-veneers-veneer-8d8648d90a"
+    },
+    {
+      "sourceRow": 259,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenply-plywood-2c00b34674"
+    },
+    {
+      "sourceRow": 260,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenply-green-club-plywood-d2cd6713eb"
+    },
+    {
+      "sourceRow": 261,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenply-green-gold-plywood-2275c4bc8e"
+    },
+    {
+      "sourceRow": 262,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenpanel-engineered-boards-dc14d46ab0"
+    },
+    {
+      "sourceRow": 263,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenpanel-mdf-hdf-66476d9896"
+    },
+    {
+      "sourceRow": 264,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenpanel-flooring-wood-flooring-83aaea678d"
+    },
+    {
+      "sourceRow": 265,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-action-tesa-hdhmr-a642438a0a"
+    },
+    {
+      "sourceRow": 266,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-action-tesa-mdf-8752199a22"
+    },
+    {
+      "sourceRow": 267,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-action-tesa-boilo-engineered-board-2341f76795"
+    },
+    {
+      "sourceRow": 268,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-action-tesa-flooring-43821a45e1"
+    },
+    {
+      "sourceRow": 269,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 270,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 271,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 272,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 273,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-centuryply-veneers-3e1bf7edb8"
+    },
+    {
+      "sourceRow": 274,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-doors-flush-doors-f032f00235"
+    },
+    {
+      "sourceRow": 275,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-doors-decorative-doors-12dca7bc8b"
+    },
+    {
+      "sourceRow": 276,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-doors-wpc-doors-fda7386cce"
+    },
+    {
+      "sourceRow": 277,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-exteria-exterior-wood-surfaces-e5ffae5bdd"
+    },
+    {
+      "sourceRow": 278,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenply-veneers-d7494454fa"
+    },
+    {
+      "sourceRow": 279,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenply-doors-doors-0263398c3a"
+    },
+    {
+      "sourceRow": 280,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-action-tesa-mdf-hdhmr-dd8b6dc035"
+    },
+    {
+      "sourceRow": 281,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-greenpanel-engineered-wood-flooring-d71d3d3b46"
+    },
+    {
+      "sourceRow": 282,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 283,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-centuryparticleboard-particle-board-6caac93229"
+    },
+    {
+      "sourceRow": 284,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-century-ply-century-hdf-hdf-68e6f2a01c"
+    },
+    {
+      "sourceRow": 285,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 286,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-racold-geysers-8b9412d496"
+    },
+    {
+      "sourceRow": 287,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ao-smith-geysers-aa11787626"
+    },
+    {
+      "sourceRow": 288,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-havells-geysers-80331319db"
+    },
+    {
+      "sourceRow": 289,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-jaquar-water-heaters-66e62df08a"
+    },
+    {
+      "sourceRow": 290,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-faber-chimneys-1d08a57fa1"
+    },
+    {
+      "sourceRow": 291,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-faber-hobs-72ca245a47"
+    },
+    {
+      "sourceRow": 292,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-faber-built-in-appliances-bf8def1b2e"
+    },
+    {
+      "sourceRow": 293,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-faber-water-heaters-d8042f7749"
+    },
+    {
+      "sourceRow": 294,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-chimneys-e11bf968d1"
+    },
+    {
+      "sourceRow": 295,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-hobs-56b510d3a9"
+    },
+    {
+      "sourceRow": 296,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-built-in-appliances-f1961de2ce"
+    },
+    {
+      "sourceRow": 297,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hindware-home-appliances-e79458fee7"
+    },
+    {
+      "sourceRow": 298,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-lg-refrigerators-b8def5730a"
+    },
+    {
+      "sourceRow": 299,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-lg-washing-machines-e3bac5361a"
+    },
+    {
+      "sourceRow": 300,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-lg-air-conditioners-f5657e3b81"
+    },
+    {
+      "sourceRow": 301,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-lg-microwaves-17325ef143"
+    },
+    {
+      "sourceRow": 302,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-lg-dishwashers-a2923cc978"
+    },
+    {
+      "sourceRow": 303,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-samsung-refrigerators-2340f09d60"
+    },
+    {
+      "sourceRow": 304,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-samsung-washing-machines-13ae8d3920"
+    },
+    {
+      "sourceRow": 305,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-samsung-air-conditioners-18b01fd9d3"
+    },
+    {
+      "sourceRow": 306,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-samsung-microwaves-9bdea09171"
+    },
+    {
+      "sourceRow": 307,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-whirlpool-refrigerators-a0cb3ee5fb"
+    },
+    {
+      "sourceRow": 308,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-whirlpool-washing-machines-7407998280"
+    },
+    {
+      "sourceRow": 309,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-whirlpool-hobs-d194ea3c57"
+    },
+    {
+      "sourceRow": 310,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-whirlpool-microwaves-ffdd22981c"
+    },
+    {
+      "sourceRow": 311,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ifb-washing-machines-76dd5112b9"
+    },
+    {
+      "sourceRow": 312,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ifb-dishwashers-63fb21faa0"
+    },
+    {
+      "sourceRow": 313,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ifb-microwaves-ab60529f7e"
+    },
+    {
+      "sourceRow": 314,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-haier-refrigerators-efc1c3cbf3"
+    },
+    {
+      "sourceRow": 315,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-haier-washing-machines-c24b328363"
+    },
+    {
+      "sourceRow": 316,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-haier-air-conditioners-18e792a2d4"
+    },
+    {
+      "sourceRow": 317,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-haier-dishwashers-2a18527b2e"
+    },
+    {
+      "sourceRow": 318,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-luminous-home-inverters-2540350257"
+    },
+    {
+      "sourceRow": 319,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-luminous-inverter-series-9ed396ec40"
+    },
+    {
+      "sourceRow": 320,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-luminous-batteries-76f63a4ef9"
+    },
+    {
+      "sourceRow": 321,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-luminous-solar-backup-c26c117813"
+    },
+    {
+      "sourceRow": 322,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-microtek-inverters-da898dbb5f"
+    },
+    {
+      "sourceRow": 323,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-microtek-batteries-1bd161b323"
+    },
+    {
+      "sourceRow": 324,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-microtek-stabilizers-2d56ed84c8"
+    },
+    {
+      "sourceRow": 325,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-exide-batteries-d44b1adee0"
+    },
+    {
+      "sourceRow": 326,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-exide-inverters-ups-b661d8b4ee"
+    },
+    {
+      "sourceRow": 327,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 328,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 329,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 330,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-v-guard-inverters-6a267f9f20"
+    },
+    {
+      "sourceRow": 331,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-v-guard-batteries-2493de54d1"
+    },
+    {
+      "sourceRow": 332,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-v-guard-stabilizers-3e6b86469f"
+    },
+    {
+      "sourceRow": 333,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-drills-drivers-6b66dac008"
+    },
+    {
+      "sourceRow": 334,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-rotary-demolition-d3c54a33e6"
+    },
+    {
+      "sourceRow": 335,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-grinding-metalworking-17f37cad7a"
+    },
+    {
+      "sourceRow": 336,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-saws-d2274205a5"
+    },
+    {
+      "sourceRow": 337,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-woodworking-f69fc9b687"
+    },
+    {
+      "sourceRow": 338,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-construction-4a7ec53642"
+    },
+    {
+      "sourceRow": 339,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-cordless-ce4d49c84b"
+    },
+    {
+      "sourceRow": 340,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-bosch-professional-measuring-880019222f"
+    },
+    {
+      "sourceRow": 341,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hilti-demolition-558773fdb8"
+    },
+    {
+      "sourceRow": 342,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-stanley-drills-drivers-d26ec8e0c7"
+    },
+    {
+      "sourceRow": 343,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-stanley-grinders-2b2af77dff"
+    },
+    {
+      "sourceRow": 344,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-stanley-saws-99492b0482"
+    },
+    {
+      "sourceRow": 345,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-stanley-cordless-88c0c776ef"
+    },
+    {
+      "sourceRow": 346,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-black-decker-drills-drivers-46cba680d3"
+    },
+    {
+      "sourceRow": 347,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-black-decker-grinders-saws-4aa450f289"
+    },
+    {
+      "sourceRow": 348,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-black-decker-sanders-c82645f43b"
+    },
+    {
+      "sourceRow": 349,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ingco-drills-drivers-a4c91e09a0"
+    },
+    {
+      "sourceRow": 350,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ingco-rotary-demolition-c23475eab3"
+    },
+    {
+      "sourceRow": 351,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ingco-grinders-saws-700ccee778"
+    },
+    {
+      "sourceRow": 352,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-ingco-cordless-846e719edc"
+    },
+    {
+      "sourceRow": 353,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 354,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    },
+    {
+      "sourceRow": 355,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hikvision-network-cameras-e686813b7c"
+    },
+    {
+      "sourceRow": 356,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hikvision-analog-hd-4358b2e7c0"
+    },
+    {
+      "sourceRow": 357,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hikvision-thermal-security-da1b00a9ad"
+    },
+    {
+      "sourceRow": 358,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-hikvision-storage-accessories-3d242c2f17"
+    },
+    {
+      "sourceRow": 359,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cp-plus-network-cameras-772c8fff03"
+    },
+    {
+      "sourceRow": 360,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cp-plus-nvr-82f1456d61"
+    },
+    {
+      "sourceRow": 361,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cp-plus-analog-hd-a5f76f4274"
+    },
+    {
+      "sourceRow": 362,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cp-plus-time-attendance-a5eee76b6a"
+    },
+    {
+      "sourceRow": 363,
+      "status": "DRAFT_RANGE_PLANNED",
+      "slug": "ve-range-cp-plus-storage-switches-68edd60d4a"
+    },
+    {
+      "sourceRow": 364,
+      "status": "NEEDS_HUMAN_VERIFICATION",
+      "slug": null
+    }
+  ]
+}

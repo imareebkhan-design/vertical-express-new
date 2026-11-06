@@ -1,17 +1,21 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Plus, Star, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import type { CatalogItem } from "@/lib/services/catalog";
-import { formatPaise, discountPercent } from "@/lib/money";
+import { formatPaise, discountPercent, struckMrpPaise } from "@/lib/money";
 import { addToCart } from "@/actions/cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { useCart } from "@/hooks/use-cart";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { ENQUIRE_LABEL, PRICE_ON_REQUEST_LABEL, isPurchasableItem } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 const MotionImage = motion(Image);
 
@@ -23,22 +27,28 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
   const { summary, refresh, wishlistIds, setWishlisted, updateItem, removeItem } = useCart();
   const [isPending, startTransition] = useTransition();
   const [, startWishlist] = useTransition();
+  const orderingOpen = useOrderingOpen();
 
   const saved = wishlistIds.has(item.id);
-  const discount = discountPercent(item.pricePaise, item.compareAtPaise);
+  // Catalog-only cards carry no variant or price and never reach the cart.
+  const sellable = isPurchasableItem(item) ? item : null;
+  // "Sold out" is a stock claim; a catalog-only card has no stock to claim.
+  const soldOut = sellable !== null && !item.inStock;
+  const discount = sellable ? discountPercent(sellable.pricePaise, sellable.compareAtPaise) : null;
+  const struckMrp = sellable ? struckMrpPaise(sellable.pricePaise, sellable.compareAtPaise) : null;
 
   // Find if item is already in cart
-  const cartItem = summary?.lines?.find((l) => l.variantId === item.variantId);
+  const cartItem = sellable ? summary?.lines?.find((l) => l.variantId === sellable.variantId) : undefined;
 
   const handleQuickAdd = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!item.inStock || isPending) return;
+    if (!sellable || !orderingOpen || !item.inStock || isPending) return;
 
     triggerHaptic("medium");
 
     startTransition(async () => {
-      await addToCart({ variantId: item.variantId, qty: 1 });
+      await addToCart({ variantId: sellable.variantId, qty: 1 });
       await refresh();
     });
   };
@@ -99,40 +109,39 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
         {/* Badges Overlay */}
         <div className="flex items-center justify-between gap-1 mb-2">
           {discount && item.inStock ? (
-            <span className="rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] font-extrabold text-danger">
+            <span className="rounded-md bg-amber-soft px-1.5 py-0.5 text-[10px] font-extrabold text-ink">
               -{discount}% OFF
             </span>
           ) : <div />}
-
-          {item.hasBulkTiers && item.inStock && (
-            <span className="rounded-md bg-brand-deep/10 px-1.5 py-0.5 text-[10px] font-bold text-brand-deep">
-              Bulk Savings
-            </span>
-          )}
         </div>
 
         {/* Product Image Container */}
-        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-mist/10 mb-3">
-          {item.imageUrl ? (
+        <div className={cn("relative aspect-square w-full overflow-hidden rounded-xl mb-3", isGenericPlaceholder(item.imageUrl) ? "bg-mist/10" : PRODUCT_PHOTO_SURFACE)}>
+          {!isGenericPlaceholder(item.imageUrl) ? (
             <MotionImage
-              src={item.imageUrl}
+              src={item.imageUrl ?? ""}
               alt={item.title}
               layoutId={`img-${item.id}`}
               fill
               className={cn(
-                "object-cover transition-transform group-hover:scale-105",
-                !item.inStock && "opacity-40 grayscale"
+                /* contain, never cover: a cover crop cuts the product (lib/product-media.ts) */
+                PRODUCT_PHOTO,
+                "transition-transform group-hover:scale-105",
+                /* catalog-only cards make no stock claim, so only a sellable product greys out */
+                soldOut && "opacity-40 grayscale"
               )}
               sizes="(max-width: 768px) 50vw, 33vw"
             />
           ) : (
-            <div className="flex h-full items-center justify-center text-ink/30 text-xs font-medium">
-              No Image
-            </div>
+            <ProductPanel
+              categorySlug={item.categorySlug}
+              label={item.title}
+              className={cn("size-full", soldOut && "opacity-40 grayscale")}
+            />
           )}
 
           {/* Out of Stock Overlay */}
-          {!item.inStock && (
+          {soldOut && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[0.5px]">
               <span className="rounded-lg bg-ink/80 px-2.5 py-1 text-[9px] font-extrabold tracking-wider text-white uppercase shadow-sm">
                 Sold Out
@@ -150,7 +159,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             <Heart
               className={cn(
                 "size-3.5 transition-colors",
-                saved ? "fill-danger text-danger" : "text-ink/40"
+                saved ? "fill-ink text-ink" : "text-ink/40"
               )}
             />
           </button>
@@ -172,20 +181,30 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
 
       {/* Pricing & Add Button */}
       <div className="mt-3 flex items-end justify-between gap-2 pt-2 border-t border-mist/20">
+        {!sellable ? (
+          <p className="text-[11px] font-extrabold text-ink/70 leading-tight">{PRICE_ON_REQUEST_LABEL}</p>
+        ) : (
         <div>
-          <p className="text-xs font-extrabold text-ink leading-tight">{formatPaise(item.pricePaise)}</p>
-          {item.compareAtPaise && (
-            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(item.compareAtPaise)}</p>
+          <p className="text-xs font-extrabold text-ink leading-tight">{formatPaise(sellable.pricePaise)}</p>
+          {struckMrp != null && (
+            <p className="text-[9px] text-ink/40 line-through leading-none mt-0.5">{formatPaise(struckMrp)}</p>
           )}
         </div>
+        )}
 
         {/* Button / Quantity Selector */}
-        {cartItem && item.inStock ? (
+        {!sellable ? null : !orderingOpen ? (
+          /* COMMERCE_MODE=catalogue: the card is a link to the product page and its enquiry form. */
+          <span className="flex h-8 items-center rounded-xl bg-brand-deep px-3 text-[11px] font-extrabold text-white">
+            {ENQUIRE_LABEL}
+          </span>
+        ) : cartItem && item.inStock ? (
           <div className="flex h-8 items-center bg-brand-deep text-white rounded-xl px-1">
             <button
               type="button"
               onClick={handleQuantityDecrease}
               disabled={isPending}
+              aria-label={`Remove one ${item.title}`}
               className="flex size-6 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
             >
               -
@@ -197,6 +216,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
               type="button"
               onClick={handleQuantityIncrease}
               disabled={isPending}
+              aria-label={`Add one more ${item.title}`}
               className="flex size-6 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
             >
               +
@@ -207,6 +227,7 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
             type="button"
             onClick={handleQuickAdd}
             disabled={isPending || !item.inStock}
+            aria-label={item.inStock ? `Add ${item.title} to cart` : `${item.title} is out of stock`}
             className={cn(
               "flex size-8 items-center justify-center rounded-xl transition-all shadow-xs",
               !item.inStock

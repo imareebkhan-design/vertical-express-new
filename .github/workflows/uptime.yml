@@ -1,0 +1,99 @@
+# Is the site actually serving?
+#
+# WHY THIS EXISTS
+#
+# www.verticalexpress.in returned `402 DEPLOYMENT_DISABLED` for days and nothing
+# told anybody. It was found by hand, by chance. Sentry catches errors inside a
+# running application; it has nothing to say when the application is not running
+# at all, and neither does a deploy that succeeded last week.
+#
+# THE THING THAT MAKES THIS CHECK CORRECT
+#
+# It asserts **200 on the public URL**, not "something responded". The 402 came
+# from Vercel's edge, before any of our code ran — a check that only asked
+# `/api/health` whether the database was up would have been just as blind as
+# everything else, because that route never executed either. So the front door
+# is checked first, from outside, exactly as a customer would meet it.
+#
+# WHAT THIS IS NOT
+#
+# GitHub's scheduled runner is best-effort: a cron here can fire several minutes
+# late, and GitHub disables scheduled workflows after 60 days without repository
+# activity. It is a free safety net that needs no account, not a monitoring
+# product. An external monitor (UptimeRobot, Better Stack) checking the same URL
+# every minute and alerting to a phone is the real answer, and this does not
+# replace it.
+name: uptime
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub's floor is 5, and asking more often than the
+    # thing can meaningfully change buys noise rather than warning.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+# A late run is worth less than a current one, and two at once tell you nothing
+# extra.
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the public site and the health endpoint
+        env:
+          # Override in repo Settings → Secrets and variables → Variables if the
+          # canonical host ever changes. Falls back to the live domain.
+          SITE: ${{ vars.SITE_URL || 'https://www.verticalexpress.in' }}
+        run: |
+          set -uo pipefail
+          failed=0
+
+          probe() {
+            local label="$1" url="$2"
+            # Two attempts. A single timeout is a blip; two is a signal, and
+            # paging somebody for one slow DNS lookup teaches them to ignore it.
+            for attempt in 1 2; do
+              body_headers=$(curl -sS -m 25 -D- -o /dev/null -w '\nHTTP_STATUS:%{http_code}\n' "$url" 2>&1 || true)
+              status=$(printf '%s' "$body_headers" | sed -n 's/^HTTP_STATUS://p' | tail -1)
+              if [ "$status" = "200" ]; then
+                echo "  ✓ $label — 200"
+                return 0
+              fi
+              [ "$attempt" = "1" ] && sleep 15
+            done
+
+            echo "  ✗ $label — expected 200, got ${status:-no response}"
+            # Vercel names its own refusals in a header, and that header is the
+            # difference between "the app crashed" and "the account is disabled".
+            vercel_error=$(printf '%s' "$body_headers" | sed -n 's/^x-vercel-error: //Ip' | tr -d '\r')
+            if [ -n "$vercel_error" ]; then
+              echo "      x-vercel-error: $vercel_error"
+              case "$vercel_error" in
+                DEPLOYMENT_DISABLED)
+                  echo "      → The Vercel deployment is disabled. This is billing or account state," ;;
+                DEPLOYMENT_NOT_FOUND)
+                  echo "      → No deployment is serving this domain." ;;
+              esac
+              echo "        not a code failure. Nothing in this repository will fix it."
+            fi
+            return 1
+          }
+
+          echo "Checking $SITE"
+          probe "the front door   $SITE/" "$SITE/" || failed=1
+          # Only meaningful once the front door serves — but run it regardless,
+          # because "the site is up and the database is not" is its own incident.
+          probe "the database     $SITE/api/health" "$SITE/api/health" || failed=1
+
+          if [ "$failed" -ne 0 ]; then
+            echo ""
+            echo "The site is not serving correctly. GitHub has emailed whoever owns this repository."
+            exit 1
+          fi
+
+          echo ""
+          echo "Serving normally."

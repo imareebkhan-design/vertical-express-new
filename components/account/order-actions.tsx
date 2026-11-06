@@ -1,27 +1,36 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { CreditCard, FileText, Loader2, RotateCcw, XCircle } from "lucide-react";
-import { cancelOrder, reorder, retryOrderPayment } from "@/actions/orders";
+import { cancelOrder, reorder, retryOrderPayment, checkPaymentStatus } from "@/actions/orders";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import { confirmRazorpayPayment } from "@/actions/checkout";
 import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
+import { CONTACT } from "@/lib/data";
+import type { CancelState } from "@/lib/order-display";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 /** Cancel / reorder / retry controls on the order detail page. */
 export function OrderActions({
   orderNo,
-  cancellable,
+  cancelState,
   status,
   email,
 }: {
   orderNo: string;
-  cancellable: boolean;
+  cancelState: CancelState;
   status?: string;
   email?: string | null;
 }) {
+  const cancellable = cancelState.kind === "allowed";
   const router = useRouter();
+  /* COMMERCE_MODE=catalogue: no new payment and no reorder (the server refuses
+     both). Cancelling and checking a payment already made still work. */
+  const orderingOpen = useOrderingOpen();
   const { refresh } = useCart();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +44,10 @@ export function OrderActions({
       const res = await cancelOrder(orderNo, "Cancelled by customer");
       if (!res.ok) {
         setError(res.error.message);
+        /* A refusal can mean the server just found the order paid (E5): show
+           the order as it now is, not the stale "awaiting payment". */
+        setConfirming(false);
+        router.refresh();
         return;
       }
       setConfirming(false);
@@ -55,12 +68,20 @@ export function OrderActions({
     });
   };
 
+  const rzOpen = useRef(false);
+  const [paymentCheck, setPaymentCheck] = useState(false);
+
   const doRetryPayment = () => {
+    if (rzOpen.current) return; // one Razorpay window at a time
     setError(null);
+    setPaymentCheck(false);
     startTransition(async () => {
       const res = await retryOrderPayment(orderNo);
       if (!res.ok) {
-        setError(res.error.message);
+        /* "Pending" (approved / in flight / unverifiable) is not an error to
+           retry past: show the server's status with Check payment status. */
+        if (res.error.code === "UNAVAILABLE") setPaymentCheck(true);
+        else setError(res.error.message);
         return;
       }
       if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
@@ -73,13 +94,18 @@ export function OrderActions({
 
   const openRazorpay = async (
     orderNumber: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
     await loadRazorpayScript();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Razorpay = (window as any).Razorpay;
     if (!Razorpay) {
       setError("Couldn't load payment window.");
+      return;
+    }
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
       return;
     }
     const rz = new Razorpay({
@@ -89,9 +115,12 @@ export function OrderActions({
       name: "Vertical Express",
       order_id: rzp.orderId,
       prefill: { email: email ?? undefined },
-      theme: { color: "#efc41a" },
+      /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+      ...(timeout !== null ? { timeout } : {}),
+      theme: { color: "#EDAF1C" },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       handler: async (r: any) => {
+        rzOpen.current = false;
         const confirm = await confirmRazorpayPayment({
           orderNo: orderNumber,
           razorpayOrderId: rzp.orderId,
@@ -99,33 +128,52 @@ export function OrderActions({
           signature: r.razorpay_signature,
         });
         if (!confirm.ok) {
-          setError(confirm.error.message);
+          setPaymentCheck(true); // unverified is not unpaid: ask the server
           return;
         }
         await refresh();
         router.refresh();
       },
       modal: {
-        ondismiss: () => setError("Payment modal was closed."),
+        ondismiss: () => {
+          rzOpen.current = false;
+          setPaymentCheck(true);
+        },
       },
     });
+    rzOpen.current = true;
     rz.open();
   };
 
   return (
     <div className="flex flex-col gap-3">
+      {paymentCheck && (
+        <PaymentStatusNotice
+          orderNo={orderNo}
+          check={checkPaymentStatus}
+          onPaid={() => {
+            setPaymentCheck(false);
+            void refresh();
+            router.refresh();
+          }}
+          onPay={doRetryPayment}
+          orderHref={`/account/orders/${orderNo}`}
+        />
+      )}
       <div className="flex flex-wrap gap-3">
-        {isPendingPayment && (
+        {isPendingPayment && orderingOpen && (
           <Button onClick={doRetryPayment} disabled={pending} className="bg-brand-deep text-white hover:opacity-90">
             {pending ? <Loader2 className="animate-spin" /> : <CreditCard className="size-4" />} Complete Payment
           </Button>
         )}
+        {orderingOpen && (
         <Button variant="outline" onClick={doReorder} disabled={pending}>
           {pending ? <Loader2 className="animate-spin" /> : <RotateCcw className="size-4" />} Reorder
         </Button>
+        )}
         <Link href={`/account/orders/${orderNo}/invoice`} target="_blank">
           <Button variant="outline">
-            <FileText className="size-4" /> View Invoice
+            <FileText className="size-4" /> View order summary
           </Button>
         </Link>
         {cancellable && !confirming && (
@@ -147,6 +195,20 @@ export function OrderActions({
             </Button>
           </div>
         </div>
+      )}
+
+      {/* Paid online: the order service would cancel and restock, but nothing
+          refunds the payment yet (lib/order-flow.ts, ISS-025). Offering the
+          button would take the order and keep the money. No refund is promised
+          here either — the policy is not set. */}
+      {cancelState.kind === "paid-online" && (
+        <p className="text-sm font-semibold text-neutral-600">
+          This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
+          <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${orderNo}`} className="font-bold text-ink underline">
+            {CONTACT.email}
+          </a>{" "}
+          with the order number.
+        </p>
       )}
 
       {error && <p className="text-sm font-bold text-danger">{error}</p>}

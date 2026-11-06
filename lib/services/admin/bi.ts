@@ -1,6 +1,17 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma, PaymentMethod, OrderStatus } from "@/prisma/generated/client/client";
+import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/settings";
+import { orderNeedsTruck } from "@/lib/speed";
+
+/** ISO week label, e.g. "W31". The artboard's x-axis. */
+function isoWeek(d: Date): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  /* Thursday of this week decides the year's week number (ISO 8601). */
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `W${String(Math.ceil(((t.getTime() - jan1.getTime()) / 86400000 + 1) / 7)).padStart(2, "0")}`;
+}
 
 export interface BiFilters {
   startDate?: Date;
@@ -58,12 +69,32 @@ export interface BiDashboardData {
     neverSold: { title: string; sku: string }[];
   };
   inventory: {
-    totalValuePaise: number;
+    /**
+     * Null, always, until a cost basis exists — ISS-062.
+     *
+     * This was `qtyOnHand * pricePaise`, the SELLING price, which overstates
+     * stock by the entire margin. It is labelled "Current Stock Value" on the
+     * dashboard, which is exactly the figure somebody quotes to a bank, an
+     * accountant or an insurer in good faith. /admin/inventory already says
+     * stock value is a sentence rather than a number; this said otherwise, two
+     * screens apart.
+     */
+    totalValuePaise: number | null;
     outOfStockCount: number;
     lowStockCount: number;
     deadStockCount: number;
-    utilizationPct: number;
-    turnoverRate: number;
+    /**
+     * Null: `Warehouse` has no capacity column. The denominator was
+     * `warehouseCount * 10000` — an invented ten thousand units per warehouse,
+     * producing a percentage that looks measured and is not.
+     */
+    utilizationPct: number | null;
+    /**
+     * Null: turnover is cost of goods sold over average inventory at cost. The
+     * comment beside the old code said exactly that while the code divided net
+     * sales by inventory at selling price — neither input was the right one.
+     */
+    turnoverRate: number | null;
     aging: { label: string; value: number }[]; // [0-30 days, 31-90 days, 90+ days]
     fastMoving: { title: string; qtyOnHand: number; soldQty: number }[];
     slowMoving: { title: string; qtyOnHand: number; soldQty: number }[];
@@ -80,8 +111,10 @@ export interface BiDashboardData {
   };
   marketing: {
     coupons: { code: string; count: number; discountPaise: number }[];
-    conversionRate: number;
-    checkoutDropoffCount: number;
+    /** Null: nothing records a checkout start, so this cannot be computed. */
+    conversionRate: number | null;
+    checkoutDropoffCount: number | null;
+    /** Items currently sitting in carts. Not abandonment — some are in use. */
     cartAbandonmentCount: number;
     topSearches: { term: string; count: number }[];
     noResultSearches: { term: string; count: number }[];
@@ -97,9 +130,26 @@ export interface BiDashboardData {
   };
   operations: {
     warehousePerf: { name: string; count: number; valuePaise: number }[];
+    /**
+     * Orders per week split by how they travel. The artboard's third chart —
+     * the one that shows the heavy share rising as winter lead times start.
+     *
+     * There is no `seasonal` series because no seasonal rule is stored or
+     * applied anywhere (see Serviceability). A band drawn for it would be a
+     * band for a rule that is not in force.
+     */
+    ordersBySpeed: { week: string; express: number; heavy: number }[];
     avgFulfillmentMinutes: number;
-    packingSlaPct: number;
-    deliverySlaPct: number;
+    /**
+     * Null when the SLA cannot be computed — either nobody has set the target
+     * (Settings → Operations), or no order in the period reached that stage.
+     * Never a number that means "we do not know".
+     */
+    packingSlaPct: number | null;
+    deliverySlaPct: number | null;
+    /** The targets these were measured against, for the screen to show. */
+    packSlaMinutes: number | null;
+    deliverySlaMinutes: number | null;
     hourlyActivity: { day: string; hour: number; value: number }[];
   };
 }
@@ -115,12 +165,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   const prevStartDate = new Date(startDate.getTime() - durationMs);
   const prevEndDate = new Date(startDate.getTime() - 1);
 
-  // 2. Fetch dimension filters
-  const [warehouses, brands, categories, products] = await Promise.all([
+  // 2. Fetch dimension filters, and the targets performance is measured against
+  const [warehouses, brands, categories, products, settings] = await Promise.all([
     db.warehouse.findMany({ select: { id: true, name: true } }),
     db.brand.findMany({ select: { id: true, name: true } }),
     db.category.findMany({ select: { id: true, slug: true } }),
     db.product.findMany({ select: { id: true, title: true }, take: 100 }),
+    readSettings(),
   ]);
 
   // 3. Build main order query where condition
@@ -388,21 +439,19 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     },
   });
 
-  let totalInventoryValue = 0;
+  /* No cost price exists anywhere in the schema (ISS-062), so stock cannot be
+     valued. Kept as a running total of nothing rather than deleted, because the
+     aging and movement figures below are computed in the same pass and are
+     real. */
   let outOfStockCount = 0;
   let lowStockCount = 0;
-  let activeInvCount = 0;
   let age0_30 = 0, age31_90 = 0, age91_plus = 0;
 
   const invList = variants.map((v) => {
     const qty = v.inventory.reduce((sum, i) => sum + i.qtyOnHand, 0);
-    const value = qty * v.pricePaise;
-    totalInventoryValue += value;
 
     if (qty === 0) outOfStockCount++;
     else if (qty <= 10) lowStockCount++;
-    
-    activeInvCount += qty;
 
     const daysOld = (now.getTime() - v.product.createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysOld <= 30) age0_30 += qty;
@@ -420,13 +469,15 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   const deadStockCount = invList.filter(i => i.qtyOnHand > 0 && i.soldQty === 0).length;
   
-  // Utilization: total stock divided by warehouse capacity limit
-  const warehouseCount = warehouses.length || 1;
-  const capacityLimit = warehouseCount * 10000;
-  const utilizationPct = Math.round(Math.min(100, (activeInvCount / capacityLimit) * 100));
+  /* Utilisation needs a capacity to divide by, and `Warehouse` has no capacity
+     column. It was `warehouseCount * 10000` — a number nobody set, dressed as a
+     measurement. Null until the warehouse carries its real capacity. */
+  const utilizationPct = null;
 
-  // Turnover rate: Cost of goods sold / average inventory value
-  const turnoverRate = totalInventoryValue > 0 ? Number((netSales / totalInventoryValue).toFixed(2)) : 0;
+  /* Turnover is cost of goods sold over average inventory at cost. Both inputs
+     need a cost price, so it is not computable either (ISS-062). It was
+     `netSales / (qty * sellingPrice)`, which is neither term of that ratio. */
+  const turnoverRate = null;
 
   const aging = [
     { label: "0-30 Days", value: age0_30 },
@@ -497,26 +548,28 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     discountPaise: val.discount,
   })).sort((a, b) => b.count - a.count);
 
-  // Mock marketing metrics for checkout funnel & search analytics
-  const checkoutDropoffCount = Math.round(orderCount * 0.15);
+  /**
+   * Checkout funnel and search demand — ISS-065.
+   *
+   * These were invented. `checkoutDropoffCount` was `orderCount * 0.15`, so
+   * the conversion rate on the Marketing tab was always about 87% no matter
+   * what happened, computed from a constant somebody typed. The nine search
+   * terms below it were a hardcoded list: "solar tiles, 18" read as demand for
+   * a product we do not stock, and a purchasing decision made on it would have
+   * been made on nothing.
+   *
+   * There is no analytics event for a checkout start and no search log, so
+   * neither can be computed. Null and empty, and the screen says why.
+   *
+   * Cart items are real, and are the one honest figure here — but they are
+   * every item in every cart, including carts somebody is filling right now.
+   * Not abandonment.
+   */
+  const checkoutDropoffCount = null;
   const cartAbandonmentCount = await db.cartItem.count();
-  const checkoutStarted = orderCount + checkoutDropoffCount;
-  const conversionRate = checkoutStarted > 0 ? Math.round((orderCount / checkoutStarted) * 100) : 100;
-
-  // Mock popular searches
-  const topSearches = [
-    { term: "cement", count: 320 },
-    { term: "paint", count: 245 },
-    { term: "tmt bars", count: 180 },
-    { term: "bricks", count: 140 },
-    { term: "sealant", count: 95 },
-  ];
-  const noResultSearches = [
-    { term: "drill machine", count: 35 },
-    { term: "solar tiles", count: 18 },
-    { term: "wooden logs", count: 12 },
-    { term: "excavator lease", count: 5 },
-  ];
+  const conversionRate = null;
+  const topSearches: { term: string; count: number }[] = [];
+  const noResultSearches: { term: string; count: number }[] = [];
 
   // 12. Operations Performance
   const warehousePerfMap = new Map<string, { count: number; value: number }>();
@@ -536,9 +589,20 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     valuePaise: val.value,
   }));
 
-  // Fulfillment SLA percentage (packed under 120 minutes / 2 hours)
-  const packingSlaLimit = 120;
-  const deliverySlaLimit = 240; // 4 hours
+  /**
+   * On-time performance, measured against targets the owner sets.
+   *
+   * These were `120` and `240` — two minute-counts written into this file that
+   * nobody agreed to, reported on the console as compliance percentages. A
+   * dispatcher reading "89% on time" was reading performance against a number
+   * an engineer invented (ISS-064). Worse, an empty period returned 100: zero
+   * deliveries is not perfect delivery, and that is the reading a quiet week
+   * would have produced.
+   *
+   * Unset now means not computable. The screen says so.
+   */
+  const packingSlaLimit = parseMinutes(settings[SETTING_KEYS.packSlaMinutes]);
+  const deliverySlaLimit = parseMinutes(settings[SETTING_KEYS.deliverySlaMinutes]);
 
   let packingSlaCount = 0;
   let deliverySlaCount = 0;
@@ -548,15 +612,42 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     const packedEv = events.find(e => e.toStatus === "packed");
     const deliveredEv = events.find(e => e.toStatus === "delivered");
 
-    if (packedEv) {
+    if (packedEv && packingSlaLimit !== null) {
       const elapsed = (packedEv.createdAt.getTime() - o.placedAt.getTime()) / (1000 * 60);
       if (elapsed <= packingSlaLimit) packingSlaCount++;
     }
-    if (packedEv && deliveredEv) {
+    if (packedEv && deliveredEv && deliverySlaLimit !== null) {
       const elapsed = (deliveredEv.createdAt.getTime() - packedEv.createdAt.getTime()) / (1000 * 60);
       if (elapsed <= deliverySlaLimit) deliverySlaCount++;
     }
   }
+
+  /**
+   * How each order travelled, by week.
+   *
+   * An order that mixes a bag of cement with a box of screws goes on the
+   * truck, so a mixed order counts as heavy: the vehicle is decided by the
+   * heaviest thing in it, not by the majority of lines. Counting it as express
+   * would understate the truck load, which is the number this chart exists to
+   * show rising.
+   */
+  const speedByWeek = new Map<string, { express: number; heavy: number }>();
+  for (const o of filteredOrders) {
+    const heavy = orderNeedsTruck(
+      o.items.map((i) => ({
+        isBulk: i.variant.product.category.isBulk,
+        override: i.variant.product.deliverySpeed,
+      }))
+    );
+    const week = isoWeek(o.placedAt);
+    const row = speedByWeek.get(week) ?? { express: 0, heavy: 0 };
+    if (heavy) row.heavy++;
+    else row.express++;
+    speedByWeek.set(week, row);
+  }
+  const ordersBySpeed = [...speedByWeek.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, v]) => ({ week, ...v }));
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = [9, 12, 15, 18, 21];
@@ -579,8 +670,14 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     if (cell) cell.value++;
   }
 
-  const packingSlaPct = fulfillCount > 0 ? Math.round((packingSlaCount / fulfillCount) * 100) : 100;
-  const deliverySlaPct = deliveryCount > 0 ? Math.round((deliverySlaCount / deliveryCount) * 100) : 100;
+  const packingSlaPct =
+    packingSlaLimit !== null && fulfillCount > 0
+      ? Math.round((packingSlaCount / fulfillCount) * 100)
+      : null;
+  const deliverySlaPct =
+    deliverySlaLimit !== null && deliveryCount > 0
+      ? Math.round((deliverySlaCount / deliveryCount) * 100)
+      : null;
 
   // 13. Finance Cash Flows
   const walletUsagePaise = filteredOrders.reduce((sum, o) => {
@@ -631,7 +728,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       neverSold,
     },
     inventory: {
-      totalValuePaise: totalInventoryValue,
+      totalValuePaise: null,
       outOfStockCount,
       lowStockCount,
       deadStockCount,
@@ -670,9 +767,12 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     },
     operations: {
       warehousePerf,
+      ordersBySpeed,
       avgFulfillmentMinutes: fulfillCount > 0 ? Math.round(totalFulfillMin / fulfillCount) : 0,
       packingSlaPct,
       deliverySlaPct,
+      packSlaMinutes: packingSlaLimit,
+      deliverySlaMinutes: deliverySlaLimit,
       hourlyActivity,
     },
   };

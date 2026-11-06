@@ -1,6 +1,34 @@
 import "server-only";
 import { db } from "@/lib/db";
 import type { AddressInput } from "@/lib/validators";
+import { reverseGeocode } from "@/lib/services/geocoding";
+
+type Geocode = typeof reverseGeocode;
+
+/**
+ * Google's pincode for a pin, or null when there is no pin or Google cannot
+ * say. Recorded beside the customer's pincode, never in place of it: Google's
+ * pincode boundaries are wrong often enough in Srinagar that refusing the save
+ * would turn away real customers (owner decision, 16 Oct 2026). A difference
+ * is a mismatch for ops to review.
+ */
+export async function pinPincodeFor(input: Pick<AddressInput, "latitude" | "longitude">, geocode: Geocode = reverseGeocode): Promise<string | null> {
+  if (input.latitude == null || input.longitude == null) return null;
+  const found = await geocode(input.latitude, input.longitude);
+  return found.kind === "found" ? found.address.pincode : null;
+}
+
+/**
+ * The state for a saved address. The address forms pre-fill "Jammu & Kashmir",
+ * so Delhi addresses were saved as J&K (staging, 16 Oct) and showed "New Delhi,
+ * Jammu & Kashmir" back to the customer. A pincode we serve belongs to a city
+ * whose state is known, and the pincode decides the state — so that wins. For
+ * a pincode we do not serve, what the customer entered stands.
+ */
+async function stateFor(pincode: string, entered: string): Promise<string> {
+  const served = await db.serviceablePincode.findUnique({ where: { pincode }, select: { city: { select: { state: true } } } });
+  return served?.city.state ?? entered;
+}
 
 export async function listAddresses(userId: string) {
   return db.address.findMany({
@@ -9,7 +37,8 @@ export async function listAddresses(userId: string) {
   });
 }
 
-export async function createAddress(userId: string, input: AddressInput) {
+export async function createAddress(userId: string, input: AddressInput, geocode: Geocode = reverseGeocode) {
+  const pinPincode = await pinPincodeFor(input, geocode);
   // First address (or explicitly chosen) becomes the default.
   const count = await db.address.count({ where: { userId, deletedAt: null } });
   const makeDefault = input.isDefault || count === 0;
@@ -27,17 +56,25 @@ export async function createAddress(userId: string, input: AddressInput) {
       line1: input.line1,
       line2: input.line2 || null,
       landmark: input.landmark || null,
+      accessNote: input.accessNote || null,
       city: input.city,
-      state: input.state,
+      state: await stateFor(input.pincode, input.state),
       pincode: input.pincode,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      // A place id describes the pin; without one it is kept nowhere.
+      placeId: input.latitude != null ? input.placeId ?? null : null,
+      pinPincode,
       isDefault: makeDefault,
     },
   });
 }
 
-export async function updateAddress(userId: string, id: string, input: AddressInput) {
+export async function updateAddress(userId: string, id: string, input: AddressInput, geocode: Geocode = reverseGeocode) {
   const existing = await db.address.findFirst({ where: { id, userId, deletedAt: null } });
   if (!existing) return null;
+
+  const pinPincode = await pinPincodeFor(input, geocode);
 
   if (input.isDefault && !existing.isDefault) {
     await db.address.updateMany({ where: { userId }, data: { isDefault: false } });
@@ -52,9 +89,18 @@ export async function updateAddress(userId: string, id: string, input: AddressIn
       line1: input.line1,
       line2: input.line2 || null,
       landmark: input.landmark || null,
+      /* Omitted here until the app could edit a site, so editing any other
+         field of an address silently kept a stale access note. */
+      accessNote: input.accessNote || null,
       city: input.city,
-      state: input.state,
+      state: await stateFor(input.pincode, input.state),
       pincode: input.pincode,
+      // A full text-only edit invalidates the former pin rather than retaining
+      // coordinates for an address the customer may have moved.
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      placeId: input.latitude != null ? input.placeId ?? null : null,
+      pinPincode,
       isDefault: input.isDefault || existing.isDefault,
     },
   });

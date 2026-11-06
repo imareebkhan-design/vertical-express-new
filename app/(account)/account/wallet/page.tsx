@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getUserWallet } from "@/lib/services/wallet";
 import { WalletSwitcher } from "@/components/mobile/account/wallet-switcher";
 
 export const metadata: Metadata = {
-  title: "Wallet | Vertical Express",
-  description: "View your cashback balance and wallet history.",
+  title: "Wallet",
+  description: "Your wallet balance and transaction history.",
 };
 
 export default async function WalletPage() {

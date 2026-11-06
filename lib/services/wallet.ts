@@ -1,6 +1,55 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client/client";
+import { log } from "@/lib/observability";
+import { SETTING_KEYS, readSetting, parsePercent } from "@/lib/services/settings";
+
+/**
+ * The cashback rate, as a percentage of the order total.
+ *
+ * THIS USED TO BE A HARDCODED 5% AND IT PAID OUT.
+ *
+ * It now comes from the settings table, edited in the console, because the
+ * person who owns this number is a shopkeeper rather than an engineer. A value
+ * on a screen gets questioned; a constant in a file paid out for weeks without
+ * anybody noticing.
+ *
+ * `creditCashbackForOrder` runs whenever an order is marked delivered, so every
+ * completed order was crediting five percent of its value to the customer's
+ * wallet at a rate nobody had chosen — ₹2,500 on a ₹50,000 order, as a standing
+ * liability, decided in a source file. `CLAUDE.md` is explicit that a rule like
+ * this is the owner's to set, and no cashback policy exists.
+ *
+ * So the rate now comes from configuration and defaults to **off**. Unset means
+ * no cashback is credited and nothing is promised, which is the only honest
+ * default when the policy is undecided. Setting WALLET_CASHBACK_PERCENT=5 turns
+ * it on deliberately, by someone who meant to.
+ *
+ * Deliberately not a silent fallback to a plausible number: a payout that
+ * pretends to be policy is worse than no payout.
+ */
+async function cashbackPercent(): Promise<number> {
+  /* The console is the source of truth. WALLET_CASHBACK_PERCENT remains as a
+     fallback so an environment that has not been configured through the UI
+     behaves as before — but the setting wins, because the person who owns this
+     number should not need a deploy to change it. */
+  const fromSettings = parsePercent(await readSetting(SETTING_KEYS.cashbackPercent));
+  if (fromSettings !== null) return fromSettings;
+
+  const raw = process.env.WALLET_CASHBACK_PERCENT;
+  if (!raw) return 0;
+  const pct = parsePercent(raw);
+  if (pct === null) {
+    log("ERROR", {
+      service: "wallet-service",
+      event: "invalid_cashback_percent",
+      metadata: { source: "env" },
+    });
+    return 0;
+  }
+  return pct;
+}
+
 
 export async function getOrCreateWallet(userId: string) {
   let wallet = await db.wallet.findUnique({
@@ -27,8 +76,12 @@ export async function creditCashbackForOrder(params: {
 }) {
   const { userId, orderId, orderNo, orderTotalPaise } = params;
 
-  // Calculate 5% cashback
-  const cashbackPaise = Math.round(orderTotalPaise * 0.05);
+  const pct = await cashbackPercent();
+  if (pct === 0) return;
+
+  /* Integer paise throughout — the order total is already paise, and rounding
+     once at the end keeps a fraction of a paisa from becoming a real one. */
+  const cashbackPaise = Math.round((orderTotalPaise * pct) / 100);
   if (cashbackPaise <= 0) return;
 
   const wallet = await getOrCreateWallet(userId);
@@ -45,8 +98,27 @@ export async function creditCashbackForOrder(params: {
 
       if (existingTx) return;
 
-      // 30 days expiry
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      /* No expiry date is written, and this is the same decision as the rate
+         above rather than an oversight.
+
+         It used to be `Date.now() + 30 days`. Thirty days is a policy — how
+         long a customer's money stays theirs — and nobody set it; it was a
+         constant in this file, exactly like the 5% was and like the SLA
+         targets were (ISS-064). The desktop wallet prints "Expires: <date>"
+         from this column, so the invented number was shown to the customer as
+         a deadline.
+
+         It is wrong in both directions at once. Nothing anywhere expires a
+         balance — no job writes the `expired` transaction type and no cron
+         exists — so the date passed and the money stayed, which makes the
+         warning false. And if an expiry mechanism is built later, it would
+         start enforcing thirty days against credits issued under no policy at
+         all.
+
+         Absent means no expiry has been agreed, the same way an unset SLA
+         target means the number is not computable rather than met. When the
+         owner sets a window, it belongs in `settings` beside cashback.percent
+         with a job that actually applies it. */
 
       await tx.walletTransaction.create({
         data: {
@@ -54,8 +126,7 @@ export async function creditCashbackForOrder(params: {
           amountPaise: cashbackPaise,
           type: "cashback_credit",
           referenceId: orderId,
-          description: `5% Cashback for order #${orderNo}`,
-          expiresAt,
+          description: `Cashback for order #${orderNo}`,
         },
       });
 

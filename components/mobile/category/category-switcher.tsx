@@ -1,49 +1,107 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import type { Category } from "@/prisma/generated/client/client";
 import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { SortSelect } from "@/components/shop/sort-select";
 import { Pagination } from "@/components/shop/pagination";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
+import { CategoryBanner, ShopByAttribute } from "@/components/shop/category-banner";
+import { BrandStrip } from "@/components/shop/brand-strip";
+import { MostOrdered } from "@/components/shop/most-ordered";
+import type { CatalogItem } from "@/lib/services/catalog";
 import { FilterSheet } from "@/components/shop/filter-sheet";
 import { PageLoader } from "@/components/page-loader";
-import { ChevronRight } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
+import { CategoryComingSoon } from "@/components/shop/category-coming-soon";
+import type { DirectoryEntry } from "@/lib/category-directory";
 import Link from "next/link";
+
+import { useBackOr } from "@/hooks/use-back-or";
 
 // Mobile Components
 import { MobileCategoryView } from "@/components/mobile/category/mobile-category-view";
 
-interface CategorySwitcherProps {
-  category: Category;
-  slug: string;
-  result: CatalogResult;
-  activeFilterCount: number;
-}
+type CategorySwitcherProps =
+  | {
+      category: Category;
+      slug: string;
+      result: CatalogResult;
+      /** Ranked by units actually ordered — empty until something has been. */
+      mostOrdered: CatalogItem[];
+      /** Brands with a published product in this category, most-stocked first. */
+      brands: { slug: string; name: string; count: number }[];
+      activeFilterCount: number;
+      comingSoon?: undefined;
+    }
+  | {
+      category: Category;
+      slug: string;
+      /** A designated category with no visible product yet (lib/category-directory.ts). */
+      comingSoon: { name: string; siblings: DirectoryEntry[]; elsewhere: DirectoryEntry[] };
+    };
 
-export function CategorySwitcher({ category, slug, result, activeFilterCount }: CategorySwitcherProps) {
+export function CategorySwitcher(props: CategorySwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
-    return <MobileCategoryView category={category} slug={slug} initialResult={result} />;
+  if (props.comingSoon) {
+    const { slug, comingSoon } = props;
+    const panel = <CategoryComingSoon slug={slug} name={comingSoon.name} siblings={comingSoon.siblings} elsewhere={comingSoon.elsewhere} />;
+    if (isMobile) {
+      return (
+        <div className="flex min-h-screen flex-col bg-canvas pb-24">
+          <div className="sticky top-0 z-30 flex items-center gap-3 bg-canvas/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)] backdrop-blur-md">
+            <BackButton fallback="/categories" />
+            <h1 className="text-base font-extrabold leading-none text-ink">{comingSoon.name}</h1>
+          </div>
+          <div className="px-4 pt-6">{panel}</div>
+        </div>
+      );
+    }
+    return (
+      <>
+        <Navbar />
+        <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
+          <nav aria-label="Breadcrumb" className="mb-8 flex items-center gap-1.5 text-xs font-bold text-ink-500">
+            <Link href="/" className="hover:text-ink">Home</Link>
+            <ChevronRight className="size-3" aria-hidden />
+            <Link href="/categories" className="hover:text-ink">Categories</Link>
+            <ChevronRight className="size-3" aria-hidden />
+            <span className="text-ink">{comingSoon.name}</span>
+          </nav>
+          <h1 className="sr-only">{comingSoon.name}</h1>
+          {panel}
+        </main>
+        <Footer />
+      </>
+    );
+  }
+
+  const { category, slug, result, mostOrdered, brands, activeFilterCount } = props;
+
+  if (isMobile) {
+    return (
+      <MobileCategoryView
+        category={category}
+        slug={slug}
+        initialResult={result}
+        mostOrdered={mostOrdered}
+        brands={brands}
+      />
+    );
   }
 
   const breadcrumbJsonLd = {
@@ -58,15 +116,14 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
         />
 
-        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-xs font-bold text-neutral-500">
+        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs font-bold text-ink-500">
           <Link href="/" className="hover:text-ink">Home</Link>
           <ChevronRight className="size-3" aria-hidden />
           <Link href="/categories" className="hover:text-ink">Categories</Link>
@@ -74,13 +131,16 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
           <span className="text-ink">{category.name}</span>
         </nav>
 
-        <div className="mb-6">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{category.name}</h1>
-          <p className="mt-1 text-sm font-semibold text-neutral-500">
-            {result.total} {result.total === 1 ? "product" : "products"}
-            {category.isBulk && " · Bulk prices available"}
-          </p>
-        </div>
+        <CategoryBanner
+          name={category.name}
+          description={category.description}
+          total={result.total}
+          slug={slug}
+        />
+
+        <ShopByAttribute facets={result.facets} slug={slug} />
+        <BrandStrip slug={slug} brands={brands} />
+        <MostOrdered categoryName={category.name} slug={slug} items={mostOrdered} />
 
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <div className="hidden lg:block">
@@ -100,15 +160,30 @@ export function CategorySwitcher({ category, slug, result, activeFilterCount }: 
               />
             ) : (
               <>
-                <CatalogGrid items={result.items} />
+                <CatalogGrid items={result.items} categorySlug={slug} />
                 <Pagination page={result.page} perPage={result.perPage} total={result.total} />
               </>
             )}
           </div>
         </div>
+
       </main>
       <Footer />
-      <FloatingCart />
     </>
+  );
+}
+
+/** The phone header's Back: real history when there is some, else the category index. */
+function BackButton({ fallback }: { fallback: string }) {
+  const goBack = useBackOr(fallback);
+  return (
+    <button
+      type="button"
+      onClick={goBack}
+      aria-label="Back"
+      className="flex size-9 items-center justify-center rounded-full bg-paper text-ink shadow-card"
+    >
+      <ArrowLeft className="size-4" aria-hidden />
+    </button>
   );
 }

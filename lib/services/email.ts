@@ -20,17 +20,20 @@ export function emailEnabled(): boolean {
 }
 
 interface SendArgs {
+  from?: string;
+  idempotencyKey?: string;
   to: string;
   subject: string;
   html: string;
 }
 
 /** Low-level send. Resolves to true on success, false on any failure (never throws). */
-export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolean> {
+export async function sendEmail({ to, subject, html, from, idempotencyKey }: SendArgs): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     // Not configured — succeed silently so callers stay simple in the prototype.
-    console.info(`[email] skipped (no RESEND_API_KEY): "${subject}" → ${to}`);
+    /* No recipient in the log: an address is personal data. */
+    console.info(`[email] skipped (no RESEND_API_KEY): "${subject}"`);
     return false;
   }
   try {
@@ -39,28 +42,35 @@ export async function sendEmail({ to, subject, html }: SendArgs): Promise<boolea
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
+        ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || DEFAULT_FROM,
+        from: from || process.env.EMAIL_FROM || DEFAULT_FROM,
         to: [to],
         subject,
         html,
       }),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      console.error(`[email] Resend ${res.status}: ${await res.text()}`);
+      console.error(`[email] provider status ${res.status}`);
       return false;
     }
     return true;
-  } catch (err) {
-    console.error("[email] send failed", err);
+  } catch {
+    console.error("[email] send failed or outcome unknown");
     return false;
   }
 }
 
 // ---- Templates -------------------------------------------------------------
 
-const BRAND = "#efc41a";
+const BRAND = "#EDAF1C";
+
+/** Customer names and product titles go into HTML; neither is trusted markup. */
+export function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
 
 function shell(title: string, body: string): string {
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;color:#1a1a1a">
@@ -83,43 +93,48 @@ interface OrderEmailData {
   taxPaise: number;
   deliveryFeePaise: number;
   totalPaise: number;
+  /* Not printed: the email has no shipments, so it cannot tell a quick run
+     (which has a quote) from a truck (which has none) — see lib/order-display. */
   etaMinutes: number | null;
   customerName?: string | null;
 }
 
-export async function sendOrderConfirmationEmail(to: string, order: OrderEmailData): Promise<boolean> {
+/** The order-confirmation email body — pure, so its wording can be tested. */
+export function orderConfirmationHtml(order: OrderEmailData): string {
   const isCod = order.paymentMethod === "cod";
   const rows = order.items
     .map(
       (i) =>
-        `<tr><td style="padding:6px 0">${i.title} × ${i.qty}</td><td style="padding:6px 0;text-align:right">${formatPaise(
+        `<tr><td style="padding:6px 0">${escapeHtml(i.title)} × ${i.qty}</td><td style="padding:6px 0;text-align:right">${formatPaise(
           i.lineTotalPaise
         )}</td></tr>`
     )
     .join("");
   const line = (label: string, value: string, bold = false) =>
-    `<tr><td style="padding:4px 0;color:#666${bold ? ";font-weight:800;color:#1a1a1a" : ""}">${label}</td><td style="padding:4px 0;text-align:right${
+    `<tr><td style="padding:4px 0;color:#666${bold ? ";font-weight:800;color:#111111" : ""}">${label}</td><td style="padding:4px 0;text-align:right${
       bold ? ";font-weight:800" : ""
     }">${value}</td></tr>`;
 
   const body = `
-    <p style="margin:0 0 16px">Hi ${order.customerName || "there"}, thanks for your order! We've received it and are getting it ready.</p>
+    <p style="margin:0 0 16px">Hi ${order.customerName ? escapeHtml(order.customerName) : "there"}, thanks for your order! We've received it and are getting it ready.</p>
     <p style="margin:0 0 4px"><strong>Order ${order.orderNo}</strong></p>
-    <p style="margin:0 0 16px;color:#666">${isCod ? "Payment: Pay on delivery" : "Payment received"}${
-      order.etaMinutes ? ` · ETA ~${order.etaMinutes} min` : ""
-    }</p>
+    <p style="margin:0 0 16px;color:#666">${isCod ? "Payment: Pay on delivery" : "Payment received"}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
       ${rows}
       <tr><td colspan="2" style="border-top:1px solid #eee;padding-top:8px"></td></tr>
-      ${line("Subtotal", formatPaise(order.subtotalPaise))}
-      ${line("GST (18%)", formatPaise(order.taxPaise))}
+      ${line("Subtotal (before GST)", formatPaise(order.subtotalPaise))}
+      ${line("GST", formatPaise(order.taxPaise))}
       ${line("Delivery", order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise))}
       ${line("Total", formatPaise(order.totalPaise), true)}
     </table>`;
+  return shell("Order confirmed", body);
+}
+
+export async function sendOrderConfirmationEmail(to: string, order: OrderEmailData): Promise<boolean> {
   return sendEmail({
     to,
     subject: `Order ${order.orderNo} confirmed · Vertical Express`,
-    html: shell("Order confirmed 🎉", body),
+    html: orderConfirmationHtml(order),
   });
 }
 

@@ -1,455 +1,239 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useTransition } from "react";
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import {
-  RefreshCw,
-  Sparkles,
-  Flame,
-  ArrowRight,
-  Clock,
-  TrendingUp,
-  HelpCircle,
-  Layers,
-  Package,
-  ShieldCheck,
-  Wrench,
-  Paintbrush,
-  Zap,
-  Droplet,
-} from "lucide-react";
-import type { CatalogItem } from "@/lib/services/catalog";
+import { Search, MapPin, ChevronDown } from "lucide-react";
+import type { CatalogItem, listRooms } from "@/lib/services/catalog";
 import type { Category } from "@/prisma/generated/client/client";
-import type { RecentlyViewedItem } from "@/components/shop/recently-viewed";
-import { MobileHeader } from "./mobile-header";
-import { MobileSearchBar } from "./mobile-search-bar";
-import { MobileProductCard } from "./mobile-product-card";
-import { triggerHaptic } from "@/lib/native/haptics";
+import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { ShopByRoom } from "@/components/mobile/home/shop-by-room";
 import { formatPaise } from "@/lib/money";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { CategoryTile } from "@/components/categories/category-tile";
+import type { DirectoryGroup } from "@/lib/category-directory";
+import { HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/mobile/home/home-lead";
+import { useCart } from "@/hooks/use-cart";
+import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
+import { HeroBanners } from "@/components/merchandising/hero-banners";
+import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
+import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
+import type { DealProduct } from "@/lib/merchandising/deal";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const CATEGORY_ICONS: Record<string, React.ComponentType<any>> = {
-  adhesives: Layers,
-  cement: Package,
-  waterproofing: ShieldCheck,
-  tools: Wrench,
-  painting: Paintbrush,
-  electrical: Zap,
-  plumbing: Droplet,
-};
+/**
+ * The phone-web home screen.
+ *
+ * Two compositions, chosen as the app chooses (`mobile/src/lib/first-run.ts`):
+ * a customer with order history gets `Main`'s lead — "Order again" from their
+ * own orders, then the category grid (W-07). Everybody else, including anybody
+ * signed out and anybody while the answer is loading, gets `HomeFirstRun`.
+ * `Main`'s saved lists and "running low at this site" are not drawn: there is
+ * no saved-list model, and the consumption estimate behind "roughly 6 left" is
+ * unconfirmed in the placeholder register. `HomeHomeowner` is not built on web.
+ *
+ * The page itself stays one cached page for everyone; the customer's facts are
+ * fetched here, after it renders (`actions/home.ts`).
+ *
+ * Everything on screen comes from real catalog data or from fixed copy in the
+ * artboard. No price, delivery time or stock figure is invented here.
+ */
 
-function getCategoryIcon(slug: string) {
-  return CATEGORY_ICONS[slug] || HelpCircle;
-}
-
-interface HomeBanner {
-  id: string;
-  title: string;
-  subtitle: string;
-  badge: string;
-  href: string;
-  bgGradient: string;
-}
-
-const HERO_BANNERS: HomeBanner[] = [
-  {
-    id: "express-delivery",
-    title: "60-Min Site Delivery",
-    subtitle: "Cement, tools, and adhesives straight to your jobsite.",
-    badge: "FASTEST DELIVERY",
-    href: "/categories",
-    bgGradient: "bg-gradient-to-r from-amber-500 to-orange-600",
-  },
-  {
-    id: "bulk-savings",
-    title: "Contractor Bulk Pricing",
-    subtitle: "Save up to 15% extra on pallet & truckload orders.",
-    badge: "BULK SAVINGS",
-    href: "/category/cement",
-    bgGradient: "bg-gradient-to-r from-blue-600 to-indigo-700",
-  },
-  {
-    id: "gst-invoicing",
-    title: "Get 18% GST Input Credit",
-    subtitle: "Enter your GSTIN at checkout for instant formal tax invoices.",
-    badge: "BUSINESS BENEFITS",
-    href: "/account",
-    bgGradient: "bg-gradient-to-r from-emerald-600 to-teal-700",
-  },
-];
 
 interface MobileHomeViewProps {
   deals: CatalogItem[];
   featured: CatalogItem[];
   newArrivals: CatalogItem[];
   categories: Category[];
+  rooms: Awaited<ReturnType<typeof listRooms>>;
+  /** Active category slug → catalogue name; merchandising links only to these. */
+  categoryNames?: Record<string, string>;
+  /** The configured Deal of the Day's product, or null. */
+  dealProduct?: DealProduct | null;
+  /** Injected for tests; the app uses the server action. */
+  loadFacts?: () => Promise<MyHomeFacts>;
+  /** The department directory (lib/category-directory.ts). */
+  directory?: DirectoryGroup[];
 }
 
-export function MobileHomeView({ deals, featured, newArrivals, categories }: MobileHomeViewProps) {
-  const router = useRouter();
-  const [refreshing, setRefreshing] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const [lastViewed, setLastViewed] = useState<RecentlyViewedItem | null>(null);
-
-  // Pull to refresh gesture states
-  const [pullY, setPullY] = useState(0);
-  const [isPulling, setIsPulling] = useState(false);
-  const startY = useRef(0);
-  const [, startTransition] = useTransition();
-
+export function MobileHomeView({
+  featured,
+  rooms,
+  categoryNames = {},
+  dealProduct = null,
+  loadFacts = getMyHomeFacts,
+  directory = [],
+}: MobileHomeViewProps) {
+  const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
+  const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
+  /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
+  const [facts, setFacts] = useState<MyHomeFacts | null>(null);
   useEffect(() => {
-    setMounted(true);
-    // Load last viewed product from local storage
-    try {
-      const raw = localStorage.getItem("ve_recently_viewed_items");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && parsed.length > 0) {
-          setLastViewed(parsed[0]);
-        }
-      }
-    } catch {}
-  }, []);
+    let live = true;
+    loadFacts()
+      .then((f) => live && setFacts(f))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [loadFacts]);
+  const returning = (facts?.historyCount ?? 0) > 0;
 
-  const getGreeting = () => {
-    const hrs = new Date().getHours();
-    if (hrs < 12) return "Good morning 👋";
-    if (hrs < 17) return "Good afternoon ☀️";
-    return "Good evening 🌙";
-  };
-
-  const handleRefresh = () => {
-    triggerHaptic("medium");
-    setRefreshing(true);
-    setPullY(0);
-
-    startTransition(async () => {
-      router.refresh();
-      // Reload last viewed product
-      try {
-        const raw = localStorage.getItem("ve_recently_viewed_items");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed && parsed.length > 0) {
-            setLastViewed(parsed[0]);
-          }
-        }
-      } catch {}
-      setTimeout(() => {
-        setRefreshing(false);
-        triggerHaptic("light");
-      }, 1000);
-    });
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (window.scrollY === 0 && !refreshing) {
-      startY.current = e.touches[0].clientY;
-      setIsPulling(true);
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isPulling) return;
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - startY.current;
-    if (diff > 0) {
-      // Dragging down: apply elastic scaling
-      setPullY(Math.min(diff * 0.4, 80));
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsPulling(false);
-    if (pullY > 55) {
-      handleRefresh();
-    } else {
-      setPullY(0);
-    }
-  };
-
-  if (!mounted) return <HomeSkeleton />;
+  // The artboard shows two. More would push the nav off a 852px frame.
+  const popular = featured.slice(0, 2);
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className="relative flex flex-col min-h-screen bg-surface pb-24 overflow-x-hidden"
-    >
-      {/* Pull-to-refresh spinner */}
-      <div
-        className="absolute left-0 right-0 z-20 flex items-center justify-center pointer-events-none transition-all duration-150"
-        style={{
-          top: `${pullY - 44}px`,
-          opacity: pullY > 15 ? 1 : 0,
-        }}
-      >
-        <div className="flex size-9 items-center justify-center rounded-full bg-white shadow-md text-brand-deep">
-          <RefreshCw className={`size-4 ${refreshing || pullY > 55 ? "animate-spin text-brand" : ""}`} />
-        </div>
-      </div>
+    <div className="flex flex-col bg-canvas">
+      {/* Reserved safe area — the OS draws its status bar here. */}
+      <div className="h-[59px] flex-none" />
 
-      {/* Sticky Mobile Header */}
-      <MobileHeader hasNotifications={true} />
-
-      {/* Greeting Section */}
-      <div className="px-4 pt-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-base font-extrabold text-ink leading-tight">{getGreeting()}</h1>
-          <p className="text-xs text-ink/50 mt-0.5">Quick site delivery for all materials</p>
-        </div>
+      {/* Site chip, search, notifications */}
+      <div className="flex items-center gap-[9px] px-4 pt-1.5">
         <button
-          onClick={handleRefresh}
-          className={`flex size-8 items-center justify-center rounded-full bg-mist/20 text-ink transition-transform ${
-            refreshing ? "animate-spin text-brand-deep" : "hover:bg-mist/30"
-          }`}
-          title="Refresh Feed"
+          type="button"
+          onClick={openLocationModal}
+          className="flex h-10 min-w-0 flex-1 items-center justify-between rounded-full bg-paper py-0 pl-3.5 pr-2 shadow-card"
         >
-          <RefreshCw className="size-3.5" />
+          <span className="flex min-w-0 items-center gap-2">
+            <MapPin className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
+            <span className="truncate text-[13px] font-bold tracking-[-0.01em] text-ink">
+              {hasChosenLocation ? (
+                <>
+                  <span className="font-semibold text-ink-500">Deliver to </span>
+                  {locationLabel}
+                </>
+              ) : (
+                "Where should we deliver?"
+              )}
+            </span>
+          </span>
+          <ChevronDown className="size-4 flex-none text-ink-500" strokeWidth={1.7} aria-hidden />
         </button>
+
+        <Link
+          href="/search"
+          aria-label="Search"
+          className="flex size-[38px] flex-none items-center justify-center rounded-full bg-paper text-ink no-underline shadow-card"
+        >
+          <Search className="size-[19px]" strokeWidth={1.7} aria-hidden />
+        </Link>
+        <NotificationsBell />
       </div>
 
-      {/* Search Bar Shortcut */}
-      <MobileSearchBar />
+      {/* The page heading, for assistive tech; the banners carry the message. */}
+      <h1 className="sr-only">Vertical Express — building materials in Srinagar</h1>
 
-      {/* Dynamic Continue Shopping Card */}
-      {lastViewed && (
-        <div className="px-4 py-1">
-          <Link
-            href={`/product/${lastViewed.slug}`}
-            onClick={() => triggerHaptic("light")}
-            className="flex items-center gap-3 rounded-2xl border border-brand/40 bg-brand/5 p-3 shadow-xs transition-transform active:scale-[0.98]"
-          >
-            <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-white border border-mist/20">
-              {lastViewed.imageUrl ? (
-                <Image
-                  src={lastViewed.imageUrl}
-                  alt={lastViewed.title}
-                  fill
-                  className="object-contain p-1"
-                  sizes="48px"
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-[10px] text-ink/30">No Image</div>
-              )}
+      {/* Campaign banners (lib/merchandising/home.ts), above everything else. */}
+      <div className="px-4 pt-3.5">
+        <HeroBanners compact />
+      </div>
+
+      {returning && <HomeSearchPill />}
+
+      {/* A returning customer's own reorders still lead; a first-run customer's
+          first-order card follows the merchandising below. */}
+      {returning && (
+        <OrderAgainRail
+          items={facts?.orderAgain ?? []}
+          totalOrders={facts?.totalOrders ?? 0}
+          onAdd={orderingOpen ? (item) => void addItem(item.variantId, 1, item.title) : undefined}
+        />
+      )}
+
+      {/* Shop by category: the departments, material ones first (lib/category-directory.ts). */}
+      {directory.length > 0 ? (
+        <section aria-labelledby="home-categories" className="px-4 pt-5">
+          <div className="flex items-baseline justify-between">
+            <h2 id="home-categories" className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+              Shop by category
+            </h2>
+            {/* 14px of text is too small a target (W-25); the padding makes it
+                32px and the negative margin keeps the row where it was. */}
+            <Link
+              href="/categories"
+              className="-mx-2 -my-[9px] inline-flex min-h-8 items-center px-2 text-[11px] font-bold leading-[14px] text-ink no-underline"
+            >
+              See all
+            </Link>
+          </div>
+          {directory.map((group) => (
+            <div key={group.key} className="pt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-[13px] font-bold tracking-[-0.01em] text-ink-700">{group.title}</h3>
+                <Link
+                  href={`/categories#${group.key}`}
+                  aria-label={`View all ${group.title}`}
+                  className="-mx-2 -my-[9px] inline-flex min-h-8 flex-none items-center px-2 text-[11px] font-bold text-ink-500 no-underline"
+                >
+                  View all
+                </Link>
+              </div>
+              <ul className="mt-2.5 grid grid-cols-4 gap-x-2 gap-y-3">
+                {group.categories.map((entry) => (
+                  <li key={entry.slug}>
+                    <CategoryTile entry={entry} className="[&>span:last-child]:text-[11px] [&>span:last-child]:leading-[13px]" />
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="flex-1 min-w-0">
-              <span className="inline-block rounded-full bg-brand-deep/10 px-2 py-0.5 text-[8px] font-extrabold uppercase text-brand-deep leading-none">
-                Continue Shopping
-              </span>
-              <h4 className="truncate text-xs font-bold text-ink mt-0.5 leading-tight">{lastViewed.title}</h4>
-              <p className="text-[10px] text-ink/50 leading-none mt-1">
-                {lastViewed.brandName} • {formatPaise(lastViewed.pricePaise)}
-              </p>
-            </div>
-            <ArrowRight className="size-3.5 text-brand-deep shrink-0 mr-1" />
-          </Link>
+          ))}
+        </section>
+      ) : null}
+
+      <TrendingSrinagar categoryNames={categoryNames} compact />
+
+      <DealOfTheDay product={dealProduct} compact />
+
+      {/*
+        The homeowner's entry point, above the trade taxonomy.
+
+        Order matters and is the artboard's, not arbitrary: somebody redoing a
+        bathroom does not know they need Tiling and Sanitary & Bath, so the room
+        comes before the trade grid. A contractor scrolls straight past it.
+      */}
+      {!returning && <ShopByRoom rooms={rooms} />}
+
+      {/* Popular — real catalog data */}
+      {!returning && popular.length > 0 && (
+        <div className="px-4 pt-5">
+          <h2 className="text-[17px] font-bold leading-[21px] tracking-[-0.018em] text-ink">
+            Popular in Srinagar this week
+          </h2>
+          <div className="mt-[11px] grid grid-cols-2 gap-2.5">
+            {popular.map((item) => (
+              <Link
+                key={item.id}
+                href={`/product/${item.slug}`}
+                className="rounded-[20px] bg-paper p-2 no-underline shadow-card"
+              >
+                {!isGenericPlaceholder(item.imageUrl) ? (
+                  <div className={cn("flex h-24 w-full items-center justify-center overflow-hidden rounded-[18px]", PRODUCT_PHOTO_SURFACE)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.imageUrl ?? ""} alt="" className={PRODUCT_PHOTO} />
+                  </div>
+                ) : (
+                  <ProductPanel categorySlug={item.categorySlug} label={item.title} className="h-24 w-full rounded-[18px]" />
+                )}
+                <div className="mt-[9px] text-[9.5px] font-bold uppercase leading-3 tracking-[0.09em] text-ink-500">
+                  {item.brandName}
+                </div>
+                <div className="mt-[3px] line-clamp-2 h-[34px] overflow-hidden text-[13px] font-bold leading-[17px] tracking-[-0.01em] text-ink">
+                  {item.title}
+                </div>
+                <div className="mt-0.5 text-[14.5px] font-extrabold tabular-nums tracking-[-0.02em] text-ink">
+                  {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Hero Banners Carousel */}
-      <div className="px-4 py-3">
-        <div className="scrollbar-hide flex gap-3 overflow-x-auto snap-x snap-mandatory">
-          {HERO_BANNERS.map((b) => (
-            <Link
-              key={b.id}
-              href={b.href}
-              onClick={() => triggerHaptic("light")}
-              className={`snap-center relative min-w-[280px] max-w-[300px] flex-1 rounded-3xl p-5 text-white shadow-card transition-transform active:scale-[0.98] ${b.bgGradient}`}
-            >
-              <span className="inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider backdrop-blur-xs">
-                {b.badge}
-              </span>
-              <h2 className="mt-2 text-base font-extrabold leading-snug">{b.title}</h2>
-              <p className="mt-1 text-xs opacity-90">{b.subtitle}</p>
-              <div className="mt-4 inline-flex items-center text-xs font-bold underline">
-                Explore Offers <ArrowRight className="ml-1 size-3.5" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Categories Preview */}
-      <div className="py-3">
-        <div className="flex items-center justify-between px-4 mb-2.5">
-          <h2 className="text-sm font-extrabold tracking-tight text-ink uppercase">Top Categories</h2>
-          <Link
-            href="/categories"
-            onClick={() => triggerHaptic("light")}
-            className="flex items-center text-xs font-bold text-brand-deep hover:underline"
-          >
-            View All <ArrowRight className="ml-1 size-3" />
-          </Link>
-        </div>
-
-        <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2">
-          {categories.slice(0, 8).map((cat) => {
-            const Icon = getCategoryIcon(cat.slug);
-            return (
-              <Link
-                key={cat.slug}
-                href={`/category/${cat.slug}`}
-                onClick={() => triggerHaptic("light")}
-                className="flex min-w-[100px] flex-col items-center justify-center rounded-2xl border border-mist/20 bg-surface p-3 text-center shadow-xs transition-transform active:scale-95"
-              >
-                <div className="mb-2 flex size-10 items-center justify-center rounded-xl bg-brand-deep/10 text-brand-deep">
-                  <Icon className="size-5" />
-                </div>
-                <span className="text-xs font-bold text-ink truncate w-full">{cat.name}</span>
-                <span className="text-[9px] text-ink/40 mt-0.5">Explore</span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Product Scroller Feed */}
-      <div className="space-y-4">
-        {/* Hot Deals & Offers */}
-        <ProductSection
-          title="Hot Deals"
-          subtitle="Exclusive discounts on core essentials"
-          items={deals}
-          icon={<Flame className="size-4 text-danger fill-danger" />}
-        />
-
-        {/* Featured Products */}
-        <ProductSection
-          title="Featured Supplies"
-          subtitle="Top rated building products"
-          items={featured}
-          icon={<Sparkles className="size-4 text-brand" />}
-        />
-
-        {/* Best Sellers */}
-        <ProductSection
-          title="Best Sellers"
-          subtitle="Most ordered on-site essentials"
-          items={featured.slice().reverse()} // reversing list to generate seller diversity without extra query
-          icon={<TrendingUp className="size-4 text-emerald-600" />}
-        />
-
-        {/* New Arrivals */}
-        <ProductSection
-          title="New Arrivals"
-          subtitle="Fresh stock and tools catalogs"
-          items={newArrivals}
-          icon={<Clock className="size-4 text-blue-600" />}
-        />
-      </div>
-    </div>
-  );
-}
-
-interface ProductSectionProps {
-  title: string;
-  subtitle?: string;
-  items: CatalogItem[];
-  icon?: React.ReactNode;
-}
-
-function ProductSection({ title, subtitle, items, icon }: ProductSectionProps) {
-  if (!items || items.length === 0) {
-    return (
-      <section className="px-4 py-3">
-        <h2 className="text-sm font-extrabold text-ink uppercase mb-2">{title}</h2>
-        <div className="rounded-2xl border border-dashed border-mist/30 p-8 text-center text-xs text-ink/40">
-          No items found in this section.
-        </div>
-      </section>
-    );
-  }
-
-  return (
-    <section className="py-2.5">
-      <div className="flex items-center justify-between px-4 mb-2.5">
-        <div>
-          <div className="flex items-center gap-1.5">
-            {icon}
-            <h2 className="text-sm font-extrabold tracking-tight text-ink uppercase leading-none">{title}</h2>
-          </div>
-          {subtitle && <p className="text-[10px] text-ink/40 font-semibold mt-1 leading-none">{subtitle}</p>}
-        </div>
-      </div>
-      <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory">
-        {items.map((item) => (
-          <div key={item.id} className="snap-center shrink-0 w-[148px]">
-            <MobileProductCard item={item} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function HomeSkeleton() {
-  return (
-    <div className="flex flex-col min-h-screen bg-surface pb-24 animate-pulse">
-      {/* Header Skeleton */}
-      <div className="flex items-center justify-between border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)]">
-        <div className="flex items-center gap-2">
-          <div className="size-8 rounded-full bg-mist/30" />
-          <div className="space-y-1.5">
-            <div className="h-2.5 w-16 bg-mist/30 rounded-full" />
-            <div className="h-3 w-28 bg-mist/30 rounded-full" />
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="size-9 rounded-full bg-mist/30" />
-          <div className="size-9 rounded-full bg-mist/30" />
-        </div>
-      </div>
-
-      {/* Greeting Skeleton */}
-      <div className="px-4 pt-4 space-y-2">
-        <div className="h-4 w-36 bg-mist/30 rounded-full" />
-        <div className="h-3 w-48 bg-mist/20 rounded-full" />
-      </div>
-
-      {/* Search Bar Skeleton */}
-      <div className="px-4 py-3">
-        <div className="h-10 w-full bg-mist/30 rounded-2xl" />
-      </div>
-
-      {/* Hero Banners Skeleton */}
-      <div className="px-4 py-2">
-        <div className="h-32 w-[280px] bg-mist/30 rounded-3xl" />
-      </div>
-
-      {/* Categories Skeleton */}
-      <div className="py-4 space-y-3">
-        <div className="flex items-center justify-between px-4">
-          <div className="h-3.5 w-24 bg-mist/30 rounded-full" />
-          <div className="h-3.5 w-12 bg-mist/20 rounded-full" />
-        </div>
-        <div className="flex gap-3 px-4 overflow-hidden">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="flex min-w-[100px] flex-col items-center justify-center rounded-2xl bg-mist/20 p-4 space-y-2">
-              <div className="size-10 rounded-xl bg-mist/30" />
-              <div className="h-2.5 w-14 bg-mist/30 rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Products Scroller Skeleton */}
-      <div className="py-4 space-y-3">
-        <div className="px-4">
-          <div className="h-3.5 w-32 bg-mist/30 rounded-full" />
-        </div>
-        <div className="flex gap-3 px-4 overflow-hidden">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="w-[148px] h-52 rounded-2xl bg-mist/20 p-3 space-y-3">
-              <div className="aspect-square w-full rounded-xl bg-mist/30" />
-              <div className="h-2.5 w-20 bg-mist/30 rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* The shell wrapper already reserves nav clearance (pb-24). */}
+      <div className="h-5 flex-none" />
     </div>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned-address-notice";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -14,14 +16,33 @@ import {
   Building,
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { formatPaise } from "@/lib/money";
+import { CheckoutSummaryLines } from "@/components/shop/checkout/summary-lines";
 import { triggerHaptic } from "@/lib/native/haptics";
 import type { AddressFormValues } from "@/components/account/address-form";
 import { saveAddress, removeAddress } from "@/actions/address";
 import { getCheckoutTotals, placeOrder, confirmRazorpayPayment, validateCoupon } from "@/actions/checkout";
+import { checkPaymentStatus } from "@/actions/orders";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
-import type { CheckoutTotals } from "@/lib/services/checkout";
+import { AddressLocation } from "@/components/location/address-location";
+import { pinnedFromAddress, pinnedFromPlace, placeFromPin, STATE_FROM_PINCODE_NOTE, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
+import { groupCartByShipment } from "@/lib/cart-shipments";
+import { ExpressChoice } from "@/components/shop/checkout/express-choice";
+import { ShipmentReview } from "@/components/shop/checkout/shipment-review";
+import { quoteShort } from "@/lib/order-display";
+import { CodSplitNotice } from "@/components/shop/cod-split-notice";
+import { CouponRevisedNotice } from "@/components/shop/checkout/coupon-revised-notice";
+import { useCheckoutAddressSelection } from "@/components/shop/use-checkout-address";
+import { DeliveringTo, PinBadge, RequestedAddressMissing } from "@/components/shop/checkout/delivering-to";
+import { QuotePending } from "@/components/mobile/checkout/quote-pending";
+import { useCheckoutQuote, QUOTE_NOT_CURRENT, cartKeyOf } from "@/components/shop/checkout/use-checkout-quote";
+import { unavailableMessage } from "@/lib/checkout-fulfilment";
+import { couponRevisionFromPlaceError, couponRevisionFromQuote, type CouponRevision } from "@/lib/coupon-refusal";
+import { isTotalChangedError } from "@/lib/checkout-errors";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
+import type { PaymentStateName } from "@/lib/payment-status-copy";
 
 interface MobileCheckoutViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -44,19 +65,28 @@ const generateUUID = () => {
 
 export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutViewProps) {
   const router = useRouter();
-  const { refresh } = useCart();
+  const { summary, refresh } = useCart();
 
   // Local state for address lists
   const [addresses, setAddresses] = useState(initialAddresses);
-  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
-    initialAddresses.find((a) => a.isDefault)?.id || initialAddresses[0]?.id || null
-  );
+  /* One rule with the desktop layout, kept in `?address=`: this used to start
+     on the default whatever the URL said, so coming back from adding an address
+     dropped it, and a reload or a switch to the desktop layout reset the pick
+     (use-checkout-address.ts). */
+  const { addressId: chosenAddressId, select: selectAddress, requestedMissing } = useCheckoutAddressSelection(addresses);
+  const selectedAddressId = chosenAddressId || null;
+  const setSelectedAddressId = (id: string | null) => selectAddress(id ?? "");
 
   // Totals & Placing states
-  const [totals, setTotals] = useState<CheckoutTotals | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /* Set when Checkout closed or its callback could not be verified: the server
+     (checkPaymentStatus) says what happened, never the browser. */
+  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const rzOpen = useRef(false); // one Razorpay window at a time
   const [placing, startPlacing] = useTransition();
-  const [loadingTotals, setLoadingTotals] = useState(false);
+  /* E8: bumped when placement is refused because the cart moved, so the quote
+     is asked again even if the lines on screen look the same. */
+  const [requote, setRequote] = useState(0);
 
   // Address Editor states
   const [isAddressFormOpen, setIsAddressFormOpen] = useState(false);
@@ -68,49 +98,102 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     line1: "",
     line2: "",
     landmark: "",
-    city: "Srinagar",
-    state: "Jammu & Kashmir",
-    pincode: "190001",
+    city: "",
+    state: "",
+    pincode: "",
     isDefault: false,
   });
   const [addressFormError, setAddressFormError] = useState<string | null>(null);
   const [savingAddress, startSavingAddress] = useTransition();
 
+  /* Asked for only when the account has none — a phone sign-in carries no
+     email, and the confirmation has nowhere to go without one. */
+  const [contactEmail, setContactEmail] = useState("");
+
   // Coupons states
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
   const [couponMsg, setCouponMsg] = useState<{ text: string; success: boolean } | null>(null);
+  /* E6: a coupon that stopped qualifying — shown until the customer acts again. */
+  const [couponRevision, setCouponRevision] = useState<CouponRevision | null>(null);
+  const shownTotalRef = useRef<number | null>(null);
 
   // Payments states
-  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
+  const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("online");
+  /* The express choice (W-B1-G1) — the desktop checkout's question. Re-priced
+     on change because the fee is part of what is owed; the server re-resolves
+     whether express is on offer when the order is placed. */
+  const [wantsExpress, setWantsExpress] = useState(false);
 
   // Idempotency key stable for retry
   const idempotencyKey = useRef<string>(generateUUID());
 
   const selected = addresses.find((a) => a.id === selectedAddressId);
+  const { pincode: chosenPincode, city: chosenCity, place: chosenPlace } = useDeliveryPincode();
+  /* The map half of the address (see lib/location/address-pin.ts); `manual` is the no-map escape hatch. */
+  const [pinned, setPinned] = useState<PinnedLocation | null>(null);
+  const [manual, setManual] = useState(false);
+  /* A new pin re-fills city and state from the new place; the customer can still correct them. */
+  const choosePin = (pin: PinnedLocation | null) => {
+    setPinned(pin);
+    if (pin) setAddressForm((prev) => ({ ...prev, ...placeFromPin(pin) }));
+  };
 
-  // Sync / Recalculate totals on address selection changes
-  useEffect(() => {
-    if (!selected) {
-      setTotals(null);
-      return;
+  /* ISS-081: `totals` answers exactly the address, coupon and delivery choice
+     on screen, or is null — the moment any of them changes, until the server
+     answers the new ones. With no current totals the bottom bar (amount and
+     button) is not shown, and the Order Summary says why (QuotePending). A
+     slower answer for an earlier choice can never replace a newer one. */
+  const {
+    quote: totals,
+    status: quoteStatus,
+    failure: quoteFailure,
+    canSubmit,
+  } = useCheckoutQuote(
+    {
+      addressId: selectedAddressId,
+      pincode: selected?.pincode ?? null,
+      couponCode: appliedCoupon,
+      wantsExpress,
+      cartKey: `${cartKeyOf(summary.lines)}#${requote}`,
+    },
+    getCheckoutTotals,
+    (fresh, answered) => {
+      /* The total is current again: a "being updated" notice no longer applies. */
+      setError((e) => (e === QUOTE_NOT_CURRENT ? null : e));
+      /* The server re-checked the applied coupon and it no longer qualifies
+         (e.g. the basket changed): these totals are without it. Say so and
+         stop sending it, rather than keep showing "applied". */
+      const revised = couponRevisionFromQuote(fresh, answered.couponCode, shownTotalRef.current);
+      if (revised) {
+        setCouponRevision(revised);
+        setAppliedCoupon(null);
+        setCouponMsg(null);
+      }
+      /* COD is the default; when the server refuses it here, online is the
+         only method that can place the order — otherwise the main button
+         reads "Confirm COD Order" and can only fail. */
+      if (!fresh.codAllowed) setPaymentMethod((m) => (m === "cod" ? "online" : m));
     }
-    setLoadingTotals(true);
-    setError(null);
+  );
+  /* The warehouse serving this address can supply every line (shared rule, lib/checkout-fulfilment). */
+  const stockMessage = unavailableMessage(totals, selected?.pincode);
 
-    getCheckoutTotals(selected.pincode, appliedCoupon || undefined)
-      .then((res) => {
-        if (res.ok) {
-          setTotals(res.data);
-        } else {
-          setError(res.error.message);
-        }
-      })
-      .finally(() => {
-        setLoadingTotals(false);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAddressId, appliedCoupon]);
+  /* The same split the cart shows and the order is placed with — one rule, in
+     lib/shipment-plan.ts, including the express run the current quote grants
+     (E7). Used by the COD option to say how many drivers the customer will
+     actually be paying. */
+  const standardShipments = groupCartByShipment(summary.lines);
+  const shipments = groupCartByShipment(summary.lines, totals?.expressChosen ? totals.express.eligibleVariantIds : []);
+
+  /* A new choice clears the last placement error, as re-quoting always did. */
+  useEffect(() => {
+    setError(null);
+  }, [selectedAddressId, appliedCoupon, wantsExpress]);
+
+  useEffect(() => {
+    if (totals) shownTotalRef.current = totals.totalPaise;
+  }, [totals]);
 
   // Load Razorpay script
   const loadRazorpayScript = (): Promise<void> => {
@@ -128,8 +211,13 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   // Launch Razorpay gateway window
   const openRazorpay = async (
     orderNo: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
+      return;
+    }
     try {
       await loadRazorpayScript();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -145,8 +233,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         currency: "INR",
         name: "Vertical Express",
         order_id: rzp.orderId,
+        /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+        ...(timeout !== null ? { timeout } : {}),
         prefill: { email: email ?? undefined },
-        theme: { color: "#efc41a" },
+        theme: { color: "#EDAF1C" },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async (response: any) => {
           triggerHaptic("medium");
@@ -157,8 +247,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             signature: response.razorpay_signature,
           });
 
+          rzOpen.current = false;
           if (!confirm.ok) {
-            setError(confirm.error.message);
+            setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
             return;
           }
           await refresh();
@@ -166,12 +257,14 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         },
         modal: {
           ondismiss: () => {
-            setError("Payment was cancelled. Your order is pending payment.");
+            rzOpen.current = false;
+            setPaymentCheck({ orderNo, initial: null });
           },
         },
       };
 
       const rz = new Razorpay(options);
+      rzOpen.current = true;
       rz.open();
     } catch {
       setError("Payment system load failed. Try placing again.");
@@ -180,13 +273,20 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
   // place order handler
   const handlePlaceOrder = () => {
+    if (stockMessage) return;
     setError(null);
+    setCouponRevision(null);
     if (!selectedAddressId) {
       setError("Please select a delivery address");
       return;
     }
+    /* The button is hidden or disabled then too; this holds even if pressed anyway. */
+    if (!canSubmit) {
+      setError(QUOTE_NOT_CURRENT);
+      return;
+    }
     if (paymentMethod === "cod" && totals && !totals.codAllowed) {
-      setError("COD isn't available for this delivery zone");
+      setError("Cash on delivery isn't available right now");
       return;
     }
 
@@ -196,14 +296,53 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
         addressId: selectedAddressId,
         paymentMethod,
         idempotencyKey: idempotencyKey.current,
+        /* This screen applies a coupon and shows the discounted total, and
+           then placed the order without it — so the customer saw one price
+           and was charged another. That is ISS-011, which was fixed on the
+           desktop view and left here, on the surface this market actually
+           uses. The server re-validates the code; the client is still never
+           trusted for the discount itself. */
+        couponCode: appliedCoupon,
+        wantsExpress,
+        /* Nothing reaches a phone-only customer otherwise: no account email,
+           and no SMS channel yet. */
+        contactEmail: email ? null : contactEmail.trim() || null,
+        /* E8: checked, never charged — refused if the cart moved since this quote. */
+        expectedTotalPaise: totals?.totalPaise,
       });
 
       if (!res.ok) {
+        /* E6: the coupon no longer qualifies. Nothing was placed or charged.
+           Drop it and re-quote — the bottom bar disappears until the fresh
+           total is back, so nothing can be placed at the old figure — then show
+           old vs new and wait for the customer to press the button again. */
+        const revision = couponRevisionFromPlaceError(res.error, totals?.totalPaise ?? null);
+        if (revision && appliedCoupon) {
+          setCouponRevision(revision);
+          setAppliedCoupon(null);
+          setCouponCode("");
+          setCouponMsg(null);
+          return;
+        }
+        /* E8: the cart changed elsewhere (another tab, a sign-in merge, stock)
+           since this total. Nothing was placed. Re-read the cart and re-quote;
+           the bottom bar is hidden until the new total is back. */
+        if (isTotalChangedError(res.error)) {
+          setError(res.error.message);
+          setRequote((n) => n + 1);
+          await refresh();
+          return;
+        }
         setError(res.error.message);
         return;
       }
 
       // If Razorpay gateway returned details, open online payment overlay
+      /* A replay whose payment may already be on its way: no Checkout, no confirmation. */
+      if (!res.data.razorpay && res.data.paymentState && res.data.paymentState !== "unpaid" && res.data.paymentState !== "failed") {
+        setPaymentCheck({ orderNo: res.data.orderNo, initial: res.data.paymentState });
+        return;
+      }
       if (res.data.razorpay?.orderId && res.data.razorpay.keyId) {
         await openRazorpay(res.data.orderNo, res.data.razorpay);
         return;
@@ -220,6 +359,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     e.preventDefault();
     if (!couponCode.trim() || !selected) return;
     setCouponMsg(null);
+    setCouponRevision(null);
     triggerHaptic("light");
 
     const res = await validateCoupon(couponCode.trim(), selected.pincode);
@@ -228,7 +368,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       return;
     }
 
-    setTotals(res.data);
+    /* Only validated here: the total comes from the quote for the new inputs
+       (which also carries the delivery choice — this answer does not). */
     setAppliedCoupon(couponCode.trim());
     setCouponMsg({ text: "Coupon applied successfully!", success: true });
     setCouponCode("");
@@ -244,6 +385,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   // Address Sheets triggers
   const openAddAddressSheet = () => {
     triggerHaptic("light");
+    const startPin = pinnedFromPlace(chosenPlace, chosenPincode, chosenCity);
     setAddressFormError(null);
     setEditingAddressId(null);
     setAddressForm({
@@ -253,15 +395,21 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       line1: "",
       line2: "",
       landmark: "",
-      city: "Srinagar",
-      state: "Jammu & Kashmir",
-      pincode: selected?.pincode || "190001",
+      city: placeFromPin(startPin).city ?? "",
+      state: placeFromPin(startPin).state ?? "",
+      /* Never a pincode the customer did not give us (W-13): their selected
+         site's, else the one they confirmed for delivery, else empty. */
+      pincode: selected?.pincode || chosenPincode || "",
       isDefault: false,
     });
+    setPinned(startPin);
+    setManual(false);
     setIsAddressFormOpen(true);
   };
 
-  const openEditAddressSheet = (addr: AddressFormValues & { id: string }) => {
+  /* `pinFirst`: from "Add a map pin" — open on the location picker even for an
+     address saved without coordinates (which otherwise opens in manual mode). */
+  const openEditAddressSheet = (addr: AddressFormValues & { id: string }, opts: { pinFirst?: boolean } = {}) => {
     triggerHaptic("light");
     setAddressFormError(null);
     setEditingAddressId(addr.id);
@@ -272,11 +420,15 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       line1: addr.line1,
       line2: addr.line2 || "",
       landmark: addr.landmark || "",
+      accessNote: addr.accessNote || "",
       city: addr.city,
       state: addr.state,
       pincode: addr.pincode,
       isDefault: addr.isDefault,
     });
+    const pin = pinnedFromAddress(addr);
+    setPinned(pin);
+    setManual(pin === null && !opts.pinFirst);
     setIsAddressFormOpen(true);
   };
 
@@ -284,14 +436,19 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
     e.preventDefault();
     setAddressFormError(null);
 
-    if (addressForm.pincode.length !== 6) {
+    if (!manual && !pinned) {
+      setAddressFormError("Set the delivery location first, or enter the address without the map.");
+      return;
+    }
+    if (manual && addressForm.pincode.length !== 6) {
       setAddressFormError("Please enter a valid 6-digit pincode");
       return;
     }
+    const payload = manual || !pinned ? { ...addressForm, latitude: null, longitude: null, placeId: null } : withPinnedLocation(addressForm, pinned);
 
     triggerHaptic("medium");
     startSavingAddress(async () => {
-      const res = await saveAddress(addressForm, editingAddressId || undefined);
+      const res = await saveAddress(payload, editingAddressId || undefined);
       if (!res.ok) {
         setAddressFormError(res.error.message);
         return;
@@ -301,7 +458,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
       // Next.js server actions revalidatePath('/checkout') updates route, but we sync locally to avoid reload latency
       const savedAddress = {
         id: res.data.id,
-        ...addressForm,
+        ...payload,
       };
 
       setAddresses((prev) => {
@@ -312,7 +469,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           updated = [...prev, savedAddress];
         }
         // Sync default states
-        if (addressForm.isDefault) {
+        if (payload.isDefault) {
           updated = updated.map((a) => (a.id === savedAddress.id ? a : { ...a, isDefault: false }));
         }
         return updated;
@@ -336,7 +493,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   };
 
   return (
-    <div className="relative flex flex-col min-h-screen bg-surface pb-36 overflow-x-hidden">
+    /* pb-52: room for the fixed pay bar, which now also says where the order
+       goes; at pb-36 the last section could sit under it on a small phone. */
+    <div className="relative flex flex-col min-h-screen bg-surface pb-52 overflow-x-hidden">
       {/* Sticky Native Header */}
       <div className="native-header sticky top-0 z-30 flex items-center gap-3 border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)] backdrop-blur-md shadow-xs">
         <button
@@ -344,6 +503,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             triggerHaptic("light");
             router.back();
           }}
+          aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
         >
           <ArrowLeft className="size-4.5" />
@@ -353,10 +513,52 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
       <div className="p-4 space-y-4">
         {/* Error Banner */}
+        {paymentCheck && (
+          <PaymentStatusNotice
+            key={paymentCheck.orderNo}
+            orderNo={paymentCheck.orderNo}
+            check={checkPaymentStatus}
+            initialState={paymentCheck.initial}
+            onPaid={() => {
+              void refresh();
+              router.push(`/checkout/confirmation/${paymentCheck.orderNo}`);
+            }}
+            onPay={() => router.push(`/account/orders/${paymentCheck.orderNo}`)}
+            orderHref={`/account/orders/${paymentCheck.orderNo}`}
+          />
+        )}
         {error && (
-          <div className="flex items-center gap-2 rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
+          <div role="alert" className="flex items-center gap-2 rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             <AlertCircle className="size-4.5 shrink-0" />
             <span>{error}</span>
+          </div>
+        )}
+
+        {/* Without this a phone-only customer places an order and hears nothing
+            back: the account has no email, and there is no SMS channel yet.
+            Optional — an order must never be blocked on it. */}
+        {!email && (
+          <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
+            <label
+              htmlFor="m-contact-email"
+              className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40"
+            >
+              Email for your receipt <span className="text-ink/30">(optional)</span>
+            </label>
+            <input
+              id="m-contact-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder="you@example.com"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className="mt-2 h-11 w-full rounded-xl border border-mist/30 bg-white px-3 text-sm font-semibold text-ink outline-none focus-visible:ring-2 focus-visible:ring-ink"
+            />
+            <p className="mt-2 text-[10px] font-semibold leading-[14px] text-ink/45">
+              We do not send SMS yet. Leave it blank and your order is still placed — you will
+              find it under My Orders.
+            </p>
           </div>
         )}
 
@@ -379,15 +581,27 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               No addresses saved. Add an address to continue.
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2" role="radiogroup" aria-label="Delivery address">
+              {requestedMissing && <RequestedAddressMissing />}
               {addresses.map((addr) => {
                 const isSelected = selectedAddressId === addr.id;
+                const choose = () => {
+                  triggerHaptic("light");
+                  setSelectedAddressId(addr.id);
+                };
                 return (
                   <div
                     key={addr.id}
-                    onClick={() => {
-                      triggerHaptic("light");
-                      setSelectedAddressId(addr.id);
+                    role="radio"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onClick={choose}
+                    onKeyDown={(e) => {
+                      if (e.target !== e.currentTarget) return;
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        choose();
+                      }
                     }}
                     className={cn(
                       "rounded-2xl border p-4 flex gap-3 text-left transition-all active:scale-[0.99]",
@@ -416,6 +630,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                         <br />
                         Phone: {addr.phone}
                       </p>
+                      <PinBadge address={addr} className="mt-1.5" />
                       <div className="flex gap-3 mt-3 pt-3 border-t border-mist/10">
                         <button
                           onClick={(e) => {
@@ -442,9 +657,44 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               })}
             </div>
           )}
+          {selected && !hasMapPin(selected) && (
+            <UnpinnedAddressNotice
+              action={
+                <button type="button" onClick={() => openEditAddressSheet(selected, { pinFirst: true })} className="font-bold underline underline-offset-2">
+                  Add a map pin
+                </button>
+              }
+            />
+          )}
         </div>
 
-        {/* Coupons experience */}
+        {/* How fast, then how it travels — the desktop checkout's steps 2 and
+            3, which the phone never had (W-B1-G1). Same components, same words. */}
+        {selected && totals && (
+          <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
+            <h3 className="mb-3 text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
+              How fast
+            </h3>
+            <ExpressChoice
+              express={totals.express}
+              wantsExpress={wantsExpress}
+              onChange={setWantsExpress}
+              lineCount={summary.lines.length}
+              standardShipments={standardShipments.length}
+            />
+          </div>
+        )}
+
+        {shipments.length > 0 && (
+          <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs">
+            <h3 className="mb-3 text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
+              Your shipments
+            </h3>
+            <ShipmentReview shipments={shipments} />
+          </div>
+        )}
+
+                {/* Coupons experience */}
         {selected && (
           <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs space-y-3">
             <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
@@ -471,6 +721,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 <input
                   type="text"
                   placeholder="Enter Coupon (e.g. FLAT10)"
+                  aria-label="Coupon code"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                   className="flex-1 rounded-xl border border-mist/20 bg-surface p-3 text-xs font-bold text-ink outline-none focus:border-brand-deep placeholder:text-ink/30"
@@ -486,11 +737,15 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             )}
 
             {couponMsg && (
-              <p className={cn("text-[10px] font-bold", couponMsg.success ? "text-emerald-600" : "text-danger")}>
+              <p className={cn("text-[10px] font-bold", couponMsg.success ? "text-ink" : "text-ink-700")}>
                 {couponMsg.text}
               </p>
             )}
           </div>
+        )}
+
+        {stockMessage && (
+          <p role="alert" className="rounded-2xl border border-danger/30 bg-white p-4 text-xs font-bold text-danger">{stockMessage}</p>
         )}
 
         {/* Payment Methods */}
@@ -502,6 +757,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             <div className="space-y-2">
               {/* Online Payment */}
               <button
+                type="button"
+                aria-pressed={paymentMethod === "online"}
                 onClick={() => {
                   triggerHaptic("light");
                   setPaymentMethod("online");
@@ -519,7 +776,9 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               </button>
 
               {/* COD */}
-              <button
+              {totals.codAllowed && <button
+                type="button"
+                aria-pressed={paymentMethod === "cod"}
                 onClick={() => {
                   if (!totals.codAllowed) return;
                   triggerHaptic("light");
@@ -538,11 +797,19 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   <span>Pay on Delivery (Cash / UPI)</span>
                 </div>
                 {paymentMethod === "cod" && <Check className="size-4 text-brand-deep" />}
-              </button>
+              </button>}
+
+              {/* Two shipments means two drivers and two separate cash
+                  handovers, a day apart. Saying so is the difference between a
+                  buyer having the right money at the gate and a delivery being
+                  refused. Shared with the web checkout. */}
+              {paymentMethod === "cod" && totals?.codAllowed && (
+                <CodSplitNotice shipments={shipments} />
+              )}
             </div>
             {!totals.codAllowed && (
               <span className="text-[9px] text-danger font-bold mt-1 block">
-                Cash on delivery is disabled for this delivery pincode
+                Cash on delivery isn&apos;t available right now
               </span>
             )}
           </div>
@@ -555,49 +822,26 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               Order Summary
             </h3>
 
-            {loadingTotals ? (
-              <div className="flex items-center justify-center py-6 gap-2">
-                <Loader2 className="size-4 animate-spin text-brand-deep" />
-                <span className="text-xs font-semibold text-ink/50">Calculating totals...</span>
-              </div>
-            ) : totals ? (
+            {!totals ? (
+              <QuotePending loading={quoteStatus === "loading"} failure={quoteFailure} revision={couponRevision} />
+            ) : (
               <>
                 <dl className="space-y-2 text-xs font-bold">
-                  {/* Subtotal */}
-                  <div className="flex justify-between text-ink/70">
-                    <dt>Subtotal</dt>
-                    <dd>{formatPaise(totals.subtotalPaise)}</dd>
-                  </div>
-
-                  {/* GST */}
-                  {totals.taxPaise > 0 && (
-                    <div className="flex justify-between text-ink/70">
-                      <dt>GST (18% inclusive)</dt>
-                      <dd>{formatPaise(totals.taxPaise)}</dd>
-                    </div>
-                  )}
-
-                  {/* Discount */}
-                  {totals.discountPaise > 0 && (
-                    <div className="flex justify-between text-emerald-600">
-                      <dt>Coupon Discount</dt>
-                      <dd>-{formatPaise(totals.discountPaise)}</dd>
-                    </div>
-                  )}
-
-                  {/* Delivery Fee */}
-                  <div className="flex justify-between text-ink/70">
-                    <dt>Delivery Charges</dt>
-                    <dd className={totals.deliveryFeePaise === 0 ? "text-emerald-600" : ""}>
-                      {totals.deliveryFeePaise === 0 ? "FREE" : formatPaise(totals.deliveryFeePaise)}
-                    </dd>
-                  </div>
+                  {/* Subtotal, discount, GST (included), delivery — from the
+                      server's totals, shared with desktop (summary-lines.tsx).
+                      This used to print the taxable value as "Subtotal", call
+                      the GST "included", and subtract the coupon a second time. */}
+                  <CheckoutSummaryLines totals={totals} variant="phone" />
 
                   {/* Delivery Serviceability alert banner */}
                   <div className="border-t border-mist/10 pt-3 flex items-center justify-between text-[11px]">
                     <span className="font-extrabold text-ink/40 uppercase">Delivery ETA</span>
-                    <span className={cn("font-extrabold", totals.serviceable ? "text-emerald-600" : "text-danger")}>
-                      {totals.serviceable ? `ETA ~${totals.etaMinutes} mins` : "Unavailable"}
+                    <span className={cn("font-extrabold", totals.serviceable ? "text-ink" : "text-ink-700")}>
+                      {/* `serviceable` says we deliver here, not that we
+                          promised a time. The pincode quote covers the quick
+                          run only — a truck shipment has no time to state
+                          (quoteShort, lib/order-display). */}
+                      {!totals.serviceable ? "Unavailable" : quoteShort(totals.etaMinutes, shipments)}
                     </span>
                   </div>
                 </dl>
@@ -608,10 +852,6 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                   <span className="text-brand-deep text-base">{formatPaise(totals.totalPaise)}</span>
                 </div>
               </>
-            ) : (
-              <div className="text-center py-4 text-xs font-semibold text-ink/40">
-                Pincode serviceability details unavailable.
-              </div>
             )}
           </div>
         )}
@@ -619,7 +859,14 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
       {/* Sticky Bottom Place Order CTA */}
       {selected && totals && (
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 shadow-2xl">
+          {couponRevision && (
+            <div className="mb-3">
+              <CouponRevisedNotice revision={couponRevision} currentTotalPaise={totals.totalPaise} variant="phone" />
+            </div>
+          )}
+          <DeliveringTo address={selected} className="mb-2.5" />
+          <div className="flex items-center justify-between">
           <div>
             <span className="text-[10px] font-extrabold text-ink/40 uppercase block leading-none">Total Payable</span>
             <span className="text-base font-extrabold text-ink mt-1.5 block leading-none">
@@ -629,7 +876,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
           <button
             onClick={handlePlaceOrder}
-            disabled={placing || !totals.serviceable}
+            disabled={placing || !canSubmit || stockMessage !== null}
             className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md hover:opacity-95 active:scale-98 disabled:opacity-50"
           >
             {placing ? (
@@ -640,6 +887,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               "Confirm COD Order"
             )}
           </button>
+          </div>
         </div>
       )}
 
@@ -653,6 +901,23 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           {addressFormError && (
             <div className="rounded-xl bg-danger/10 p-3 text-xs font-bold text-danger">
               {addressFormError}
+            </div>
+          )}
+
+          {/* Delivery location — the map half of the address */}
+          {manual ? (
+            <p className="text-xs font-semibold text-ink/70">
+              Entering the address by hand — the driver won&apos;t have a map pin.{" "}
+              <button type="button" onClick={() => setManual(false)} className="font-bold text-ink underline underline-offset-2">
+                Use the map instead
+              </button>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <AddressLocation value={pinned} onChange={choosePin} />
+              <button type="button" onClick={() => setManual(true)} className="text-[11px] font-bold text-ink/50 underline underline-offset-2">
+                Can&apos;t find it? Enter the address without the map
+              </button>
             </div>
           )}
 
@@ -715,7 +980,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
           {/* Address Line 1 */}
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
-              Address Line 1 (Flat, Plot, Site No.)
+              House / flat / floor
             </label>
             <input
               type="text"
@@ -727,7 +992,8 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             />
           </div>
 
-          {/* Address Line 2 */}
+          {/* Street / area — from the map pin unless typed by hand */}
+          {manual ? (
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
               Address Line 2 (Street, Area)
@@ -740,8 +1006,36 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
               className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
             />
           </div>
+          ) : null}
 
-          {/* Landmark & Pincode */}
+          {/* City and state: pre-filled from the pin when it has them, always the customer's to correct — never assumed. */}
+          <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="address-city" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">City</label>
+                  <input
+                    id="address-city"
+                    type="text"
+                    required
+                    value={addressForm.city}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, city: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="address-state" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">State</label>
+                  <input
+                    id="address-state"
+                    type="text"
+                    required
+                    value={addressForm.state}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, state: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+          </div>
+          <p className="text-[10px] font-semibold text-ink/50">{STATE_FROM_PINCODE_NOTE}</p>
+
+          {/* Landmark, delivery instructions, and the pincode when typed by hand */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
@@ -755,6 +1049,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            {manual ? (
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
                 Pincode
@@ -769,6 +1064,21 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
+              Delivery instructions (optional)
+            </label>
+            <input
+              type="text"
+              maxLength={240}
+              value={addressForm.accessNote ?? ""}
+              onChange={(e) => setAddressForm((f) => ({ ...f, accessNote: e.target.value }))}
+              placeholder="e.g. Truck can reach the rear gate"
+              className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+            />
           </div>
 
           {/* Default Address Checkbox */}

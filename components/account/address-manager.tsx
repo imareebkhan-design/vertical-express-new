@@ -1,20 +1,30 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Check, MapPin, Pencil, Plus, Trash2 } from "lucide-react";
 import { removeAddress, makeDefaultAddress } from "@/actions/address";
 import { Button } from "@/components/ui/button";
 import { AddressForm, type AddressFormValues } from "@/components/account/address-form";
+import { safeNextPath } from "@/lib/safe-next";
+import { returnWithAddress } from "@/lib/checkout-address";
 
 type Address = AddressFormValues & { id: string };
 
 export function AddressManager({ addresses }: { addresses: Address[] }) {
   const router = useRouter();
-  const [mode, setMode] = useState<"list" | "add" | string>("list"); // string = editing id
+  const params = useSearchParams();
+  /* Arriving from checkout ("Add a delivery address"): open the form, and go back there once it is saved. */
+  const returnTo = params.get("next") ? safeNextPath(params.get("next"), "") || null : null;
+  const [mode, setMode] = useState<"list" | "add" | string>(params.get("add") === "1" ? "add" : "list"); // string = editing id
   const [, startTransition] = useTransition();
 
-  const done = () => {
+  const done = (id: string) => {
+    if (returnTo) {
+      /* Back to checkout with the new address selected, not the old default. */
+      router.push(returnWithAddress(returnTo, id));
+      return;
+    }
     setMode("list");
     router.refresh();
   };
@@ -45,11 +55,11 @@ export function AddressManager({ addresses }: { addresses: Address[] }) {
               className="relative rounded-card border border-hairline-border bg-white p-4 shadow-card"
             >
               <div className="mb-2 flex items-center gap-2">
-                <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase capitalize text-neutral-600">
+                <span className="rounded-full bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase capitalize text-neutral-600">
                   {a.label}
                 </span>
                 {a.isDefault && (
-                  <span className="inline-flex items-center gap-1 rounded-md bg-brand/20 px-2 py-0.5 text-[11px] font-extrabold uppercase text-brand-deep">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-brand/20 px-2 py-0.5 text-[11px] font-extrabold uppercase text-brand-deep">
                     <Check className="size-3" /> Default
                   </span>
                 )}

@@ -1,5 +1,6 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -7,6 +8,7 @@ import { Loader2, Search } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import type { SearchSuggestions } from "@/lib/services/search";
 import { cn } from "@/lib/utils";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 const EMPTY: SearchSuggestions = { products: [], categories: [], brands: [] };
 
@@ -67,31 +69,34 @@ export function SearchBox({ className }: { className?: string }) {
 
   return (
     <div ref={boxRef} className={cn("relative", className)}>
-      <form role="search" onSubmit={submit}>
+      <form role="search" onSubmit={submit} className="relative flex items-center">
         <Search
-          className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-neutral-400"
+          className="pointer-events-none absolute left-4.5 size-4 text-ink-500"
           aria-hidden
         />
         <input
           type="search"
-          placeholder="Search cement, wires, hinges, paint…"
+          placeholder="Search cement, wire, tiles, fittings…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
-          className="h-11 w-full rounded-full border border-neutral-200 bg-surface pl-11 pr-4 text-sm transition-all duration-200 placeholder:text-neutral-400 focus:border-brand focus:bg-white focus:shadow-card focus:outline-none"
+          className="h-[46px] w-full rounded-full bg-chip-soft pl-11 pr-12 text-[13px] font-medium text-ink transition-all placeholder:text-ink-500 focus:bg-paper focus:shadow-card focus:outline-none"
           aria-label="Search products"
           autoComplete="off"
         />
+        <span className="pointer-events-none absolute right-4 hidden rounded-[8px] bg-paper px-2 py-0.5 text-[11px] font-semibold text-ink-500 shadow-xs sm:inline-block">
+          /
+        </span>
         {loading && (
-          <Loader2 className="absolute right-4 top-1/2 size-4 -translate-y-1/2 animate-spin text-neutral-400" />
+          <Loader2 className="absolute right-10 size-4 animate-spin text-ink-500" />
         )}
       </form>
 
       {open && query.trim().length >= 2 && (
-        <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-neutral-100 bg-white shadow-card-hover">
+        <div className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-panel border border-line bg-white shadow-card-hover">
           {!hasResults && !loading && (
             <p className="px-4 py-6 text-center text-sm font-semibold text-neutral-500">
               No matches for “{query}”. Press Enter to search anyway.
@@ -108,7 +113,7 @@ export function SearchBox({ className }: { className?: string }) {
                   key={c.slug}
                   href={`/category/${c.slug}`}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-2 py-2 text-sm font-bold text-neutral-700 hover:bg-surface"
+                  className="block rounded-full px-2 py-2 text-sm font-bold text-neutral-700 hover:bg-surface"
                 >
                   {c.name}
                 </Link>
@@ -126,19 +131,21 @@ export function SearchBox({ className }: { className?: string }) {
                   key={p.slug}
                   href={`/product/${p.slug}`}
                   onClick={() => setOpen(false)}
-                  className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface"
+                  className="flex items-center gap-3 rounded-full px-2 py-2 hover:bg-surface"
                 >
-                  <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg bg-tile">
+                  <span className={cn("grid size-10 shrink-0 place-items-center overflow-hidden rounded-chip", p.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
                     {p.imageUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.imageUrl} alt="" className="size-full object-contain p-1" />
+                      <img src={p.imageUrl} alt="" className={PRODUCT_PHOTO} />
                     )}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold text-ink">{p.title}</span>
                     <span className="block text-xs font-semibold text-neutral-400">{p.brandName}</span>
                   </span>
-                  <span className="text-sm font-extrabold">{formatPaise(p.pricePaise)}</span>
+                  <span className="text-sm font-extrabold">
+                    {p.pricePaise == null ? <span className="text-xs text-ink-500">{PRICE_ON_REQUEST_LABEL}</span> : formatPaise(p.pricePaise)}
+                  </span>
                 </Link>
               ))}
             </div>

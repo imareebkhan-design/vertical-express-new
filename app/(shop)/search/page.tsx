@@ -1,10 +1,15 @@
 import type { Metadata } from "next";
-import { listProducts, type CatalogSort } from "@/lib/services/catalog";
+import {
+  listProducts,
+  brandsForSearchEntry,
+  closestInStock,
+  type CatalogSort,
+} from "@/lib/services/catalog";
 import { rupeesToPaise } from "@/lib/money";
 import { SearchSwitcher } from "@/components/mobile/search/search-switcher";
 
 export const metadata: Metadata = {
-  title: "Search | Vertical Express",
+  title: "Search",
   robots: { index: false },
 };
 
@@ -23,9 +28,12 @@ export default async function SearchPage({ searchParams }: PageProps) {
 
   // Support comma-separated brands (e.g. brand=slug1,slug2) or multiple query values
   const brandParams = toArray(sp.brand).flatMap(b => b.split(","));
+  /* The shelf a category chip picked (W-17) — the app's `category` parameter. */
+  const category = typeof sp.category === "string" && sp.category ? sp.category : null;
 
   const result = await listProducts({
     search: query || undefined,
+    categorySlug: query && category ? category : undefined,
     brandSlugs: brandParams.length ? brandParams : undefined,
     minPaise: sp.minPrice ? rupeesToPaise(Number(sp.minPrice)) : undefined,
     maxPaise: sp.maxPrice ? rupeesToPaise(Number(sp.maxPrice)) : undefined,
@@ -36,11 +44,25 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const activeFilterCount =
     brandParams.length + (sp.minPrice ? 1 : 0) + (sp.maxPrice ? 1 : 0);
 
+  /* Both are resolved on the server so the client view never has to fetch to
+     fill its own empty states. "Closest" is only computed when there is
+     actually nothing to show — it costs a query per word, and running it
+     behind a full results page would be work nobody sees. */
+  const [brands, closest] = await Promise.all([
+    brandsForSearchEntry(),
+    query && result.items.length === 0
+      ? closestInStock(query)
+      : Promise.resolve({ items: [], matchedOn: [] }),
+  ]);
+
   return (
     <SearchSwitcher
       query={query}
+      category={query ? category : null}
       result={result}
       activeFilterCount={activeFilterCount}
+      brands={brands}
+      closest={closest}
     />
   );
 }

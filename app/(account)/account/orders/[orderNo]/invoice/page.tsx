@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { Printer } from "lucide-react";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { getOrderByNo, type OrderAddressSnapshot } from "@/lib/services/orders";
 import { formatPaise } from "@/lib/money";
 import { Logo } from "@/components/ui/logo";
-import { Button } from "@/components/ui/button";
+import { db } from "@/lib/db";
+import { summaryPayment, summaryTotals } from "@/lib/order-summary";
+import { PrintInvoiceButton } from "@/components/account/print-invoice-button";
 
+/* The body of this page stopped calling itself a tax invoice in 677d08a; the
+   title did not, and the title is the half that gets printed. Browsers put
+   document.title in the header of a printed page, and this page exists to be
+   printed — so a customer pressing Print still got a sheet headed "Tax Invoice"
+   above a paragraph explaining that it is not one. */
 export const metadata: Metadata = {
-  title: "Tax Invoice | Vertical Express",
+  title: "Order Summary",
   robots: { index: false },
 };
 
@@ -25,43 +31,12 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
   // Backwards compatibility check
   const hasSnapshots = order.items.every((item) => item.subtotalPaise !== null);
 
-  let cgstPaise = 0;
-  let sgstPaise = 0;
-  let igstPaise = 0;
-  let taxPaise = order.taxPaise;
-  let ratePct = 18;
-  let intraState = true;
-
-  if (hasSnapshots) {
-    order.items.forEach((item) => {
-      cgstPaise += item.cgstPaise ?? 0;
-      sgstPaise += item.sgstPaise ?? 0;
-      igstPaise += item.igstPaise ?? 0;
-    });
-    intraState = igstPaise === 0;
-    ratePct = order.subtotalPaise > 0 ? Math.round((taxPaise * 100) / order.subtotalPaise) : 18;
-  } else {
-    // Old exclusive math fallback (since computeGst has become inclusive, compute old exclusive values)
-    const taxableBase = Math.max(0, order.subtotalPaise - order.discountPaise);
-    const computedTax = Math.round(taxableBase * 0.18);
-    taxPaise = computedTax;
-    intraState = addr.state ? (addr.state.toLowerCase().includes("jammu") || addr.state.toLowerCase().includes("kashmir") || addr.state.toLowerCase() === "jk") : true;
-    if (intraState) {
-      sgstPaise = Math.floor(computedTax / 2);
-      cgstPaise = computedTax - sgstPaise;
-    } else {
-      igstPaise = computedTax;
-    }
-  }
-
-  const gst = {
-    intraState,
-    ratePct,
-    taxPaise,
-    cgstPaise,
-    sgstPaise,
-    igstPaise,
-  };
+  const totals = summaryTotals(order, hasSnapshots);
+  const payments = await db.payment.findMany({
+    where: { orderId: order.id },
+    select: { status: true, amountPaise: true, refunds: { select: { status: true, amountPaise: true } } },
+  });
+  const paymentText = summaryPayment(order.paymentMethod, payments);
 
   return (
     <div className="min-h-screen bg-neutral-100 py-8 px-4 font-sans print:bg-white print:p-0">
@@ -70,35 +45,42 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
         <a href={`/account/orders/${order.orderNo}`} className="text-xs font-bold text-neutral-600 hover:text-ink">
           ← Back to Order Details
         </a>
-        <Button onClick={() => undefined} className="flex items-center gap-2" id="print-btn">
-          <Printer className="size-4" /> Print / Download PDF
-        </Button>
-
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `document.getElementById('print-btn')?.addEventListener('click', function() { window.print(); });`,
-          }}
-        />
+        <PrintInvoiceButton className="flex items-center gap-2" />
       </div>
 
       {/* Invoice Document */}
       <main className="mx-auto max-w-3xl rounded-card border border-hairline-border bg-white p-8 shadow-card print:border-none print:shadow-none print:p-0">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-neutral-200 pb-6">
+          {/*
+            This document used to badge itself TAX INVOICE, number itself
+            INV-<order no>, and print "Vertical Express Pvt Ltd, Commercial Hub,
+            Lal Chowk, Srinagar" as a registered entity.
+
+            None of that was true. A GST tax invoice must carry the supplier's
+            GSTIN, an HSN code per line and the place of supply, and this
+            carries none of them — /admin/invoices says so plainly, and the FAQ
+            in lib/content.ts already tells customers "we are not issuing a GST
+            invoice". The company name and address appeared nowhere else in the
+            codebase; they were invented here, and the terms page lists exactly
+            those fields as "[to be confirmed]".
+
+            So a customer was being handed a fabricated legal entity on a
+            document claiming a statutory status it does not have, and could
+            reasonably have filed it. It is an order summary, and says so.
+          */}
           <div>
             <Logo variant="horizontal" className="h-10" />
             <p className="mt-2 text-xs font-semibold text-neutral-500">
-              Vertical Express Pvt Ltd<br />
-              Commercial Hub, Lal Chowk, Srinagar, J&K — 190001<br />
-              GSTIN: 01AABCV1234F1Z0 | Support: care@verticalexpress.in
+              Vertical Express — Srinagar, Jammu &amp; Kashmir<br />
+              Support: info@verticalexpress.in
             </p>
           </div>
           <div className="text-right">
-            <span className="inline-block rounded-md bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
-              TAX INVOICE
-            </span>
-            <p className="mt-2 text-xs font-extrabold text-ink">Invoice #: INV-{order.orderNo}</p>
-            <p className="text-xs font-semibold text-neutral-500">Order #: {order.orderNo}</p>
+            <h1 className="inline-block rounded-full bg-brand-deep px-3 py-1 text-xs font-extrabold uppercase tracking-widest text-brand">
+              ORDER SUMMARY
+            </h1>
+            <p className="mt-2 text-xs font-extrabold text-ink">Order #: {order.orderNo}</p>
             <p className="text-xs font-semibold text-neutral-500">
               Date: {new Date(order.placedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
             </p>
@@ -122,7 +104,7 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
               Method: {order.paymentMethod === "cod" ? "Pay on Delivery (COD)" : "Online Payment"}
             </p>
             <p className="font-semibold text-neutral-600">
-              Status: {order.status === "delivered" || order.status === "confirmed" ? "PAID / AUTHORIZED" : order.status.toUpperCase()}
+              Status: {paymentText}
             </p>
           </div>
         </div>
@@ -164,37 +146,14 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
         {/* Totals Summary */}
         <div className="mt-6 flex justify-end border-t border-neutral-200 pt-4">
           <dl className="w-64 space-y-1.5 text-xs font-semibold">
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Subtotal</dt>
-              <dd className="font-extrabold text-ink">{formatPaise(order.subtotalPaise)}</dd>
-            </div>
-            {order.discountPaise > 0 && (
-              <div className="flex justify-between text-success">
-                <dt>Discount</dt>
-                <dd>-{formatPaise(order.discountPaise)}</dd>
+            {totals.lines.map(line => (
+              <div key={line.label} className="flex justify-between">
+                <dt className="text-neutral-500">{line.label}</dt>
+                <dd>{line.value}</dd>
               </div>
-            )}
-            {!gst.intraState ? (
-              <div className="flex justify-between">
-                <dt className="text-neutral-500">IGST ({gst.ratePct}%)</dt>
-                <dd>{formatPaise(gst.taxPaise)}</dd>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">CGST ({(gst.ratePct / 2).toFixed(1)}%)</dt>
-                  <dd>{formatPaise(gst.cgstPaise)}</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-neutral-500">SGST ({(gst.ratePct / 2).toFixed(1)}%)</dt>
-                  <dd>{formatPaise(gst.sgstPaise)}</dd>
-                </div>
-              </>
-            )}
-            <div className="flex justify-between">
-              <dt className="text-neutral-500">Delivery Fee</dt>
-              <dd>{order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}</dd>
-            </div>
+            ))}
+            {totals.discountNote && <div className="text-success">{totals.discountNote}</div>}
+            {totals.note && <div>{totals.note}</div>}
             <div className="flex justify-between border-t-2 border-neutral-200 pt-2 text-sm font-extrabold text-ink">
               <dt>Total (Incl. Taxes)</dt>
               <dd>{formatPaise(order.totalPaise)}</dd>
@@ -204,7 +163,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ orderN
 
         {/* Footer Note */}
         <div className="mt-12 border-t border-neutral-200 pt-4 text-center text-[11px] font-semibold text-neutral-400">
-          <p>Thank you for shopping with Vertical Express! This is a computer-generated tax invoice.</p>
+          <p>Thank you for shopping with Vertical Express.</p>
+          {/* Says what the document is not, because the tax breakup above makes
+              it look like something it is not. The figures are real — a
+              per-line snapshot taken at order time — but a GST tax invoice
+              needs a supplier GSTIN, an HSN code per line and the place of
+              supply, and none of those exists yet. */}
+          <p className="mt-1">
+            This is an order summary, not a GST tax invoice. Amounts are shown from the stored order record. A tax invoice will be issued separately once GST registration
+            is in place.
+          </p>
         </div>
       </main>
     </div>

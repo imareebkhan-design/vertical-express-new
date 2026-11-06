@@ -22,7 +22,7 @@ export function ServiceCard({ service }: { service: ServiceCategory }) {
         onClick={() => setOpen(true)}
         className="group flex h-full cursor-pointer flex-col rounded-card border border-neutral-100 bg-white p-5 shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:p-6"
       >
-        <span className="mb-4 grid size-14 place-items-center rounded-2xl bg-tile transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110">
+        <span className="mb-4 grid size-14 place-items-center rounded-panel bg-tile transition-transform duration-300 ease-[var(--ease-brand)] group-hover:scale-110">
           <Icon className="size-7 text-neutral-700" strokeWidth={1.6} aria-hidden />
         </span>
 
@@ -31,7 +31,7 @@ export function ServiceCard({ service }: { service: ServiceCategory }) {
 
         <ul className="mt-3 flex flex-wrap gap-1.5">
           {service.items.map((item) => (
-            <li key={item} className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-bold text-neutral-600">
+            <li key={item} className="rounded-chip bg-surface px-2 py-0.5 text-[11px] font-bold text-neutral-600">
               {item}
             </li>
           ))}

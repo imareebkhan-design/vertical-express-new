@@ -1,23 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { ProductGallery } from "@/components/shop/product-gallery";
 import { PdpActions } from "@/components/shop/pdp-actions";
+import { PdpPromises } from "@/components/shop/pdp-promises";
+import { speedClassFor } from "@/components/ui/speed-chip";
 import { PincodeCheck } from "@/components/shop/pincode-check";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/recently-viewed";
 import { PageLoader } from "@/components/page-loader";
-import { ChevronRight, ShieldCheck, Truck, Wallet } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { paiseToRupees } from "@/lib/money";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 // Mobile Components
 import { MobileProductView } from "@/components/mobile/product/mobile-product-view";
@@ -25,22 +27,21 @@ import { MobileProductView } from "@/components/mobile/product/mobile-product-vi
 interface ProductSwitcherProps {
   product: ProductDetail;
   related: CatalogItem[];
+  /** Order co-occurrence, not category. Empty until orders exist. */
+  boughtWith: CatalogItem[];
 }
 
-export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
+export function ProductSwitcher({ product, related, boughtWith }: ProductSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
+  const orderingOpen = useOrderingOpen();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
-    return <MobileProductView product={product} related={related} />;
+  if (isMobile) {
+    return <MobileProductView product={product} related={related} boughtWith={boughtWith} />;
   }
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
@@ -61,17 +62,39 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
           },
         }
       : {}),
-    offers: {
-      "@type": "Offer",
-      priceCurrency: "INR",
-      price: paiseToRupees(defaultVariant?.pricePaise ?? 0),
-      availability: "https://schema.org/InStock",
-    },
+    /* `availability` was the string "https://schema.org/InStock", hardcoded, on
+       every product. Structured data is a claim to a search engine that shows
+       up beside the result as "In stock", and this one was independent of the
+       inventory table — it stayed InStock through a sell-out. The PDP had no
+       stock data to state it from, because getProductBySlug never fetched the
+       inventory rows; it does now, so the claim follows the stock.
+
+       An offer with no default variant states no price and no availability
+       rather than ₹0 and in stock. */
+    offers: defaultVariant
+      ? {
+          "@type": "Offer",
+          priceCurrency: "INR",
+          price: paiseToRupees(defaultVariant.pricePaise),
+          availability: defaultVariant.inStock
+            ? "https://schema.org/InStock"
+            : "https://schema.org/OutOfStock",
+        }
+      : undefined,
   };
+
+  /* Up to four attributes, in the order the record lists them, joined the way
+     the design sets a spec line. */
+  const specLine = [
+    ...product.specs.slice(0, 4).map((sp) => sp.value),
+    // A catalog-only product's unit is a schema default, not a confirmed selling unit.
+    product.purchasable ? product.unitLabel : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
         <script
@@ -90,39 +113,51 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
         </nav>
 
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-12">
-          <ProductGallery images={product.images} title={product.title} />
+          <ProductGallery
+            images={product.images}
+            title={product.title}
+            categorySlug={product.categorySlug}
+          />
 
           <div>
+            {/* Brand is a plain uppercase eyebrow — never a mark, never amber. */}
             <Link
               href={`/category/${product.categorySlug}`}
-              className="text-xs font-extrabold uppercase tracking-widest text-brand-deep hover:underline"
+              className="text-[9.5px] font-bold uppercase leading-3 tracking-[0.09em] text-ink-500 no-underline hover:text-ink"
             >
               {product.brandName}
             </Link>
-            <h1 className="mt-1 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+            <h1 className="mt-1.5 text-[28px] font-extrabold leading-[34px] tracking-[-0.025em] sm:text-[31px] sm:leading-9">
               {product.title}
             </h1>
+
+            {/* Spec line: the grade and pack a buyer compares on, from the
+                product's own attributes. Nothing is composed that the record
+                does not already carry. */}
+            {specLine && (
+              <p className="mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+                {specLine}
+              </p>
+            )}
 
             <div className="mt-6">
               <PdpActions product={product} />
             </div>
 
-            <div className="mt-6">
-              <PincodeCheck defaultPincode="190001" />
-            </div>
+            {/* Dispatch, returns and the delivery check describe buying it;
+                a catalog-only product — or any product in catalogue mode — cannot be bought yet. */}
+            {product.purchasable && orderingOpen && (
+              <>
+                <PdpPromises
+                  speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+                  categorySlug={product.categorySlug}
+                />
 
-            <div className="mt-6 grid grid-cols-3 gap-3 text-center">
-              {[
-                { icon: Truck, label: "60-min delivery" },
-                { icon: Wallet, label: "Pay on delivery" },
-                { icon: ShieldCheck, label: "Genuine brands" },
-              ].map(({ icon: Icon, label }) => (
-                <div key={label} className="rounded-card bg-surface/60 p-3">
-                  {React.createElement(Icon, { className: "mx-auto size-5 text-brand-deep", strokeWidth: 1.8, "aria-hidden": true })}
-                  <p className="mt-1 text-[11px] font-bold text-neutral-600">{label}</p>
+                <div className="mt-6">
+                  <PincodeCheck speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)} />
                 </div>
-              ))}
-            </div>
+              </>
+            )}
 
             {product.description && (
               <div className="mt-8">
@@ -153,6 +188,17 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
           </div>
         </div>
 
+        {/* Bought with this comes first: what somebody else needed alongside
+            this is a better answer than more of the same shelf. */}
+        {boughtWith.length > 0 && (
+          <section aria-label="Bought with this" className="mt-16">
+            <h2 className="mb-6 text-xl font-extrabold tracking-tight sm:text-2xl">
+              Bought with this
+            </h2>
+            <CatalogGrid items={boughtWith} />
+          </section>
+        )}
+
         {related.length > 0 && (
           <section aria-label="Related products" className="mt-16">
             <h2 className="mb-6 text-xl font-extrabold tracking-tight sm:text-2xl">
@@ -163,18 +209,24 @@ export function ProductSwitcher({ product, related }: ProductSwitcherProps) {
         )}
 
         <RecentlyViewedSection currentSlug={product.slug} />
-        <RecentlyViewedTracker
-          item={{
-            slug: product.slug,
-            title: product.title,
-            imageUrl: product.images[0]?.url ?? null,
-            pricePaise: defaultVariant?.pricePaise ?? 0,
-            brandName: product.brandName,
-          }}
-        />
+        {/* Same `?? 0` as the structured data had, on a surface that persists:
+            the recently-viewed strip stores its item in localStorage and renders
+            formatPaise(pricePaise), so a product with no active variant followed
+            the customer around the site priced at ₹0. A product we cannot price
+            is not recorded rather than recorded at zero. */}
+        {defaultVariant && (
+          <RecentlyViewedTracker
+            item={{
+              slug: product.slug,
+              title: product.title,
+              imageUrl: product.images[0]?.url ?? null,
+              pricePaise: defaultVariant.pricePaise,
+              brandName: product.brandName,
+            }}
+          />
+        )}
       </main>
       <Footer />
-      <FloatingCart />
     </>
   );
 }

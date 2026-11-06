@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
@@ -11,7 +13,6 @@ import {
   Scan,
   X,
   History,
-  Sparkles,
   SlidersHorizontal,
   Loader2,
   AlertCircle,
@@ -24,17 +25,30 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import type { CatalogResult } from "@/lib/services/catalog";
 import type { SearchSuggestions } from "@/lib/services/search";
 import { MobileProductCard } from "../home/mobile-product-card";
+import { SearchCategoryChips } from "@/components/shop/search-category-chips";
+import { searchCategoryHref } from "@/lib/search-url";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { formatPaise } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 interface MobileSearchViewProps {
   initialQuery: string;
   initialResult: CatalogResult;
+  /** The shelf a category chip picked (`?category=`), or null. */
+  category?: string | null;
+  /** Active brands that have something published behind them. */
+  brands: { slug: string; name: string; count: number }[];
+  /** Products matching part of the query, when the query itself found nothing. */
+  closest: { items: CatalogResult["items"]; matchedOn: string[] };
 }
 
-const POPULAR_SEARCHES = ["Cement", "Adhesives", "Waterproofing", "Tools", "Paint"];
-
-export function MobileSearchView({ initialQuery, initialResult }: MobileSearchViewProps) {
+export function MobileSearchView({
+  initialQuery,
+  initialResult,
+  category = null,
+  brands,
+  closest,
+}: MobileSearchViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -55,7 +69,12 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
   
   // Filter bottom sheet state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sort, setSort] = useState(searchParams.get("sort") || "popular");
+  const [sort, setSort] = useState(
+    /* "Popularity" sorted by a rating count nothing writes (ISS-034), so it
+       was newest-first presented as a ranking — desktop dropped it (sort-select).
+       Old ?sort=popular links still work and land on newest. */
+    !searchParams.get("sort") || searchParams.get("sort") === "popular" ? "newest" : (searchParams.get("sort") as string)
+  );
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
     searchParams.getAll("brand").flatMap(b => b.split(","))
   );
@@ -122,7 +141,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
       // Build search params
       const params = new URLSearchParams();
       params.set("q", term);
-      if (sort !== "popular") params.set("sort", sort);
+      if (sort !== "newest") params.set("sort", sort);
       if (selectedBrands.length) params.set("brand", selectedBrands.join(","));
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
@@ -228,17 +247,20 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
     startSearching(() => {
       const params = new URLSearchParams();
       if (query) params.set("q", query);
-      if (sort !== "popular") params.set("sort", sort);
+      if (sort !== "newest") params.set("sort", sort);
       if (selectedBrands.length) params.set("brand", selectedBrands.join(","));
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
+      /* Filters narrow the picked shelf, not replace it. A new query (above)
+         does drop it — shelves belong to a query, as in the app. */
+      if (category) params.set("category", category);
       router.push(`/search?${params.toString()}`);
     });
   };
 
   const resetFilters = () => {
     triggerHaptic("light");
-    setSort("popular");
+    setSort("newest");
     setSelectedBrands([]);
     setMinPrice("");
     setMaxPrice("");
@@ -251,6 +273,8 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
     return true;
   });
 
+  const resultCount = inStockOnly ? displayedItems.length : initialResult.total;
+
   const activeFilterCount =
     selectedBrands.length +
     (minPrice ? 1 : 0) +
@@ -259,6 +283,10 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
 
   return (
     <div className="flex flex-col min-h-screen bg-surface pb-24 overflow-x-hidden">
+      {/* The page's heading, for screen readers — the query is already visible
+          in the search box, so it is not repeated on screen. Same wording as
+          the desktop layout's visible h1. */}
+      <h1 className="sr-only">{initialQuery ? <>Results for “{initialQuery}”</> : "Search"}</h1>
       {/* Search Header */}
       <div className="native-header sticky top-0 z-30 flex items-center gap-2 border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)] backdrop-blur-md shadow-xs">
         {initialQuery && (
@@ -268,6 +296,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
               router.push("/search");
               setQuery("");
             }}
+            aria-label="Back"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
@@ -290,7 +319,8 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
             }}
             onFocus={() => setShowSuggestions(true)}
             placeholder="Search cement, tools, paint..."
-            className="w-full bg-transparent text-xs font-semibold text-ink outline-none placeholder:text-ink/30"
+            aria-label="Search products"
+            className="w-full bg-transparent py-1 text-xs font-semibold text-ink outline-none placeholder:text-ink/30"
           />
           {query && (
             <button
@@ -300,6 +330,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                 setQuery("");
                 setSuggestions(null);
               }}
+              aria-label="Clear search"
               className="text-ink/40 p-1"
             >
               <X className="size-4" />
@@ -311,6 +342,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
           <button
             type="button"
             onClick={triggerVoiceSearch}
+            aria-label="Search by voice"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
             title="Voice Search"
           >
@@ -319,6 +351,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
           <button
             type="button"
             onClick={triggerBarcodeScan}
+            aria-label="Scan a barcode"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
             title="Barcode Scanner"
           >
@@ -413,13 +446,13 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                               }}
                               className="flex items-center gap-3 border-b border-mist/10 pb-2.5"
                             >
-                              <div className="relative size-10 overflow-hidden rounded-lg bg-surface border border-mist/20">
+                              <div className={cn("relative size-10 overflow-hidden rounded-lg border border-mist/20", p.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-surface")}>
                                 {p.imageUrl ? (
                                   <Image
                                     src={p.imageUrl}
                                     alt={p.title}
                                     fill
-                                    className="object-contain p-1"
+                                    className={PRODUCT_PHOTO}
                                     sizes="40px"
                                   />
                                 ) : (
@@ -429,7 +462,7 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                               <div className="flex-1 min-w-0">
                                 <h4 className="truncate text-xs font-bold text-ink leading-tight">{p.title}</h4>
                                 <p className="text-[9px] text-ink/50 mt-0.5 leading-none">
-                                  {p.brandName} • {formatPaise(p.pricePaise)}
+                                  {p.brandName} • {p.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(p.pricePaise)}
                                 </p>
                               </div>
                             </Link>
@@ -438,11 +471,42 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                       </div>
                     )}
 
+                    {/*
+                      The empty state from artboard 15c.
+
+                      A search that finds nothing is the moment a customer
+                      decides whether this shop is worth coming back to. The
+                      previous version — one grey line reading "No suggestions
+                      found" — treated it as a null result. The artboard treats
+                      it as a conversation: here is why we do not have it, here
+                      is what we do have, and tell us if we should stock it.
+
+                      What is honest to say here: we stock a fixed set of
+                      categories and this is not in them. What is not built is
+                      "Request this item" — there is no model to record a
+                      request against, and a button that swallows the request
+                      silently is worse than not offering it. So the screen
+                      routes to the catalogue instead.
+                    */}
                     {suggestions.products.length === 0 &&
                       suggestions.categories.length === 0 &&
                       suggestions.brands.length === 0 && (
-                        <div className="text-center py-6 text-xs text-ink/40 font-semibold">
-                          No suggestions found. Press search to scan all products.
+                        <div className="py-6 text-center">
+                          <p className="text-[17px] font-extrabold leading-[21px] tracking-[-0.02em] text-ink">
+                            <span className="font-light text-ink-500">Nothing matches</span>
+                            <br />
+                            that yet.
+                          </p>
+                          <p className="mx-auto mt-2.5 max-w-[280px] text-[12px] font-medium leading-[17px] text-ink-700">
+                            We stock a fixed range in Srinagar and this is not in it yet.
+                          </p>
+                          <Link
+                            href="/categories"
+                            onClick={() => triggerHaptic("light")}
+                            className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-[13px] font-bold text-white no-underline"
+                          >
+                            Browse what we stock
+                          </Link>
                         </div>
                       )}
                   </div>
@@ -485,37 +549,64 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                   </div>
                 )}
 
-                {/* popular searches */}
-                <div>
-                  <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-3">
-                    Popular Searches
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {POPULAR_SEARCHES.map((term) => (
-                      <button
-                        key={term}
-                        onClick={() => {
-                          setQuery(term);
-                          handleSearchSubmit(term);
-                        }}
-                        className="flex items-center gap-1.5 rounded-full border border-mist/35 bg-surface px-4 py-2 text-xs font-bold text-ink hover:border-brand-deep active:scale-95"
-                      >
-                        <Sparkles className="size-3 text-brand-deep" />
-                        {term}
-                      </button>
-                    ))}
+                {/*
+                  "Jump to a brand" — artboard 15b.
+
+                  This replaced a hardcoded list of five terms under the heading
+                  "Popular Searches". Nothing logs a search (ISS-060), so that
+                  heading was a claim about customer behaviour nobody had
+                  measured — the same fabrication as the invented search terms
+                  that were on the reporting screen, pointed at customers
+                  instead of at us.
+
+                  Brands are real, and a better shortcut anyway: a contractor
+                  looking for Havells wire knows the brand before the category.
+                  Only brands with something published behind them are offered,
+                  because a chip that lands on an empty results page reads as
+                  "you stock this" and then proves otherwise.
+
+                  What is still missing is the artboard's "Searched most in
+                  Srinagar". That needs the query log. It is absent rather than
+                  approximated.
+                */}
+                {brands.length > 0 && (
+                  <div>
+                    <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-3">
+                      Jump to a brand
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {brands.map((b) => (
+                        <Link
+                          key={b.slug}
+                          href={`/search?brand=${encodeURIComponent(b.slug)}`}
+                          onClick={() => triggerHaptic("light")}
+                          className="flex items-center gap-1.5 rounded-full border border-mist/35 bg-surface px-4 py-2 text-xs font-bold text-ink no-underline hover:border-brand-deep active:scale-95"
+                        >
+                          {b.name}
+                          <span className="text-[10px] font-semibold text-ink/40">{b.count}</span>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 
             {/* results view */}
             {!showSuggestions && initialQuery && (
               <div className="flex-1 flex flex-col">
+                <SearchCategoryChips
+                  categories={initialResult.facets.categories}
+                  selected={category}
+                  hrefFor={(slug) => searchCategoryHref(new URLSearchParams(searchParams.toString()), slug)}
+                  className="border-b border-mist/10 bg-white px-4 py-3"
+                />
                 {/* Toolbar */}
                 <div className="flex items-center justify-between border-b border-mist/10 bg-white px-4 py-2.5">
                   <span className="text-xs font-extrabold text-ink/60 uppercase">
-                    {displayedItems.length} {displayedItems.length === 1 ? "Result" : "Results"}
+                    {/* The server's total, so it agrees with the category chip that
+                        led here; only the local in-stock switch counts the page. */}
+                    {resultCount} {resultCount === 1 ? "Result" : "Results"}
                   </span>
                   <button
                     onClick={() => {
@@ -537,12 +628,65 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
                     ))}
                   </div>
                 ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white">
-                    <AlertCircle className="size-10 text-ink/30 mb-3" />
-                    <h3 className="text-sm font-extrabold text-ink">No Results Found</h3>
-                    <p className="mt-1 text-xs text-ink/50 max-w-xs leading-relaxed">
-                      We couldn&apos;t find any matches for &apos;{initialQuery}&apos;. Check for typos or try another search.
-                    </p>
+                  /*
+                    "Closest things we do stock" — artboard 15c.
+
+                    Closeness is literal, not a euphemism for popular. The query
+                    is split into words and each tried on its own, so
+                    "waterproof cement paint" finds nothing as a phrase but
+                    "cement" and "paint" both land on real shelves. The heading
+                    names the word that matched, so the customer can see why
+                    these are being offered rather than wondering what the shop
+                    thinks they asked for.
+
+                    When every word misses, nothing is shown. Filling the space
+                    with an unrelated best-seller under the words "closest
+                    things we stock" would be a small lie that wastes the time
+                    of somebody standing on a site.
+                  */
+                  <div className="flex-1 bg-white p-6">
+                    <div className="text-center">
+                      <AlertCircle className="mx-auto size-10 text-ink/30 mb-3" />
+                      <h3 className="text-sm font-extrabold text-ink">
+                        Nothing matches &ldquo;{initialQuery}&rdquo;
+                      </h3>
+                      <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-ink/50">
+                        We stock a fixed range in Srinagar. Check the spelling, or try a
+                        broader word.
+                      </p>
+                    </div>
+
+                    {closest.items.length > 0 ? (
+                      <div className="mt-7">
+                        <h4 className="mb-3 text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
+                          Closest things we do stock
+                          {closest.matchedOn.length > 0 && (
+                            <span className="ml-1.5 normal-case tracking-normal text-ink/30">
+                              matched on {closest.matchedOn.map((w) => `“${w}”`).join(", ")}
+                            </span>
+                          )}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          {closest.items.map((item) => (
+                            <MobileProductCard key={item.id} item={item} />
+                          ))}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-7 text-center">
+                        <p className="mx-auto max-w-[280px] text-[12px] font-medium leading-[17px] text-ink-700">
+                          Nothing close either — no part of that matches anything we
+                          carry.
+                        </p>
+                        <Link
+                          href="/categories"
+                          onClick={() => triggerHaptic("light")}
+                          className="mt-4 inline-flex h-11 items-center rounded-full bg-ink px-5 text-[13px] font-bold text-white no-underline"
+                        >
+                          Browse what we stock
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -645,10 +789,9 @@ export function MobileSearchView({ initialQuery, initialResult }: MobileSearchVi
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: "popular", label: "Popularity" },
+                { id: "newest", label: "Newest Arrivals" },
                 { id: "price_asc", label: "Price: Low to High" },
                 { id: "price_desc", label: "Price: High to Low" },
-                { id: "newest", label: "Newest Arrivals" },
                 { id: "discount", label: "Highest Discount" },
               ].map((s) => (
                 <button

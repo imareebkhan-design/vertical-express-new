@@ -1,0 +1,69 @@
+{
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "verticalexpress.in",
+      "www.verticalexpress.in"
+    ],
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Vertical Express",
+        "supportEmail": "hello@verticalexpress.in"
+      }
+    }
+  },
+  "apphosting": [
+    {
+      "backendId": "ve-staging",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        ".next",
+        ".vercel",
+        ".vercel-old",
+        ".env",
+        ".env.*",
+        "prisma/generated",
+        "mobile-shell",
+        "ios",
+        "android",
+        "supabase/.temp",
+        ".catalog-backups",
+        ".image-backups",
+        ".seo-backups",
+        ".DS_Store",
+        "public/login/xp-*.webp"
+      ]
+    },
+    {
+      "backendId": "ve-production",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        ".next",
+        ".vercel",
+        ".vercel-old",
+        ".env",
+        ".env.*",
+        "prisma/generated",
+        "mobile-shell",
+        "ios",
+        "android",
+        "supabase/.temp",
+        ".catalog-backups",
+        ".image-backups",
+        ".seo-backups",
+        ".DS_Store",
+        "public/login/xp-*.webp"
+      ]
+    }
+  ]
+}

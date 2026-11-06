@@ -110,9 +110,9 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         <div className="flex gap-2">
           <button
             onClick={triggerPrintReport}
-            className="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
+            className="inline-flex items-center rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-bold text-neutral-700 hover:bg-neutral-50 transition-colors"
           >
-            🖨️ PDF / Print
+            PDF / Print
           </button>
           <button
             onClick={() => {
@@ -120,15 +120,15 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               else if (activeTab === "customers") handleExportCustomers();
               else handleExportSales();
             }}
-            className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
+            className="inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
           >
-            📥 Export CSV
+            Export CSV
           </button>
         </div>
       </div>
 
       {/* 2. Filters Accordion / Panel */}
-      <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm print:hidden">
+      <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm print:hidden">
         <h2 className="text-xs font-extrabold uppercase tracking-wider text-neutral-400 mb-4">
           Report Filters
         </h2>
@@ -140,7 +140,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             />
           </div>
           <div className="flex flex-col gap-1">
@@ -149,7 +149,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             />
           </div>
 
@@ -159,7 +159,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={warehouseId}
               onChange={(e) => setWarehouseId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Warehouses</option>
               {initialData.filters.warehouses.map((w) => (
@@ -176,7 +176,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={brandId}
               onChange={(e) => setBrandId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Brands</option>
               {initialData.filters.brands.map((b) => (
@@ -193,7 +193,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Categories</option>
               {initialData.filters.categories.map((c) => (
@@ -210,7 +210,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Methods</option>
               <option value="razorpay">Razorpay</option>
@@ -225,7 +225,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={orderStatus}
               onChange={(e) => setOrderStatus(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Statuses</option>
               <option value="pending_payment">Pending Payment</option>
@@ -243,7 +243,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             <select
               value={customerType}
               onChange={(e) => setCustomerType(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm"
             >
               <option value="">All Customers</option>
               <option value="new">New Customers</option>
@@ -259,7 +259,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               placeholder="e.g. SAVE10"
               value={couponCode}
               onChange={(e) => setCouponCode(e.target.value)}
-              className="rounded-lg border border-neutral-200 px-3 py-1.5 text-sm uppercase"
+              className="rounded-full border border-neutral-200 px-3 py-1.5 text-sm uppercase"
             />
           </div>
 
@@ -267,14 +267,14 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
           <div className="flex items-end gap-2 sm:col-span-3 lg:col-span-1">
             <button
               type="submit"
-              className="flex-1 rounded-lg bg-neutral-900 px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800 transition-colors"
+              className="flex-1 rounded-full bg-neutral-900 px-3 py-2 text-sm font-bold text-white hover:bg-neutral-800 transition-colors"
             >
               Filter
             </button>
             <button
               type="button"
               onClick={handleClearFilters}
-              className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-colors"
+              className="rounded-full border border-neutral-200 px-3 py-2 text-sm font-bold text-neutral-600 hover:bg-neutral-50 transition-colors"
             >
               Reset
             </button>
@@ -310,7 +310,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {/* --- EXECUTIVE TAB --- */}
         {activeTab === "executive" && (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
               <KpiCard
                 label="Gross Sales"
                 value={formatPaise(initialData.sales.grossSalesPaise)}
@@ -336,26 +336,68 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
                 subValue={`${initialData.inventory.outOfStockCount} Out of stock`}
                 color="rose"
               />
+              {/*
+                The artboard leads with fill rate and on-time delivery. Neither
+                could be shown until now, and one of them still cannot be.
+
+                Fill rate needs to know when a picker sent nine of the ten bags
+                ordered, or swapped a brand. Nothing records that — an order is
+                packed or it is not — so the tile says what is missing rather
+                than dividing two numbers that do not mean it.
+
+                On-time delivery is real, but only once somebody says what "on
+                time" is. It used to be measured against 240 minutes written
+                into bi.ts, and an empty week reported 100%.
+              */}
+              <KpiCard
+                label="Fill rate"
+                value="Not measured"
+                subValue="short picks and substitutions are not recorded"
+              />
+              <KpiCard
+                label="On-time delivery"
+                value={
+                  initialData.operations.deliverySlaPct === null
+                    ? "Not measured"
+                    : `${initialData.operations.deliverySlaPct}%`
+                }
+                subValue={
+                  initialData.operations.deliverySlaMinutes === null
+                    ? "set a delivery target in Settings"
+                    : `within ${initialData.operations.deliverySlaMinutes} min of packing`
+                }
+                color="violet"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
-                <h3 className="text-sm font-bold text-neutral-800 mb-4">Sales Trend</h3>
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
+                <h3 className="text-sm font-bold text-neutral-800 mb-4">GMV by day</h3>
                 <LineChart data={initialData.sales.dailySales.map(d => ({ label: d.label, value: d.net / 100 }))} prefix="₹" />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Fulfillment SLA Status</h3>
-                <DonutChart
-                  data={[
-                    { label: "SLA Compliant", value: initialData.operations.packingSlaPct },
-                    { label: "SLA Breaches", value: 100 - initialData.operations.packingSlaPct },
-                  ]}
-                  prefix="%"
-                />
+                {initialData.operations.packingSlaPct === null ? (
+                  /* A donut of nothing still draws a ring, and a full ring reads
+                     as compliance. Say the target is unset instead. */
+                  <p className="py-10 text-center text-sm font-semibold text-neutral-500">
+                    No packing target set, so nothing here is on or off it.
+                    <br />
+                    Settings → Operations.
+                  </p>
+                ) : (
+                  <DonutChart
+                    data={[
+                      { label: "SLA Compliant", value: initialData.operations.packingSlaPct },
+                      { label: "SLA Breaches", value: 100 - initialData.operations.packingSlaPct },
+                    ]}
+                    prefix="%"
+                  />
+                )}
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+            <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
               <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Performing Products</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-neutral-500">
@@ -392,11 +434,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue Breakdown by Category</h3>
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue by category</h3>
                 <DonutChart data={initialData.products.topCategories.map(c => ({ label: c.label, value: c.value / 100 }))} prefix="₹" />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Revenue Breakdown by Brand</h3>
                 <DonutChart data={initialData.products.topBrands.map(b => ({ label: b.label, value: b.value / 100 }))} prefix="₹" />
               </div>
@@ -408,18 +450,71 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {activeTab === "inventory" && (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <KpiCard label="Current Stock Value" value={formatPaise(initialData.inventory.totalValuePaise)} color="emerald" />
+              {/* Three of these four were figures nobody could stand behind.
+
+                  "Current Stock Value" was qtyOnHand x the SELLING price,
+                  which overstates stock by the entire margin — and it is the
+                  number somebody quotes to a bank or an insurer in good faith.
+                  /admin/inventory already said stock value was a sentence
+                  rather than a figure; this card said otherwise, two screens
+                  away. Turnover divided net sales by that same wrong total.
+                  Utilisation divided by an invented ten thousand units per
+                  warehouse, and `Warehouse` has no capacity column at all.
+
+                  Each now says what is missing instead of showing a number.
+                  An unavailable figure must not read as a measured one — the
+                  same rule the SLA targets follow (ISS-064). */}
+              <KpiCard
+                label="Current Stock Value"
+                value={
+                  initialData.inventory.totalValuePaise === null
+                    ? "Not computable"
+                    : formatPaise(initialData.inventory.totalValuePaise)
+                }
+                subValue={
+                  initialData.inventory.totalValuePaise === null
+                    ? "No cost price is recorded against stock — ISS-062"
+                    : undefined
+                }
+                color="emerald"
+              />
               <KpiCard label="Dead Inventory Items" value={initialData.inventory.deadStockCount} color="rose" />
-              <KpiCard label="Turnover Rate" value={`${initialData.inventory.turnoverRate}x`} color="blue" />
-              <KpiCard label="Warehouse Utilization" value={`${initialData.inventory.utilizationPct}%`} color="violet" />
+              <KpiCard
+                label="Turnover Rate"
+                value={
+                  initialData.inventory.turnoverRate === null
+                    ? "Not computable"
+                    : `${initialData.inventory.turnoverRate}x`
+                }
+                subValue={
+                  initialData.inventory.turnoverRate === null
+                    ? "Needs cost of goods sold — ISS-062"
+                    : undefined
+                }
+                color="blue"
+              />
+              <KpiCard
+                label="Warehouse Utilization"
+                value={
+                  initialData.inventory.utilizationPct === null
+                    ? "Not measured"
+                    : `${initialData.inventory.utilizationPct}%`
+                }
+                subValue={
+                  initialData.inventory.utilizationPct === null
+                    ? "No capacity is recorded against a warehouse"
+                    : undefined
+                }
+                color="violet"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Stock Aging Distribution</h3>
                 <DonutChart data={initialData.inventory.aging} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Out of Stock & Low Stock Items</h3>
                 <div className="flex flex-col gap-3">
                   <div className="flex justify-between text-xs font-semibold">
@@ -450,11 +545,11 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm lg:col-span-2">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Customer Growth Curve</h3>
                 <LineChart data={initialData.customers.growth.map(c => ({ label: c.label, value: c.count }))} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Customers</h3>
                 <div className="flex flex-col gap-4">
                   {initialData.customers.topCustomers.map((c, idx) => (
@@ -479,15 +574,40 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {activeTab === "marketing" && (
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <KpiCard label="Checkout Conversion" value={`${initialData.marketing.conversionRate}%`} color="emerald" />
-              <KpiCard label="Checkout Dropoffs" value={initialData.marketing.checkoutDropoffCount} color="rose" />
-              <KpiCard label="Cart Abandonments" value={initialData.marketing.cartAbandonmentCount} color="amber" />
+              {/* Conversion and dropoff were derived from a hardcoded 15%, so the
+                  rate never moved and never meant anything (ISS-065). Nothing
+                  records a checkout start, so there is nothing to divide. */}
+              <KpiCard
+                label="Checkout Conversion"
+                value={initialData.marketing.conversionRate === null ? "Not tracked" : `${initialData.marketing.conversionRate}%`}
+                subValue="no event records a checkout start"
+                color="emerald"
+              />
+              <KpiCard
+                label="Checkout Dropoffs"
+                value={initialData.marketing.checkoutDropoffCount === null ? "Not tracked" : initialData.marketing.checkoutDropoffCount}
+                subValue="needs checkout analytics"
+                color="rose"
+              />
+              <KpiCard
+                label="Items in carts"
+                value={initialData.marketing.cartAbandonmentCount}
+                subValue="including carts being filled right now — not abandonment"
+                color="amber"
+              />
               <KpiCard label="Coupon Usage Rate" value={initialData.customers.couponUsageCount} color="violet" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Top Searches</h3>
+                {initialData.marketing.topSearches.length === 0 && (
+                  <p className="text-sm font-semibold leading-relaxed text-neutral-500">
+                    Searches are not logged. This panel used to list five terms with
+                    counts beside them; they were written into the source, and they
+                    looked exactly like demand.
+                  </p>
+                )}
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.topSearches.map((s, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
@@ -497,8 +617,16 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
                   ))}
                 </div>
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">No-Result Searches</h3>
+                {initialData.marketing.noResultSearches.length === 0 && (
+                  <p className="text-sm font-semibold leading-relaxed text-neutral-500">
+                    Not logged either — and this is the panel worth having. What
+                    customers looked for and did not find is the catalogue&apos;s gap
+                    list, and buying stock against a fabricated one would be buying
+                    stock against nothing.
+                  </p>
+                )}
                 <div className="flex flex-col gap-3">
                   {initialData.marketing.noResultSearches.map((s, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
@@ -517,23 +645,77 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
           <>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <KpiCard label="Avg Fulfillment Time" value={`${initialData.operations.avgFulfillmentMinutes} mins`} color="blue" />
-              <KpiCard label="Packing SLA Pass" value={`${initialData.operations.packingSlaPct}%`} color="emerald" />
-              <KpiCard label="Delivery SLA Pass" value={`${initialData.operations.deliverySlaPct}%`} color="violet" />
+              <KpiCard
+                label="Packing SLA Pass"
+                value={initialData.operations.packingSlaPct === null ? "Not measured" : `${initialData.operations.packingSlaPct}%`}
+                subValue={initialData.operations.packSlaMinutes === null ? "no target set" : `target ${initialData.operations.packSlaMinutes} min`}
+                color="emerald"
+              />
+              <KpiCard
+                label="Delivery SLA Pass"
+                value={initialData.operations.deliverySlaPct === null ? "Not measured" : `${initialData.operations.deliverySlaPct}%`}
+                subValue={initialData.operations.deliverySlaMinutes === null ? "no target set" : `target ${initialData.operations.deliverySlaMinutes} min`}
+                color="violet"
+              />
               <KpiCard label="Cancelled Orders" value={initialData.orders.cancelled} color="rose" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              {/* Orders by delivery speed — the artboard's third chart. Mixed
+                  orders count as heavy: the vehicle is decided by the heaviest
+                  thing in the order, and counting them express would understate
+                  exactly the number this chart exists to show rising. There is
+                  no seasonal series because no seasonal rule is in force. */}
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
+                <h3 className="text-sm font-bold text-neutral-800 mb-1">Orders by delivery speed</h3>
+                <p className="mb-4 text-xs font-medium text-neutral-500">
+                  Orders per week. Heavy is any order carrying something that needs a
+                  truck. No seasonal band — no seasonal rule is stored or applied.
+                </p>
+                {initialData.operations.ordersBySpeed.length === 0 ? (
+                  <p className="py-8 text-center text-sm font-semibold text-neutral-500">
+                    No orders in this period.
+                  </p>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-[10px] font-extrabold uppercase tracking-wider text-neutral-400">
+                        <th className="pb-2">Week</th>
+                        <th className="pb-2 text-right">Fast</th>
+                        <th className="pb-2 text-right">Heavy</th>
+                        <th className="pb-2 text-right">Heavy share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {initialData.operations.ordersBySpeed.map((w) => {
+                        const total = w.express + w.heavy;
+                        return (
+                          <tr key={w.week} className="border-t border-neutral-100">
+                            <td className="py-2 text-xs font-bold text-neutral-800">{w.week}</td>
+                            <td className="py-2 text-right text-xs font-semibold tabular-nums">{w.express}</td>
+                            <td className="py-2 text-right text-xs font-semibold tabular-nums">{w.heavy}</td>
+                            <td className="py-2 text-right text-xs font-extrabold tabular-nums">
+                              {total === 0 ? "—" : `${Math.round((w.heavy / total) * 100)}%`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Warehouse Order Volume</h3>
                 <BarChart data={initialData.operations.warehousePerf.map(w => ({ label: w.name, value: w.count }))} />
               </div>
-              <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+              <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
                 <h3 className="text-sm font-bold text-neutral-800 mb-4">Order Cancellation Reasons</h3>
                 <DonutChart data={initialData.orders.cancelledReasons} />
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-100 bg-white p-5 shadow-sm">
+            <div className="rounded-card-lg border border-neutral-100 bg-white p-5 shadow-sm">
               <h3 className="text-sm font-bold text-neutral-800 mb-4">Hourly Fulfillment Activity Heatmap</h3>
               <Heatmap data={initialData.operations.hourlyActivity} />
             </div>
