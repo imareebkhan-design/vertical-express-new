@@ -19,8 +19,8 @@ was written.
 | Production serving | `build-2026-11-02-002` (from draft PR #25), rollout SUCCEEDED 2 Nov |
 | Production config | `apphosting.production.yaml`: `COMMERCE_MODE=catalogue`, `COD_DISABLED=1`, `PRODUCTION_IMAGE_DELIVERY=1`, no payment variables |
 | Release head | `release/rc-2026-10-19` — record the exact SHA at go time |
-| Runtime identity | **Both** `ve-staging` and `ve-production` run as `firebase-app-hosting-compute@vertical-express.iam.gserviceaccount.com` |
-| Secret access | That one account can read every secret, including `database-url-production` and `cron-secret-production` |
+| Runtime identity | `ve-production`: `firebase-app-hosting-compute@…`; `ve-staging`: `ve-staging-runtime@…` (separated 7 Nov, section C) |
+| Secret access | Staging can no longer read `database-url-production` or `cron-secret-production` |
 | Uptime checks | `www.verticalexpress.in/` and `/api/health`, each with an enabled alert policy |
 | Error alert | "production runtime errors" policy, enabled, one notification channel |
 | Images | 260 approved images mapped to version-pinned copies in `ve-production-product-images` (`lib/catalog/production-image-delivery.json`) |
@@ -37,8 +37,7 @@ was written.
       it still does not.)
 - [ ] The same SHA has been deployed to `ve-staging` and section F passed there.
 - [ ] Step B (fresh image-hash verification) passed **on the same day** as the rollout.
-- [ ] Step C (IAM separation) is done, or the owner has accepted in writing that
-      production ships with the shared identity for now.
+- [x] Step C (IAM separation) — done 7 Nov 2026.
 - [ ] Someone is available for 60 minutes after rollout to run section F and roll back.
 
 ## B. Fresh image-hash verification (no production writes)
@@ -64,33 +63,43 @@ was written.
 Last verified: 6 Nov 2026 on `ve_readiness_restore_20261106` — 260/260 hashes, 260
 visible, 260 rollback checks, 6 search checks, 324 image rows unchanged.
 
-## C. Production/staging IAM separation
+## C. Production/staging IAM separation — DONE 7 Nov 2026 (owner approved)
 
-Today the staging app can read the production database URL. Close that before (or
-together with) the rollout:
+Done by moving **staging** to its own identity, so production needed no rollout.
+Production's runtime, revision and secrets are unchanged.
 
-1. Create a dedicated runtime account, e.g. `ve-production-runtime@vertical-express.iam.gserviceaccount.com`.
-2. Grant it only what production needs:
-   - `roles/secretmanager.secretAccessor` on **each** secret the production config names:
-     `admin-emails`, `firebase-client-email`, `firebase-private-key`,
-     `google-geocoding-api-key`, `google-places-api-key`, `google-routes-api-key`,
-     `cron-secret-production`, `database-url-production`;
-   - the logging/monitoring writer roles the default compute account holds today (copy
-     them from `gcloud projects get-iam-policy vertical-express`, do not guess);
-   - read on `ve-production-product-images` only if the server reads it (it serves public
-     URLs; check before granting).
-3. Point `ve-production` at the new account (App Hosting backend `serviceAccount`), and
-   let the next rollout pick it up. Keep `ve-staging` on its own account.
-4. **Then** remove the shared compute account from `database-url-production` and
-   `cron-secret-production`, and remove the new account from every staging-only secret.
-5. Verify: a rollout succeeds, `/api/health` is `ok`, and
-   `gcloud secrets get-iam-policy database-url-production` no longer lists the account
-   staging runs as.
-6. Rollback for this step: point the backend back at the previous account and restore
-   the removed bindings (record the exact `get-iam-policy` output before changing it).
+- Created `ve-staging-runtime@vertical-express.iam.gserviceaccount.com` with the four
+  project roles the shared account held (`firebaseapphosting.computeRunner`,
+  `firebase.sdkAdminServiceAgent`, `storage.objectViewer`,
+  `developerconnect.readTokenAccessor`), and `secretAccessor` + `viewer` on the 11
+  secrets staging's live service references. App Hosting's service agent may act as it.
+  (`viewer` is required: the build reads secret version metadata.)
+- `ve-staging` backend now runs as that account; staging redeployed from the release
+  head (`build-2026-11-06-004`), health, storefront, COD-off and the signed-in admin
+  inbox verified.
+- Removed the shared account (still production's) from the five staging-only secrets:
+  `cron-secret`, `database-url`, `google-maps-browser-key-staging`,
+  `razorpay-key-secret`, `razorpay-webhook-secret`.
 
-This is a security-setting change in the Google Cloud project. It needs the owner's
-explicit approval separately from the application rollout.
+Who can read what now:
+
+| Secret | Production | Staging |
+|---|---|---|
+| `database-url-production`, `cron-secret-production` | yes | **no** |
+| `database-url`, `cron-secret`, `razorpay-*`, `google-maps-browser-key-staging` | **no** | yes |
+| `admin-emails`, `firebase-client-email`, `firebase-private-key`, `google-*-api-key` | yes | yes |
+
+Residual, accepted for now:
+- Both environments share one Firebase project, so they share the Firebase Admin key
+  and the Google API keys. Full isolation would need a separate Firebase project.
+- Production still runs as the project's *default* App Hosting account. Any new backend
+  created without an explicit service account would default to it and could read the
+  production database URL. Create future backends with `--service-account`.
+
+Rollback: `iam-before/` snapshots (project and every secret policy, taken before the
+change) are held outside git. To revert, PATCH `ve-staging`'s `serviceAccount` back to
+`firebase-app-hosting-compute@…`, re-add that account as `secretAccessor` + `viewer` on
+the five staging-only secrets, and redeploy staging.
 
 ## D. Rollout
 
