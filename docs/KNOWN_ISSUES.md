@@ -13,6 +13,14 @@ new issue, add it with the same fields and the evidence that supports it.*
 
 ## Status reconciliation — 4 November 2026
 
+**PR #38 audit accuracy — corrected 7 November 2026.** Brand edits, retirement,
+restoration and product reassignment now lock the affected row before reading the
+audit preimage or deciding a no-op. Forced-interleaving database tests cover
+competing writes and transactional rollback. Refund-request audits describe
+request availability and requested status, not settled money; pending, refused
+and processed gateway cases are covered. See `docs/qa/pr38-staging-verification.md`
+for completed staging evidence and the separate validation scope of these fixes.
+
 **Warehouse GUID validation — fixed 6 November 2026.** The seeded Srinagar Central
 warehouse ID (`00000000-0000-0000-0000-000000000001`) fails Zod 4's strict UUID
 version/variant check. Five admin warehouse fields now use `z.guid()` in inventory,

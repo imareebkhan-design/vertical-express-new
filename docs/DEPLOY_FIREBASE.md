@@ -82,7 +82,7 @@ npx -y firebase-tools@latest apphosting:backends:create --backend ve-staging \
 # 3. migrations are applied by hand (step 1) — NEVER from the build (see Migrations)
 
 # 4. deploy
-npx -y firebase-tools@latest deploy --only apphosting:ve-staging   # name the backend: firebase.json lists staging AND production
+npm run deploy:staging
 ```
 
 **Backend created 2026-09-21:** `ve-staging`, region **`asia-southeast1`** (App Hosting offers only asia-east1, asia-southeast1, europe-west4, us-central1, us-east4, us-east5 — `asia-south1`/Mumbai is not available; Singapore is closest), runtime nodejs22, URL `https://ve-staging--vertical-express.asia-southeast1.hosted.app` (serves nothing until the first rollout). Secrets created and granted: `firebase-client-email`, `firebase-private-key`, `razorpay-key-secret`, `razorpay-webhook-secret`, `cron-secret`. **Still missing: `database-url`** (needs the real `.env.staging`).
@@ -94,6 +94,16 @@ After the first rollout the backend has a URL of the form
 - set `EXPO_PUBLIC_API_URL` in `mobile/eas.json` (development + preview profiles) to it.
 
 ## Migrations
+
+### Staging release source (PR #38)
+
+After owner approval and integration, deploy staging only from a clean checkout of
+`release/rc-2026-10-19` at the current fetched origin head. `npm run deploy:staging`
+enforces that source and names only `ve-staging`; it refuses feature branches,
+uncommitted files, and stale release heads. Do not bypass it with a direct Firebase
+deploy from an older feature branch: that previously replaced the audit and GUID
+fixes. The command does not merge, migrate, or deploy production. PR #38 must be
+approved and merged first; these instructions do not authorize that merge.
 
 The build does **not** touch the database and must not. App Hosting runs `npm run build`, which does **not**
 run `scripts/predeploy-migrations.mjs` (the ISS-024 pending-migration gate; it was wired only to the removed

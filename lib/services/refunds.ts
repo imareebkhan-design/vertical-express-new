@@ -160,10 +160,10 @@ export async function requestRefund(
         action: "payment.refund_requested",
         entityType: "payment",
         entityId: params.paymentId,
-        /* What was still owed on the payment before this claim, so the row
-           shows the money moving, not only the request. */
-        before: { refundablePaise: eligible.remainingPaise },
-        after: { refundId: row.id, refundablePaise: 0, amountPaise: eligible.remainingPaise, basis: eligible.basis, reason, by: params.actorEmail },
+        /* This reserves the next request; it does not settle any money. Only a
+           processed gateway result can establish that a refund was paid. */
+        before: { availableToRequestPaise: eligible.remainingPaise },
+        after: { refundId: row.id, availableToRequestPaise: 0, requestedPaise: eligible.remainingPaise, refundStatus: "requested", basis: eligible.basis, reason, by: params.actorEmail },
       });
       return {
         ok: true as const,

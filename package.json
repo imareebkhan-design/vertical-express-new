@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "deploy:staging": "node scripts/deploy-staging.mjs",
     "predev": "node scripts/dev-db-guard.mjs",
     "dev": "next dev --turbopack",
     "prebuild": "node scripts/build-guard.mjs && node scripts/check-public-env.mjs",

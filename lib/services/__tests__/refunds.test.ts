@@ -106,6 +106,39 @@ function refundHook(event: string, entity: Record<string, unknown>) {
 const REASON = "Order cancelled after payment was captured";
 const ADMIN = { actorEmail: "ops@example.test" };
 
+for (const outcome of ["pending", "refused", "processed"] as const) {
+  test(`refund-request audit records a claim, not settled money: gateway ${outcome}`, async () => {
+    const { payments, amount } = await makeOrder();
+    const paymentId = payments[0].id;
+    const gw = gateway(async () => {
+      // The request event already exists before we receive any gateway answer.
+      const audit = await db.auditLog.findFirstOrThrow({ where: { entityId: paymentId, action: "payment.refund_requested" } });
+      assert.deepEqual(audit.before, { availableToRequestPaise: amount });
+      const refund = await db.paymentRefund.findFirstOrThrow({ where: { paymentId } });
+      assert.deepEqual(audit.after, {
+        refundId: refund.id, availableToRequestPaise: 0, requestedPaise: amount,
+        refundStatus: "requested", basis: "dead_order", reason: REASON, by: ADMIN.actorEmail,
+      });
+      assert.equal((await db.payment.findUniqueOrThrow({ where: { id: paymentId } })).status, "captured");
+      assert.equal(refund.status, "requested");
+      if (outcome === "refused") throw new Error("RAZORPAY_REFUND_FAILED:400");
+      return accepted(outcome)();
+    });
+    const result = await requestRefund({ paymentId, reason: REASON, ...ADMIN }, gw);
+    assert.equal(result.ok, outcome !== "refused");
+    const audit = await db.auditLog.findMany({ where: { entityId: paymentId }, orderBy: { createdAt: "asc" } });
+    assert.deepEqual(audit.map((a) => a.action), ["payment.refund_requested", `payment.refund_${outcome}`]);
+    assert.equal((await db.payment.findUniqueOrThrow({ where: { id: paymentId } })).status,
+      outcome === "processed" ? "refunded" : "captured");
+    const refund = await db.paymentRefund.findFirstOrThrow({ where: { paymentId } });
+    assert.equal(refund.status, outcome === "refused" ? "failed" : outcome);
+    if (outcome !== "refused") {
+      assert.deepEqual(audit[1].before, { refundStatus: "requested" });
+      assert.equal((audit[1].after as { refundStatus: string }).refundStatus, outcome);
+    }
+  });
+}
+
 test("a captured payment on a cancelled order is refunded in full, recorded, and leaves the worklist", async () => {
   const { payments, amount } = await makeOrder();
   const gw = gateway(accepted("processed"));

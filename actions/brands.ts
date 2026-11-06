@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { log } from "@/lib/observability";
 import { recordAudit } from "@/lib/services/audit";
+import { editBrand, setBrandActive, assignProductBrand } from "@/lib/services/admin/brand-writes";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -66,30 +67,10 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
   const { name, slug, isActive, originalSlug } = parsed.data;
 
   if (originalSlug) {
-    const existing = await db.brand.findUnique({
-      where: { slug: originalSlug },
-      select: { id: true, slug: true, name: true, isActive: true },
-    });
-    if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
-
+    let existing;
     try {
-      /* The audit row shares the edit's transaction (ISS-015): a brand's name
-         is what every one of its product pages claims to be. */
-      await db.$transaction(async (tx) => {
-        await tx.brand.update({
-          where: { slug: originalSlug },
-          data: { name, slug, isActive },
-        });
-        await recordAudit(tx, {
-          actorType: "admin",
-          actorId: admin.id,
-          action: "brand.edited",
-          entityType: "brand",
-          entityId: existing.id,
-          before: { name: existing.name, slug: existing.slug, isActive: existing.isActive },
-          after: { name, slug, isActive },
-        });
-      });
+      existing = await editBrand(originalSlug, { name, slug, isActive }, admin);
+      if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
     } catch {
       return fail("CONFLICT", "Another brand already uses that name or slug");
     }
@@ -151,24 +132,9 @@ export async function adminSetBrandActive(slug: string, isActive: boolean): Prom
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
 
-  const existing = await db.brand.findUnique({ where: { slug }, select: { id: true, isActive: true } });
-  if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
-  if (existing.isActive === isActive) return succeed(null);
-
-  /* Retiring a brand removes all of its products from the storefront, so it is
-     audited with the change, in one transaction. */
-  await db.$transaction(async (tx) => {
-    await tx.brand.update({ where: { slug }, data: { isActive } });
-    await recordAudit(tx, {
-      actorType: "admin",
-      actorId: admin.id,
-      action: isActive ? "brand.restored" : "brand.retired",
-      entityType: "brand",
-      entityId: existing.id,
-      before: { isActive: existing.isActive },
-      after: { isActive },
-    });
-  });
+  const result = await setBrandActive(slug, isActive, admin);
+  if (result === "missing") return fail("NOT_FOUND", "That brand no longer exists");
+  if (result === "unchanged") return succeed(null);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
   return succeed(null);
@@ -204,26 +170,10 @@ export async function adminAssignProductBrand(input: unknown): Promise<ActionRes
 
   const { productId, brandId } = parsed.data;
 
-  const [product, brand] = await Promise.all([
-    db.product.findUnique({ where: { id: productId }, select: { id: true, brandId: true, title: true } }),
-    db.brand.findUnique({ where: { id: brandId }, select: { id: true, name: true } }),
-  ]);
-  if (!product) return fail("NOT_FOUND", "Product not found");
-  if (!brand) return fail("NOT_FOUND", "Brand not found");
-  if (product.brandId === brandId) return succeed(null);
-
-  await db.$transaction(async (tx) => {
-    await tx.product.update({ where: { id: productId }, data: { brandId } });
-    await recordAudit(tx, {
-      actorType: "admin",
-      actorId: admin.id,
-      action: "product.brand_assigned",
-      entityType: "product",
-      entityId: productId,
-      before: { brandId: product.brandId },
-      after: { brandId, brandName: brand.name },
-    });
-  });
+  const result = await assignProductBrand(productId, brandId, admin);
+  if (!result.ok) return fail("NOT_FOUND", result.detail);
+  if (!result.changed) return succeed(null);
+  const { product, brand } = result;
 
   /* A brand change is a change to what the product claims to be, so it leaves a
      trail. The previous brand is recorded because "it used to say something
