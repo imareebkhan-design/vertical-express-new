@@ -40,6 +40,11 @@ The later PR review fixes lock brand/product rows before preimage reads and no-o
 decisions, keeping writes and audits in the same transaction. Regression tests
 force a competing writer to commit while the service waits, including stale no-op
 and rollback cases. Target brand names are held stable through assignment.
+Follow-up coverage forces audit insertion failures after all three brand mutations
+and confirms rollback. Variant retirement/default guards now re-read after the
+product lock; concurrent retire/default changes cannot leave a stale audit or
+retire the newly selected default. Action tests check runtime booleans, non-admin
+refusal, failure classification, and cache invalidation on unchanged retries.
 
 Refund-request audits now record `availableToRequestPaise`, `requestedPaise`, and
 `refundStatus: requested`; they do not assert that any money settled. Tests inspect
@@ -54,5 +59,6 @@ or refund processing on a shared environment. No live refund was attempted.
 
 No merge or production deployment is authorized. Final-head CI and final review
 must pass, followed by explicit owner approval. After integration, use
-`npm run deploy:staging` from the clean current origin release branch. This change
+`npm run deploy:staging` from the clean current canonical release branch. The guard
+uploads a git archive of the verified commit and excludes local ignored files. This change
 prepares the guard; it does not perform a deployment or enable automatic rollout.

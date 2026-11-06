@@ -98,12 +98,18 @@ After the first rollout the backend has a URL of the form
 ### Staging release source (PR #38)
 
 After owner approval and integration, deploy staging only from a clean checkout of
-`release/rc-2026-10-19` at the current fetched origin head. `npm run deploy:staging`
+`release/rc-2026-10-19` at the current fetched canonical repository head. `npm run deploy:staging`
 enforces that source and names only `ve-staging`; it refuses feature branches,
 uncommitted files, and stale release heads. Do not bypass it with a direct Firebase
 deploy from an older feature branch: that previously replaced the audit and GUID
 fixes. The command does not merge, migrate, or deploy production. PR #38 must be
 approved and merged first; these instructions do not authorize that merge.
+
+The guard fetches the canonical `imareebkhan-design/vertical-express-new` repository
+directly (a fork named `origin` cannot satisfy it), archives the verified commit
+into a temporary directory, and invokes pinned Firebase CLI 15.35.0 through `npx`.
+Ignored local files and edits made after verification cannot enter that snapshot.
+The temporary source is removed on success or failure. No global Firebase install is required.
 
 The build does **not** touch the database and must not. App Hosting runs `npm run build`, which does **not**
 run `scripts/predeploy-migrations.mjs` (the ISS-024 pending-migration gate; it was wired only to the removed

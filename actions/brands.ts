@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { Prisma } from "@/prisma/generated/client/client";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { log } from "@/lib/observability";
 import { recordAudit } from "@/lib/services/audit";
@@ -71,8 +72,11 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
     try {
       existing = await editBrand(originalSlug, { name, slug, isActive }, admin);
       if (!existing) return fail("NOT_FOUND", "That brand no longer exists");
-    } catch {
-      return fail("CONFLICT", "Another brand already uses that name or slug");
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.meta?.modelName === "Brand") {
+        return fail("CONFLICT", "Another brand already uses that name or slug");
+      }
+      throw error;
     }
 
     /* A slug change breaks every catalogue URL filtered by this brand, and a
@@ -102,10 +106,13 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
           after: { name, slug, isActive },
         });
       });
-    } catch {
+    } catch (error) {
       /* Both name and slug are unique. Either collision means the brand is
          already here — which is a thing to say, not a thing to overwrite. */
-      return fail("CONFLICT", "A brand with that name or slug already exists");
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.meta?.modelName === "Brand") {
+        return fail("CONFLICT", "A brand with that name or slug already exists");
+      }
+      throw error;
     }
 
     log("INFO", {
@@ -132,9 +139,9 @@ export async function adminSetBrandActive(slug: string, isActive: boolean): Prom
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
 
+  if (!z.boolean().safeParse(isActive).success) return fail("VALIDATION", "Choose whether the brand is active");
   const result = await setBrandActive(slug, isActive, admin);
   if (result === "missing") return fail("NOT_FOUND", "That brand no longer exists");
-  if (result === "unchanged") return succeed(null);
   revalidatePath("/admin/brands");
   revalidatePath("/", "layout");
   return succeed(null);
@@ -172,7 +179,11 @@ export async function adminAssignProductBrand(input: unknown): Promise<ActionRes
 
   const result = await assignProductBrand(productId, brandId, admin);
   if (!result.ok) return fail("NOT_FOUND", result.detail);
-  if (!result.changed) return succeed(null);
+  if (!result.changed) {
+    revalidatePath("/admin/products");
+    revalidatePath("/", "layout");
+    return succeed(null);
+  }
   const { product, brand } = result;
 
   /* A brand change is a change to what the product claims to be, so it leaves a

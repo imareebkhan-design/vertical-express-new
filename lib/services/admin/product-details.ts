@@ -149,9 +149,11 @@ export async function addVariant(productId: string, input: NewVariantInput, acto
  */
 export async function setVariantActive(variantId: string, active: boolean, actor: { id: string | null; email: string }): Promise<VariantResult> {
   return db.$transaction(async (tx) => {
+    const parent = await tx.productVariant.findUnique({ where: { id: variantId }, select: { productId: true } });
+    if (!parent) return { ok: false as const, code: "NOT_FOUND" as const };
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${parent.productId}::uuid FOR UPDATE`;
     const v = await tx.productVariant.findUnique({ where: { id: variantId }, select: { id: true, productId: true, isActive: true, isDefault: true } });
     if (!v) return { ok: false as const, code: "NOT_FOUND" as const };
-    await tx.$queryRaw`SELECT id FROM products WHERE id = ${v.productId}::uuid FOR UPDATE`;
     if (!active && v.isDefault) return { ok: false as const, code: "IS_DEFAULT" as const };
     if (v.isActive === active) return { ok: true as const, variantId };
     await tx.productVariant.update({ where: { id: variantId }, data: { isActive: active } });
@@ -171,9 +173,11 @@ export async function setVariantActive(variantId: string, active: boolean, actor
 /** Make an active variant the one the product leads with. Exactly one default afterwards. */
 export async function setDefaultVariant(variantId: string, actor: { id: string | null; email: string }): Promise<VariantResult> {
   return db.$transaction(async (tx) => {
+    const parent = await tx.productVariant.findUnique({ where: { id: variantId }, select: { productId: true } });
+    if (!parent) return { ok: false as const, code: "NOT_FOUND" as const };
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${parent.productId}::uuid FOR UPDATE`;
     const v = await tx.productVariant.findUnique({ where: { id: variantId }, select: { id: true, productId: true, isActive: true, isDefault: true } });
     if (!v) return { ok: false as const, code: "NOT_FOUND" as const };
-    await tx.$queryRaw`SELECT id FROM products WHERE id = ${v.productId}::uuid FOR UPDATE`;
     if (!v.isActive) return { ok: false as const, code: "INACTIVE" as const };
     if (v.isDefault) return { ok: true as const, variantId };
     const before = await tx.productVariant.findFirst({ where: { productId: v.productId, isDefault: true }, select: { id: true } });

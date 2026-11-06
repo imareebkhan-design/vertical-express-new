@@ -94,6 +94,9 @@ test("the default variant cannot be retired until another leads; exactly one def
   if (!r.ok) throw new Error("setup");
   extraVariants.push(r.variantId);
   assert.equal((await setDefaultVariant(r.variantId, ACTOR)).ok, true);
+  const audit = await db.auditLog.findFirstOrThrow({ where: { entityId: f.product.id, action: "catalogue.default_variant_changed" } });
+  assert.deepEqual(audit.before, { defaultVariantId: f.variant.id });
+  assert.deepEqual(audit.after, { defaultVariantId: r.variantId, by: ACTOR.email });
   assert.equal(await db.productVariant.count({ where: { productId: f.product.id, isDefault: true } }), 1);
   assert.equal((await setVariantActive(f.variant.id, false, ACTOR)).ok, true);
   assert.equal((await db.productVariant.findUniqueOrThrow({ where: { id: f.variant.id } })).isActive, false);

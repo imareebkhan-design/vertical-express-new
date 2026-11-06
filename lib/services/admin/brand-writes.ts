@@ -24,6 +24,7 @@ export async function editBrand(originalSlug: string, data: Omit<BrandState, "id
   });
 }
 
+/** Retire or restore under the same row lock used by edits, without auditing a no-op. */
 export async function setBrandActive(slug: string, isActive: boolean, actor: Actor) {
   return db.$transaction(async (tx) => {
     const [before] = await tx.$queryRaw<BrandState[]>`
@@ -42,6 +43,7 @@ export async function setBrandActive(slug: string, isActive: boolean, actor: Act
   });
 }
 
+/** Serialize assignments and keep the target brand name stable through the audit write. */
 export async function assignProductBrand(productId: string, brandId: string, actor: Actor) {
   return db.$transaction(async (tx) => {
     const [product] = await tx.$queryRaw<{ id: string; brandId: string }[]>`

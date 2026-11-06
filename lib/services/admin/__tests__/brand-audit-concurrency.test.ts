@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { editBrand, setBrandActive, assignProductBrand } from "@/lib/services/admin/brand-writes";
+import { setVariantActive, setDefaultVariant } from "@/lib/services/admin/product-details";
 
 async function fixture(t: TestContext) {
   const actor = { id: randomUUID(), email: "brand-audit@example.invalid" };
@@ -17,6 +18,7 @@ async function fixture(t: TestContext) {
   } });
   t.after(async () => {
     await db.auditLog.deleteMany({ where: { actorId: actor.id } });
+    await db.productVariant.deleteMany({ where: { productId: product.id } });
     await db.product.delete({ where: { id: product.id } });
     await db.brand.deleteMany({ where: { id: { in: brands.map((b) => b.id) } } });
   });
@@ -133,3 +135,39 @@ test("a conflicting edit rolls back without an audit row", async (t) => {
   assert.equal(unchanged.name, first.name);
   assert.equal(unchanged.isActive, true);
 });
+
+for (const operation of ["edit", "retire", "assign"] as const) {
+  test(`${operation} rolls back when the audit insertion fails`, async (t) => {
+    const { brands: [first, other], product } = await fixture(t);
+    // Invalid UUID is rejected by PostgreSQL at audit insertion, after the mutation.
+    const actor = { id: "invalid-audit-actor", email: "audit@example.invalid" };
+    const count = await db.auditLog.count({ where: { entityId: { in: [first.id, product.id] } } });
+    await assert.rejects(operation === "edit"
+      ? editBrand(first.slug, { name: `${first.name} changed`, slug: first.slug, isActive: false }, actor)
+      : operation === "retire" ? setBrandActive(first.slug, false, actor)
+      : assignProductBrand(product.id, other.id, actor));
+    const brand = await db.brand.findUniqueOrThrow({ where: { id: first.id } });
+    assert.equal(brand.name, first.name);
+    assert.equal(brand.isActive, true);
+    assert.equal((await db.product.findUniqueOrThrow({ where: { id: product.id } })).brandId, first.id);
+    assert.equal(await db.auditLog.count({ where: { entityId: { in: [first.id, product.id] } } }), count);
+  });
+}
+
+for (const scenario of ["duplicate retirement", "became default", "retired before default selection"] as const) {
+  test(`variant guard rechecks after locking: ${scenario}`, async (t) => {
+    const { actor, product } = await fixture(t);
+    const variant = await db.productVariant.create({ data: {
+      productId: product.id, name: "Test variant", sku: randomUUID(), pricePaise: 100, isDefault: false,
+    } });
+    const result = await behindWriter(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM products WHERE id = ${product.id}::uuid FOR UPDATE`;
+      await tx.productVariant.update({ where: { id: variant.id }, data:
+        scenario === "became default" ? { isDefault: true } : { isActive: false } });
+    }, () => scenario === "retired before default selection"
+      ? setDefaultVariant(variant.id, actor) : setVariantActive(variant.id, false, actor));
+    assert.deepEqual(result, scenario === "duplicate retirement" ? { ok: true, variantId: variant.id }
+      : { ok: false, code: scenario === "became default" ? "IS_DEFAULT" : "INACTIVE" });
+    assert.equal(await db.auditLog.count({ where: { actorId: actor.id } }), 0);
+  });
+}
