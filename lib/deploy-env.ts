@@ -19,7 +19,7 @@ export const DEPLOY_ENVS = ["production", "staging", "development"] as const;
 export type DeployEnv = (typeof DEPLOY_ENVS)[number];
 
 /** A staging backend's payment setup, as `activeGateway()` permits it: test keys, explicit opt-in. */
-function consistentStagingPayments(env: Env): boolean {
+export function consistentStagingPayments(env: Env): boolean {
   return (
     env.PAYMENT_GATEWAY === "razorpay-test" &&
     env.ALLOW_TEST_GATEWAY === "1" &&
