@@ -49,8 +49,11 @@ no orders, no payments, no COD. PR #24 not merged; no live payment configuration
 - Monitoring: both uptime checks passing (143/143, 142/142 points in the window).
   8 HTTP 500s on the raw `run.app` URL at 04:25Z, all "Failed to find Server Action"
   from clients holding the previous build's action IDs — the expected transient after a
-  Next.js deploy; none on the public domain. Owner receipt of an alert notification is
-  still unverified.
+  Next.js deploy; none on the public domain. They **fired the "production runtime
+  errors" alert policy** (incident opened 04:25:57Z for revision
+  `ve-production-build-2026-11-06-001`), so alerting works through to notification on
+  the owner's email channel. Whether that email arrived in the owner's inbox is still
+  unconfirmed (the Gmail connector was disconnected).
 
 ## Rollback
 
