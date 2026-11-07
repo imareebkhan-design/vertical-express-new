@@ -44,16 +44,16 @@ no orders, no payments, no COD. PR #24 not merged; no live payment configuration
   shows "Price on request" and an "Enquire" action that reaches the enquiry form.
 - `/api/serviceability/190001`: `codAllowed: false`.
 - `/api/v1/cart/items` and `/api/v1/checkout/orders` refuse; no cart or order rows created.
-- `/admin/enquiries` signed out redirects to sign-in. **Signed-in owner inbox on
-  production not checked** (requires the owner's sign-in); verified on staging.
+- `/admin/enquiries` signed out redirects to sign-in. Signed-in owner inbox and
+  status filtering verified in the acceptance follow-up below.
 - Monitoring: both uptime checks passing (143/143, 142/142 points in the window).
   8 HTTP 500s on the raw `run.app` URL at 04:25Z, all "Failed to find Server Action"
   from clients holding the previous build's action IDs — the expected transient after a
   Next.js deploy; none on the public domain. They **fired the "production runtime
   errors" alert policy** (incident opened 04:25:57Z for revision
   `ve-production-build-2026-11-06-001`), so alerting works through to notification on
-  the owner's email channel. Whether that email arrived in the owner's inbox is still
-  unconfirmed (the Gmail connector was disconnected).
+  the owner's email channel. Inbox receipt subsequently verified in the browser
+  during the acceptance follow-up below.
 
 ## Rollback
 
@@ -61,8 +61,44 @@ App Hosting console → `ve-production` → Rollouts → `build-2026-11-02-002` 
 Image delivery alone: set `PRODUCTION_IMAGE_DELIVERY=0` (BUILD and RUNTIME) and rebuild.
 No data rollback is needed; this rollout changed no data. COD stays disabled.
 
-## Still blocking a paid launch
+## Acceptance follow-up — 7 Nov 2026, 19:44–19:50 IST
+
+- Read-only recheck: `/api/health` returned HTTP 200 with `status: ok` at
+  `2026-11-07T14:14:42.179Z`; production still reports
+  `ve-production-build-2026-11-06-001` as its latest ready revision.
+- `/api/serviceability/190001` still returns `codAllowed: false`.
+- Production `/admin/enquiries` redirects the signed-out browser to
+  `/login?next=%2Fadmin%2Fenquiries`. Google account selection opened successfully.
+  The owner identified the operator account; its authenticated session displayed
+  the Product enquiries inbox. All-status view and the applied `?status=new`
+  filter both loaded successfully with "No enquiries yet". This verifies access,
+  filter navigation and the empty state; populated-row handling was not exercised.
+  No enquiry was submitted or changed.
+- Email receipt verified in the owner's Gmail browser session. Search
+  `in:anywhere after:2026/11/06 "production runtime errors"` found the Google Cloud
+  Alerting message in Inbox, received 7 Nov at 09:55 IST, for project
+  `vertical-express`, service `ve-production`, revision
+  `ve-production-build-2026-11-06-001`, condition "Production application error log".
+  This matches the recorded incident. No new alert or email was sent.
+- No deployment, configuration change, order, payment or production data mutation
+  was performed during this follow-up.
+
+## GitHub/Firebase reconciliation — 7 Nov 2026
+
+- Canonical GitHub release head at verification: `51a2da8`; compared with the
+  deployed `f853f86`, its only differences are the two rollout documents in
+  `docs/readiness/`. No application, dependency, schema or deployment-config changes.
+- Downloaded the source archive recorded by successful production Cloud Build
+  `a82e3d6d-7e09-4215-848d-47c96d127ccf` and compared its bytes with `git archive
+  f853f86`: 1,050 matching files, zero changed files, zero extra files. Five tracked
+  files were omitted by the explicit Firebase ignore rules (`.env.*` examples,
+  `.vercel-old/` and `mobile-shell/`).
+- Firebase/Cloud Run reports `ve-production-build-2026-11-06-001` ready and serving
+  100% of production traffic. All application changes in this release are already
+  live; a documentation-only difference does not require another rollout.
+
+## Still blocking a paid launch (unchanged)
 
 Legal entity and public contact details; delivery and returns policies; launch prices/MRP
 and physical stock; Razorpay live account and keys; live payment, refund and fulfilment
-acceptance; owner's signed-in production inbox check; alert receipt test.
+acceptance. The signed-in production inbox and alert-receipt checks are complete.
