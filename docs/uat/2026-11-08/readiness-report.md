@@ -159,3 +159,31 @@ the owner authorises launch in writing.
   (`qty_after − qty_delta`) and the audit marker's `before`. To reset, use Admin →
   Inventory "Adjust" per SKU. Deleting the 46 audit markers makes the initializer
   willing to run again.
+
+## Addendum — 8 Nov 2026 (guide review against the code)
+
+Checked the client guide against the release head `8a65fe6`. Four corrections, now in
+the guide:
+
+1. **Cancel and refund (old C12) did not match the code.** A customer can cancel
+   only an *unpaid* order (`lib/order-display.ts` `customerCancelState`; the service
+   refuses a paid one with `PAID_NOT_CANCELLABLE`). Nothing refunds automatically.
+   A paid order is cancelled by an admin (`advanceOrderStatus` restocks it, raises
+   `paid_order_cancelled`, and lists the payment under Admin → Payments → "Refund
+   required"), and the admin then refunds it there (`adminRefundPayment`, Razorpay
+   TEST). The guide now tests this as C12, C12b, A4b and A6. Refunds of delivered
+   orders and part-refunds stay unavailable until the owner sets a refund policy
+   (ISS-025).
+2. **Abandoned payments (C10).** The staging expiry job `ve-staging-cleanup-orders`
+   is scheduled every 5 minutes, and the window is 15 minutes, so an unpaid order
+   cancels itself and returns its stock within about 20 minutes.
+3. **Native app.** Every EAS build profile (`development`, `preview`, `production`)
+   sets `EXPO_PUBLIC_SITE_URL` to production, which is in catalogue mode and takes
+   no orders. The guide now says so. A staging-targeted build profile is proposed
+   separately in the workspace repository; making the build needs owner approval.
+4. **Notifications.** Staging sets no `RESEND_API_KEY`, so no order emails are
+   sent there. Phone OTP codes are real SMS. The guide now says so, and adds a
+   structured issue-report checklist.
+
+Not changed: prices (still no verified MRP), test stock (already applied), banner
+(merged, still not deployed: staging serves `build-2026-11-06-004` from `f853f86`).
