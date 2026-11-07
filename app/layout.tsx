@@ -6,6 +6,7 @@ import { CartProvider } from "@/hooks/use-cart";
 import { CommerceModeProvider } from "@/components/shop/commerce-mode-provider";
 import { orderingOpen } from "@/lib/commerce-mode";
 import { NativeShellProvider } from "@/components/mobile/native-shell-provider";
+import { UatNotice } from "@/components/uat-notice";
 
 // One geometric sans throughout. Headlines mix weights inside a single line:
 // a 300-weight grey lead-in, then 800-weight ink.
@@ -81,6 +82,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: CANONICAL_HOST_SCRIPT }} />
       </head>
       <body className={`${jakarta.variable} antialiased`}>
+        <UatNotice />
         <SiteJsonLd siteUrl={process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in"} />
         {/* Skip to main content — accessibility / keyboard nav */}
         <a
