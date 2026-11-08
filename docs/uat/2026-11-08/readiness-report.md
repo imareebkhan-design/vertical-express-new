@@ -1,5 +1,7 @@
 # Client UAT readiness — 8 Nov 2026 (deliverables B, E, F)
 
+> Current deployment and Android artifact: [9 November handoff](deployment-handoff-2026-11-09.md). This report below is historical.
+
 > Historical preparation report. For the latest deployed state and browser/stock
 > evidence, read [resumed UAT verification](resumed-verification.md). In particular,
 > the banner is deployed, four QA products now exist, and an unpaid checkout,

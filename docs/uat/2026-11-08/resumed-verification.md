@@ -1,5 +1,7 @@
 # Resumed client UAT verification — 8 November 2026
 
+> Current deployment and Android artifact: [9 November handoff](deployment-handoff-2026-11-09.md). This report below is historical.
+
 Checked around 11:10–11:30 IST. This supersedes deployment and journey-status
 claims in the earlier preparation report; its commercial decision list still applies.
 

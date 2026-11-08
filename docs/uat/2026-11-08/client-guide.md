@@ -1,5 +1,7 @@
 # Vertical Express — client acceptance testing guide (deliverable C)
 
+> Latest release and test results: [deployment handoff](deployment-handoff-2026-11-09.md).
+
 **Testing URL:** https://ve-staging--vertical-express.asia-southeast1.hosted.app
 **Admin console:** the same URL + `/admin`
 **Do not use** www.verticalexpress.in for testing: that is production, it is in
