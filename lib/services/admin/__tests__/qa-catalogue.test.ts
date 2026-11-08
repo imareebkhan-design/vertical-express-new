@@ -78,6 +78,33 @@ test("opening stock is 50 once, with the UAT marker; a rerun does not replenish 
   assert.equal(await db.auditLog.count({ where: { action: UAT_OPENING_ACTION, entityId: variants[0].id } }), 1);
 });
 
+test("rerun at another warehouse does not allocate another opening stock", async () => {
+  const other = await db.warehouse.create({ data: { name: `Other QA ${randomUUID()}`, city: "Srinagar", pincode: "190001" } });
+  try {
+    const again = await db.$transaction(tx => upsertQaCatalogue(tx, other.id));
+    assert.deepEqual(again.flatMap(r => r.stockCreated), []);
+    assert.equal(await db.inventory.count({ where: { warehouseId: other.id } }), 0);
+  } finally {
+    await db.stockMovement.deleteMany({ where: { warehouseId: other.id } });
+    await db.inventory.deleteMany({ where: { warehouseId: other.id } });
+    await db.warehouse.delete({ where: { id: other.id } });
+  }
+});
+
+test("an opening marker prevents replenishment even if its inventory row is missing", async () => {
+  const variant = await db.productVariant.findUniqueOrThrow({ where: { sku: skus[0] } });
+  const key = { variantId_warehouseId: { variantId: variant.id, warehouseId } };
+  const saved = await db.inventory.findUniqueOrThrow({ where: key });
+  await db.inventory.delete({ where: key });
+  try {
+    const again = await db.$transaction(tx => upsertQaCatalogue(tx, warehouseId));
+    assert.deepEqual(again.flatMap(r => r.stockCreated), []);
+    assert.equal(await db.inventory.findUnique({ where: key }), null);
+  } finally {
+    await db.inventory.upsert({ where: key, create: saved, update: { qtyOnHand: saved.qtyOnHand } });
+  }
+});
+
 test("never public where the live gateway is configured", async () => {
   process.env.PAYMENT_GATEWAY = "razorpay-live";
   for (const slug of slugs) assert.equal(await db.product.findFirst({ where: { slug, AND: [publicProductWhere()] } }), null);

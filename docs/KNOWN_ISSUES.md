@@ -1,5 +1,21 @@
 # Known Issues — Vertical Express
 
+## UAT QA catalogue — repeated opening stock at another warehouse
+
+**Status:** FIXED LOCALLY on `codex/uat-stock-rerun-guard`; review and integration pending.
+**Severity:** Medium (isolated staging data integrity).
+**Found:** 8 November 2026, review of PR #46.
+
+`upsertQaCatalogue` checked inventory only at the requested warehouse. Rerunning
+with another warehouse allocated another 50 units per SKU; removing an inventory
+row also allowed it to be replenished despite the surviving opening audit marker.
+Both failures were reproduced on disposable local Postgres before the fix.
+
+The setup now consults the per-SKU opening marker and inventory across warehouses,
+and shares the existing UAT initializer's transaction advisory lock. Two regression
+tests cover the failures. No schema change or staging/production write is required.
+Review this follow-up together with PR #46; it does not approve a commercial launch.
+
 *Every issue below is supported by direct source inspection or live-site probing
 recorded in `CURRENT_SYSTEM_AUDIT.md`. **No defect here is speculative.** If you find a
 new issue, add it with the same fields and the evidence that supports it.*
