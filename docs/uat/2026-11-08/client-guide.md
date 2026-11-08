@@ -1,5 +1,7 @@
 # Vertical Express — client acceptance testing guide (deliverable C)
 
+> Latest release and test results: [deployment handoff](deployment-handoff-2026-11-09.md).
+
 **Testing URL:** https://ve-staging--vertical-express.asia-southeast1.hosted.app
 **Admin console:** the same URL + `/admin`
 **Do not use** www.verticalexpress.in for testing: that is production, it is in
@@ -15,19 +17,20 @@ Credentials are not in this guide. The owner gives each tester access separately
   login.**
 - **No real deliveries.** Addresses, delivery times ("About 60 minutes"), delivery
   fees and stock levels are test data. They are not business promises.
-- **Prices are test values.** No SKU has a verified MRP yet (owner input 4.1). For
-  testing, each buyable product sells at the MRP stored in the test catalogue, with
-  no discount. Those MRPs are sample data, not real prices.
+- **Prices are test values.** No SKU has a verified commercial MRP yet (owner
+  input 4.1). Test-approved seed products and the added QA variants sell at stored
+  test MRP without discounts. The original ₹199 QA fixture still has no MRP field.
+  None of these values is an approved real price.
 - **Returns policy is a DRAFT.** The proposed commercial policy is "no voluntary
   returns", pending owner and client approval. It does not remove remedies for
   defective, wrong or non-conforming goods. The public `/refunds` page still shows
   an older draft with return windows; treat both as drafts.
-- **24 products can be bought:** the "QA TEST ITEM — staging only, not for sale"
-  (₹199) and 23 test-catalogue products across cement, painting, tiling, wiring,
-  lighting, fans, plumbing, sanitaryware, kitchen, locks and hardware. They show a
-  generic placeholder photo. Their approvals are recorded as "client-uat (TEST ONLY
-  — not an owner approval)". The 22 products with no stored MRP, or no tax setting
-  for their category, stay hidden.
+- **27 test products are purchasable**, verified through the staging public API
+  on 8 November: 23 test-approved seed products plus four labelled QA products
+  (original ₹199 item, paint tin ₹349, two pack sizes ₹99/₹249, bulk bag ₹420).
+  These approvals are TEST reviews, not commercial identity/price approvals.
+  The source changes in PRs #45/#46/#52 are merged. Missing verified commercial
+  MRPs remain a launch blocker.
 - Each SKU starts with **50 test units**. Stock is not topped up again when you buy it.
 - **No order emails on staging.** Staging has no email provider configured, so
   order confirmations and status emails are not sent. Phone sign-in codes are real
@@ -40,7 +43,8 @@ Credentials are not in this guide. The owner gives each tester access separately
 |---|---|---|
 | Desktop web | Chrome, Edge, Safari or Firefox at the testing URL | Ready |
 | Mobile web | Chrome on Android or Safari on iPhone at the testing URL | Ready |
-| Native app (Android / iOS) | A separate test build that talks to staging | **Not available yet.** Every existing app build talks to production, which takes no orders. A staging test build has to be made first (owner approval needed). Until then, test the phone experience on mobile web. |
+| Android native | [UAT build and APK](https://expo.dev/accounts/vertical-express/projects/vertical-express/builds/43370e7b-64e3-4f7c-8172-28a63e203d24) | Completed internal UAT build from `6b0f8d0`. Resolved UAT config and embedded bundle point to staging. Installation and runtime journeys remain **NOT TESTED** in this continuation. |
+| iOS native | `uat-simulator` build profile | Configuration merged in workspace PR #18; no installed staging build verified here. |
 
 ## Roles
 
@@ -87,7 +91,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 Live payments, real deliveries, delivery slots and capacity (not built), COD
 (switched off by the owner), order emails (not configured on staging), refunds of
 delivered goods and part-refunds (need the refund policy), final legal pages, and
-the native app until a staging test build exists.
+native-app acceptance until the staging APK has been installed and tested.
 
 ## Reporting an issue
 
