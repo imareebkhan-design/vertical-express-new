@@ -76,7 +76,6 @@ export function MobileCartView() {
     } else {
       await removeItem(itemId);
     }
-    await refresh();
   };
 
   const handleQtyIncrease = async (itemId: string, currentQty: number) => {
@@ -84,13 +83,11 @@ export function MobileCartView() {
     triggerHaptic("light");
 
     await updateItem(itemId, currentQty + 1);
-    await refresh();
   };
 
   const handleItemRemove = async (itemId: string) => {
     triggerHaptic("medium");
     await removeItem(itemId);
-    await refresh();
   };
 
   /* Not "Your cart is empty" before the cart has arrived (W-B1-G2). */
