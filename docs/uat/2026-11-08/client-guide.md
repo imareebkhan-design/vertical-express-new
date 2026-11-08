@@ -15,14 +15,19 @@ Credentials are not in this guide. The owner gives each tester access separately
   login.**
 - **No real deliveries.** Addresses, delivery times ("About 60 minutes"), delivery
   fees and stock levels are test data. They are not business promises.
-- **Prices are placeholders.** No SKU has a verified MRP yet (owner input 4.1).
+- **Prices are test values.** No SKU has a verified MRP yet (owner input 4.1). For
+  testing, each buyable product sells at the MRP stored in the test catalogue, with
+  no discount. Those MRPs are sample data, not real prices.
 - **Returns policy is a DRAFT.** The proposed commercial policy is "no voluntary
   returns", pending owner and client approval. It does not remove remedies for
   defective, wrong or non-conforming goods. The public `/refunds` page still shows
   an older draft with return windows; treat both as drafts.
-- **Only one product can be bought today:** "QA TEST ITEM — staging only, not for
-  sale" (₹199). The other 45 staging SKUs are hidden until an admin approves them
-  (scenario A2 below).
+- **24 products can be bought:** the "QA TEST ITEM — staging only, not for sale"
+  (₹199) and 23 test-catalogue products across cement, painting, tiling, wiring,
+  lighting, fans, plumbing, sanitaryware, kitchen, locks and hardware. They show a
+  generic placeholder photo. Their approvals are recorded as "client-uat (TEST ONLY
+  — not an owner approval)". The 22 products with no stored MRP, or no tax setting
+  for their category, stay hidden.
 - Each SKU starts with **50 test units**. Stock is not topped up again when you buy it.
 - **No order emails on staging.** Staging has no email provider configured, so
   order confirmations and status emails are not sent. Phone sign-in codes are real
@@ -51,7 +56,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 |---|---|---|---|
 | C1 | Sign up / sign in / sign out | Open `/login`, sign in with phone OTP (or Google). Open Account. Sign out. | Account page shows your name. After sign-out, `/account` sends you back to login. |
 | C2 | Browse and search | Home → Categories → open a category. Search "QA". Search a nonsense word. | Category pages open. "QA" finds the test item. Nonsense search shows a helpful empty state, not an error. |
-| C3 | Filters | On a listing, apply brand / price filters, then page through. | Results narrow; filters survive paging. (Limited while only one product is purchasable.) |
+| C3 | Filters | On a listing, apply brand / price filters, then page through. | Results narrow; filters survive paging. |
 | C4 | Product detail | Open the QA test item. Enter pincode 190008 and press Check. | Price ₹199, "Inclusive of all taxes", delivery check answers. |
 | C5 | Cart | Add to cart. Open Cart. Press + to make 2, then – back to 1. Remove and re-add. | Line total and subtotal update; price matches the product page. |
 | C6 | Stock limit | In the cart, try to set a quantity above the stock available (more than 50). | The site refuses or caps the quantity with a clear message; checkout cannot proceed above stock. |
@@ -70,7 +75,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 | # | Scenario | Steps | Expected |
 |---|---|---|---|
 | A1 | Dashboard | Open `/admin`. | "Today" shows orders needing action and exceptions. The "Payment gateway is razorpay-test" exception is expected on staging. |
-| A2 | Product approval (test only) | Admin → Catalogue approvals: pick one staging SKU, confirm identity and record a commercial review **marked as test**. | The product appears on the storefront and can be bought. Approval is audit-logged. |
+| A2 | Product approval (test only) | Admin → Catalogue approvals: open a test-approved product and check who approved it, then open one of the hidden products. | Test-approved products show the "client-uat (TEST ONLY)" approver. A hidden product without an MRP cannot be published until it has one. |
 | A3 | Inventory | Admin → Inventory: check a SKU shows 50; use Adjust to move it; open Stock ledger. | Adjustment recorded with reason and actor; customer-side availability follows. |
 | A4 | Order processing | Admin → Orders: open the C9 order, move it Packed → Dispatched/Out for delivery → Delivered (using dispatch where required). | Each step allowed only in order; customer sees the same status. |
 | A4b | Cancel a paid order | Admin → Orders: open a second paid, not-dispatched order and move it to Cancelled. | Order is Cancelled and its stock returns. Because money was taken, the order appears under Admin → Payments → "Refund required" and a "paid order cancelled" alert is raised. Cancelling is refused once a shipment has been dispatched. |

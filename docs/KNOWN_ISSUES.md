@@ -16,6 +16,21 @@ and shares the existing UAT initializer's transaction advisory lock. Two regress
 tests cover the failures. No schema change or staging/production write is required.
 Review this follow-up together with PR #46; it does not approve a commercial launch.
 
+## Build — Google Fonts URL compilation fails in Turbopack
+
+**Status:** FIXED LOCALLY on `codex/local-font-build`; production build passed, review pending.
+**Severity:** Release blocker. **Found:** 8 November 2026.
+
+CI run `42452164535` passed 1,483 backend tests, then failed with 24 errors in
+the generated Plus Jakarta Sans CSS: Turbopack could not resolve its internal
+Google font loader and reported that font queries must have exactly one entry.
+The external Google Fonts response used a URL with multiple query parameters.
+
+Bundle the unchanged official normal variable font and its SIL OFL licence, and
+load it through `next/font/local`. This preserves the font family, weights and
+CSS variable while removing the external font-fetch/URL-parsing build dependency.
+No payment, schema or deployment configuration changes are involved.
+
 *Every issue below is supported by direct source inspection or live-site probing
 recorded in `CURRENT_SYSTEM_AUDIT.md`. **No defect here is speculative.** If you find a
 new issue, add it with the same fields and the evidence that supports it.*
