@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Prisma } from "@/prisma/generated/client/client";
 import { recordAudit, type DbClient } from "@/lib/services/audit";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { sellableReasons } from "@/lib/services/admin/publish-guard";
@@ -60,7 +61,9 @@ const IMAGE_PATH = "/qa/qa-test-item.svg";
 
 export interface QaCatalogueResult { slug: string; sellable: string[]; stockCreated: string[] }
 
-export async function upsertQaCatalogue(client: DbClient, warehouseId: string): Promise<QaCatalogueResult[]> {
+export async function upsertQaCatalogue(client: Prisma.TransactionClient, warehouseId: string): Promise<QaCatalogueResult[]> {
+  // Share the opening-stock initializer's lock so both setup commands serialize.
+  await client.$executeRaw`SELECT pg_advisory_xact_lock(746502608)`;
   const warehouse = await client.warehouse.findUnique({ where: { id: warehouseId }, select: { isActive: true } });
   if (!warehouse?.isActive) throw new Error("An active warehouse is required");
   const brand = await client.brand.upsert({
@@ -98,8 +101,13 @@ export async function upsertQaCatalogue(client: DbClient, warehouseId: string): 
         update: { name: v.name, pricePaise: v.pricePaise, compareAtPaise: v.pricePaise, isDefault: v.isDefault, isActive: true },
         select: { id: true },
       });
-      const key = { variantId_warehouseId: { variantId: variant.id, warehouseId } };
-      if (await client.inventory.findUnique({ where: key, select: { id: true } })) continue;
+      // Opening stock belongs to the SKU, not to each warehouse passed on reruns.
+      // Keep the audit marker authoritative even if an inventory row was removed.
+      const initialized = await client.auditLog.findFirst({
+        where: { action: UAT_OPENING_ACTION, entityType: "product_variant", entityId: variant.id },
+        select: { id: true },
+      });
+      if (initialized || await client.inventory.findFirst({ where: { variantId: variant.id }, select: { id: true } })) continue;
       await client.inventory.create({ data: { variantId: variant.id, warehouseId, qtyOnHand: QA_OPENING_STOCK } });
       await client.stockMovement.create({ data: {
         variantId: variant.id, warehouseId, qtyDelta: QA_OPENING_STOCK, qtyAfter: QA_OPENING_STOCK,
