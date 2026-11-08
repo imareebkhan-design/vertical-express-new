@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { SmoothScrollProvider } from "@/hooks/use-lenis";
 import { CartProvider } from "@/hooks/use-cart";
@@ -10,10 +10,12 @@ import { UatNotice } from "@/components/uat-notice";
 
 // One geometric sans throughout. Headlines mix weights inside a single line:
 // a 300-weight grey lead-in, then 800-weight ink.
-const jakarta = Plus_Jakarta_Sans({
+const jakarta = localFont({
+  src: "./fonts/PlusJakartaSans.ttf",
   variable: "--font-jakarta",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: "300 800",
+  style: "normal",
+  display: "swap",
 });
 
 import { SiteJsonLd } from "@/components/seo/site-jsonld";

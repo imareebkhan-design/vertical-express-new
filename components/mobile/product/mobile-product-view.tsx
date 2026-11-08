@@ -183,7 +183,6 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
       } else {
         await removeItem(cartItem.itemId);
       }
-      await refresh();
     });
   };
 
@@ -193,7 +192,6 @@ export function MobileProductView({ product, related, boughtWith }: MobileProduc
 
     startTransition(async () => {
       await updateItem(cartItem.itemId, cartItem.qty + 1);
-      await refresh();
     });
   };
 

@@ -65,7 +65,6 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
       } else {
         await removeItem(cartItem.itemId);
       }
-      await refresh();
     });
   };
 
@@ -77,7 +76,6 @@ export function MobileProductCard({ item }: MobileProductCardProps) {
     triggerHaptic("light");
     startTransition(async () => {
       await updateItem(cartItem.itemId, cartItem.qty + 1);
-      await refresh();
     });
   };
 

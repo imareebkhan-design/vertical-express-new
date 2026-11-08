@@ -15,15 +15,20 @@ Credentials are not in this guide. The owner gives each tester access separately
   login.**
 - **No real deliveries.** Addresses, delivery times ("About 60 minutes"), delivery
   fees and stock levels are test data. They are not business promises.
-- **Prices are placeholders.** No SKU has a verified MRP yet (owner input 4.1).
+- **Prices are test values.** No SKU has a verified commercial MRP yet (owner
+  input 4.1). Test-approved seed products and the added QA variants sell at stored
+  test MRP without discounts. The original ₹199 QA fixture still has no MRP field.
+  None of these values is an approved real price.
 - **Returns policy is a DRAFT.** The proposed commercial policy is "no voluntary
   returns", pending owner and client approval. It does not remove remedies for
   defective, wrong or non-conforming goods. The public `/refunds` page still shows
   an older draft with return windows; treat both as drafts.
-- **Four labelled QA products were verified on 8 November:** the original ₹199
-  item, paint tin ₹349, two pack sizes ₹99/₹249, and bulk bag ₹420. These are
-  synthetic prices, not verified commercial MRPs. The added products' source is
-  still pending review in web PR #46 even though their staging data exists.
+- **27 test products are purchasable**, verified through the staging public API
+  on 8 November: 23 test-approved seed products plus four labelled QA products
+  (original ₹199 item, paint tin ₹349, two pack sizes ₹99/₹249, bulk bag ₹420).
+  These approvals are TEST reviews, not commercial identity/price approvals.
+  The source changes in PRs #45/#46/#52 are merged. Missing verified commercial
+  MRPs remain a launch blocker.
 - Each SKU starts with **50 test units**. Stock is not topped up again when you buy it.
 - **No order emails on staging.** Staging has no email provider configured, so
   order confirmations and status emails are not sent. Phone sign-in codes are real
@@ -36,7 +41,8 @@ Credentials are not in this guide. The owner gives each tester access separately
 |---|---|---|
 | Desktop web | Chrome, Edge, Safari or Firefox at the testing URL | Ready |
 | Mobile web | Chrome on Android or Safari on iPhone at the testing URL | Ready |
-| Native app (Android / iOS) | A separate test build that talks to staging | Workspace PR #18 merged `uat` and `uat-simulator` profiles into `main`, with site and API URLs set to staging. An installed UAT build and its runtime requests have **not been verified**. Configuration alone is not a tested app. |
+| Android native | [UAT build and APK](https://expo.dev/accounts/vertical-express/projects/vertical-express/builds/43370e7b-64e3-4f7c-8172-28a63e203d24) | Completed internal UAT build from `6b0f8d0`. Resolved UAT config and embedded bundle point to staging. Installation and runtime journeys remain **NOT TESTED** in this continuation. |
+| iOS native | `uat-simulator` build profile | Configuration merged in workspace PR #18; no installed staging build verified here. |
 
 ## Roles
 
@@ -71,7 +77,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 | # | Scenario | Steps | Expected |
 |---|---|---|---|
 | A1 | Dashboard | Open `/admin`. | "Today" shows orders needing action and exceptions. The "Payment gateway is razorpay-test" exception is expected on staging. |
-| A2 | Product approval (test only) | Admin → Catalogue approvals: pick one staging SKU, confirm identity and record a commercial review **marked as test**. | The product appears on the storefront and can be bought. Approval is audit-logged. |
+| A2 | Product approval (test only) | Admin → Catalogue approvals: open a test-approved product and check who approved it, then open one of the hidden products. | Test-approved products show the "client-uat (TEST ONLY)" approver. A hidden product without an MRP cannot be published until it has one. |
 | A3 | Inventory | Admin → Inventory: check a SKU shows 50; use Adjust to move it; open Stock ledger. | Adjustment recorded with reason and actor; customer-side availability follows. |
 | A4 | Order processing | Admin → Orders: open the C9 order, move it Packed → Dispatched/Out for delivery → Delivered (using dispatch where required). | Each step allowed only in order; customer sees the same status. |
 | A4b | Cancel a paid order | Admin → Orders: open a second paid, not-dispatched order and move it to Cancelled. | Order is Cancelled and its stock returns. Because money was taken, the order appears under Admin → Payments → "Refund required" and a "paid order cancelled" alert is raised. Cancelling is refused once a shipment has been dispatched. |
@@ -83,7 +89,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 Live payments, real deliveries, delivery slots and capacity (not built), COD
 (switched off by the owner), order emails (not configured on staging), refunds of
 delivered goods and part-refunds (need the refund policy), final legal pages, and
-the native app until a staging test build exists.
+native-app acceptance until the staging APK has been installed and tested.
 
 ## Reporting an issue
 
