@@ -1,5 +1,11 @@
 # Client UAT readiness — 8 Nov 2026 (deliverables B, E, F)
 
+> Historical preparation report. For the latest deployed state and browser/stock
+> evidence, read [resumed UAT verification](resumed-verification.md). In particular,
+> the banner is deployed, four QA products now exist, and an unpaid checkout,
+> cancellation and stock restoration have been verified. The payment-success and
+> refund cycle has **not** passed.
+
 Branch `codex/client-uat-2026-11-08`, based on release head `51a2da8`. Started by
 Codex and finished by Claude after Codex's usage limit. Production was **not**
 touched: it stays at `51a2da8` in catalogue mode with no payment configuration.

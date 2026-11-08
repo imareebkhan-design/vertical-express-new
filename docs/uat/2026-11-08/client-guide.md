@@ -20,9 +20,10 @@ Credentials are not in this guide. The owner gives each tester access separately
   returns", pending owner and client approval. It does not remove remedies for
   defective, wrong or non-conforming goods. The public `/refunds` page still shows
   an older draft with return windows; treat both as drafts.
-- **Only one product can be bought today:** "QA TEST ITEM — staging only, not for
-  sale" (₹199). The other 45 staging SKUs are hidden until an admin approves them
-  (scenario A2 below).
+- **Four labelled QA products were verified on 8 November:** the original ₹199
+  item, paint tin ₹349, two pack sizes ₹99/₹249, and bulk bag ₹420. These are
+  synthetic prices, not verified commercial MRPs. The added products' source is
+  still pending review in web PR #46 even though their staging data exists.
 - Each SKU starts with **50 test units**. Stock is not topped up again when you buy it.
 - **No order emails on staging.** Staging has no email provider configured, so
   order confirmations and status emails are not sent. Phone sign-in codes are real
@@ -35,7 +36,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 |---|---|---|
 | Desktop web | Chrome, Edge, Safari or Firefox at the testing URL | Ready |
 | Mobile web | Chrome on Android or Safari on iPhone at the testing URL | Ready |
-| Native app (Android / iOS) | A separate test build that talks to staging | **Not available yet.** Every existing app build talks to production, which takes no orders. A staging test build has to be made first (owner approval needed). Until then, test the phone experience on mobile web. |
+| Native app (Android / iOS) | A separate test build that talks to staging | Workspace PR #18 merged `uat` and `uat-simulator` profiles into `main`, with site and API URLs set to staging. An installed UAT build and its runtime requests have **not been verified**. Configuration alone is not a tested app. |
 
 ## Roles
 
@@ -51,7 +52,7 @@ Credentials are not in this guide. The owner gives each tester access separately
 |---|---|---|---|
 | C1 | Sign up / sign in / sign out | Open `/login`, sign in with phone OTP (or Google). Open Account. Sign out. | Account page shows your name. After sign-out, `/account` sends you back to login. |
 | C2 | Browse and search | Home → Categories → open a category. Search "QA". Search a nonsense word. | Category pages open. "QA" finds the test item. Nonsense search shows a helpful empty state, not an error. |
-| C3 | Filters | On a listing, apply brand / price filters, then page through. | Results narrow; filters survive paging. (Limited while only one product is purchasable.) |
+| C3 | Filters | On a listing, apply brand / price filters, then page through. | Results narrow; filters survive paging. |
 | C4 | Product detail | Open the QA test item. Enter pincode 190008 and press Check. | Price ₹199, "Inclusive of all taxes", delivery check answers. |
 | C5 | Cart | Add to cart. Open Cart. Press + to make 2, then – back to 1. Remove and re-add. | Line total and subtotal update; price matches the product page. |
 | C6 | Stock limit | In the cart, try to set a quantity above the stock available (more than 50). | The site refuses or caps the quantity with a clear message; checkout cannot proceed above stock. |
