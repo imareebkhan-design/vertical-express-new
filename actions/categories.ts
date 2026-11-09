@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { CATEGORY_GROUPS, saveCategory } from "@/lib/services/admin/categories";
+import { CATEGORY_GROUPS, saveCategory, setCategoryActive } from "@/lib/services/admin/categories";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /** Creating and editing categories from the console. Rules: lib/services/admin/categories.ts. */
@@ -59,4 +59,23 @@ export async function adminSaveCategory(input: unknown): Promise<ActionResult<{ 
   revalidatePath(`/category/${data.slug}`);
   revalidatePath("/", "layout");
   return succeed({ created: result.created });
+}
+
+/** Show or hide one category. Products keep their status; see `setCategoryActive`. */
+export async function adminSetCategoryActive(slug: unknown, isActive: unknown): Promise<ActionResult<{ changed: boolean }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsedSlug = schema.shape.slug.safeParse(slug);
+  if (!parsedSlug.success) return fail("VALIDATION", "That is not a category slug");
+  const parsedActive = z.boolean().safeParse(isActive);
+  if (!parsedActive.success) return fail("VALIDATION", "Choose whether the category is shown");
+
+  const result = await setCategoryActive(parsedSlug.data, parsedActive.data, { id: admin.id, email: admin.email });
+  if (result === "missing") return fail("NOT_FOUND", "That category no longer exists");
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/categories");
+  revalidatePath(`/category/${parsedSlug.data}`);
+  revalidatePath("/", "layout");
+  return succeed({ changed: result === "changed" });
 }

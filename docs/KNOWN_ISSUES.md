@@ -4320,6 +4320,37 @@ wrong". Production has the config, so this is a robustness gap, not a live outag
 rotated key would take browsing down with sign-in, though. Suggested fix: the account button degrades to a "Sign in"
 link when auth is not configured.
 
+## ISS-101 — Hiding a product left no audit row
+
+**Status:** FIXED on branch `claude/launch-control-pr1` (Launch Control PR-1). Not deployed.
+
+`adminSaveProduct` audited only a move into `published`. Moving a product to draft, archived or catalogue-only
+reached the application log and nothing else, so "who hid this, and when" had no answer in the database. The status
+gate now lives in `lib/services/admin/product-status.ts` (`gateAndAuditStatus`, `setProductStatus`) and audits every
+change (`catalogue.product_status_changed`; publishing keeps `catalogue.product_published`). The gate itself is
+unchanged. Categories gain a locked, audited one-step toggle, `setCategoryActive` / `adminSetCategoryActive`
+(`catalogue.category_hidden` / `_shown`, no audit on a no-op). Tests: `product-status.test.ts`. **Rollback:** revert
+the commit; no schema or data change.
+
+## ISS-102 — Navigation hardcodes category links
+
+**Status:** OPEN (found in the Launch Control audit, 9 Nov 2026; fix planned as Launch Control PR-2).
+
+`components/sections/navbar.tsx` (21 links), `components/sections/footer.tsx` (4), the phone-web quantity helpers
+(`components/mobile/home/quantity-helpers.tsx`) and the Expo home helpers (`mobile/src/screens/home/index.tsx`,
+workspace repo) link to fixed category slugs. Every other surface follows `listCategoryDirectory()`, so hiding a
+category makes these links 404 on the web or open an empty list in the app. Fix before any category is hidden in
+production: render them from the directory.
+
+## ISS-103 — Retiring and restoring a SKU revokes the product's commercial review
+
+**Status:** OPEN, by design pending owner decision D6 (Launch Control plan, 9 Nov 2026).
+
+The `invalidate_variant_commercial_review` trigger (migration `20261009100000`) clears `products.commercial_review`
+whenever a variant's `is_active` changes. So a variant switch is not a reversible visibility toggle: after a restore,
+the product cannot be sold until it is reviewed again. Category and brand switches and product status changes do not
+fire it. Launch Control must not present a variant switch as show/hide.
+
 
 ## Launch readiness continuation — 5 Nov 2026
 
