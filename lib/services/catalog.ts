@@ -1,5 +1,6 @@
 import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
+import { cache } from "react";
 import { attributeConfigFor, attributesOf } from "@/lib/catalog-attributes";
 import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
@@ -822,7 +823,7 @@ export async function visibleProductCount(categoryId: string): Promise<number> {
  * `listCategories()` it includes active categories that have nothing visible
  * yet, because a designated department is shown as "Coming soon".
  */
-export async function listCategoryDirectory(): Promise<DirectoryGroup[]> {
+async function listCategoryDirectoryRaw(): Promise<DirectoryGroup[]> {
   const rows = await db.category.findMany({
     where: { isActive: true },
     orderBy: [{ group: "asc" }, { sortOrder: "asc" }],
@@ -833,6 +834,11 @@ export async function listCategoryDirectory(): Promise<DirectoryGroup[]> {
   });
   return buildCategoryDirectory(rows.map((r) => ({ ...r, group: String(r.group) })));
 }
+
+/* Once per request: the root layout reads it for the navigation (components/
+   shop/category-nav-root.tsx) and the home and category pages read it again.
+   Outside a React render (the /api/v1 handlers) `cache` simply calls through. */
+export const listCategoryDirectory = cache(listCategoryDirectoryRaw);
 
 /**
  * Categories, each carrying how many published products it actually holds.

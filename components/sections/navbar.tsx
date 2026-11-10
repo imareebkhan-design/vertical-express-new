@@ -19,52 +19,8 @@ import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
 import { formatINR, cn } from "@/lib/utils";
+import { useCategoryNav } from "@/components/shop/category-nav-provider";
 
-const L1_GROUPS = [
-  {
-    label: "Civil & Interiors",
-    href: "/category/cement",
-    items: [
-      { label: "Cement", href: "/category/cement" },
-      { label: "Tiling", href: "/category/tiling" },
-      { label: "Painting", href: "/category/painting" },
-      { label: "Waterproofing", href: "/category/waterproofing" },
-      { label: "Plywood, MDF & HDHMR", href: "/category/plywood-mdf-hdhmr" },
-      { label: "Adhesives & Sealants", href: "/category/fevicol" },
-    ],
-  },
-  {
-    label: "Furniture & Hardware",
-    href: "/category/general-hardware-tools",
-    items: [
-      { label: "Hinges, Channels & Handles", href: "/category/hinges-channels-handles" },
-      { label: "Kitchen Systems", href: "/category/kitchen-systems-accessories" },
-      { label: "Wardrobe & Bed Fittings", href: "/category/wardrobe-bed-fittings" },
-      { label: "Door Locks & Hardware", href: "/category/door-locks-hardware" },
-      { label: "General Hardware & Tools", href: "/category/general-hardware-tools" },
-    ],
-  },
-  {
-    label: "Electrical",
-    href: "/category/wires-mcb-distribution-boards",
-    items: [
-      { label: "Wires, MCB & Distribution", href: "/category/wires-mcb-distribution-boards" },
-      { label: "Switches & Sockets", href: "/category/switches-sockets" },
-      { label: "Conduits & GI Boxes", href: "/category/conduits-gi-boxes" },
-      { label: "Lighting", href: "/category/lighting" },
-      { label: "Ceiling Fans & Exhaust", href: "/category/ceiling-fans-exhaust" },
-    ],
-  },
-  {
-    label: "Plumbing & Bath",
-    href: "/category/cpvc-pipes-overhead-tanks",
-    items: [
-      { label: "CPVC Pipes & Overhead Tanks", href: "/category/cpvc-pipes-overhead-tanks" },
-      { label: "Sanitary & Bath Fittings", href: "/category/sanitary-bath-fittings" },
-      { label: "Kitchen Sinks & Faucets", href: "/category/kitchen-sinks-faucets" },
-    ],
-  },
-];
 
 export function Navbar() {
   const scrolled = useScrolled(16);
@@ -73,6 +29,9 @@ export function Navbar() {
   /* The location sheet is the shell's (one instance for every page). */
   const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const pathname = usePathname();
+  /* Departments and their categories, as the shop shows them (lib/category-nav.ts).
+     A switched-off category is not linked; an emptied department disappears. */
+  const { departments } = useCategoryNav();
 
   const totalDisplay = summary.subtotalPaise > 0
     ? formatINR(summary.subtotalPaise / 100)
@@ -175,7 +134,7 @@ export function Navbar() {
                 </Link>
 
                 {/* 4 L1 Groups with Dropdowns */}
-                {L1_GROUPS.map((group) => {
+                {departments.map((group) => {
                   const isOpen = openGroup === group.label;
                   return (
                     <div

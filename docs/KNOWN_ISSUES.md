@@ -4412,3 +4412,22 @@ Candidate codex/launch-readiness repairs mobile catalogue enquiry navigation, fi
 **Remaining release gates:** signed-in owner admin verification on staging, production image cutover with approval provenance preserved, legal/contact/policy facts, verified sellable SKU prices and physical inventory, LIVE payments/refunds, fulfilment/tracking acceptance, end-to-end alert receipt. PR #24 remains held.
 
 **6 Nov image-cutover update (candidate only):** the URL-write blocker is avoided by keeping approved database identity unchanged and resolving exact id/url/hash tuples to verified generation-pinned production copies at serialization. Rehearsal preserved all 324 image rows and visibility of 260 products; rollback passed. No migration or live rollout occurred. See docs/readiness/2026-11-06-image-delivery.md. Shared runtime IAM remains separate work.
+
+## ISS-102 — Navigation and home banners hardcoded category links
+
+**Status:** FIXED on branch `claude/launch-control-pr2-nav` (Launch Control PR-2). Not deployed. App side on the
+workspace branch `claude/launch-control-expo-helpers`.
+
+The navbar (21 links), footer (4), the phone-web quantity helpers and two of the three home hero banners linked to
+fixed category slugs, so hiding a category left links to a 404. They now follow the category directory:
+`lib/category-nav.ts` builds the navigation from `listCategoryDirectory()` once per request in the root layout
+(`components/shop/category-nav-root.tsx`, per request via `connection()` so a static page cannot keep a build-time
+menu), and client components read it through `useCategoryNav()`. A department link falls back to its first shown
+category, an emptied department disappears, and a banner linking any hidden category is dropped whole, because its
+copy names that material. If the directory cannot be read the page renders with no category links and logs
+`category_nav_unavailable`; "All categories" always stays. With every category shown, the navbar and footer are
+unchanged. The Expo home's quantity cards are filtered by `/api/v1/categories` the same way.
+
+Note: the web `QuantityHelpers` component is not rendered by any page today (tests only); the Expo app's strip is the
+one customers see. `lib/data.ts` still holds unused legacy category lists (`NAV_PRIMARY`, `CATEGORIES`); nothing
+imports them. **Rollback:** revert the commit; no schema or data change.

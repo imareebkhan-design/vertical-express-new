@@ -17,6 +17,9 @@ import { HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/
 import { useCart } from "@/hooks/use-cart";
 import { getMyHomeFacts, type MyHomeFacts } from "@/actions/home";
 import { HeroBanners } from "@/components/merchandising/hero-banners";
+import { HERO_BANNERS } from "@/lib/merchandising/home";
+import { withShownCategoryLinks } from "@/lib/category-nav";
+import { useCategoryNav } from "@/components/shop/category-nav-provider";
 import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
 import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
 import type { DealProduct } from "@/lib/merchandising/deal";
@@ -69,6 +72,8 @@ export function MobileHomeView({
   const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
   const { addItem } = useCart();
   const orderingOpen = useOrderingOpen();
+  /* No banner for a category the shop does not show (ISS-102). */
+  const heroBanners = withShownCategoryLinks(HERO_BANNERS, useCategoryNav().slugs);
   /* Null while unanswered or failed: the neutral answer, first-run, as in the app. */
   const [facts, setFacts] = useState<MyHomeFacts | null>(null);
   useEffect(() => {
@@ -128,7 +133,7 @@ export function MobileHomeView({
 
       {/* Campaign banners (lib/merchandising/home.ts), above everything else. */}
       <div className="px-4 pt-3.5">
-        <HeroBanners compact />
+        <HeroBanners compact banners={heroBanners} />
       </div>
 
       {returning && <HomeSearchPill />}
