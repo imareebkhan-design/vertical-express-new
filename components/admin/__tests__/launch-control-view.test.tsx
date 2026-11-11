@@ -23,6 +23,7 @@ const overview = (orderingOpen: boolean): LaunchOverview => ({
   orderingOpen,
   strict: true,
   departments: buildLaunchTree(rows),
+  brands: [],
   totals: { categories: 3, categoriesReachable: 1, products: 10, visible: 2, visiblePublished: 2 },
 });
 
