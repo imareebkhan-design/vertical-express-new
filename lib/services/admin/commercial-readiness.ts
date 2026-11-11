@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import type { DbClient } from "@/lib/services/audit";
-import { catalogIdentityWhere } from "@/lib/catalog-policy";
+import { productReadinessWhere } from "@/lib/catalog-policy";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { priceProblem } from "./variant-pricing";
 
@@ -29,8 +29,11 @@ export async function validateCommercialReadiness(client: DbClient, productId: s
     include: { category: true, variants: { where: { isActive: true }, include: { inventory: { include: { warehouse: true } } } } },
   });
   if (!p) return ["Product not found"];
-  if (!await client.product.findFirst({ where: { id: productId, AND: [catalogIdentityWhere()] }, select: { id: true } })) {
-    issues.push("Confirmed identity, approved primary image and active brand/category are required");
+  /* Readiness only. Whether customers may see it (active brand and category) is
+     enforced by every customer path through catalogListingWhere, not here, so a
+     product can be prepared while its category is hidden. */
+  if (!await client.product.findFirst({ where: { id: productId, AND: [productReadinessWhere()] }, select: { id: true } })) {
+    issues.push("Confirmed identity and an approved primary image are required");
   }
   const review = commercialReviewSchema.safeParse(p.commercialReview);
   if (!review.success) issues.push("Explicit owner commercial review is missing or incomplete");

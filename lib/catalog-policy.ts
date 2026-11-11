@@ -34,16 +34,31 @@ export function approvedImageWhere(): Prisma.ProductImageWhereInput {
   };
 }
 
-/** The public boundary used by listings, direct URLs, counts and search. */
-export function catalogIdentityWhere(): Prisma.ProductWhereInput {
+/**
+ * What review has established about the product itself: confirmed identity and
+ * an approved primary photo. Says nothing about whether customers may see it.
+ *
+ * The publish gates use this, so a product can be prepared (catalogue-only or
+ * published) while its brand or category is switched off (owner, 12 Nov 2026,
+ * Launch Control PR-4). Exposure stays with `catalogIdentityWhere` below, which
+ * every customer path — listings, search, API, cart, checkout — still requires.
+ */
+export function productReadinessWhere(): Prisma.ProductWhereInput {
   return {
     identityConfirmed: true,
     identityApprovedAt: { not: null },
     identityApprovedBy: { not: "" },
     identityApprovalReason: { not: "" },
+    images: { some: { isPrimary: true, ...approvedImageWhere() } },
+  };
+}
+
+/** The public boundary used by listings, direct URLs, counts and search: readiness plus an active brand and category. */
+export function catalogIdentityWhere(): Prisma.ProductWhereInput {
+  return {
+    ...productReadinessWhere(),
     brand: { isActive: true },
     category: { isActive: true },
-    images: { some: { isPrimary: true, ...approvedImageWhere() } },
   };
 }
 

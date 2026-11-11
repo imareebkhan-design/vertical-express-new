@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@/prisma/generated/client/client";
 import { sellableReasons, unpublishableReason } from "../publish-guard";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 import { createProduct } from "../product-create";
 import { addItem, getCartSummary } from "../../cart";
 import { assertCheckoutCatalogue } from "../../checkout-catalogue";
@@ -162,11 +163,15 @@ test("each missing input is reported on its own", async () => {
   }
 });
 
-test("an inactive brand blocks selling", async () => {
+test("an inactive brand does not block preparation, and the product still cannot be seen or bought", async () => {
+  // Owner, 12 Nov 2026 (Launch Control PR-4): prepare while hidden. Exposure is the
+  // listing filter's job; hidden-category-preparation.test.ts covers every customer path.
   const id = await complete("brandoff");
   await db.brand.update({ where: { id: ids.brand }, data: { isActive: false } });
   try {
-    assert.ok((await sellableReasons(db, id)).some((r) => /brand is inactive/.test(r)));
+    const reasons = await sellableReasons(db, id);
+    assert.deepEqual(reasons, [], `a complete product is ready whatever its brand's switch: ${reasons.join(" | ")}`);
+    assert.equal(await db.product.count({ where: { id, AND: [catalogListingWhere()] } }), 0, "but not listed while its brand is off");
   } finally {
     await db.brand.update({ where: { id: ids.brand }, data: { isActive: true } });
   }

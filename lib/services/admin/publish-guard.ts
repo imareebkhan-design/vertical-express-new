@@ -1,7 +1,7 @@
 import "server-only";
 import type { DbClient } from "@/lib/services/audit";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
-import { catalogIdentityWhere } from "@/lib/catalog-policy";
+import { productReadinessWhere } from "@/lib/catalog-policy";
 import { validateCommercialReadiness } from "./commercial-readiness";
 
 /**
@@ -23,16 +23,15 @@ export async function unpublishableReason(client: DbClient, productId: string): 
  * the listing. It must therefore be an exact product photo that arrived through
  * the provenance-recording image import (licence and sha256 set) and is the
  * product's primary. Demo placeholders and category illustrations carry no
- * provenance, so they can never qualify. The brand and category must be active
- * so the product is reachable from navigation, not just by URL.
+ * provenance, so they can never qualify. The brand and category may be
+ * switched off: the product is then prepared but not shown (customer paths
+ * require them active), and appears when they are switched on.
  * Returns null when the product may be catalog-only.
  */
 export async function catalogOnlyReason(client: DbClient, productId: string): Promise<string | null> {
   const product = await client.product.findUnique({
     where: { id: productId },
     select: {
-      brand: { select: { isActive: true } },
-      category: { select: { isActive: true } },
       images: { where: { isPrimary: true }, select: { licence: true, sha256: true } },
     },
   });
@@ -41,9 +40,7 @@ export async function catalogOnlyReason(client: DbClient, productId: string): Pr
   if (!primary || !primary.licence || !primary.sha256) {
     return "A catalog-only product needs an approved exact product photo as its primary image";
   }
-  if (!product.brand.isActive) return "The product's brand is inactive";
-  if (!product.category.isActive) return "The product's category is inactive";
-  const approved = await client.product.findFirst({ where: { id: productId, AND: [catalogIdentityWhere()] }, select: { id: true } });
+  const approved = await client.product.findFirst({ where: { id: productId, AND: [productReadinessWhere()] }, select: { id: true } });
   if (!approved) return "Confirmed identity and explicit primary photo approval are required";
   return null;
 }
@@ -65,8 +62,11 @@ export async function catalogOnlyReason(client: DbClient, productId: string): Pr
  *    if it is an explicit zero; "unknown" is not allowed to sell;
  *  - an explicit HSN/GST mapping for the category (lib/services/tax.ts). The
  *    checkout's 18%/7308 fallback is a safety net, never a reason to sell;
- *  - an approved exact primary photo (licence + sha256 from the image import);
- *  - an active brand and category.
+ *  - an approved exact primary photo (licence + sha256 from the image import).
+ *
+ * Not required: an active brand and category. A product may be prepared for
+ * sale while they are switched off; it cannot be seen or bought until they are
+ * switched on, because every customer path requires them (`catalogListingWhere`).
  *
  * Delivery classification needs no check here: `deliverySpeed` is an enum or
  * null, and null means the category's `isBulk` decides — always defined.
@@ -78,8 +78,7 @@ export async function sellableReasons(client: DbClient, productId: string): Prom
   const p = await client.product.findUnique({
     where: { id: productId },
     select: {
-      brand: { select: { isActive: true } },
-      category: { select: { slug: true, isActive: true } },
+      category: { select: { slug: true } },
       images: { where: { isPrimary: true }, select: { licence: true, sha256: true } },
       variants: {
         where: { isActive: true },
@@ -101,7 +100,5 @@ export async function sellableReasons(client: DbClient, productId: string): Prom
   if (!CATEGORY_TAX_CONFIGS[p.category.slug]) reasons.push(`No confirmed HSN/GST for category ${p.category.slug}`);
   const photo = p.images[0];
   if (!photo?.licence || !photo.sha256) reasons.push("No approved exact product photo as the primary image");
-  if (!p.brand.isActive) reasons.push("The brand is inactive");
-  if (!p.category.isActive) reasons.push("The category is inactive");
   return [...new Set([...reasons, ...await validateCommercialReadiness(client, productId)])];
 }
