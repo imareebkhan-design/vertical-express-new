@@ -17,6 +17,12 @@ before(async () => {
 });
 afterEach(() => RTL.cleanup());
 
+/* Each step crosses a React transition and a mocked server action. Under the
+   full UI suite's parallel load that can exceed Testing Library's 1s default
+   (seen once at 1,072 ms), so every wait gets the same, longer budget. What is
+   asserted does not change. */
+const WAIT = { timeout: 5000 };
+
 /**
  * The switches never change the shop on a click: a change is reviewed with its
  * real impact, typed when it is a batch, applied with the states the operator
@@ -61,7 +67,7 @@ test("a switch click changes nothing on the server; Cancel applies nothing", asy
   assert.deepEqual(calls.plan, []);
   assert.deepEqual(calls.apply, []);
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
-  await RTL.screen.findByRole("dialog");
+  await RTL.screen.findByRole("dialog", undefined, WAIT);
   assert.deepEqual(calls.plan, [{ categories: [{ slug: "lighting", isActive: false }], brands: [] }]);
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Cancel" }));
   assert.equal(RTL.screen.queryByRole("dialog"), null);
@@ -72,7 +78,7 @@ test("the review shows the real impact: products, categories, departments and sh
   setup();
   RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
-  const dialog = await RTL.screen.findByRole("dialog");
+  const dialog = await RTL.screen.findByRole("dialog", undefined, WAIT);
   const text = dialog.textContent ?? "";
   assert.match(text, /Hide lighting/);
   assert.match(text, /10 → 6 \(4 hidden\)/);
@@ -86,11 +92,11 @@ test("one switch applies with a click, sending the state the operator reviewed",
   refreshed = 0;
   RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
-  await RTL.screen.findByRole("dialog");
+  await RTL.screen.findByRole("dialog", undefined, WAIT);
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Apply" }));
-  await RTL.waitFor(() => assert.equal(calls.apply.length, 1));
+  await RTL.waitFor(() => assert.equal(calls.apply.length, 1), WAIT);
   assert.deepEqual(calls.apply[0], { changeSet: { categories: [{ slug: "lighting", isActive: false, expected: true }], brands: [] }, confirmText: null, undoOf: undefined });
-  await RTL.screen.findByRole("status");
+  await RTL.screen.findByRole("status", undefined, WAIT);
   assert.equal(refreshed, 1);
 });
 
@@ -98,7 +104,7 @@ test("a batch must be typed: Apply stays disabled until the exact text is entere
   const calls = setup();
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Hide all in Civil & Interiors" }));
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
-  await RTL.screen.findByRole("dialog");
+  await RTL.screen.findByRole("dialog", undefined, WAIT);
   const applyButton = RTL.screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement;
   assert.equal(applyButton.disabled, true);
   RTL.fireEvent.change(RTL.screen.getByLabelText("Type HIDE 2 to apply"), { target: { value: "hide 1" } });
@@ -106,7 +112,7 @@ test("a batch must be typed: Apply stays disabled until the exact text is entere
   RTL.fireEvent.change(RTL.screen.getByLabelText("Type HIDE 2 to apply"), { target: { value: "hide 2" } });
   assert.equal(applyButton.disabled, false);
   RTL.fireEvent.click(applyButton);
-  await RTL.waitFor(() => assert.equal(calls.apply.length, 1));
+  await RTL.waitFor(() => assert.equal(calls.apply.length, 1), WAIT);
   assert.equal((calls.apply[0] as { confirmText: string }).confirmText, "hide 2");
 });
 
@@ -115,9 +121,9 @@ test("a stale plan is reported in the dialog and nothing is refreshed", async ()
   setup({ apply: async () => ({ ok: false, error: { code: "CONFLICT", message: "Something changed since you reviewed this. Review the changes again." } }) });
   RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show brand Acme" }));
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
-  await RTL.screen.findByRole("dialog");
+  await RTL.screen.findByRole("dialog", undefined, WAIT);
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Apply" }));
-  assert.match((await RTL.screen.findByRole("alert")).textContent ?? "", /changed since you reviewed/);
+  assert.match((await RTL.screen.findByRole("alert", undefined, WAIT)).textContent ?? "", /changed since you reviewed/);
   assert.ok(RTL.screen.getByRole("dialog"));
   assert.equal(refreshed, 0);
 });
@@ -131,10 +137,10 @@ test("undo goes through the same review and applies with the batch it reverses",
   assert.equal(RTL.screen.getAllByRole("button", { name: "Undo" }).length, 1, "an undone batch offers no Undo");
   assert.ok(RTL.screen.getByText("Undone"));
   RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Undo" }));
-  const dialog = await RTL.screen.findByRole("dialog");
+  const dialog = await RTL.screen.findByRole("dialog", undefined, WAIT);
   assert.match(dialog.textContent ?? "", /Undo this change\?/);
   assert.deepEqual(calls.undo, ["11111111-1111-4111-8111-111111111111"]);
   RTL.fireEvent.click(RTL.within(dialog).getByRole("button", { name: "Undo" }));
-  await RTL.waitFor(() => assert.equal(calls.apply.length, 1));
+  await RTL.waitFor(() => assert.equal(calls.apply.length, 1), WAIT);
   assert.equal((calls.apply[0] as { undoOf: string }).undoOf, "11111111-1111-4111-8111-111111111111");
 });
