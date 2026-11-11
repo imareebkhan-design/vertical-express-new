@@ -1,7 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { listCategoryDirectory } from "@/lib/services/catalog";
-import { buildCategoryNav, EMPTY_CATEGORY_NAV, type CategoryNav } from "@/lib/category-nav";
+import { categoryNavOrEmpty } from "@/lib/category-nav";
 import { log } from "@/lib/observability";
 import { CategoryNavProvider } from "./category-nav-provider";
 
@@ -21,15 +21,12 @@ import { CategoryNavProvider } from "./category-nav-provider";
  */
 export async function CategoryNavRoot({ children }: { children: React.ReactNode }) {
   await connection();
-  let nav: CategoryNav = EMPTY_CATEGORY_NAV;
-  try {
-    nav = buildCategoryNav(await listCategoryDirectory());
-  } catch (error) {
+  const nav = await categoryNavOrEmpty(listCategoryDirectory, (error) =>
     log("ERROR", {
       service: "catalog",
       event: "category_nav_unavailable",
       metadata: { message: error instanceof Error ? error.message : String(error) },
-    });
-  }
+    }),
+  );
   return <CategoryNavProvider nav={nav}>{children}</CategoryNavProvider>;
 }

@@ -57,6 +57,23 @@ export function buildCategoryNav(groups: readonly DirectoryGroup[]): CategoryNav
   return { departments, slugs: groups.flatMap((g) => g.categories.map((c) => c.slug)) };
 }
 
+/**
+ * The navigation, or none if the directory cannot be read. Never a fixed list:
+ * a fallback that names categories could link one that is switched off. The
+ * caller logs `onError`; "All categories" links stay either way.
+ */
+export async function categoryNavOrEmpty(
+  read: () => Promise<readonly DirectoryGroup[]>,
+  onError: (error: unknown) => void,
+): Promise<CategoryNav> {
+  try {
+    return buildCategoryNav(await read());
+  } catch (error) {
+    onError(error);
+    return EMPTY_CATEGORY_NAV;
+  }
+}
+
 /** A link's category slug, when it opens a category page; otherwise null. */
 export function categorySlugOf(href: string): string | null {
   const m = /^\/category\/([a-z0-9-]+)(?:[?#]|$)/.exec(href);

@@ -80,3 +80,20 @@ test("categorySlugOf reads category links only", async () => {
   assert.equal(categorySlugOf("/categories"), null);
   assert.equal(categorySlugOf("/how-we-work"), null);
 });
+
+test("directory read fails: no category links at all, and the failure is reported", async () => {
+  const { categoryNavOrEmpty } = await import("@/lib/category-nav");
+  const errors: unknown[] = [];
+  const nav = await categoryNavOrEmpty(async () => { throw new Error("database unreachable"); }, (e) => errors.push(e));
+  assert.deepEqual(nav, { departments: [], slugs: [] }, "never a fixed fallback list that could name a hidden category");
+  assert.equal(errors.length, 1);
+  assert.match(String(errors[0]), /database unreachable/);
+});
+
+test("directory read succeeds: the navigation is built from it and nothing is reported", async () => {
+  const { categoryNavOrEmpty } = await import("@/lib/category-nav");
+  const errors: unknown[] = [];
+  const nav = await categoryNavOrEmpty(async () => buildCategoryDirectory(rows((s) => s === "cement")), (e) => errors.push(e));
+  assert.deepEqual(nav.slugs, ["cement"]);
+  assert.equal(errors.length, 0);
+});
