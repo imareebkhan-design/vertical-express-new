@@ -25,7 +25,7 @@ import {
   Receipt,
   UserCog,
   SlidersHorizontal,
-  PlusSquare, MessageSquareText, BadgeCheck, IdCard, FolderTree } from "lucide-react";
+  PlusSquare, MessageSquareText, BadgeCheck, IdCard, FolderTree, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -62,6 +62,7 @@ export const GROUPS: { heading: string; items: { href: string; label: string; ic
     heading: "Catalog & stock",
     items: [
       { href: "/admin/listing", label: "Listing", icon: PlusSquare },
+      { href: "/admin/launch-control", label: "Launch control", icon: Rocket },
       { href: "/admin/products", label: "Products", icon: Box },
       { href: "/admin/catalogue-update", label: "Prices & stock files", icon: FileSpreadsheet },
       { href: "/admin/catalogue-approvals", label: "Approvals", icon: BadgeCheck },
