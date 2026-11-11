@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { catalogListingWhere } from "@/lib/catalog-policy";
 import { explainProducts } from "@/lib/services/catalog-state";
+import { addItem } from "@/lib/services/cart";
 
 /**
  * PARITY: the console's explanation must agree with what the storefront
@@ -142,12 +143,20 @@ for (const mode of ["transactional", "catalogue"] as const) {
   }
 }
 
-test("the complete product is bought when ordering is open, and its readiness is checked", async () => {
+test("ordering open: a listed product failing the full commercial check is reported as refused, matching the cart", async () => {
   await withEnv({ COMMERCE_MODE: "transactional", VE_DEPLOY_ENV: "development", NODE_ENV: "test", PAYMENT_GATEWAY: undefined }, async () => {
     const s = (await explainProducts([products.get("complete")!])).get(products.get("complete")!)!;
     // The synthetic review is deliberately minimal, so the full commercial check refuses it.
     assert.equal(s.visible, true);
-    assert.equal(s.action, "enquire");
+    assert.equal(s.action, "refused", "listed with Add to cart, refused by the cart");
     assert.ok(s.reasons.every((r) => r.code === "COMMERCIAL_CHECK_FAILED"));
+    // And the cart really does refuse it.
+    const variant = await db.productVariant.findFirstOrThrow({ where: { productId: products.get("complete")!, isDefault: true } });
+    const anonId = randomUUID();
+    try {
+      await assert.rejects(addItem(null, anonId, variant.id, 1), /not for sale/);
+    } finally {
+      await db.cart.deleteMany({ where: { anonId } });
+    }
   });
 });

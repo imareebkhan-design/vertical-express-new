@@ -4222,6 +4222,33 @@ already placed at 28% (demo/test data only, as far as the local DBs show; produc
 changes the table (one line per rate), adds a regression test per confirmed rate, and records the source in
 `OWNER_INPUT_REQUIRED.md`.
 
+**Pre-launch verification, 11 Nov 2026 (Launch Control review; still OPEN, nothing changed).** A cement launch must not
+go ahead on the 28% mapping without the CA's written confirmation. Every place the 28% rate is encoded today:
+
+| Where | What | Follows `tax.ts`? |
+|---|---|---|
+| `lib/services/tax.ts:21` | `cement: { hsn: "2523", ratePct: 28 }`, the only source checkout uses | — |
+| `lib/services/__tests__/tax.test.ts:22` | asserts the cement split at 28% | asserts it |
+| `lib/services/__tests__/checkout.test.ts:8` | ₹3,850 cement line "inclusive of 28% GST" | asserts it |
+| `lib/services/__tests__/coupon-e6.test.ts:94` | cement fixture commented 28% | via the table |
+| `lib/services/admin/__tests__/product-create.test.ts:204` | `assert.equal(cement.gstRatePct, 28, …)` | asserts it |
+| `components/shop/checkout/__tests__/summary-lines.test.tsx:20,30` | fixtures "cement at 28% GST" | fixture values |
+| `lib/__tests__/web-truthfulness.test.ts:52` | comment "cement is 28%" | comment |
+| `lib/order-display.ts:203`, `components/shop/checkout/summary-lines.tsx:55` | comments "cement 28%" | comments |
+| `scripts/seed-demo-orders.mjs:223-224` | hardcodes 28 / 2523 for demo orders | **no**: would keep writing 28 |
+
+**Knock-on that a rate change must plan for.** Every owner commercial review stores the rate it was approved at
+(`commercialReview.gstRatePct`), and `validateCommercialReadiness` refuses a review whose rate differs from `tax.ts`
+(`commercial-readiness.ts:42`). Changing cement to 18% therefore makes every cement product unsellable until its
+review is recorded again. The product stays listed, though, because the listing filter only checks that a review
+exists, so customers would see Add to cart and the cart would refuse it (ISS-105). The staging UAT approvals
+(`uat-approvals.ts:133`, `qa-catalogue.ts:145`, `qa-fixture.ts:87`) were recorded with whatever rate `tax.ts` held,
+28% for cement, and would need re-running. Placed orders keep their snapshotted split (`OrderItem.gstRate`).
+
+**Order of work once the CA confirms:** one PR changing `tax.ts` and the tests above together, with the confirmed
+source recorded in `OWNER_INPUT_REQUIRED.md`; re-record cement commercial reviews; re-run the staging UAT approvals;
+fix `seed-demo-orders.mjs` to read the table.
+
 ---
 
 ## ISS-087 — A production backend could run "live" on staging TEST keys
@@ -4334,13 +4361,37 @@ the commit; no schema or data change.
 
 ## ISS-102 — Navigation hardcodes category links
 
-**Status:** OPEN (found in the Launch Control audit, 9 Nov 2026; fix planned as Launch Control PR-2).
+**Status:** OPEN (found in the Launch Control audit, 9 Nov 2026). Fix in review: PR #55
+(`claude/launch-control-pr2-nav`), which also covers two home hero banners found later.
+
+**Merge note (11 Nov 2026).** PR #55 was cut from the release head before this entry existed, so it appends its own
+`## ISS-102` (FIXED) at the end of this file. The two merge without a git conflict and leave two ISS-102 headings. If
+PR #54 merges first: rebase #55 and replace this entry with its FIXED text in place. If #55 merges first: drop this
+entry when rebasing #54. Checked by merging #54, #56 and #55 in that order into the release head: clean, typecheck and
+lint pass.
 
 `components/sections/navbar.tsx` (21 links), `components/sections/footer.tsx` (4), the phone-web quantity helpers
 (`components/mobile/home/quantity-helpers.tsx`) and the Expo home helpers (`mobile/src/screens/home/index.tsx`,
 workspace repo) link to fixed category slugs. Every other surface follows `listCategoryDirectory()`, so hiding a
 category makes these links 404 on the web or open an empty list in the app. Fix before any category is hidden in
 production: render them from the directory.
+
+## ISS-105 — A listed product can show Add to cart that the cart then refuses
+
+**Status:** OPEN (found 11 Nov 2026 reviewing Launch Control; pre-existing, not introduced by it).
+
+The listing filter (`catalogListingWhere`) requires only that an owner commercial review exists
+(`commercialReview.approvedBy`). The cart (`addItem`) and checkout (`assertCheckoutCatalogue`) run the full
+`validateCommercialReadiness`, which also compares the review with the product's current unit, delivery class, tax
+mapping and every SKU's price. A product whose review no longer matches stays listed, `toItem` marks it purchasable,
+and in ordering mode the customer gets Add to cart followed by "not for sale". The triggers clear the review on most
+product and variant edits, which narrows this. They do not cover a change to `CATEGORY_TAX_CONFIGS`, so the cement GST
+correction (ISS-086) would trigger it for every cement product at once. Nothing wrong can be bought: the server
+refuses.
+
+Launch Control reports these products as **refused** (`lib/catalog-explain.ts`), not as enquiries, since ordering mode
+takes none. Fix options for the owner: list only products that pass the full check (heavier query), or re-record the
+affected reviews in the same change that alters a tax mapping.
 
 ## ISS-103 — Retiring and restoring a SKU revokes the product's commercial review
 

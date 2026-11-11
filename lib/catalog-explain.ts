@@ -101,7 +101,16 @@ export interface CatalogState {
   visible: boolean;
   /** Null when `commercialIssues` was not supplied and the product would otherwise be purchasable. */
   purchasable: boolean | null;
-  action: "buy" | "enquire" | "hidden" | "unknown";
+  /**
+   * buy      — listed, and the cart and checkout accept it
+   * enquire  — listed; ordering is closed or it is catalogue-only, so it takes an enquiry
+   * refused  — listed with Add to cart while ordering is open, but the cart refuses it
+   *            (its full commercial check fails; see ISS-105). Only an enquiry-free
+   *            shop can reach this: in ordering mode no product takes an enquiry.
+   * hidden   — not listed
+   * unknown  — listed and published, commercial check not run by the caller
+   */
+  action: "buy" | "enquire" | "refused" | "hidden" | "unknown";
   reasons: CatalogReason[];
 }
 
@@ -180,6 +189,12 @@ export function explainCatalogState(p: CatalogStateSnapshot, ctx: CatalogStateCo
   }
   if (!ctx.orderingOpen) buy.push(reason("ORDERING_CLOSED", "purchase"));
 
+  /* Ordering open, published, listed, full commercial check failing: the card
+     offers Add to cart (toItem) and the cart refuses (addItem). Not an enquiry —
+     in ordering mode nothing takes one (enquirableProductWhere). */
+  if (buy.length && ctx.orderingOpen && !listedAsCatalogueOnly) {
+    return { visible, purchasable: false, action: "refused", reasons: buy };
+  }
   if (buy.length) return { visible, purchasable: false, action: "enquire", reasons: buy };
   if (ctx.commercialIssues === undefined) return { visible, purchasable: null, action: "unknown", reasons: [] };
   return { visible, purchasable: true, action: "buy", reasons: [] };

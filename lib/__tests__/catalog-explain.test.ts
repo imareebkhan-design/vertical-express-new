@@ -53,10 +53,11 @@ test("without a commercial check, purchasability is unknown rather than guessed"
   assert.equal(s.action, "unknown");
 });
 
-test("a failing commercial check keeps the product visible and explains the refusal", () => {
+test("ordering open, failing commercial check: listed with Add to cart, refused by the cart — not an enquiry", () => {
   const s = explainCatalogState(complete(), { ...OPEN, commercialIssues: ["SKU-1: variant or price has changed since commercial review"] });
   assert.equal(s.visible, true);
-  assert.equal(s.action, "enquire");
+  assert.equal(s.purchasable, false);
+  assert.equal(s.action, "refused");
   assert.equal(s.reasons[0].code, "COMMERCIAL_CHECK_FAILED");
   assert.match(s.reasons[0].detail ?? "", /changed since commercial review/);
 });
@@ -131,4 +132,10 @@ test("catalogue mode does not rescue an incomplete published product", () => {
   const s = explainCatalogState(complete({ commercialReview: null }), { orderingOpen: false, strict: true });
   assert.equal(s.visible, false);
   assert.deepEqual(codes(s), ["NO_COMMERCIAL_REVIEW"]);
+});
+
+test("catalogue mode, failing commercial check: an enquiry, since the shop takes enquiries", () => {
+  const s = explainCatalogState(complete(), { orderingOpen: false, strict: true, commercialIssues: ["Owner tax review does not match an explicit checkout tax mapping"] });
+  assert.equal(s.action, "enquire");
+  assert.deepEqual(codes(s), ["COMMERCIAL_CHECK_FAILED", "ORDERING_CLOSED"]);
 });
