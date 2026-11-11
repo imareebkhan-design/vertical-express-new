@@ -47,6 +47,11 @@ export interface CuratedGroup {
   shortTitle: string;
   /** CSS colour token behind the department's tiles. */
   tint: string;
+  /**
+   * Where a link to the whole department goes (navbar, footer), when that
+   * category is shown. Otherwise, and when unset, its first shown category.
+   */
+  landing?: string;
   categories: CuratedCategory[];
 }
 
@@ -71,6 +76,7 @@ export const PRIMARY_GROUPS: readonly CuratedGroup[] = [
     title: "Furniture & Architectural Hardware",
     shortTitle: "Furniture & Hardware",
     tint: "var(--color-tint-furniture)",
+    landing: "general-hardware-tools",
     categories: [
       { slug: "hinges-channels-handles", name: "Hinges, Channels & Handles", shortName: "Hinges & handles" },
       { slug: "kitchen-systems-accessories", name: "Kitchen Systems", shortName: "Kitchen systems" },

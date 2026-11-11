@@ -4359,22 +4359,25 @@ unchanged. Categories gain a locked, audited one-step toggle, `setCategoryActive
 (`catalogue.category_hidden` / `_shown`, no audit on a no-op). Tests: `product-status.test.ts`. **Rollback:** revert
 the commit; no schema or data change.
 
-## ISS-102 — Navigation hardcodes category links
+## ISS-102 — Navigation and home banners hardcoded category links
 
-**Status:** OPEN (found in the Launch Control audit, 9 Nov 2026). Fix in review: PR #55
-(`claude/launch-control-pr2-nav`), which also covers two home hero banners found later.
+**Status:** FIXED on branch `claude/launch-control-pr2-nav` (Launch Control PR-2, #55). Not deployed. App side on the
+workspace branch `claude/launch-control-expo-helpers` (workspace #22). Found in the Launch Control audit, 9 Nov 2026;
+this entry replaces the OPEN one PR-1 (#54) recorded, so the file holds a single ISS-102.
 
-**Merge note (11 Nov 2026).** PR #55 was cut from the release head before this entry existed, so it appends its own
-`## ISS-102` (FIXED) at the end of this file. The two merge without a git conflict and leave two ISS-102 headings. If
-PR #54 merges first: rebase #55 and replace this entry with its FIXED text in place. If #55 merges first: drop this
-entry when rebasing #54. Checked by merging #54, #56 and #55 in that order into the release head: clean, typecheck and
-lint pass.
+The navbar (21 links), footer (4), the phone-web quantity helpers and two of the three home hero banners linked to
+fixed category slugs, so hiding a category left links to a 404. They now follow the category directory:
+`lib/category-nav.ts` builds the navigation from `listCategoryDirectory()` once per request in the root layout
+(`components/shop/category-nav-root.tsx`, per request via `connection()` so a static page cannot keep a build-time
+menu), and client components read it through `useCategoryNav()`. A department link falls back to its first shown
+category, an emptied department disappears, and a banner linking any hidden category is dropped whole, because its
+copy names that material. If the directory cannot be read the page renders with no category links and logs
+`category_nav_unavailable`; "All categories" always stays. With every category shown, the navbar and footer are
+unchanged. The Expo home's quantity cards are filtered by `/api/v1/categories` the same way.
 
-`components/sections/navbar.tsx` (21 links), `components/sections/footer.tsx` (4), the phone-web quantity helpers
-(`components/mobile/home/quantity-helpers.tsx`) and the Expo home helpers (`mobile/src/screens/home/index.tsx`,
-workspace repo) link to fixed category slugs. Every other surface follows `listCategoryDirectory()`, so hiding a
-category makes these links 404 on the web or open an empty list in the app. Fix before any category is hidden in
-production: render them from the directory.
+Note: the web `QuantityHelpers` component is not rendered by any page today (tests only); the Expo app's strip is the
+one customers see. `lib/data.ts` still holds unused legacy category lists (`NAV_PRIMARY`, `CATEGORIES`); nothing
+imports them. **Rollback:** revert the commit; no schema or data change.
 
 ## ISS-105 — A listed product can show Add to cart that the cart then refuses
 

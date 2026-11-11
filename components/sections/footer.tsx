@@ -4,9 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { Share2 } from "lucide-react";
+import { useCategoryNav } from "@/components/shop/category-nav-provider";
+
+/* The footer names one department differently from the navbar (web canvas). */
+const FOOTER_LABEL: Record<string, string> = { plumbing_bath: "Plumbing, Sanitary & Bath" };
 
 export function Footer() {
   const [canShare, setCanShare] = useState(false);
+  /* Only departments the shop shows; "All categories" is always there (ISS-102). */
+  const { departments } = useCategoryNav();
   useEffect(() => setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function"), []);
   return (
     <footer className="bg-ink text-white pt-[52px] pb-[34px]">
@@ -50,10 +56,13 @@ export function Footer() {
               Materials
             </p>
             <ul className="space-y-1 text-[13.5px] font-medium leading-[30px]">
-              <li><Link href="/category/cement" className="text-white/70 hover:text-white transition-colors">Civil &amp; Interiors</Link></li>
-              <li><Link href="/category/general-hardware-tools" className="text-white/70 hover:text-white transition-colors">Furniture &amp; Hardware</Link></li>
-              <li><Link href="/category/wires-mcb-distribution-boards" className="text-white/70 hover:text-white transition-colors">Electrical</Link></li>
-              <li><Link href="/category/cpvc-pipes-overhead-tanks" className="text-white/70 hover:text-white transition-colors">Plumbing, Sanitary &amp; Bath</Link></li>
+              {departments.map((d) => (
+                <li key={d.key}>
+                  <Link href={d.href} className="text-white/70 hover:text-white transition-colors">
+                    {FOOTER_LABEL[d.key] ?? d.label}
+                  </Link>
+                </li>
+              ))}
               <li><Link href="/categories" className="text-white/70 hover:text-white transition-colors">All categories</Link></li>
             </ul>
           </div>

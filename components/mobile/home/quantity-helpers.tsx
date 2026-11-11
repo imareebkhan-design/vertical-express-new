@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Layers, PaintBucket, Package } from "lucide-react";
 import { triggerHaptic } from "@/lib/native/haptics";
+import { useCategoryNav } from "@/components/shop/category-nav-provider";
 
 /**
  * "How much do I need?" — the calculator entry strip from the homeowner home.
@@ -26,6 +27,7 @@ import { triggerHaptic } from "@/lib/native/haptics";
  */
 const HELPERS = [
   {
+    slug: "painting",
     href: "/category/painting",
     category: "Painting",
     title: "Paint for a room",
@@ -33,6 +35,7 @@ const HELPERS = [
     Icon: PaintBucket,
   },
   {
+    slug: "tiling",
     href: "/category/tiling",
     category: "Tiling",
     title: "Tiles for a floor",
@@ -40,6 +43,7 @@ const HELPERS = [
     Icon: Layers,
   },
   {
+    slug: "cement",
     href: "/category/cement",
     category: "Cement",
     title: "Cement for plaster",
@@ -49,6 +53,11 @@ const HELPERS = [
 ] as const;
 
 export function QuantityHelpers() {
+  /* A card only for a category the shop shows: a switched-off one would open
+     onto a 404 (ISS-102). With none left, the strip is not drawn at all. */
+  const { slugs } = useCategoryNav();
+  const helpers = HELPERS.filter((h) => slugs.includes(h.slug));
+  if (helpers.length === 0) return null;
   return (
     <section aria-labelledby="quantity-helpers" className="pt-[18px]">
       <div className="px-4">
@@ -67,7 +76,7 @@ export function QuantityHelpers() {
 
       {/* Horizontal scroller — the artboard shows the third card clipped. */}
       <div className="mt-[11px] flex gap-[9px] overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {HELPERS.map(({ href, category, title, note, Icon }) => (
+        {helpers.map(({ href, category, title, note, Icon }) => (
           <Link
             key={href}
             href={href}

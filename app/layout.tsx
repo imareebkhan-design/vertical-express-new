@@ -7,6 +7,7 @@ import { CommerceModeProvider } from "@/components/shop/commerce-mode-provider";
 import { orderingOpen } from "@/lib/commerce-mode";
 import { NativeShellProvider } from "@/components/mobile/native-shell-provider";
 import { UatNotice } from "@/components/uat-notice";
+import { CategoryNavRoot } from "@/components/shop/category-nav-root";
 
 // One geometric sans throughout. Headlines mix weights inside a single line:
 // a 300-weight grey lead-in, then 800-weight ink.
@@ -97,7 +98,10 @@ export default function RootLayout({
           {/* COMMERCE_MODE: purchase controls become "Enquire" in catalogue mode. */}
           <CommerceModeProvider orderingOpen={orderingOpen()}>
             <CartProvider>
-              <NativeShellProvider>{children}</NativeShellProvider>
+              {/* Navbar, footer and helper links follow the category directory (ISS-102). */}
+              <CategoryNavRoot>
+                <NativeShellProvider>{children}</NativeShellProvider>
+              </CategoryNavRoot>
             </CartProvider>
           </CommerceModeProvider>
         </SmoothScrollProvider>

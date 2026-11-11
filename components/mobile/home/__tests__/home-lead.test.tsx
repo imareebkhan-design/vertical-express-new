@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FirstOrderCard, HomeSearchPill, NotificationsBell, OrderAgainRail } from "@/components/mobile/home/home-lead";
 import { QuantityHelpers } from "@/components/mobile/home/quantity-helpers";
+import { CategoryNavProvider } from "@/components/shop/category-nav-provider";
 import type { OrderAgainItem } from "@/lib/order-again";
 
 afterEach(cleanup);
@@ -51,7 +52,7 @@ test("W-19: the bell goes nowhere — disabled, not a link to an unrelated page"
 });
 
 test("W-20: the estimator strip does not claim to calculate; each card says where it goes", () => {
-  render(<QuantityHelpers />);
+  render(<CategoryNavProvider nav={{ departments: [], slugs: ["painting", "tiling", "cement"] }}><QuantityHelpers /></CategoryNavProvider>);
   const text = document.body.textContent ?? "";
   assert.doesNotMatch(text, /from a room size|Not a quote/);
   assert.match(text, /Quantity estimates are coming\. Start with the material\./);
