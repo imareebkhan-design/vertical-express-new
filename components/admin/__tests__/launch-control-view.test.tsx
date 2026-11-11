@@ -85,3 +85,18 @@ test("an unknown category says so", () => {
   render(<LaunchControlView overview={overview(false)} selectedSlug="nope" selected={null} />);
   assert.match(document.body.textContent ?? "", /No category called “nope”/);
 });
+
+test("ordering open: a listed product the cart refuses is shown as refused, never as hidden or enquiry", () => {
+  const refused = explainCatalogState(snapshot({ category: { isActive: true } }), {
+    orderingOpen: true, strict: true, commercialIssues: ["Owner tax review does not match an explicit checkout tax mapping"],
+  });
+  const selected: LaunchCategoryView = {
+    slug: "cement", name: "Cement", isActive: true, total: 1,
+    products: [{ id: "p2", slug: "opc-53", title: "OPC 53", status: "published", brand: { name: "Acme", isActive: true }, state: refused }],
+  };
+  render(<LaunchControlView overview={overview(true)} selectedSlug="cement" selected={selected} />);
+  const row = screen.getByRole("link", { name: "OPC 53" }).closest("tr")!;
+  assert.ok(within(row).getByText("Visible · Add to cart is refused"));
+  assert.equal(within(row).queryByText("Hidden"), null);
+  assert.match(row.textContent ?? "", /does not match an explicit checkout tax mapping/);
+});

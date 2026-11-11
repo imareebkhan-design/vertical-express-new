@@ -35,11 +35,20 @@ function CategoryState({ state }: { state: CategoryLaunchState }) {
   return <StatusChip tone={STATE_TONE[state]}>{CATEGORY_STATE_LABEL[state]}</StatusChip>;
 }
 
+/* Exhaustive on purpose: a new outcome must fail the typecheck here, not fall
+   through to a label that says something else (a visible product read as Hidden). */
 function productOutcome(s: CatalogState): { tone: StatusTone; label: string } {
-  if (s.action === "buy") return { tone: "ok", label: "Visible · can be bought" };
-  if (s.action === "enquire") return { tone: "info", label: "Visible · enquiry only" };
-  if (s.action === "unknown") return { tone: "warn", label: "Visible · not checked" };
-  return { tone: "neutral", label: "Hidden" };
+  switch (s.action) {
+    case "buy": return { tone: "ok", label: "Visible · can be bought" };
+    case "enquire": return { tone: "info", label: "Visible · enquiry only" };
+    case "refused": return { tone: "bad", label: "Visible · Add to cart is refused" };
+    case "unknown": return { tone: "warn", label: "Visible · not checked" };
+    case "hidden": return { tone: "neutral", label: "Hidden" };
+    default: {
+      const unhandled: never = s.action;
+      return unhandled;
+    }
+  }
 }
 
 const n = (x: number) => x.toLocaleString("en-IN");
