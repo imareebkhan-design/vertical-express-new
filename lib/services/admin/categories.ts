@@ -130,3 +130,34 @@ export async function saveCategory(
     throw e;
   }
 }
+
+/**
+ * Show or hide a category on its own, without resubmitting the whole form.
+ *
+ * Same rule as the form (products keep their status; switching back restores
+ * exactly what was there), with the brand toggle's discipline: the row is
+ * locked before the preimage is read, and a no-op writes no audit row.
+ */
+export async function setCategoryActive(
+  slug: string,
+  isActive: boolean,
+  actor: { id?: string | null; email: string }
+): Promise<"missing" | "unchanged" | "changed"> {
+  return db.$transaction(async (tx) => {
+    const [before] = await tx.$queryRaw<{ id: string; isActive: boolean }[]>`
+      SELECT id, is_active AS "isActive" FROM categories WHERE slug = ${slug} FOR UPDATE`;
+    if (!before) return "missing" as const;
+    if (before.isActive === isActive) return "unchanged" as const;
+    await tx.category.update({ where: { id: before.id }, data: { isActive } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id ?? null,
+      action: isActive ? "catalogue.category_shown" : "catalogue.category_hidden",
+      entityType: "category",
+      entityId: before.id,
+      before: { slug, isActive: before.isActive },
+      after: { slug, isActive, by: actor.email },
+    });
+    return "changed" as const;
+  });
+}
