@@ -98,7 +98,9 @@ export function LaunchControlView({
           {
             label: "Published and listed",
             value: n(totals.visiblePublished),
-            sub: overview.orderingOpen ? "Each still passes checkout's own checks" : "Shown with Enquire while ordering is off",
+            sub: overview.orderingOpen
+              ? "Not all can be bought: the cart re-checks each (open a category to see refusals)"
+              : "Shown with Enquire while ordering is off",
           },
         ]}
       />
@@ -155,7 +157,8 @@ export function LaunchControlView({
               </div>
               {selected.total > LAUNCH_CATEGORY_LIMIT && (
                 <p className="mt-2 text-[11px] font-semibold text-ink-500">
-                  The first {LAUNCH_CATEGORY_LIMIT} are explained here; use Products to search the rest.
+                  {LAUNCH_CATEGORY_LIMIT} are explained here: published and catalogue-only first, then drafts, then archived,
+                  each by name. Use Products to search the rest.
                 </p>
               )}
             </>
@@ -197,7 +200,9 @@ export function LaunchControlView({
                 <span key="v" className="tabular-nums">{n(c.visible)}</span>,
                 <span key="t" className="text-[11.5px] font-medium text-ink-700">{statusSummary(c)}</span>,
                 c.hasTaxMapping ? (
-                  <span key="x" className="text-[11.5px] font-medium text-ink-700">Set</span>
+                  <span key="x" className="text-[11.5px] font-medium text-ink-700" title="The checkout mapping as it stands; the CA confirms it">
+                    {c.tax ? `HSN ${c.tax.hsn} · ${c.tax.ratePct}%` : "Mapped"}
+                  </span>
                 ) : (
                   <StatusChip key="x" tone="warn">No HSN/GST</StatusChip>
                 ),

@@ -32,6 +32,8 @@ export interface LaunchCategoryRow {
   /** Every product in the category, by status. */
   byStatus: Partial<Record<"draft" | "catalog_only" | "published" | "archived", number>>;
   hasTaxMapping: boolean;
+  /** The checkout mapping in lib/services/tax.ts, shown as it is. Its correctness is the CA's to confirm (ISS-086). */
+  tax?: { hsn: string; ratePct: number } | null;
 }
 
 export interface LaunchCategory extends LaunchCategoryRow {
@@ -102,3 +104,6 @@ export const CATEGORY_STATE_NOTE: Record<CategoryLaunchState, string> = {
 
 /** The most products the category view explains at once; the rest are counted, not listed. */
 export const LAUNCH_CATEGORY_LIMIT = 200;
+
+/** The order the category view fills its LAUNCH_CATEGORY_LIMIT in: what customers can meet first. */
+export const LAUNCH_STATUS_ORDER = [["published", "catalog_only"], ["draft"], ["archived"]] as const;

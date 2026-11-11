@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { catalogListingWhere } from "@/lib/catalog-policy";
 import { getLaunchCategory, getLaunchOverview } from "../launch-control";
+import { LAUNCH_CATEGORY_LIMIT } from "@/lib/launch-control";
 import { setCategoryActive } from "../categories";
 
 /**
@@ -99,4 +100,30 @@ test("the category view reports a listed product as visible", async () => {
 
 test("an unknown category is null, not an empty page", async () => {
   assert.equal(await getLaunchCategory(`lc-missing-${tag}`), null);
+});
+
+test("over the limit, customer-facing products are explained first, never cut off by drafts", async () => {
+  // LAUNCH_CATEGORY_LIMIT drafts sort ahead of everything by enum order; the published product must still be listed.
+  const drafts = Array.from({ length: LAUNCH_CATEGORY_LIMIT }, (_, i) => ({
+    slug: `${slug}-bulk-${String(i).padStart(3, "0")}`, title: `AAA ${tag} draft ${i}`, status: "draft" as const,
+    brandId: ids.brand, categoryId: ids.category,
+  }));
+  await db.product.createMany({ data: drafts });
+  try {
+    const view = await getLaunchCategory(slug);
+    assert.ok(view);
+    assert.equal(view.total, LAUNCH_CATEGORY_LIMIT + 2);
+    assert.equal(view.products.length, LAUNCH_CATEGORY_LIMIT);
+    assert.equal(view.products[0].id, ids.listed, "the published product comes first");
+    assert.deepEqual([...new Set(view.products.map((p) => p.status))], ["published", "draft"]);
+  } finally {
+    await db.product.deleteMany({ where: { slug: { startsWith: `${slug}-bulk-` } } });
+  }
+});
+
+test("the overview shows the checkout tax mapping as it stands, or none", async () => {
+  const o = await getLaunchOverview();
+  const cement = o.departments.flatMap((d) => d.categories).find((c) => c.slug === "cement");
+  if (cement && cement.state !== "missing") assert.deepEqual(cement.tax, { hsn: "2523", ratePct: 28 }, "reports tax.ts as is (ISS-086), never a corrected guess");
+  assert.equal(mine(o)?.tax, null);
 });

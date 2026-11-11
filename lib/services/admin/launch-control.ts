@@ -5,7 +5,7 @@ import { orderingOpen } from "@/lib/commerce-mode";
 import { strictCatalogue } from "@/lib/deploy-env";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { explainProducts } from "@/lib/services/catalog-state";
-import { buildLaunchTree, LAUNCH_CATEGORY_LIMIT, type LaunchCategoryRow, type LaunchDepartment } from "@/lib/launch-control";
+import { buildLaunchTree, LAUNCH_CATEGORY_LIMIT, LAUNCH_STATUS_ORDER, type LaunchCategoryRow, type LaunchDepartment } from "@/lib/launch-control";
 import type { CatalogState } from "@/lib/catalog-explain";
 
 /**
@@ -43,6 +43,7 @@ export async function getLaunchOverview(): Promise<LaunchOverview> {
     return {
       slug: c.slug, name: c.name, group: String(c.group), isActive: c.isActive,
       visible: visibleBy.get(c.id) ?? 0, byStatus: statuses, hasTaxMapping: Boolean(CATEGORY_TAX_CONFIGS[c.slug]),
+      tax: CATEGORY_TAX_CONFIGS[c.slug] ? { hsn: CATEGORY_TAX_CONFIGS[c.slug].hsn, ratePct: CATEGORY_TAX_CONFIGS[c.slug].ratePct } : null,
     };
   });
   const departments = buildLaunchTree(rows);
@@ -83,16 +84,22 @@ export interface LaunchCategoryView {
 export async function getLaunchCategory(slug: string): Promise<LaunchCategoryView | null> {
   const category = await db.category.findUnique({ where: { slug }, select: { id: true, slug: true, name: true, isActive: true } });
   if (!category) return null;
-  const [total, products] = await Promise.all([
-    db.product.count({ where: { categoryId: category.id } }),
-    db.product.findMany({
-      where: { categoryId: category.id },
-      // Archived last: they are the least likely to be what someone is looking for.
-      orderBy: [{ status: "asc" }, { title: "asc" }],
-      take: LAUNCH_CATEGORY_LIMIT,
+  const total = await db.product.count({ where: { categoryId: category.id } });
+  /* Customer-facing first: published and catalogue-only, then drafts, then
+     archived, each by title. Not `orderBy: status` — Postgres sorts an enum in
+     declaration order (draft first), so a category with 200 drafts would have
+     cut off every product customers can see. */
+  const products: Omit<LaunchProductRow, "state">[] = [];
+  for (const statuses of LAUNCH_STATUS_ORDER) {
+    const room = LAUNCH_CATEGORY_LIMIT - products.length;
+    if (room <= 0) break;
+    products.push(...await db.product.findMany({
+      where: { categoryId: category.id, status: { in: [...statuses] } },
+      orderBy: { title: "asc" },
+      take: room,
       select: { id: true, slug: true, title: true, status: true, brand: { select: { name: true, isActive: true } } },
-    }),
-  ]);
+    }));
+  }
   const states = await explainProducts(products.map((p) => p.id));
   return {
     ...category,

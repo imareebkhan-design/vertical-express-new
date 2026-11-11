@@ -14,7 +14,7 @@ afterEach(cleanup);
  */
 
 const rows: LaunchCategoryRow[] = [
-  { slug: "cement", name: "db cement", group: "civil_interiors", isActive: true, visible: 2, byStatus: { published: 2, draft: 1 }, hasTaxMapping: true },
+  { slug: "cement", name: "db cement", group: "civil_interiors", isActive: true, visible: 2, byStatus: { published: 2, draft: 1 }, hasTaxMapping: true, tax: { hsn: "2523", ratePct: 28 } },
   { slug: "tiling", name: "db tiling", group: "civil_interiors", isActive: false, visible: 0, byStatus: { published: 4 }, hasTaxMapping: true },
   { slug: "aggregates", name: "Aggregates", group: "civil_interiors", isActive: true, visible: 0, byStatus: { draft: 3 }, hasTaxMapping: false },
 ];
@@ -99,4 +99,17 @@ test("ordering open: a listed product the cart refuses is shown as refused, neve
   assert.ok(within(row).getByText("Visible · Add to cart is refused"));
   assert.equal(within(row).queryByText("Hidden"), null);
   assert.match(row.textContent ?? "", /does not match an explicit checkout tax mapping/);
+});
+
+test("the tax column shows the mapping itself, not a bare 'Set'", () => {
+  render(<LaunchControlView overview={overview(true)} selectedSlug={null} selected={null} />);
+  const cement = screen.getByRole("link", { name: "Cement" }).closest("tr")!;
+  assert.ok(within(cement).getByText("HSN 2523 · 28%"));
+  assert.equal(within(cement).queryByText("Set"), null);
+});
+
+test("ordering mode never claims every listed product can be bought", () => {
+  render(<LaunchControlView overview={overview(true)} selectedSlug={null} selected={null} />);
+  assert.doesNotMatch(document.body.textContent ?? "", /Each still passes/);
+  assert.match(document.body.textContent ?? "", /Not all can be bought: the cart re-checks each/);
 });
