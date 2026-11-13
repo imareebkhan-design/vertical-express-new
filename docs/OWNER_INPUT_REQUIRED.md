@@ -61,6 +61,7 @@ the first time.
 | 3.6 | Product images — brand-supplied or shot in-house | BLOCKS P0B | ~6 real images exist; the rest fall back to category images. **Competitor imagery may not be used.** | AWAITING |
 | 3.7 | Unit of measure and pack size per product | BLOCKS P0B | Needed to replace the `unitLabel` display string with structured UoM (ISS-032) | AWAITING |
 | 3.8 | Product weight | BLOCKS P0B | Needed for weight-based delivery fees and vehicle class (ISS-033) | AWAITING |
+| 3.9 | May products be prepared (catalogue-only or published) while their category or brand is hidden? | Launch Control | Without it, a category must be shown as "Coming soon" before its products can be staged | **ANSWERED 12 Nov 2026: yes**, with no customer exposure or purchase path while hidden (Launch Control PR-4; `productReadinessWhere`, `lib/catalog-policy.ts`) |
 
 ## 4. Real pricing
 

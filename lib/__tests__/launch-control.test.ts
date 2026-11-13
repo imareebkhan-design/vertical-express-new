@@ -64,3 +64,31 @@ test("every state has a label and an operator note", () => {
     assert.ok(CATEGORY_STATE_NOTE[s]);
   }
 });
+
+/* ---------------------------------------------------------- switches (PR-4) */
+
+test("change set: at least one row, no duplicates, at most the batch limit", async () => {
+  const { launchChangeSetSchema, LAUNCH_MAX_ROWS } = await import("@/lib/launch-control");
+  assert.equal(launchChangeSetSchema.safeParse({ categories: [], brands: [] }).success, false);
+  assert.equal(launchChangeSetSchema.safeParse({ categories: [{ slug: "cement", isActive: false }, { slug: "cement", isActive: true }] }).success, false);
+  assert.equal(launchChangeSetSchema.safeParse({ categories: [{ slug: "Cement!", isActive: false }] }).success, false, "slugs are validated");
+  const many = Array.from({ length: LAUNCH_MAX_ROWS + 1 }, (_, i) => ({ slug: `c-${i}`, isActive: false }));
+  assert.equal(launchChangeSetSchema.safeParse({ categories: many }).success, false);
+  assert.equal(launchChangeSetSchema.safeParse({ brands: [{ slug: "acme", isActive: true }] }).success, true);
+});
+
+test("confirmation: one switch is a click; a batch must be typed, naming what it does", async () => {
+  const { confirmTextFor } = await import("@/lib/launch-control");
+  assert.equal(confirmTextFor([{ change: "change", to: false }]), null);
+  assert.equal(confirmTextFor([{ change: "change", to: false }, { change: "unchanged", to: false }]), null, "only real changes count");
+  assert.equal(confirmTextFor(Array.from({ length: 19 }, () => ({ change: "change" as const, to: false }))), "HIDE 19");
+  assert.equal(confirmTextFor([{ change: "change", to: false }, { change: "change", to: true }, { change: "change", to: true }]), "HIDE 1 SHOW 2");
+});
+
+test("department changes: emptied and opened departments are named", async () => {
+  const { departmentChanges } = await import("@/lib/launch-control");
+  const before = buildLaunchTree(allCurated((s) => ({ visible: 1, isActive: true, slug: s })));
+  const after = buildLaunchTree(allCurated((s) => CURATED.find((c) => c.slug === s)?.group === "electrical" ? { isActive: false } : { visible: 1 }));
+  assert.deepEqual(departmentChanges(before, after), { emptied: ["Electrical"], opened: [] });
+  assert.deepEqual(departmentChanges(after, before), { emptied: [], opened: ["Electrical"] });
+});

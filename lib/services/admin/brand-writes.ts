@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { recordAudit } from "@/lib/services/audit";
+import { recordAudit, type DbClient } from "@/lib/services/audit";
 
 type Actor = { id: string; email: string };
 type BrandState = { id: string; name: string; slug: string; isActive: boolean };
@@ -26,21 +26,33 @@ export async function editBrand(originalSlug: string, data: Omit<BrandState, "id
 
 /** Retire or restore under the same row lock used by edits, without auditing a no-op. */
 export async function setBrandActive(slug: string, isActive: boolean, actor: Actor) {
-  return db.$transaction(async (tx) => {
-    const [before] = await tx.$queryRaw<BrandState[]>`
-      SELECT id, name, slug, is_active AS "isActive"
-      FROM brands WHERE slug = ${slug} FOR UPDATE`;
-    if (!before) return "missing" as const;
-    if (before.isActive === isActive) return "unchanged" as const;
-    await tx.brand.update({ where: { id: before.id }, data: { isActive } });
-    await recordAudit(tx, {
-      actorType: "admin", actorId: actor.id,
-      action: isActive ? "brand.restored" : "brand.retired",
-      entityType: "brand", entityId: before.id,
-      before: { isActive: before.isActive }, after: { isActive },
-    });
-    return "changed" as const;
+  return db.$transaction((tx) => setBrandActiveTx(tx, slug, isActive, actor));
+}
+
+/**
+ * The same switch inside a caller's transaction (Launch Control batches). Same
+ * lock, no-op skip and audit; `audit` adds fields (a batch id) to `after`.
+ */
+export async function setBrandActiveTx(
+  tx: DbClient,
+  slug: string,
+  isActive: boolean,
+  actor: { id: string | null; email: string },
+  audit: Record<string, string> = {},
+): Promise<"missing" | "unchanged" | "changed"> {
+  const [before] = await tx.$queryRaw<BrandState[]>`
+    SELECT id, name, slug, is_active AS "isActive"
+    FROM brands WHERE slug = ${slug} FOR UPDATE`;
+  if (!before) return "missing";
+  if (before.isActive === isActive) return "unchanged";
+  await tx.brand.update({ where: { id: before.id }, data: { isActive } });
+  await recordAudit(tx, {
+    actorType: "admin", actorId: actor.id,
+    action: isActive ? "brand.restored" : "brand.retired",
+    entityType: "brand", entityId: before.id,
+    before: { isActive: before.isActive }, after: { ...audit, isActive },
   });
+  return "changed";
 }
 
 /** Serialize assignments and keep the target brand name stable through the audit write. */

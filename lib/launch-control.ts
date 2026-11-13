@@ -13,6 +13,7 @@
  *   hidden       — switched off; nothing in it is shown, statuses untouched
  *   missing      — designated in code, but no such row in the database
  */
+import { z } from "zod";
 import {
   buildCategoryDirectory,
   PRIMARY_GROUPS,
@@ -107,3 +108,94 @@ export const LAUNCH_CATEGORY_LIMIT = 200;
 
 /** The order the category view fills its LAUNCH_CATEGORY_LIMIT in: what customers can meet first. */
 export const LAUNCH_STATUS_ORDER = [["published", "catalog_only"], ["draft"], ["archived"]] as const;
+
+/* -------------------------------------------------------------- switches */
+
+/**
+ * Launch Control switches (PR-4): category and brand visibility only. They
+ * never change a product's status, stock, price, review or checkout rules —
+ * publishing stays in the product editor, behind its own gate.
+ */
+export const LAUNCH_MAX_ROWS = 50;
+
+const flagRow = z.object({
+  slug: z.string().trim().regex(/^[a-z0-9-]{1,80}$/),
+  isActive: z.boolean(),
+  /** What the operator saw when planning; the apply refuses if it changed since. */
+  expected: z.boolean().optional(),
+});
+
+export const launchChangeSetSchema = z
+  .object({
+    categories: z.array(flagRow).max(LAUNCH_MAX_ROWS).default([]),
+    brands: z.array(flagRow).max(LAUNCH_MAX_ROWS).default([]),
+  })
+  .refine((c) => c.categories.length + c.brands.length > 0, "Choose at least one change")
+  .refine((c) => new Set(c.categories.map((r) => r.slug)).size === c.categories.length, "A category appears twice")
+  .refine((c) => new Set(c.brands.map((r) => r.slug)).size === c.brands.length, "A brand appears twice");
+
+/** What callers send: either list may be omitted. */
+export type LaunchChangeSet = z.input<typeof launchChangeSetSchema>;
+
+export interface LaunchPlanRow {
+  kind: "category" | "brand";
+  slug: string;
+  name: string;
+  /** Current switch, read when the plan was made. Null when the row does not exist. */
+  before: boolean | null;
+  to: boolean;
+  change: "change" | "unchanged" | "missing";
+}
+
+export interface LaunchImpact {
+  productsVisibleBefore: number;
+  productsVisibleAfter: number;
+  newlyHidden: number;
+  newlyShown: number;
+  categoriesReachableBefore: number;
+  categoriesReachableAfter: number;
+  /** Departments customers can reach now and could not after (or the reverse). */
+  departmentsEmptied: string[];
+  departmentsOpened: string[];
+  /** Lines in shoppers' carts whose product would stop being sellable. */
+  cartLinesAffected: number;
+}
+
+export interface LaunchPlan {
+  rows: LaunchPlanRow[];
+  impact: LaunchImpact;
+  /** The exact text the operator types to apply, or null when a click is enough. */
+  confirmText: string | null;
+  /** Set when this plan reverses an earlier batch. */
+  undoOf?: string;
+  /** Undo only: rows changed again since the batch, which the undo leaves alone. */
+  conflicts?: { kind: "category" | "brand"; slug: string }[];
+}
+
+/**
+ * A batch that changes more than one switch must be typed to apply — the size
+ * of a mistake grows with the batch, and "Hide 19" is what launching a single
+ * category looks like. One switch is a single confirmed click.
+ * (Engineering default; owner decision D7 may change the threshold.)
+ */
+export function confirmTextFor(rows: readonly Pick<LaunchPlanRow, "change" | "to">[]): string | null {
+  const changing = rows.filter((r) => r.change === "change");
+  if (changing.length <= 1) return null;
+  const hides = changing.filter((r) => !r.to).length;
+  const shows = changing.length - hides;
+  return [hides ? `HIDE ${hides}` : null, shows ? `SHOW ${shows}` : null].filter(Boolean).join(" ");
+}
+
+/** Departments whose reachability flipped between two trees. */
+export function departmentChanges(before: readonly LaunchDepartment[], after: readonly LaunchDepartment[]) {
+  const was = new Map(before.map((d) => [d.key, d.reachable > 0]));
+  const emptied: string[] = [];
+  const opened: string[] = [];
+  for (const d of after) {
+    const reachableNow = d.reachable > 0;
+    const reachableBefore = was.get(d.key) ?? false;
+    if (reachableBefore && !reachableNow) emptied.push(d.title);
+    if (!reachableBefore && reachableNow) opened.push(d.title);
+  }
+  return { emptied, opened };
+}

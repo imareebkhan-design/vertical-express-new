@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma, type CategoryGroup } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
-import { recordAudit } from "@/lib/services/audit";
+import { recordAudit, type DbClient } from "@/lib/services/audit";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 
 /**
@@ -143,21 +143,34 @@ export async function setCategoryActive(
   isActive: boolean,
   actor: { id?: string | null; email: string }
 ): Promise<"missing" | "unchanged" | "changed"> {
-  return db.$transaction(async (tx) => {
-    const [before] = await tx.$queryRaw<{ id: string; isActive: boolean }[]>`
-      SELECT id, is_active AS "isActive" FROM categories WHERE slug = ${slug} FOR UPDATE`;
-    if (!before) return "missing" as const;
-    if (before.isActive === isActive) return "unchanged" as const;
-    await tx.category.update({ where: { id: before.id }, data: { isActive } });
-    await recordAudit(tx, {
-      actorType: "admin",
-      actorId: actor.id ?? null,
-      action: isActive ? "catalogue.category_shown" : "catalogue.category_hidden",
-      entityType: "category",
-      entityId: before.id,
-      before: { slug, isActive: before.isActive },
-      after: { slug, isActive, by: actor.email },
-    });
-    return "changed" as const;
+  return db.$transaction((tx) => setCategoryActiveTx(tx, slug, isActive, actor));
+}
+
+/**
+ * The same switch inside a caller's transaction (Launch Control batches). The
+ * row lock, no-op skip and audit are identical; `audit` adds fields to the
+ * audit row's `after` (a batch id), never replaces the ones above.
+ */
+export async function setCategoryActiveTx(
+  tx: DbClient,
+  slug: string,
+  isActive: boolean,
+  actor: { id?: string | null; email: string },
+  audit: Record<string, string> = {}
+): Promise<"missing" | "unchanged" | "changed"> {
+  const [before] = await tx.$queryRaw<{ id: string; isActive: boolean }[]>`
+    SELECT id, is_active AS "isActive" FROM categories WHERE slug = ${slug} FOR UPDATE`;
+  if (!before) return "missing";
+  if (before.isActive === isActive) return "unchanged";
+  await tx.category.update({ where: { id: before.id }, data: { isActive } });
+  await recordAudit(tx, {
+    actorType: "admin",
+    actorId: actor.id ?? null,
+    action: isActive ? "catalogue.category_shown" : "catalogue.category_hidden",
+    entityType: "category",
+    entityId: before.id,
+    before: { slug, isActive: before.isActive },
+    after: { ...audit, slug, isActive, by: actor.email },
   });
+  return "changed";
 }

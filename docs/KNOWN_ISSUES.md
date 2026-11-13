@@ -4379,6 +4379,40 @@ Note: the web `QuantityHelpers` component is not rendered by any page today (tes
 one customers see. `lib/data.ts` still holds unused legacy category lists (`NAV_PRIMARY`, `CATEGORIES`); nothing
 imports them. **Rollback:** revert the commit; no schema or data change.
 
+## ISS-106 — Launch Control had no switches; products could not be prepared under a hidden category
+
+**Status:** FIXED on branch `claude/launch-control-pr4-switches` (Launch Control PR-4). Not deployed.
+
+Category and brand visibility could only be changed one form at a time, with no impact preview, no batch and no
+undo; and the publish gates refused a product whose brand or category was off, so a category had to be shown as
+"Coming soon" before its products could be staged. Now:
+- **Switches** (`components/admin/launch-switchboard.tsx`, `actions/launch-control.ts`,
+  `lib/services/admin/launch-control.ts`): plan (measured in a rolled-back transaction with the storefront's own
+  queries: products hidden/shown, categories reachable, departments emptied/opened, shoppers' cart lines), review
+  dialog, typed confirmation for multi-switch batches, one locked all-or-nothing batch refused if anything changed
+  since the plan, audited per switch and per batch, undo with conflict reporting. Admin-only. Visibility only: no
+  product status, stock, price, review or checkout rule is touched.
+- **Preparation while hidden** (owner, 12 Nov 2026; `OWNER_INPUT_REQUIRED.md` 3.9): the gates use
+  `productReadinessWhere()` (identity + approved photo); every customer path still requires an active brand and
+  category through `catalogListingWhere()`.
+
+Tests: `launch-switches.test.ts`, `hidden-category-preparation.test.ts`, `launch-hidden-category-api.test.ts`,
+`launch-control-actions.test.tsx`, `launch-switchboard.test.tsx`. **Rollback:** Undo the batch (data); revert the
+PR (code). No migration.
+
+**Review of PR #58 (13 Nov 2026), fixed on the branch:** an undo is accepted only as the exact reversal of the batch
+it names, and only once (otherwise the audit could record a reversal that never happened); batch audit rows record
+each switch's row id, so undo never follows a reused slug to a different brand; undo leaves alone any switch written
+after the batch (an edit, or a switch changed and changed back), not only one whose flag differs now; the dialog sends
+every reviewed row so unchanged ones are stale-checked too, refuses to apply while a row is missing, disables the bulk
+buttons while busy, and is modal for the keyboard (focus in, background inert, Escape, focus returned).
+
+**Known limit, open:** apply re-checks the *switches* the operator reviewed, not the *products* behind them. If another
+admin publishes a prepared product between review and apply, a "Show" applies with one more product visible than the
+review said. That product passed its own publish gate and was published deliberately, so nothing unreviewed for sale
+is exposed; only the impact count is out of date. A fix (re-measure inside the apply and refuse on a different
+impact) doubles the cost of every apply and is deferred until operators work concurrently.
+
 ## ISS-105 — A listed product can show Add to cart that the cart then refuses
 
 **Status:** OPEN (found 11 Nov 2026 reviewing Launch Control; pre-existing, not introduced by it).

@@ -8,6 +8,7 @@ import { getSuggestions } from "../search";
 import { createProductEnquiry } from "../product-enquiries";
 import { catalogOnlyReason, unpublishableReason } from "../admin/publish-guard";
 import { CATEGORY_TAX_CONFIGS } from "../tax";
+import { catalogListingWhere } from "@/lib/catalog-policy";
 import { approveSyntheticProductForSale, createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
 
 /* Catalogue-only visibility exists only in catalogue mode; a transactional shop
@@ -202,12 +203,16 @@ test("a catalog-only line already in a cart never reaches the summary checkout u
   }
 });
 
-test("catalogOnlyReason demands an exact provenance photo and active brand/category", async () => {
+test("catalogOnlyReason demands an exact provenance photo; a switched-off category does not block preparation", async () => {
   const get = async (s: string) => (await db.product.findUniqueOrThrow({ where: { slug: slug(s) }, select: { id: true } })).id;
   assert.equal(await catalogOnlyReason(db, await get("visible")), null);
   assert.match((await catalogOnlyReason(db, await get("nophoto")))!, /photo/);
   assert.match((await catalogOnlyReason(db, await get("plainphoto")))!, /photo/, "an image without provenance (illustration/placeholder) does not qualify");
-  assert.match((await catalogOnlyReason(db, await get("offcat")))!, /category is inactive/);
+  // Owner, 12 Nov 2026 (Launch Control PR-4): a product may be prepared while its category is hidden.
+  // It is still never shown: the listing filter requires an active category.
+  const offcat = await get("offcat");
+  assert.equal(await catalogOnlyReason(db, offcat), null);
+  assert.equal(await db.product.count({ where: { id: offcat, AND: [catalogListingWhere()] } }), 0, "prepared, but not visible while its category is hidden");
 });
 
 test("catalog-only does not weaken the publish guard", async () => {
