@@ -1,7 +1,7 @@
 "use server";
 
 import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
-import { paymentTermsFor } from "@/lib/payment-window";
+import { LATE_PAYMENT_MESSAGE, paymentTermsFor } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
 import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
@@ -154,6 +154,10 @@ export async function confirmRazorpayPayment(input: {
     razorpayPaymentId: input.razorpayPaymentId,
     signature: input.signature,
   });
+  /* The customer paid; the order had already expired. Said as that, never as a
+     failed verification — which reads as "pay again" (the app's route already
+     tells them apart, lib/api/v1.ts). */
+  if (res.reason === "late_payment") return fail("CONFLICT", LATE_PAYMENT_MESSAGE);
   if (!res.ok) return fail("PAYMENT_FAILED", "Payment could not be verified");
   return succeed({ orderNo: input.orderNo });
 }
