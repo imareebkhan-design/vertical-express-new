@@ -4400,6 +4400,19 @@ Tests: `launch-switches.test.ts`, `hidden-category-preparation.test.ts`, `launch
 `launch-control-actions.test.tsx`, `launch-switchboard.test.tsx`. **Rollback:** Undo the batch (data); revert the
 PR (code). No migration.
 
+**Review of PR #58 (13 Nov 2026), fixed on the branch:** an undo is accepted only as the exact reversal of the batch
+it names, and only once (otherwise the audit could record a reversal that never happened); batch audit rows record
+each switch's row id, so undo never follows a reused slug to a different brand; undo leaves alone any switch written
+after the batch (an edit, or a switch changed and changed back), not only one whose flag differs now; the dialog sends
+every reviewed row so unchanged ones are stale-checked too, refuses to apply while a row is missing, disables the bulk
+buttons while busy, and is modal for the keyboard (focus in, background inert, Escape, focus returned).
+
+**Known limit, open:** apply re-checks the *switches* the operator reviewed, not the *products* behind them. If another
+admin publishes a prepared product between review and apply, a "Show" applies with one more product visible than the
+review said. That product passed its own publish gate and was published deliberately, so nothing unreviewed for sale
+is exposed; only the impact count is out of date. A fix (re-measure inside the apply and refuse on a different
+impact) doubles the cost of every apply and is deferred until operators work concurrently.
+
 ## ISS-105 — A listed product can show Add to cart that the cart then refuses
 
 **Status:** OPEN (found 11 Nov 2026 reviewing Launch Control; pre-existing, not introduced by it).

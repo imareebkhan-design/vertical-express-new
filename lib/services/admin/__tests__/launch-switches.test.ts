@@ -185,3 +185,78 @@ test("two applies of the same change race: exactly one wins, the other is stale"
 test("an unknown batch cannot be undone", async () => {
   assert.equal(await planLaunchUndo(randomUUID()), null);
 });
+
+/* ------------------------------------------- undo integrity (review of #58) */
+
+const undoRows = (plan: { rows: { kind: string; slug: string; to: boolean; before: boolean | null }[] }) => ({
+  categories: plan.rows.filter((x) => x.kind === "category").map((x) => ({ slug: x.slug, isActive: x.to, expected: x.before! })),
+  brands: plan.rows.filter((x) => x.kind === "brand").map((x) => ({ slug: x.slug, isActive: x.to, expected: x.before! })),
+});
+
+test("undoOf must name a real reversal: an unrelated change cannot be recorded as an undo", async () => {
+  const r = await applyLaunchChange({ categories: [{ slug: cat(1), isActive: false, expected: true }] }, null, ACTOR);
+  if (!r.ok || !r.batchId) throw new Error("apply failed");
+  const before = await flags();
+  // Hiding the brand is not the reverse of hiding category one.
+  const forged = await applyLaunchChange({ brands: [{ slug: brandSlug, isActive: false, expected: true }] }, null, ACTOR, r.batchId);
+  assert.equal(!forged.ok && forged.code, "UNDO_MISMATCH");
+  // Nor is "showing" it in the wrong direction, or naming a batch that does not exist.
+  const wrongWay = await applyLaunchChange({ categories: [{ slug: cat(2), isActive: false, expected: true }] }, null, ACTOR, r.batchId);
+  assert.equal(!wrongWay.ok && wrongWay.code, "UNDO_MISMATCH");
+  const unknown = await applyLaunchChange({ categories: [{ slug: cat(1), isActive: true, expected: false }] }, null, ACTOR, randomUUID());
+  assert.equal(!unknown.ok && unknown.code, "UNDO_MISMATCH");
+  assert.deepEqual(await flags(), before, "a refused undo writes nothing");
+  assert.equal((await listLaunchBatches(20)).find((b) => b.batchId === r.batchId)?.undoneBy, null, "the batch is not marked undone");
+
+  const plan = (await planLaunchUndo(r.batchId))!.plan!;
+  const u = await applyLaunchChange(undoRows(plan), null, ACTOR, r.batchId);
+  assert.equal(u.ok, true);
+  assert.equal(await listed(), 2);
+});
+
+test("a batch can be undone once: a second undo is refused even when the states line up again", async () => {
+  const r = await applyLaunchChange({ categories: [{ slug: cat(1), isActive: false, expected: true }] }, null, ACTOR);
+  if (!r.ok || !r.batchId) throw new Error("apply failed");
+  const plan = (await planLaunchUndo(r.batchId))!.plan!;
+  assert.equal((await applyLaunchChange(undoRows(plan), null, ACTOR, r.batchId)).ok, true);
+  // Hidden again by a later, separate change, so the old undo's states match once more.
+  await applyLaunchChange({ categories: [{ slug: cat(1), isActive: false, expected: true }] }, null, ACTOR);
+  const again = await applyLaunchChange(undoRows(plan), null, ACTOR, r.batchId);
+  assert.equal(!again.ok && again.code, "UNDO_MISMATCH");
+  assert.deepEqual(await planLaunchUndo(r.batchId), { plan: null, conflicts: [] }, "an undone batch offers no further undo");
+  await applyLaunchChange({ categories: [{ slug: cat(1), isActive: true, expected: false }] }, null, ACTOR);
+  assert.equal(await listed(), 2);
+});
+
+test("undo leaves alone a switch changed and changed back since: the later decision stands", async () => {
+  const r = await applyLaunchChange({ categories: [{ slug: cat(1), isActive: false, expected: true }], brands: [] }, null, ACTOR);
+  if (!r.ok || !r.batchId) throw new Error("apply failed");
+  // Another operator shows it, then hides it again: same flag as after the batch.
+  await applyLaunchChange({ categories: [{ slug: cat(1), isActive: true, expected: false }] }, null, ACTOR);
+  await applyLaunchChange({ categories: [{ slug: cat(1), isActive: false, expected: true }] }, null, ACTOR);
+  const undo = await planLaunchUndo(r.batchId);
+  assert.deepEqual(undo, { plan: null, conflicts: [{ kind: "category", slug: cat(1) }] });
+  await applyLaunchChange({ categories: [{ slug: cat(1), isActive: true, expected: false }] }, null, ACTOR);
+  assert.equal(await listed(), 2);
+});
+
+test("undo does not follow a slug to a different brand that reused it", async () => {
+  const slug = `ls-${tag}-reuse`;
+  const original = await db.brand.create({ data: { slug, name: `LS ${tag} reuse` } });
+  const r = await applyLaunchChange({ brands: [{ slug, isActive: false, expected: true }] }, null, ACTOR);
+  if (!r.ok || !r.batchId) throw new Error("apply failed");
+  const batch = await db.auditLog.findFirstOrThrow({ where: { entityType: "launch_batch", entityId: r.batchId } });
+  assert.equal((batch.after as { brands: { id: string }[] }).brands[0].id, original.id, "the batch records which row it changed");
+  // The brand's slug is moved directly (no audit), and a new, hidden brand takes the old one.
+  await db.brand.update({ where: { id: original.id }, data: { slug: `${slug}-old` } });
+  const impostor = await db.brand.create({ data: { slug, name: `LS ${tag} impostor`, isActive: false } });
+  try {
+    assert.deepEqual(await planLaunchUndo(r.batchId), { plan: null, conflicts: [{ kind: "brand", slug }] });
+    const forced = await applyLaunchChange({ brands: [{ slug, isActive: true, expected: false }] }, null, ACTOR, r.batchId);
+    assert.equal(!forced.ok && forced.code, "UNDO_MISMATCH");
+    assert.equal((await db.brand.findUniqueOrThrow({ where: { id: impostor.id } })).isActive, false);
+  } finally {
+    await db.auditLog.deleteMany({ where: { entityId: { in: [original.id, impostor.id] } } });
+    await db.brand.deleteMany({ where: { id: { in: [original.id, impostor.id] } } });
+  }
+});

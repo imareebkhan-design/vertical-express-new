@@ -207,7 +207,10 @@ export type ApplyLaunchResult =
   | { ok: false; code: "STALE_PLAN"; stale: { kind: "category" | "brand"; slug: string }[] }
   | { ok: false; code: "MISSING"; missing: { kind: "category" | "brand"; slug: string }[] }
   | { ok: false; code: "CONFIRMATION_REQUIRED"; expected: string }
+  | { ok: false; code: "UNDO_MISMATCH"; message: string }
   | { ok: false; code: "VALIDATION"; message: string };
+
+const BATCH_WHERE = { action: "catalogue.launch_batch", entityType: "launch_batch" } as const;
 
 /**
  * Apply a planned change as one batch: all of it or none of it.
@@ -236,15 +239,15 @@ export async function applyLaunchChange(
 
   return db.$transaction(async (tx): Promise<ApplyLaunchResult> => {
     const lockedCats = cats.length
-      ? await tx.$queryRaw<{ slug: string; isActive: boolean }[]>`
-          SELECT slug, is_active AS "isActive" FROM categories WHERE slug = ANY(${cats.map((c) => c.slug)}) ORDER BY slug FOR UPDATE`
+      ? await tx.$queryRaw<{ id: string; slug: string; isActive: boolean }[]>`
+          SELECT id, slug, is_active AS "isActive" FROM categories WHERE slug = ANY(${cats.map((c) => c.slug)}) ORDER BY slug FOR UPDATE`
       : [];
     const lockedBrands = brands.length
-      ? await tx.$queryRaw<{ slug: string; isActive: boolean }[]>`
-          SELECT slug, is_active AS "isActive" FROM brands WHERE slug = ANY(${brands.map((b) => b.slug)}) ORDER BY slug FOR UPDATE`
+      ? await tx.$queryRaw<{ id: string; slug: string; isActive: boolean }[]>`
+          SELECT id, slug, is_active AS "isActive" FROM brands WHERE slug = ANY(${brands.map((b) => b.slug)}) ORDER BY slug FOR UPDATE`
       : [];
-    const current = (kind: "category" | "brand", slug: string) =>
-      (kind === "category" ? lockedCats : lockedBrands).find((r) => r.slug === slug)?.isActive;
+    const locked = (kind: "category" | "brand", slug: string) => (kind === "category" ? lockedCats : lockedBrands).find((r) => r.slug === slug);
+    const current = (kind: "category" | "brand", slug: string) => locked(kind, slug)?.isActive;
 
     const all = [...cats.map((r) => ({ ...r, kind: "category" as const })), ...brands.map((r) => ({ ...r, kind: "brand" as const }))];
     const missing = all.filter((r) => current(r.kind, r.slug) === undefined).map(({ kind, slug }) => ({ kind, slug }));
@@ -252,7 +255,28 @@ export async function applyLaunchChange(
     const stale = all.filter((r) => current(r.kind, r.slug) !== r.expected).map(({ kind, slug }) => ({ kind, slug }));
     if (stale.length) return { ok: false, code: "STALE_PLAN", stale };
 
-    const rows = all.map((r) => ({ ...r, change: (r.expected === r.isActive ? "unchanged" : "change") as LaunchPlanRow["change"], to: r.isActive }));
+    const rows = all.map((r) => ({ ...r, id: locked(r.kind, r.slug)!.id, change: (r.expected === r.isActive ? "unchanged" : "change") as LaunchPlanRow["change"], to: r.isActive }));
+
+    /* An undo must be exactly a reversal of the batch it names, and only once —
+       otherwise the audit would record a reversal that never happened and the
+       history would mark the original batch undone. The rows are already
+       locked, so a second, concurrent undo of the same batch waits and then
+       fails the stale check above. */
+    if (undoOf) {
+      const original = await tx.auditLog.findFirst({ where: { ...BATCH_WHERE, entityId: undoOf }, select: { after: true } });
+      if (!original) return { ok: false, code: "UNDO_MISMATCH", message: "That batch no longer exists" };
+      const already = await tx.auditLog.findFirst({ where: { ...BATCH_WHERE, after: { path: ["undoOf"], equals: undoOf } }, select: { id: true } });
+      if (already) return { ok: false, code: "UNDO_MISMATCH", message: "That change has already been undone" };
+      const rec = original.after as unknown as BatchRecord;
+      const reverses = (r: (typeof rows)[number]) => {
+        const b = (r.kind === "category" ? rec.categories : rec.brands).find((x) => x.slug === r.slug);
+        return Boolean(b) && b!.to === r.expected && b!.from === r.to && (!b!.id || b!.id === r.id);
+      };
+      if (rows.some((r) => r.change === "change" && !reverses(r))) {
+        return { ok: false, code: "UNDO_MISMATCH", message: "This undo does not match the change it reverses. Review it again." };
+      }
+    }
+
     const expectedText = confirmTextFor(rows);
     if (expectedText && confirmText?.trim().toUpperCase() !== expectedText) {
       return { ok: false, code: "CONFIRMATION_REQUIRED", expected: expectedText };
@@ -278,20 +302,23 @@ export async function applyLaunchChange(
         batchId,
         ...(undoOf ? { undoOf } : {}),
         by: actor.email,
-        categories: changing.filter((r) => r.kind === "category").map((r) => ({ slug: r.slug, from: r.expected, to: r.to })),
-        brands: changing.filter((r) => r.kind === "brand").map((r) => ({ slug: r.slug, from: r.expected, to: r.to })),
+        categories: changing.filter((r) => r.kind === "category").map((r) => ({ id: r.id, slug: r.slug, from: r.expected, to: r.to })),
+        brands: changing.filter((r) => r.kind === "brand").map((r) => ({ id: r.id, slug: r.slug, from: r.expected, to: r.to })),
       },
     });
     return { ok: true, batchId, changed: changing.length };
   });
 }
 
+/** A batch row's switches. `id` pins the row the batch changed, so a slug reused later is not mistaken for it. */
+type BatchSwitch = { id?: string; slug: string; from: boolean; to: boolean };
+
 interface BatchRecord {
   batchId: string;
   undoOf?: string;
   by: string;
-  categories: { slug: string; from: boolean; to: boolean }[];
-  brands: { slug: string; from: boolean; to: boolean }[];
+  categories: BatchSwitch[];
+  brands: BatchSwitch[];
 }
 
 /**
@@ -300,19 +327,38 @@ interface BatchRecord {
  * through the same plan → confirm → apply path as any other change.
  */
 export async function planLaunchUndo(batchId: string): Promise<{ plan: LaunchPlan | null; conflicts: { kind: "category" | "brand"; slug: string }[] } | null> {
-  const row = await db.auditLog.findFirst({ where: { action: "catalogue.launch_batch", entityType: "launch_batch", entityId: batchId } });
+  const row = await db.auditLog.findFirst({ where: { ...BATCH_WHERE, entityId: batchId } });
   if (!row) return null;
   const batch = row.after as unknown as BatchRecord;
+  if (await db.auditLog.findFirst({ where: { ...BATCH_WHERE, after: { path: ["undoOf"], equals: batchId } }, select: { id: true } })) {
+    return { plan: null, conflicts: [] };
+  }
   const [cats, brands] = await Promise.all([
-    db.category.findMany({ where: { slug: { in: batch.categories.map((c) => c.slug) } }, select: { slug: true, isActive: true } }),
-    db.brand.findMany({ where: { slug: { in: batch.brands.map((b) => b.slug) } }, select: { slug: true, isActive: true } }),
+    db.category.findMany({ where: { slug: { in: batch.categories.map((c) => c.slug) } }, select: { id: true, slug: true, isActive: true } }),
+    db.brand.findMany({ where: { slug: { in: batch.brands.map((b) => b.slug) } }, select: { id: true, slug: true, isActive: true } }),
   ]);
-  const isNow = (list: { slug: string; isActive: boolean }[], slug: string) => list.find((x) => x.slug === slug)?.isActive;
+  /* Anything written to these rows after the batch — another switch, an edit,
+     even one that has since been switched back — is someone else's later
+     decision, so undo leaves that row alone rather than reverse it. The
+     batch's own per-switch audit rows carry its batch id and are skipped. */
+  const later = await db.auditLog.findMany({
+    where: { entityType: { in: ["category", "brand"] }, entityId: { in: [...cats, ...brands].map((x) => x.id) }, createdAt: { gte: row.createdAt } },
+    select: { entityType: true, entityId: true, after: true },
+  });
+  const touched = new Set(
+    later
+      .filter((a) => (a.after as { batchId?: unknown } | null)?.batchId !== batchId)
+      .map((a) => `${a.entityType}:${a.entityId}`),
+  );
+  const conflicted = (kind: "category" | "brand", list: { id: string; slug: string; isActive: boolean }[]) => (s: BatchSwitch) => {
+    const now = list.find((x) => x.slug === s.slug);
+    return !now || (s.id !== undefined && s.id !== now.id) || now.isActive !== s.to || touched.has(`${kind}:${now.id}`);
+  };
   const conflicts = [
-    ...batch.categories.filter((c) => isNow(cats, c.slug) !== c.to).map((c) => ({ kind: "category" as const, slug: c.slug })),
-    ...batch.brands.filter((b) => isNow(brands, b.slug) !== b.to).map((b) => ({ kind: "brand" as const, slug: b.slug })),
+    ...batch.categories.filter(conflicted("category", cats)).map((c) => ({ kind: "category" as const, slug: c.slug })),
+    ...batch.brands.filter(conflicted("brand", brands)).map((b) => ({ kind: "brand" as const, slug: b.slug })),
   ];
-  const revert = (list: { slug: string; from: boolean; to: boolean }[], kind: "category" | "brand") =>
+  const revert = (list: BatchSwitch[], kind: "category" | "brand") =>
     list.filter((r) => !conflicts.some((c) => c.kind === kind && c.slug === r.slug)).map((r) => ({ slug: r.slug, isActive: r.from, expected: r.to }));
   const inverse = { categories: revert(batch.categories, "category"), brands: revert(batch.brands, "brand") };
   if (!inverse.categories.length && !inverse.brands.length) return { plan: null, conflicts };
@@ -332,7 +378,7 @@ export interface LaunchBatchSummary {
 /** Recent batches, newest first, each marked if a later batch undid it. */
 export async function listLaunchBatches(limit = 10): Promise<LaunchBatchSummary[]> {
   const rows = await db.auditLog.findMany({
-    where: { action: "catalogue.launch_batch", entityType: "launch_batch" },
+    where: BATCH_WHERE,
     orderBy: { createdAt: "desc" },
     take: Math.min(Math.max(limit, 1), 50) * 2,
   });

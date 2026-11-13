@@ -54,6 +54,7 @@ export async function adminApplyLaunchChange(input: unknown): Promise<ActionResu
     if (r.code === "STALE_PLAN") {
       return fail("CONFLICT", "Something changed since you reviewed this. Review the changes again.", undefined, { stale: r.stale });
     }
+    if (r.code === "UNDO_MISMATCH") return fail("CONFLICT", r.message);
     if (r.code === "MISSING") return fail("NOT_FOUND", "A category or brand in this change no longer exists", undefined, { missing: r.missing });
     if (r.code === "CONFIRMATION_REQUIRED") return fail("VALIDATION", `Type ${r.expected} to apply`, "confirm", { expected: r.expected });
     return fail("VALIDATION", r.message);

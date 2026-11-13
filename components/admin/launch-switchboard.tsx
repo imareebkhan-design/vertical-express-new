@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/lib/validators";
 import type { LaunchChangeSet, LaunchPlan, LaunchDepartment } from "@/lib/launch-control";
@@ -71,6 +71,43 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const reviewOpen = review !== null;
+
+  /* A modal review: focus moves in when it opens, the switches behind it are
+     inert, and focus returns to what opened it when it closes. */
+  useEffect(() => {
+    if (!reviewOpen) return;
+    const opener = openerRef.current;
+    return () => opener?.focus();
+  }, [reviewOpen]);
+  /* The review can render while its request is still settling (its buttons
+     disabled), so focus moves in once they are enabled. */
+  useEffect(() => {
+    if (!reviewOpen || pending || dialogRef.current?.contains(document.activeElement)) return;
+    dialogRef.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus();
+  }, [reviewOpen, pending]);
+
+  const trapTab = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Escape" && !pending) {
+      setReview(null);
+      setError(null);
+      return;
+    }
+    if (e.key !== "Tab" || !dialogRef.current) return;
+    const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")];
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
 
   const current = useMemo(() => {
     const m = new Map<string, boolean>();
@@ -100,6 +137,7 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
   const openReview = (load: () => Promise<{ plan: LaunchPlan; undoOf?: string; conflicts?: Undo["conflicts"] } | string>) => {
     setError(null);
     setNotice(null);
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     start(async () => {
       const r = await load();
       if (typeof r === "string") setError(r);
@@ -126,7 +164,9 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
 
   const applyReviewed = () => {
     if (!review) return;
-    const rows = review.plan.rows.filter((x) => x.change === "change" && x.before !== null);
+    /* Every reviewed row that exists, unchanged ones included, so the server
+       checks the whole batch against what was reviewed (STALE_PLAN). */
+    const rows = review.plan.rows.filter((x) => x.before !== null);
     const cs = {
       categories: rows.filter((x) => x.kind === "category").map((x) => ({ slug: x.slug, isActive: x.to, expected: x.before! })),
       brands: rows.filter((x) => x.kind === "brand").map((x) => ({ slug: x.slug, isActive: x.to, expected: x.before! })),
@@ -149,6 +189,7 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
   const confirmNeeded = review?.plan.confirmText ?? null;
   const confirmOk = !confirmNeeded || typed.trim().toUpperCase() === confirmNeeded;
   const imp = review?.plan.impact;
+  const hasMissing = review?.plan.rows.some((x) => x.change === "missing") ?? false;
 
   return (
     <section aria-labelledby="launch-switches" className="mx-auto mt-10 max-w-[1100px]">
@@ -158,6 +199,7 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
         price or stock, and every change can be undone. Publishing is done in Products.
       </p>
 
+      <div inert={reviewOpen}>
       {notice && <p role="status" className="mt-3 rounded-field bg-ops-ok-tint px-3 py-2 text-[12.5px] font-semibold text-ops-ok">{notice}</p>}
       {error && !review && <p role="alert" className="mt-3 rounded-field bg-ops-bad-tint px-3 py-2 text-[12.5px] font-semibold text-ops-bad">{error}</p>}
 
@@ -170,10 +212,10 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-[13px] font-extrabold text-ink">{d.title}</h3>
                 <div className="flex gap-1.5">
-                  <button type="button" aria-label={`Show all in ${d.title}`} className="rounded-full bg-chip px-2.5 py-1 text-[11px] font-bold text-ink-700" onClick={() => cats.forEach((c) => set(key("category", c.slug), true))}>
+                  <button type="button" aria-label={`Show all in ${d.title}`} disabled={pending} className="rounded-full bg-chip px-2.5 py-1 text-[11px] font-bold text-ink-700 disabled:opacity-40" onClick={() => cats.forEach((c) => set(key("category", c.slug), true))}>
                     Show all
                   </button>
-                  <button type="button" aria-label={`Hide all in ${d.title}`} className="rounded-full bg-chip px-2.5 py-1 text-[11px] font-bold text-ink-700" onClick={() => cats.forEach((c) => set(key("category", c.slug), false))}>
+                  <button type="button" aria-label={`Hide all in ${d.title}`} disabled={pending} className="rounded-full bg-chip px-2.5 py-1 text-[11px] font-bold text-ink-700 disabled:opacity-40" onClick={() => cats.forEach((c) => set(key("category", c.slug), false))}>
                     Hide all
                   </button>
                 </div>
@@ -265,9 +307,11 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
         )}
       </div>
 
+      </div>
+
       {review && imp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div role="dialog" aria-modal="true" aria-labelledby="launch-review-title" className="max-h-[90vh] w-full max-w-[560px] overflow-y-auto rounded-panel bg-white p-5 shadow-card-hover">
+          <div ref={dialogRef} onKeyDown={trapTab} role="dialog" aria-modal="true" aria-labelledby="launch-review-title" className="max-h-[90vh] w-full max-w-[560px] overflow-y-auto rounded-panel bg-white p-5 shadow-card-hover">
             <h2 id="launch-review-title" className="text-[16px] font-extrabold text-ink">{review.undoOf ? "Undo this change?" : "Apply these changes?"}</h2>
 
             <ul className="mt-3 space-y-1 text-[12.5px] font-semibold text-ink">
@@ -303,16 +347,19 @@ export function LaunchSwitchboard({ departments, brands, batches, plan, apply, p
               </label>
             )}
 
+            {hasMissing && (
+              <p className="mt-3 text-[12.5px] font-semibold text-ops-bad">Something in this change no longer exists. Cancel and review it again.</p>
+            )}
             {error && <p role="alert" className="mt-3 text-[12.5px] font-semibold text-ops-bad">{error}</p>}
 
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => { setReview(null); setError(null); }} disabled={pending} className="rounded-full bg-chip px-4 py-2 text-[12.5px] font-bold text-ink-700">
+              <button type="button" data-autofocus onClick={() => { setReview(null); setError(null); }} disabled={pending} className="rounded-full bg-chip px-4 py-2 text-[12.5px] font-bold text-ink-700">
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={applyReviewed}
-                disabled={pending || !confirmOk || !review.plan.rows.some((x) => x.change === "change")}
+                disabled={pending || !confirmOk || hasMissing || !review.plan.rows.some((x) => x.change === "change")}
                 className="rounded-full bg-ink px-4 py-2 text-[12.5px] font-extrabold text-white disabled:opacity-40"
               >
                 {review.undoOf ? "Undo" : "Apply"}

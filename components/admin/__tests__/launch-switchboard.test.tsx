@@ -144,3 +144,71 @@ test("undo goes through the same review and applies with the batch it reverses",
   await RTL.waitFor(() => assert.equal(calls.apply.length, 1), WAIT);
   assert.equal((calls.apply[0] as { undoOf: string }).undoOf, "11111111-1111-4111-8111-111111111111");
 });
+
+/* ------------------------------------------------------ review of #58 */
+
+test("apply sends every reviewed row, unchanged ones too, so the server checks the whole batch", async () => {
+  const calls = setup({
+    plan: async () => ({ ok: true, data: { rows: [
+      { kind: "category", slug: "lighting", name: "Lighting", before: true, to: false, change: "change" },
+      { kind: "category", slug: "tiling", name: "Tiling", before: false, to: false, change: "unchanged" },
+    ], impact: impact(), confirmText: null } }),
+  });
+  RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
+  await RTL.screen.findByRole("dialog", undefined, WAIT);
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Apply" }));
+  await RTL.waitFor(() => assert.equal(calls.apply.length, 1), WAIT);
+  assert.deepEqual((calls.apply[0] as { changeSet: unknown }).changeSet, {
+    categories: [{ slug: "lighting", isActive: false, expected: true }, { slug: "tiling", isActive: false, expected: false }],
+    brands: [],
+  });
+});
+
+test("a review with a row that no longer exists cannot be applied", async () => {
+  const calls = setup({
+    plan: async () => ({ ok: true, data: { rows: [
+      { kind: "category", slug: "lighting", name: "Lighting", before: true, to: false, change: "change" },
+      { kind: "brand", slug: "gone", name: "gone", before: null, to: false, change: "missing" },
+    ], impact: impact(), confirmText: null } }),
+  });
+  RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
+  const dialog = await RTL.screen.findByRole("dialog", undefined, WAIT);
+  assert.match(dialog.textContent ?? "", /no longer exists/);
+  assert.equal((RTL.screen.getByRole("button", { name: "Apply" }) as HTMLButtonElement).disabled, true);
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Apply" }));
+  assert.deepEqual(calls.apply, []);
+});
+
+test("while a review is loading, the bulk buttons are disabled with the switches", async () => {
+  let release: () => void = () => {};
+  setup({ plan: () => new Promise((resolve) => { release = () => resolve({ ok: false, error: { code: "VALIDATION", message: "x" } }); }) });
+  RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
+  RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Review changes" }));
+  await RTL.waitFor(() => assert.equal((RTL.screen.getByRole("button", { name: "Hide all in Civil & Interiors" }) as HTMLButtonElement).disabled, true), WAIT);
+  assert.equal((RTL.screen.getByRole("button", { name: "Show all in Civil & Interiors" }) as HTMLButtonElement).disabled, true);
+  release();
+  await RTL.screen.findByRole("alert", undefined, WAIT);
+});
+
+/* Focus is compared with ok(): printing a jsdom element in a failure message takes tens of seconds. */
+test("the review is modal for the keyboard: focus moves in, the switches behind are inert, Escape closes and returns focus", async () => {
+  setup();
+  RTL.fireEvent.click(RTL.screen.getByRole("switch", { name: "Show Lighting" }));
+  const opener = RTL.screen.getByRole("button", { name: "Review changes" });
+  opener.focus();
+  RTL.fireEvent.click(opener);
+  const dialog = await RTL.screen.findByRole("dialog", undefined, WAIT);
+  await RTL.waitFor(() => assert.ok(document.activeElement === RTL.within(dialog).getByRole("button", { name: "Cancel" }), "focus is on Cancel"), WAIT);
+  const background = opener.closest("[inert]");
+  assert.ok(background, "the switchboard behind the dialog is inert");
+  // Tab from the last control wraps to the first, never leaving the dialog.
+  const apply = RTL.within(dialog).getByRole("button", { name: "Apply" });
+  apply.focus();
+  RTL.fireEvent.keyDown(apply, { key: "Tab" });
+  assert.ok(document.activeElement === RTL.within(dialog).getByRole("button", { name: "Cancel" }), "focus is on Cancel");
+  RTL.fireEvent.keyDown(dialog, { key: "Escape" });
+  assert.equal(RTL.screen.queryByRole("dialog"), null);
+  await RTL.waitFor(() => assert.ok(document.activeElement === opener, "focus is back on Review changes"), WAIT);
+});

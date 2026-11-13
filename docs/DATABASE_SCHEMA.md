@@ -340,6 +340,7 @@ Category and brand visibility changes made through Launch Control (`/admin/launc
 batches without a new table. Each switch writes its usual audit row (`catalogue.category_hidden` / `_shown`,
 `brand.retired` / `brand.restored`) with `after.batchId` (and `after.undoOf` when the batch reverses another), plus
 one `audit_logs` row with `action = 'catalogue.launch_batch'`, `entity_type = 'launch_batch'`, `entity_id = <batchId>`
-and `after = { batchId, undoOf?, by, categories: [{slug, from, to}], brands: [{slug, from, to}] }`. Undo and the
-history read these rows (`lib/services/admin/launch-control.ts`). Only `categories.is_active` and `brands.is_active`
+and `after = { batchId, undoOf?, by, categories: [{id, slug, from, to}], brands: [{id, slug, from, to}] }` (`id` is the category or
+brand row, so undo never follows a reused slug). An undo batch must be the exact reversal of the batch it names and
+can be applied once. Undo and the history read these rows (`lib/services/admin/launch-control.ts`). Only `categories.is_active` and `brands.is_active`
 change; no product row is written.
