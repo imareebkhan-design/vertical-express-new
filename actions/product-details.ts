@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { addVariant, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
 import { removeProductImage, setPrimaryImage } from "@/lib/services/admin/product-images";
+import { MIN_REVIEW_REASON, recordCommercialReview } from "@/lib/services/admin/commercial-review";
 import { parseRupeeInput } from "@/lib/money";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -125,4 +126,42 @@ export async function adminRemoveImage(input: unknown): Promise<ActionResult<{ w
   if (!r.ok) return fail("NOT_FOUND", "Photo not found");
   if (img) await revalidateProduct(img.productId);
   return succeed({ wasPrimary: r.wasPrimary });
+}
+
+const reviewSchema = z.object({
+  productId: z.uuid(),
+  reason: z.string().trim().min(MIN_REVIEW_REASON, "Say what you checked (at least 10 characters) — this is recorded").max(300),
+  /* Exactly what the screen showed. The service refuses if the product has moved on. */
+  seen: z.object({
+    unitLabel: z.string(),
+    deliverySpeed: z.string().nullable(),
+    hsn: z.string().nullable(),
+    gstRatePct: z.number().nullable(),
+    variants: z.array(z.object({
+      sku: z.string(), name: z.string(), isDefault: z.boolean(),
+      pricePaise: z.number().int(), compareAtPaise: z.number().int().nullable(),
+    })).max(200),
+  }),
+});
+
+/**
+ * Record that this operator reviewed the product's offer as it now stands
+ * (lib/services/admin/commercial-review.ts). A price or variant change clears
+ * the review and takes the product off sale; this is how it comes back without
+ * a developer.
+ */
+export async function adminRecordCommercialReview(input: unknown): Promise<ActionResult<{ remaining: string[] }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = reviewSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Those details are not valid");
+  const r = await recordCommercialReview({ ...parsed.data, actor: { id: admin.id, email: admin.email } });
+  if (!r.ok) {
+    if (r.code === "NOT_FOUND") return fail("NOT_FOUND", "Product not found");
+    if (r.code === "STALE") return fail("CONFLICT", "This product changed while you were looking at it. Reload, check the prices again, then record the review.");
+    if (r.code === "REASON_REQUIRED") return fail("VALIDATION", "Say what you checked (at least 10 characters) — this is recorded");
+    return fail("VALIDATION", r.detail ?? "This product cannot be reviewed yet");
+  }
+  await revalidateProduct(parsed.data.productId);
+  return succeed({ remaining: r.remaining });
 }
