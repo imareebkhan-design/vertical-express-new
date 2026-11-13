@@ -163,3 +163,68 @@ test("two shipments, one still on the road: only the returned one moves; the ord
   assert.equal((await orderOf(orderId)).status, "out_for_delivery");
   assert.equal(await db.auditLog.count({ where: { entityId: orderId, action: "order.status_corrected" } }), 0);
 });
+
+/* ------------------------------------------------- a failed delivery can end
+ *
+ * Before 13 Nov 2026 a paid order whose delivery failed was a dead end: the
+ * shipment could come back, but the order stayed packed / out_for_delivery,
+ * could not be cancelled, and so its payment was never owed back
+ * (refundEligibility: NOT_OWED). An operator may now cancel it once no goods
+ * are outside the warehouse.
+ */
+test("failed delivery: once received back, an operator can cancel the order; the shipment closes and the payment becomes refundable", async () => {
+  const { advanceOrderStatus } = await import("@/lib/services/admin/manage");
+  const { refundEligibility } = await import("@/lib/services/refunds");
+  const { orderId, ships: [sid] } = await dispatchedOrder(1);
+  const payment = await db.payment.findFirstOrThrow({ where: { orderId } });
+
+  assert.deepEqual(await refundEligibility(db, payment.id), { ok: false, code: "NOT_OWED" }, "nothing is owed while the order is alive");
+  await assert.rejects(advanceOrderStatus(actorId, orderId, "cancelled"), /SHIPMENT_DISPATCHED/, "not while the goods are on a vehicle");
+  assert.equal((await orderOf(orderId)).status, "out_for_delivery", "the refused cancel changed nothing");
+  assert.equal((await shipmentOf(sid)).status, "out_for_delivery");
+
+  assert.equal((await receiveShipmentBack({ shipmentId: sid, actor: actor(), reason: REASON, goodsReceivedBack: true })).ok, true);
+  await advanceOrderStatus(actorId, orderId, "cancelled");
+
+  assert.equal((await orderOf(orderId)).status, "cancelled");
+  assert.equal((await shipmentOf(sid)).status, "cancelled", "nothing is left on the dispatch board");
+  const ev = (await db.orderStatusEvent.findMany({ where: { orderId }, orderBy: { createdAt: "asc" } })).at(-1)!;
+  assert.deepEqual([ev.fromStatus, ev.toStatus], ["packed", "cancelled"]);
+  assert.match(ev.note ?? "", /refund required/);
+  assert.deepEqual(await refundEligibility(db, payment.id), { ok: true, basis: "dead_order", remainingPaise: 19900 });
+  assert.deepEqual((await db.payment.findMany({ where: { orderId } })).map((p) => p.status), ["captured"], "cancelling does not itself move money");
+});
+
+test("failed delivery: an order whose only shipment was cancelled on the board can be cancelled too", async () => {
+  const { advanceOrderStatus } = await import("@/lib/services/admin/manage");
+  const { orderId, ships: [sid] } = await dispatchedOrder(1);
+  assert.equal((await receiveShipmentBack({ shipmentId: sid, actor: actor(), reason: REASON, goodsReceivedBack: true })).ok, true);
+  assert.equal((await advanceShipment({ shipmentId: sid, to: "cancelled", actor: actor() })).ok, true);
+  assert.equal((await orderOf(orderId)).status, "packed", "the order does not follow a cancelled shipment by itself");
+  await advanceOrderStatus(actorId, orderId, "cancelled");
+  assert.equal((await orderOf(orderId)).status, "cancelled");
+});
+
+test("a part-delivered order is never cancelled whole", async () => {
+  const { advanceOrderStatus } = await import("@/lib/services/admin/manage");
+  const { orderId, ships: [a, b] } = await dispatchedOrder(2);
+  const code = (await shipmentOf(a)).deliveryCode!;
+  assert.equal((await confirmDelivery({ shipmentId: a, code, actor: actor() })).ok, true);
+  assert.equal((await receiveShipmentBack({ shipmentId: b, actor: actor(), reason: REASON, goodsReceivedBack: true })).ok, true);
+  const before = (await orderOf(orderId)).status;
+  await assert.rejects(advanceOrderStatus(actorId, orderId, "cancelled"), /SHIPMENT_DISPATCHED/);
+  assert.equal((await orderOf(orderId)).status, before);
+  assert.equal((await shipmentOf(b)).status, "packed");
+});
+
+test("the recovery is an operator's, not the customer's, and offers nothing while goods are out", async () => {
+  const { manualOrderMoves, isCancellable, canOperatorCancel } = await import("@/lib/order-flow");
+  assert.equal(isCancellable("packed"), false, "a customer still cannot cancel after packing");
+  assert.equal(isCancellable("out_for_delivery"), false);
+  assert.deepEqual(manualOrderMoves("out_for_delivery", true, true), []);
+  assert.deepEqual(manualOrderMoves("out_for_delivery", true), [], "unknown is treated as out");
+  assert.deepEqual(manualOrderMoves("packed", true, false), ["cancelled"]);
+  assert.deepEqual(manualOrderMoves("out_for_delivery", false, false), ["delivered", "cancelled"]);
+  assert.equal(canOperatorCancel("delivered", false), false);
+  assert.equal(canOperatorCancel("cancelled", false), false);
+});

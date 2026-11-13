@@ -79,7 +79,10 @@ export default async function AdminOrderDetail({
   const pay = paymentState(order);
   const ful = fulfilmentState(order);
   const liveShipments = order.shipments.filter((s) => s.status !== "cancelled");
-  const moves = manualOrderMoves(order.status, liveShipments.length > 0);
+  /* A failed delivery ends here: once every shipment is back in the warehouse
+     or cancelled, the order can be cancelled and its payment refunded. */
+  const goodsOut = order.shipments.some((s) => s.status === "out_for_delivery" || s.status === "delivered");
+  const moves = manualOrderMoves(order.status, liveShipments.length > 0, goodsOut);
   const mismatch = statusAheadOfShipments(order);
 
   // GST is stored per line as a snapshot taken at order time. Orders placed

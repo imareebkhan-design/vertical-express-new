@@ -8,6 +8,7 @@ import {
   adminAssignShipment,
   adminConfirmDelivery,
   adminDeliverWithoutCode,
+  adminReceiveShipmentBack,
 } from "@/actions/dispatch";
 import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
 
@@ -75,6 +76,28 @@ export function DispatchControls({
     );
     if (reason === null) return;
     run(() => adminDeliverWithoutCode({ shipmentId: shipment.id, reason }));
+  };
+
+  /* A failed delivery: the goods came back and nobody took them. Two questions,
+     both recorded — what happened, and whether the goods are really back. The
+     shipment returns to packed with its code revoked; nothing is restocked,
+     because the goods are still this order's. */
+  const receiveBack = () => {
+    const reason = window.prompt(
+      "Delivery failed — receive this shipment back at the warehouse?\n\nIts handover code is cancelled. Afterwards you can dispatch it again, or cancel the order on its own page and refund the payment.\n\nWhat happened? (recorded against your name)"
+    );
+    if (reason === null) return;
+    if (!window.confirm("Confirm: the goods are physically back in the warehouse.")) return;
+    run(() => adminReceiveShipmentBack({ shipmentId: shipment.id, reason, goodsReceivedBack: true }));
+  };
+
+  /* Cancelling returns the goods to stock and cannot be undone. One stray click
+     used to do it, from any state. */
+  const cancel = () => {
+    if (!window.confirm(
+      `Cancel shipment ${shipment.ref}? Its goods go back into stock and this cannot be undone. The order itself is not cancelled or refunded — do that on the order's page.`
+    )) return;
+    advance("cancelled");
   };
 
   return (
@@ -164,6 +187,17 @@ export function DispatchControls({
           </button>
         )}
 
+        {shipment.status === "out_for_delivery" && (
+          <button
+            type="button"
+            onClick={receiveBack}
+            disabled={pending}
+            className={`${button} bg-chip text-ink hover:bg-hush`}
+          >
+            Delivery failed: received back
+          </button>
+        )}
+
         {/* The document that goes in the box. Opens for printing; the handover
             code is deliberately not on it. */}
         <Link
@@ -174,14 +208,18 @@ export function DispatchControls({
           Packing slip
         </Link>
 
-        <button
-          type="button"
-          onClick={() => advance("cancelled")}
-          disabled={pending}
-          className={`${button} bg-ops-bad-tint text-ops-bad`}
-        >
-          Cancel
-        </button>
+        {/* Not offered while the goods are on a vehicle: cancelling restocks
+            them, and they are not on the shelf. Receive them back first. */}
+        {(shipment.status === "pending" || shipment.status === "packed") && (
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={pending}
+            className={`${button} bg-ops-bad-tint text-ops-bad`}
+          >
+            Cancel
+          </button>
+        )}
       </div>
 
       {shipment.status === "out_for_delivery" && (

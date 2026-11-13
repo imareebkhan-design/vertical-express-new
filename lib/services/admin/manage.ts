@@ -6,7 +6,7 @@ import { notifyOrderStatusChange } from "@/lib/services/notifications";
 import { cancelOpenShipments, hasDispatchedShipment, releaseOrderInventory } from "@/lib/services/orders";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
-import { canTransitionOrder, SHIPMENT_DRIVEN } from "@/lib/order-flow";
+import { canTransitionOrder, OPERATOR_RECOVERABLE, SHIPMENT_DRIVEN } from "@/lib/order-flow";
 import { triggerAlert } from "@/lib/observability";
 
 /* The map moved to lib/order-flow.ts so the three other paths that write an
@@ -47,7 +47,11 @@ export async function advanceOrderStatus(
     include: { payments: { select: { status: true } } },
   });
   if (!order) throw new Error("NOT_FOUND");
-  if (!canTransitionOrder(order.status, to)) throw new Error("INVALID_TRANSITION");
+  /* A packed or sent-out order whose goods are all back may still be cancelled
+     by an operator (a failed delivery, lib/order-flow.ts). Whether the goods
+     really are back is decided under the order lock below, not here. */
+  const recovering = to === "cancelled" && OPERATOR_RECOVERABLE.includes(order.status);
+  if (!canTransitionOrder(order.status, to) && !recovering) throw new Error("INVALID_TRANSITION");
   /* Packed / out for delivery / delivered belong to the shipments once there
      are any — the dispatch board enforces the driver and the customer's code,
      and the order follows (order-rollup.ts). By hand here it would skip both. */
