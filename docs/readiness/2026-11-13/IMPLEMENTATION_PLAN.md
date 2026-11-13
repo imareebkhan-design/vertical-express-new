@@ -11,8 +11,12 @@ request is open against `release/rc-2026-10-19` and nothing is merged or deploye
 | #60 | `claude/payment-resilience` · `5d2ed6e`, `d349021` | G-11, G-30–G-33 | backend 1550/1550 on `5d2ed6e`; 66/66 across the changed and neighbouring files on `d349021` |
 | #61 | `claude/failed-delivery-recovery` · `18b284e` | G-13, G-15 | backend 1549/1549, UI 243/243 |
 | #62 | `claude/record-commercial-review` · `c8c5a0d` | G-12 | backend 1551/1551, UI 241/241 |
+| #63 | `claude/rate-limit-client-address` · `2611027` | G-17 | backend 1553/1553. **Hop count must be checked on staging before production** |
+| #64 | `claude/checkout-script-blocked` · `2f25228` | G-42 | UI 241/241 |
+| workspace #24 | `claude/catalogue-mode-controls` · `6fa70aa` | G-21 (part) | unit 268/268, screen 35/35 |
+| workspace #25 | `claude/pin-production-api-url` | G-06 (part) | unit 270/270 |
 
-All four pass typecheck and lint; #61 and #62 also pass the full lint run. None changes the schema. None has been run in a
+All pass typecheck and lint; #61 and #62 also pass the full lint run. None changes the schema. None has been run in a
 browser or on staging. They touch different files and can merge in any order.
 
 ## 2. Merge order (each needs the owner's approval)

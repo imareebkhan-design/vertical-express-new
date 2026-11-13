@@ -6,7 +6,7 @@ waiting for. Automated, simulated and live results are kept apart: a passing uni
 test is not evidence that Razorpay, a phone OTP, an email or a real device works.
 
 Staging: `ve-staging`, build `build-2026-11-08-001`, commit `ea02aac` — 16 commits
-behind the release head and without PRs #58–#62. Isolation (`CURRENT_STATE.md` §4):
+behind the release head and without PRs #58–#64. Isolation (`CURRENT_STATE.md` §4):
 separate database, payment credentials (test only), storage and runtime identity;
 **shared** Firebase sign-in pool and operator allowlist.
 
@@ -14,7 +14,7 @@ separate database, payment credentials (test only), storage and runtime identity
 
 1. **No test sign-in is available to this session.** Ordering needs a signed-in customer (phone OTP or Google) and the operator tests need an allowlisted account. Neither a Firebase test phone number nor an operator session was available, and creating one is a change to the shared sign-in pool that needs approval.
 2. **This review found no record of a captured test payment on the current staging build.** The 8 Nov acceptance run stopped at Razorpay's contact validation (`docs/uat/2026-11-08/resumed-verification.md`); earlier documents report test-mode verification but give no order to check. Tests 1, 4 and 6 all start from a captured payment.
-3. **Staging does not run the code under review.** Results on `ea02aac` would not cover #58–#62.
+3. **Staging does not run the code under review.** Results on `ea02aac` would not cover #58–#64.
 
 To unblock: merge and deploy to staging (approval), then provide a staging test customer and an operator sign-in, or run the browser steps with the owner signed in.
 

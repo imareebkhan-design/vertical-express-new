@@ -23,7 +23,7 @@ Every P0 below is business data or a release-hygiene fact.
 | G-03 | C | No product is approved for sale: prices, MRP and physical stock are unconfirmed; production's 260 products are catalogue-only | Owner input §3–5 awaiting; working catalogue has blank prices | Owner supplies prices and counted stock | Open — owner |
 | G-04 | C/X | No Razorpay live account, keys or webhook; production cannot boot in transactional mode without them | `apphosting.production.yaml` has no payment variable † | Owner completes KYC; add secrets under approval | Open — owner/Razorpay |
 | G-05 | C | Legal identity, GSTIN, grievance officer, support phone, returns/refund/re-delivery terms are bracketed placeholders on live pages | `lib/content.ts:30-288` | Owner/legal text | Open — owner |
-| G-06 | S | A store-profile Android build (1.0.0 build 4, 6 Nov) was made from stale unmerged source `36d8fb8` with no catalogue-mode code; its API target is not determinable from the repository | `eas build:list` †; `eas.json` sets no `EXPO_PUBLIC_API_URL` for `production` | Do not promote it. Pin the API URL in the `production` profile and rebuild from reviewed `main` | Open |
+| G-06 | S | A store-profile Android build (1.0.0 build 4, 6 Nov) was made from stale unmerged source `36d8fb8` with no catalogue-mode code; its API target is not determinable from the repository | `eas build:list` †; `eas.json` sets no `EXPO_PUBLIC_API_URL` for `production` | Do not promote it. Pin the API URL in the `production` profile and rebuild from reviewed `main` | **Partly fixed, in review** — workspace PR #25 pins the production API address with a test (270/270). The 6 Nov build must still not be promoted; a new store build from reviewed `main` is not made † |
 
 ## P1
 
@@ -36,11 +36,11 @@ Every P0 below is business data or a release-hygiene fact.
 | G-14 | S/X | No customer or operator notification is delivered anywhere: email keys unset, SMS/push is a stub, no new-order alert, no Sentry DSN | `order-emails.ts:29-30`; `notifications.ts:23-26`; hosting files † | Set `RESEND_API_KEY`/`EMAIL_FROM` and `SENTRY_DSN`; add an operator new-order email to the existing outbox | Open — needs secrets |
 | G-15 | S | Dispatch-board "Cancel" has no confirmation and is offered in every state | `components/admin/dispatch-controls.tsx:179` | Confirm plus required reason | **Fixed, in review** — PR #61: Cancel asks first and is not offered while goods are on a vehicle † |
 | G-16 | S | Listed product shows Add to cart and the cart then refuses (ISS-105) | `catalog-policy.ts:76` vs `cart.ts:249` | Listing uses the full readiness check, or re-record reviews in the same change | Open — **re-graded P2** †: only a change to the tax table in code triggers it (database triggers cover every console edit), and the server refuses the sale. It becomes live work the day the cement rate changes (G-02); PR #62 makes re-recording possible from the console |
-| G-17 | S | Rate-limit keys trust client-supplied `x-real-ip` / first `x-forwarded-for` | `lib/services/rate-limit.ts:152-163`; `app/api/auth/session/route.ts:43-46` | One helper using the platform-appended entry. Needs a live check on staging first | Open — unverified live |
+| G-17 | S | Rate-limit keys trust client-supplied `x-real-ip` / first `x-forwarded-for` | `lib/services/rate-limit.ts:152-163`; `app/api/auth/session/route.ts:43-46` | One helper using the platform-appended entry. Needs a live check on staging first | **Confirmed live, fixed, in review** — staging, 13 Nov: a forged `x-real-ip` and a forged first `x-forwarded-for` entry each chose the bucket; with neither, the true address did †. PR #63 (`2611027`), backend 1553/1553. The hop count must be checked on staging before production (`docs/DEPLOY_FIREBASE.md`, "Client address") |
 | G-18 | S/C | One admin tier, shared across staging and production; no MFA; 14-day admin sessions | `lib/services/admin/authz.ts:21-52`; shared secret † | Separate production allowlist secret; enforce MFA; shorter admin session | Open — owner (D4) |
 | G-19 | C | No GST tax invoice is generated | `/admin/invoices` placeholder; `lib/content.ts:140` | Owner/CA decision on format and GSTIN | Open — owner |
 | G-20 | S | Phone app: no account-deletion path (store requirement); background location declared for all users | `mobile/src/screens/account/index.tsx`; `app.json:88-90` | Deletion row plus endpoint; store declarations | Open |
-| G-21 | S | Phone app in catalogue mode still shows cart, quick-add and reorder that the server refuses | `tab-bar.tsx:56-62`; `home/index.tsx:248-257, 423-447`; `orders/index.tsx:64` | Gate on the `orderingOpen` flag the cart already carries | Open |
+| G-21 | S | Phone app in catalogue mode still shows cart, quick-add and reorder that the server refuses | `tab-bar.tsx:56-62`; `home/index.tsx:248-257, 423-447`; `orders/index.tsx:64` | Gate on the `orderingOpen` flag the cart already carries | **Partly fixed, in review** — workspace PR #24: quick-add and Reorder follow `orderingOpen` (268 unit, 35 screen tests) †. Not changed: the Cart and Orders tabs (the canvas has five destinations), the first-list card wording, `/checkout` reached directly |
 | G-22 | C | Unverified delivery claim on the app sign-in screen (issue #19) and in the site's Open Graph title | `sign-in/index.tsx:360-368`; `app/layout.tsx:52,62` | Owner-approved neutral copy | Open — owner |
 | G-23 | X | iOS store build impossible: no active Apple membership, no team/app id, APNs unverified | workspace PR #21 notes; `eas.json:59` | Owner enrols | Blocked — external |
 | G-24 | S | Neither `main` nor the release branch is protected on a public repository | GitHub API † | Require PR and the `verify` check | Open — needs approval (settings change) |
@@ -61,7 +61,7 @@ Every P0 below is business data or a release-hygiene fact.
 | G-39 | Script CSP allows `unsafe-inline`; broad `*.googleapis.com`; HSTS lacks `includeSubDomains` | `next.config.ts:79-200` | Open |
 | G-40 | Catalogue import writes no audit row; audit IP is never recorded | `catalogue-import.ts`; `audit.ts:55` | Open |
 | G-41 | Dependency advisories: Capacitor 8.5.0 (critical, unused shell), `@grpc/grpc-js`, `fast-uri` (high) | `npm audit` on the lockfile | Open |
-| G-42 | Blocked Razorpay script throws after the order exists (desktop checkout) | `checkout-view.tsx:227`; `order-actions.tsx:99` | Open |
+| G-42 | Blocked Razorpay script throws after the order exists (desktop checkout) | `checkout-view.tsx:227`; `order-actions.tsx:99` | **Fixed, in review** — PR #64 (`2f25228`): one shared loader, both desktop screens catch the failure; 3 new tests, UI 241/241 †. Not tried with a real content blocker |
 | G-43 | Confirmation page says "Order placed" for any status, including unpaid | `confirmation-switcher.tsx:50-51` | Open |
 | G-44 | Error page claims the team was notified; nothing is sent | `app/error.tsx:13-23` | Open |
 | G-45 | Reorder inserts variants without the visibility gate (not purchasable; cart read filters) | `orders.ts:349-357` | Open |
@@ -84,10 +84,9 @@ was re-run this session beyond the suites listed against the fixes.
 
 ## Still open after the repair pass
 
-Software, not started: G-17 (needs a live header check on staging first), G-20 and
-G-21 (phone app), G-24 (repository setting, needs approval), and the P2 rows not
+Software, not started: G-20 (phone app account deletion), G-24 (repository setting, needs approval), and the P2 rows not
 marked fixed. Everything else open is an owner decision (`OWNER_DECISIONS.md`) or an
-external dependency. Live checks outstanding: rate-limit header test on staging,
+external dependency. Live checks outstanding: the rate-limit hop count after the next staging rollout,
 Firebase console settings (test phone numbers, MFA, email provider), Razorpay
 dashboard, contents of the admin allowlist.
 

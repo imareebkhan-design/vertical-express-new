@@ -4,14 +4,14 @@
 
 **Paid ordering: NO-GO.**
 **Production as it runs today (catalogue and enquiries, no orders, no payments): no reason found to change it.**
-**Staging deploy of the release branch after merging #57–#62: ready to request.**
+**Staging deploy of the release branch after merging #57–#64: ready to request.**
 
 ## Why paid ordering is NO-GO
 
 | Definition-of-done line | State | Evidence |
 |---|---|---|
 | Production code and deployment identified and reproducible | Met | Uploaded source archives byte-identical to `51a2da8` (production) and `ea02aac` (staging) — `CURRENT_STATE.md` §3 |
-| Launch-blocking security and order-integrity defects resolved | Fixes written, **not merged** | #59–#62. The audit found no P0 software defect in the order, payment or authorisation paths |
+| Launch-blocking security and order-integrity defects resolved | Fixes written, **not merged** | #59–#64. The audit found no P0 software defect in the order, payment or authorisation paths |
 | Catalogue contains approved, purchasable products | **Not met** | 260 production products are catalogue-only; no price, MRP or stock is confirmed (OD-1) |
 | Prices, tax, stock and delivery rules confirmed | **Not met** | Cement rate unconfirmed (OD-2); delivery values are seed placeholders (OD-3) |
 | Approved payment methods function | **Not met** | No live Razorpay account or keys (OD-4); no test-mode payment completed end to end on the current staging build |
@@ -30,11 +30,12 @@
 
 - Four pull requests opened with fixes for the P1 software gaps that stopped routine operation: #59 (test gateway refused on production), #60 (gateway check on admin cancel, alerts for unmatched money, timeout, late-capture sweep), #61 (failed delivery), #62 (commercial review from the console).
 - Full backend suite run locally on `321ee46`, `5d2ed6e`, `18b284e` and `c8c5a0d` (1546, 1550, 1549 and 1551 passing, none failing); UI suite on the last two (243, 241). The second commit of #60, `d349021`, had its own and neighbouring files run (66 passing); its full run is CI's.
-- Nothing merged, nothing deployed, no environment or database changed, no payment or refund made.
+- Later the same day: #63 (rate limits no longer keyed on caller-supplied headers — confirmed live on staging first; its hop count must be checked on staging before production), #64 (a blocked payment script no longer strands a placed order), and in the phone app's repository #24 (catalogue mode hides quick-add and Reorder) and #25 (the production build profile names its API address).
+- Nothing merged, nothing deployed, no environment changed, no payment or refund made. The only data written anywhere was three rate-limit counter rows on staging from the header probes.
 
 ## What would change the verdict
 
-To **CONDITIONAL GO for a staging acceptance run**: merge #57–#62, deploy staging, provide test sign-ins.
+To **CONDITIONAL GO for a staging acceptance run**: merge #57–#64, deploy staging, provide test sign-ins.
 
 To **GO for paid orders**, all of: staging tests 1, 2, 4, 5, 6, 9 and 12 pass with a real test-mode capture and refund; OD-1 to OD-11 answered and entered; live Razorpay configured by the owner; notification and error-reporting destinations set; production operators separated; the first real order and refund completed by the owner as in `LAUNCH_RUNBOOK.md` Stage D.
 
