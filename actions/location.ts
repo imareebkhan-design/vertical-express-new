@@ -44,7 +44,7 @@ export async function lookUpMyPincode(lat: unknown, lng: unknown): Promise<Actio
  * quick-commerce app; it is the first question the site asks. Each call is
  * billed by Google, so a guest is held to a tight per-address budget AND every
  * guest together to a fixed global one, both failing closed: the per-address
- * limit can be dodged by rotating `x-forwarded-for`, the global one cannot, so
+ * limit could once be dodged by rotating `x-forwarded-for` (lib/client-address.ts), the global one cannot, so
  * the most a guest can ever cost us is bounded. Signed-in customers keep their
  * existing per-account limits.
  * ==================================================================== */

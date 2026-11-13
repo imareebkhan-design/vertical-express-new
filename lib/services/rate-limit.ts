@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { clientAddress } from "@/lib/client-address";
 
 export type RateLimitOptions = {
   /**
@@ -145,19 +146,10 @@ function denied(
 }
 
 /**
- * Safely extracts client IP address from incoming request headers.
- * Prioritizes `x-real-ip` (set by edge proxies like Vercel/Nginx) before
- * parsing `x-forwarded-for` to prevent header spoofing.
+ * The caller's address for a per-address bucket. Reads only what the platform
+ * appended to `x-forwarded-for`; see lib/client-address.ts for why the first
+ * entry and `x-real-ip` are not trusted.
  */
 export function getClientIp(request: Request): string {
-  const realIp = request.headers.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
-
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  if (forwardedFor) {
-    const firstIp = forwardedFor.split(",")[0]?.trim();
-    if (firstIp) return firstIp;
-  }
-
-  return "anonymous";
+  return clientAddress(request.headers);
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createSessionCookie, readSession, revokeAllSessions } from "@/lib/auth/session";
 import { SESSION_COOKIE, SESSION_MAX_AGE_MS } from "@/lib/auth/session-cookie";
-import { rateLimit } from "@/lib/services/rate-limit";
+import { getClientIp, rateLimit } from "@/lib/services/rate-limit";
 import { completeSignInCart, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
 import { cookies } from "next/headers";
 import { log } from "@/lib/observability";
@@ -40,10 +40,7 @@ export async function POST(request: Request) {
    * while the limiter is unreachable would lock every customer out of signing
    * in to protect nothing that matters.
    */
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request);
   const limit = await rateLimit(`session-exchange:${ip}`, 30, 5 * 60 * 1000);
   if (!limit.allowed) {
     return NextResponse.json(
