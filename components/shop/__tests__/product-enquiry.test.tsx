@@ -42,7 +42,10 @@ test("a refusal is shown as an alert and the form stays", async () => {
   fireEvent.submit(screen.getByRole("form", { name: "Enquire about Drill" }));
   await waitFor(() => screen.getByRole("alert"));
   assert.match(screen.getByRole("alert").textContent ?? "", /Too many enquiries/);
-  assert.ok(screen.getByRole("button", { name: "Send enquiry" }));
+  /* Wait for it: the error is set inside a transition, and `pending` clears in a
+     later commit, so under load the alert can render while the button still
+     shows the "Sending" spinner. Same assertion — the button must come back. */
+  assert.ok(await screen.findByRole("button", { name: "Send enquiry" }));
 });
 
 test("a network failure preserves the entered details and permits a successful retry", async () => {
