@@ -42,10 +42,44 @@ export const ORDER_FLOW: Record<OrderStatus, OrderStatus[]> = {
  */
 export const SHIPMENT_DRIVEN: readonly OrderStatus[] = ["packed", "out_for_delivery", "delivered"];
 
-/** The moves the order screen may offer by hand. */
-export function manualOrderMoves(current: OrderStatus, hasLiveShipments: boolean): OrderStatus[] {
+/**
+ * States an OPERATOR may still cancel from, although the machine has no such
+ * edge: an order that was packed or sent out and whose goods are all back in
+ * the warehouse — every shipment received back (`receiveShipmentBack`) or
+ * cancelled.
+ *
+ * Without this a failed delivery was a dead end. The shipment could be received
+ * back or cancelled, but the order stayed `packed` / `out_for_delivery` for
+ * ever: it could not be cancelled, so the payment was never owed back
+ * (`refundEligibility` needs a dead order) and the customer's money could not
+ * be returned from the console.
+ *
+ * Deliberately not an ORDER_FLOW edge. `isCancellable` is derived from the map
+ * and is what the customer's cancel uses; a customer still cannot cancel after
+ * packing. The condition that no goods are outside the warehouse is not known
+ * here — `advanceOrderStatus` checks it inside the cancel transaction
+ * (`hasDispatchedShipment`), and a delivered shipment also refuses, so a
+ * part-delivered order is never cancelled whole.
+ */
+export const OPERATOR_RECOVERABLE: readonly OrderStatus[] = ["packed", "out_for_delivery"];
+
+/** Whether an operator may cancel from here, given where the goods are. */
+export function canOperatorCancel(current: OrderStatus, goodsOutsideWarehouse: boolean): boolean {
+  if (isCancellable(current)) return true;
+  return OPERATOR_RECOVERABLE.includes(current) && !goodsOutsideWarehouse;
+}
+
+/**
+ * The moves the order screen may offer by hand.
+ *
+ * `goodsOutsideWarehouse` — any shipment out for delivery or delivered.
+ * Defaults to true, the answer that offers nothing extra.
+ */
+export function manualOrderMoves(current: OrderStatus, hasLiveShipments: boolean, goodsOutsideWarehouse = true): OrderStatus[] {
   const next = nextOrderStatuses(current);
-  return hasLiveShipments ? next.filter((s) => !SHIPMENT_DRIVEN.includes(s)) : next;
+  const moves = hasLiveShipments ? next.filter((s) => !SHIPMENT_DRIVEN.includes(s)) : next;
+  if (!moves.includes("cancelled") && canOperatorCancel(current, goodsOutsideWarehouse)) return [...moves, "cancelled"];
+  return moves;
 }
 
 /** Where an order in this state may go next. */

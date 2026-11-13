@@ -8,6 +8,7 @@ import {
   assignShipment,
   confirmDelivery,
   MIN_OVERRIDE_REASON,
+  receiveShipmentBack,
 } from "@/lib/services/admin/shipments-write";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -163,4 +164,41 @@ export async function adminDeliverWithoutCode(input: unknown): Promise<ActionRes
   revalidatePath("/admin/dispatch");
   revalidatePath("/admin/orders");
   return succeed(null);
+}
+
+const receivedBackSchema = z.object({
+  shipmentId: z.string().uuid(),
+  reason: z.string().trim().min(MIN_OVERRIDE_REASON, "Write what happened (at least 10 characters) — this is recorded").max(300),
+  /* The operator's statement that the goods are physically back. Not defaulted. */
+  goodsReceivedBack: z.literal(true, "Confirm the goods are back in the warehouse"),
+});
+
+const RECEIVED_BACK_MESSAGE: Record<string, string> = {
+  not_found: "That shipment no longer exists",
+  not_out_for_delivery: "Only a shipment that is out for delivery can be received back",
+  order_not_active: "This order is unpaid or cancelled — nothing in it should be moved",
+  attestation_required: "Confirm the goods are back in the warehouse",
+  reason_required: "Write what happened before receiving the goods back",
+  raced: "Somebody else moved this shipment a moment ago — reload the board",
+};
+
+/**
+ * A delivery that failed: the goods came back without being handed over.
+ *
+ * The service (`receiveShipmentBack`) existed with only a command-line caller,
+ * so a failed delivery needed a developer. The shipment returns to `packed`
+ * with its code revoked; from there it can be dispatched again, or the order
+ * cancelled on its own page and the payment refunded.
+ */
+export async function adminReceiveShipmentBack(input: unknown): Promise<ActionResult<{ orderStatus: string }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = receivedBackSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Write what happened");
+  const res = await receiveShipmentBack({ ...parsed.data, actor: admin });
+  if (!res.ok) return fail("CONFLICT", RECEIVED_BACK_MESSAGE[res.reason] ?? "That could not be recorded");
+  revalidatePath("/admin/dispatch");
+  revalidatePath("/admin/orders");
+  revalidatePath("/admin");
+  return succeed({ orderStatus: res.orderStatus });
 }
