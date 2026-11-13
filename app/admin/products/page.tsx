@@ -219,11 +219,7 @@ export default async function AdminProducts({
           <li>an active brand and category</li>
           <li>
             the owner&apos;s commercial review — changing a price or a variant clears it, and the product
-            needs reviewing again (
-            <Link href="/admin/catalogue-approvals" className="underline">
-              Catalogue approvals
-            </Link>
-            )
+            needs reviewing again, under &ldquo;Price and tax review&rdquo; on the product&apos;s own page
           </li>
         </ul>
       </div>

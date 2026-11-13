@@ -8,8 +8,12 @@ import { ATTESTED_IMAGE_LICENCES } from "@/lib/catalog-policy";
 import { specRows } from "@/lib/catalog/specs";
 import { formatPaise } from "@/lib/money";
 import { DetailsPanel, PhotosPanel, VariantsPanel } from "@/components/admin/product-catalogue-panels";
+import { CommercialReviewPanel } from "@/components/admin/commercial-review-panel";
+import { currentOffer } from "@/lib/services/admin/commercial-review";
+import { commercialReviewSchema, validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
 import {
   adminAddVariant,
+  adminRecordCommercialReview,
   adminRemoveImage,
   adminSaveProductDetails,
   adminSetDefaultVariant,
@@ -42,6 +46,7 @@ export default async function AdminProductPage({
         description: true,
         unitLabel: true,
         specs: true,
+        commercialReview: true,
         category: { select: { slug: true, name: true, group: true, isBulk: true } },
         images: {
           orderBy: [{ isPrimary: "desc" }, { sortOrder: "asc" }],
@@ -84,6 +89,11 @@ export default async function AdminProductPage({
   /* Tax is read, never written, from the category's owner-confirmed config —
      see the note the editor renders alongside it. */
   const tax = CATEGORY_TAX_CONFIGS[product.category.slug] ?? null;
+
+  /* The offer as stored, the review on file, and what the server says still
+     stops a sale — the same check the cart and checkout run. */
+  const [offer, blockers] = await Promise.all([currentOffer(db, product.id), validateCommercialReadiness(db, product.id)]);
+  const onFile = commercialReviewSchema.safeParse(product.commercialReview);
 
   return (
     <div className="flex flex-col gap-5">
@@ -159,6 +169,15 @@ export default async function AdminProductPage({
         setActive={adminSetVariantActive}
         setDefault={adminSetDefaultVariant}
       />
+      {offer && (
+        <CommercialReviewPanel
+          productId={product.id}
+          offer={offer}
+          review={onFile.success ? { by: onFile.data.approvedBy, at: onFile.data.approvedAt } : null}
+          blockers={blockers}
+          record={adminRecordCommercialReview}
+        />
+      )}
       <PhotosPanel
         slug={product.slug}
         photos={product.images.map((i) => ({
