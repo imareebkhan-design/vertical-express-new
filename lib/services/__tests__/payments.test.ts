@@ -22,6 +22,7 @@ const ENV_KEYS = [
   "ALLOW_TEST_GATEWAY",
   "NEXT_PUBLIC_RAZORPAY_KEY_ID",
   "COMMERCE_MODE",
+  "VE_DEPLOY_ENV",
 ] as const;
 
 type MutableEnv = Record<string, string | undefined>;
@@ -171,6 +172,23 @@ test("staging opt-in needs the flag: test keys alone are not enough in productio
   assert.throws(() => activeGateway(), PaymentConfigError);
   setEnv("ALLOW_TEST_GATEWAY", "true"); // only the exact string "1" counts
   assert.throws(() => activeGateway(), PaymentConfigError);
+});
+
+test("a backend declared production refuses the test gateway even with the full staging opt-in", () => {
+  setEnv("NODE_ENV", "production");
+  setEnv("VE_DEPLOY_ENV", "production");
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("ALLOW_TEST_GATEWAY", "1");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_abc123");
+  setEnv("RAZORPAY_KEY_SECRET", "secret");
+  assert.throws(() => activeGateway(), /RAZORPAY_TEST_IN_PRODUCTION/);
+  assert.throws(() => assertPaymentConfig(), PaymentConfigError);
+  /* Catalogue mode needs no gateway, but one that IS configured must still pass. */
+  setEnv("COMMERCE_MODE", "catalogue");
+  assert.throws(() => assertBootConfig(), PaymentConfigError);
+  /* The same settings on a backend declared staging are the supported setup. */
+  setEnv("VE_DEPLOY_ENV", "staging");
+  assert.equal(activeGateway(), "razorpay-test");
 });
 
 test("the opt-in does not touch the dummy gateway, which stays forbidden in production", () => {

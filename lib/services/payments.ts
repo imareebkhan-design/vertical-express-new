@@ -120,6 +120,11 @@ function isProduction(): boolean {
  */
 function testGatewayAllowedHere(): boolean {
   if (!isProduction()) return true;
+  /* A backend that declares itself production never takes test money, whatever
+     else is set: the opt-in below is for a staging backend, and a production
+     environment file that copied staging's three payment lines would otherwise
+     confirm orders with nothing collected (the ISS-002 class). */
+  if (process.env.VE_DEPLOY_ENV === "production") return false;
   return process.env.ALLOW_TEST_GATEWAY === "1" && (process.env.RAZORPAY_KEY_ID ?? "").startsWith("rzp_test_");
 }
 
