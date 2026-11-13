@@ -12,7 +12,7 @@ commands and safeguards stand; where this file repeats one it cites it.
 
 | Gate | Meaning | State on 13 Nov |
 |---|---|---|
-| 1 | Code ready: reviewed PRs merged, release SHA pinned, CI green on it | Not met — #57–#64 open |
+| 1 | Code ready: reviewed PRs merged, release SHA pinned, CI green on it | Partly met — #57–#62 merged 14 Nov (`1f09491`, CI green); #63, #64 open; no release SHA pinned for production yet |
 | 2 | Staging verified isolated | Met for data and money; **not** for sign-in and operators (shared) |
 | 3 | End-to-end transaction tests passed on staging | Not met — `UAT_EVIDENCE.md` |
 | 4 | Commercial and operational approvals | Not met — `OWNER_DECISIONS.md` OD-1 to OD-11 |

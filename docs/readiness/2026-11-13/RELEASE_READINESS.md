@@ -4,14 +4,14 @@
 
 **Paid ordering: NO-GO.**
 **Production as it runs today (catalogue and enquiries, no orders, no payments): no reason found to change it.**
-**Staging deploy of the release branch after merging #57–#64: ready to request.**
+**Staging deploy of the release branch (`1f09491`, #57–#62 merged 14 Nov, CI green): ready to request.**
 
 ## Why paid ordering is NO-GO
 
 | Definition-of-done line | State | Evidence |
 |---|---|---|
 | Production code and deployment identified and reproducible | Met | Uploaded source archives byte-identical to `51a2da8` (production) and `ea02aac` (staging) — `CURRENT_STATE.md` §3 |
-| Launch-blocking security and order-integrity defects resolved | Fixes written, **not merged** | #59–#64. The audit found no P0 software defect in the order, payment or authorisation paths |
+| Launch-blocking security and order-integrity defects resolved | #59–#62 **merged 14 Nov, not deployed**; #63 and #64 in review | Release head `1f09491`. The audit found no P0 software defect in the order, payment or authorisation paths |
 | Catalogue contains approved, purchasable products | **Not met** | 260 production products are catalogue-only; no price, MRP or stock is confirmed (OD-1) |
 | Prices, tax, stock and delivery rules confirmed | **Not met** | Cement rate unconfirmed (OD-2); delivery values are seed placeholders (OD-3) |
 | Approved payment methods function | **Not met** | No live Razorpay account or keys (OD-4); no test-mode payment completed end to end on the current staging build |

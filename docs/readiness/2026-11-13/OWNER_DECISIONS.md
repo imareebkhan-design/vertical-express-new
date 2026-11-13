@@ -31,7 +31,7 @@ list that stands between today and taking a paid order.
 
 ## Approvals engineering will ask for, in order
 
-1. Merge PR #57, then #58, then #59–#64 into the release branch (each is independent).
+1. ~~Merge PR #57, then #58, then #59–#62~~ — done 14 Nov, release head `1f09491`. Still to decide: #63 (needs its staging check before production) and #64.
 2. Protect `main` and the release branch (G-24) — a repository setting.
 3. Deploy the release branch to **staging**.
 4. A staging test customer and operator for the end-to-end tests (`UAT_EVIDENCE.md` says exactly what is missing).

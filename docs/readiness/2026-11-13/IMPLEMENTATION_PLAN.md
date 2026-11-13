@@ -19,6 +19,17 @@ request is open against `release/rc-2026-10-19` and nothing is merged or deploye
 All pass typecheck and lint; #61 and #62 also pass the full lint run. None changes the schema. None has been run in a
 browser or on staging. They touch different files and can merge in any order.
 
+## 1a. Merged, 14 Nov 2026
+
+With the owner's approval, #57, #58, #59, #60, #61 and #62 were merged into
+`release/rc-2026-10-19` in that order. Release head: **`1f09491`**. CI on it is
+green (run 43488480003). The six were first merged together in a throwaway
+checkout: no conflicts, typecheck clean, and the resulting tree is identical to
+the merged branch. No schema change. Nothing is deployed: staging still runs
+`ea02aac` and production `51a2da8`.
+
+Still in review: #63, #64, #65, workspace #24 and #25.
+
 ## 2. Merge order (each needs the owner's approval)
 
 1. **#57** — one test file; removes an intermittent failure from every later run.
