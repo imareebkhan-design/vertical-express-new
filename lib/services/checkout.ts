@@ -776,7 +776,7 @@ export async function settleCapturedPayment(params: {
   raw?: Prisma.InputJsonValue;
   /** "*_check": found by asking the gateway — at the payment-window expiry
       (ISS-074), when the customer returns to pay, asks to cancel (E5), or checks the payment status. */
-  source: "client" | "webhook" | "expiry_check" | "retry_check" | "cancel_check" | "admin_cancel_check" | "status_check";
+  source: "client" | "webhook" | "expiry_check" | "retry_check" | "cancel_check" | "admin_cancel_check" | "status_check" | "sweep_check";
   note?: string;
 }): Promise<SettleOutcome> {
   const { paymentId, orderId, orderNo, amountPaise, gatewayPaymentId, eventId, raw, source, note } = params;
