@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import crypto from "node:crypto";
-import { cleanupExpiredPendingOrders } from "@/lib/services/orders";
+import { cleanupExpiredPendingOrders, sweepCancelledOrdersForLateCaptures } from "@/lib/services/orders";
 import { pruneRateLimits } from "@/lib/services/rate-limit";
 import { deliverOrderEmails } from "@/lib/services/order-emails";
 import { runWithContext, MetricsTracker, captureException } from "@/lib/observability";
@@ -66,10 +66,14 @@ export async function GET(request: NextRequest) {
       } catch (err: unknown) {
         captureException(err);
       }
+      /* Money paid after a cancel, whose webhook never arrived. Same rule as
+         the housekeeping above: its failure must not cost the cleanup result. */
+      let lateCaptureSweep: { checked: number; lateCaptures: number } | null = null;
+      try { lateCaptureSweep = await sweepCancelledOrdersForLateCaptures(); } catch (err) { captureException(err); }
       let emails = null;
       try { emails = await deliverOrderEmails(); } catch (err) { captureException(err); }
       metric.end("cleanup_orders_cron_success", { cancelledCount, prunedRateLimits });
-      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits, emails });
+      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits, lateCaptureSweep, emails });
     } catch (err: unknown) {
       captureException(err);
       metric.end("cleanup_orders_cron_failed");

@@ -482,3 +482,22 @@ test("Test 15 — an event with no payment id and an unknown order id settles no
   assert.equal(order.status, "pending_payment", "an unrelated order was not confirmed");
   assert.equal(payment.status, "created", "an unrelated payment was not captured");
 });
+
+test("Test 16 — a signed capture that matches no payment here is acknowledged as unmatched, never as ok", async () => {
+  /* Money Razorpay holds that no order accounts for. A 200 so Razorpay stops
+     retrying — and a distinct status, with an alert, so it cannot pass as an
+     ordinary success. */
+  const before = await db.payment.count();
+  const req = createSignedRequest(
+    {
+      event: "payment.captured",
+      payload: { payment: { entity: { id: `pay_orphan_${crypto.randomUUID().slice(0, 8)}`, order_id: `order_orphan_${crypto.randomUUID().slice(0, 8)}`, amount: 4200 } } },
+    },
+    WEBHOOK_SECRET,
+    `evt_orphan_${crypto.randomUUID().slice(0, 8)}`,
+  );
+  const res = await POST(req);
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).status, "unmatched_recorded");
+  assert.equal(await db.payment.count(), before, "no payment row is invented for it");
+});

@@ -389,7 +389,7 @@ export type GatewayCheck = "settled" | "late" | "not_captured" | "authorized" | 
 export async function reconcileWithGateway(
   order: { id: string; orderNo: string },
   opts: {
-    context: "expiry" | "retry" | "cancel" | "status";
+    context: "expiry" | "retry" | "cancel" | "admin_cancel" | "status" | "sweep";
     findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
   }
 ): Promise<GatewayCheck> {
@@ -449,7 +449,9 @@ export async function reconcileWithGateway(
         expiry: "Payment captured at Razorpay before the payment window closed (found by the expiry check)",
         retry: "Payment captured at Razorpay; confirmed when the customer returned to pay (found by the gateway check)",
         cancel: "Payment captured at Razorpay; confirmed when the customer asked to cancel, so the order was not cancelled (found by the gateway check)",
+        admin_cancel: "Payment captured at Razorpay; confirmed when an admin went to cancel the order, so it was not cancelled (found by the gateway check)",
         status: "Payment captured at Razorpay; confirmed when the customer checked the payment status (found by the gateway check)",
+        sweep: "Payment captured at Razorpay after this order was cancelled (found by the scheduled check of cancelled orders)",
       }[opts.context],
     });
     return outcome === "late_recorded" || outcome === "late_already_recorded" ? "late" : "settled";
@@ -643,4 +645,74 @@ export async function cleanupExpiredPendingOrders(
   }
 
   return cancelledCount;
+}
+
+/** A cancelled order is asked about for this long after it was placed. */
+export const LATE_CAPTURE_WINDOW_MS = 6 * 60 * 60 * 1000;
+/** ...and not more often than this. */
+export const LATE_CAPTURE_RECHECK_MS = 30 * 60 * 1000;
+/** How many cancelled orders one run asks Razorpay about. */
+export const LATE_CAPTURE_BATCH_SIZE = 10;
+
+/**
+ * Ask Razorpay about recently cancelled orders, in case one was paid afterwards.
+ *
+ * Every cancel of a pending online order asks the gateway first, so an order is
+ * cancelled only on a definite "nothing captured". But the Razorpay order stays
+ * payable: a customer with the payment sheet still open can pay after the
+ * cancel. Until 13 Nov 2026 that money was recorded only if Razorpay's webhook
+ * arrived — and a webhook lost to an outage, a wrong URL or an exhausted retry
+ * left a capture nobody here knew about, on an order that would never ship.
+ *
+ * This is the second witness. It finds cancelled orders placed within
+ * LATE_CAPTURE_WINDOW_MS that still have an unsettled Razorpay payment row, and
+ * runs the one shared lookup (`reconcileWithGateway`). A capture is recorded by
+ * `settleCapturedPayment` exactly as a late webhook would record it: the
+ * payment becomes captured, the order stays cancelled, the alert fires and the
+ * payment is on the refund-required list. Nothing is refunded here and no
+ * order is revived.
+ *
+ * Bounded like the expiry: at most LATE_CAPTURE_BATCH_SIZE lookups a run,
+ * least-recently-asked first, each order at most once per
+ * LATE_CAPTURE_RECHECK_MS (claimed through `expiryCheckedAt`, which the expiry
+ * no longer reads once an order has left pending_payment). The run stops at the
+ * first lookup that fails or cannot be made, so a gateway outage costs one
+ * alert a run, not ten.
+ *
+ * Not covered: a payment made more than LATE_CAPTURE_WINDOW_MS after placement
+ * is still found only by its webhook.
+ */
+export async function sweepCancelledOrdersForLateCaptures(
+  deps: {
+    findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
+    now?: () => number;
+  } = {}
+): Promise<{ checked: number; lateCaptures: number }> {
+  const at = (deps.now ?? (() => Date.now()))();
+  const due = {
+    status: "cancelled" as const,
+    placedAt: { gte: new Date(at - LATE_CAPTURE_WINDOW_MS) },
+    OR: [{ expiryCheckedAt: null }, { expiryCheckedAt: { lt: new Date(at - LATE_CAPTURE_RECHECK_MS) } }],
+  };
+  const orders = await db.order.findMany({
+    where: {
+      ...due,
+      payments: { some: { gateway: "razorpay", gatewayOrderId: { not: null }, status: { in: ["created", "failed"] } } },
+    },
+    orderBy: [{ expiryCheckedAt: { sort: "asc", nulls: "first" } }, { placedAt: "asc" }, { id: "asc" }],
+    select: { id: true, orderNo: true },
+    take: LATE_CAPTURE_BATCH_SIZE,
+  });
+
+  let checked = 0;
+  let lateCaptures = 0;
+  for (const order of orders) {
+    const claimed = await db.order.updateMany({ where: { id: order.id, ...due }, data: { expiryCheckedAt: new Date(at) } });
+    if (claimed.count !== 1) continue;
+    const found = await reconcileWithGateway(order, { context: "sweep", findCaptured: deps.findCaptured });
+    checked++;
+    if (found === "late") lateCaptures++;
+    if (found === "unknown" || found === "unconfigured") break;
+  }
+  return { checked, lateCaptures };
 }

@@ -257,6 +257,10 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
         receipt: orderId.slice(0, 40),
         payment_capture: 1,
       }),
+      /* Like every other call to Razorpay here. Without it a stalled connection
+         held the customer's checkout request until the platform killed it. No
+         order row exists yet, so a timeout leaves nothing to clean up. */
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) throw new Error(`RAZORPAY_ORDER_FAILED:${res.status}`);
     const data = (await res.json()) as { id: string };

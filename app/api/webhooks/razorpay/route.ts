@@ -21,7 +21,8 @@ export async function POST(req: NextRequest) {
       const rawBody = await req.text();
       const isValid = verifyRazorpayWebhook(rawBody, signature);
       if (!isValid) {
-        triggerAlert("webhook_signature_failed", "Invalid Razorpay webhook signature", { signature });
+        /* The header is whatever the caller sent; it is not logged. */
+        triggerAlert("webhook_signature_failed", "Invalid Razorpay webhook signature");
         metric.end("webhook_invalid_signature");
         return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
       }
@@ -33,7 +34,17 @@ export async function POST(req: NextRequest) {
          id or the receipt we sent; dashboard refunds are recorded too. Handled
          before the payment paths, which key their dedupe on the payment row. */
       if (typeof event === "string" && event.startsWith("refund.")) {
-        const outcome = await applyRefundWebhook(payload.payload?.refund?.entity ?? {});
+        const refundEntity = payload.payload?.refund?.entity ?? {};
+        const outcome = await applyRefundWebhook(refundEntity);
+        if (outcome === "unknown_payment") {
+          /* Money went back to someone for a payment this database has no row
+             for. Acknowledged so Razorpay stops retrying, but never silently. */
+          triggerAlert("webhook_refund_unmatched", "Razorpay reported a refund for a payment we have no record of", {
+            event,
+            razorpayRefundId: refundEntity.id,
+            razorpayPaymentId: refundEntity.payment_id,
+          });
+        }
         metric.end("webhook_refund", { event, outcome });
         return NextResponse.json({ status: `refund_${outcome}` });
       }
@@ -141,6 +152,19 @@ export async function POST(req: NextRequest) {
             }
             throw e;
           }
+        } else {
+          /* A signed capture for an order this database has no payment row for:
+             money Razorpay holds that no order here accounts for. It is
+             acknowledged (a retry cannot make the row appear) but a human must
+             look — nothing else would ever surface it. */
+          triggerAlert("webhook_capture_unmatched", "Razorpay reported a captured payment that matches no order here", {
+            event,
+            razorpayOrderId,
+            razorpayPaymentId,
+            amountPaise: paymentEntity?.amount ?? orderEntity?.amount_paid ?? null,
+          });
+          metric.end("webhook_capture_unmatched", { event });
+          return NextResponse.json({ status: "unmatched_recorded" });
         }
       } else if (event === "payment.failed") {
         const existingPayment = await db.payment.findFirst({

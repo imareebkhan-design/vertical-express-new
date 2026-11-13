@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import type { OrderStatus, BookingStatus, Prisma, ProductStatus } from "@/prisma/generated/client/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
-import { cancelOpenShipments, hasDispatchedShipment, releaseOrderInventory } from "@/lib/services/orders";
+import { cancelOpenShipments, hasDispatchedShipment, reconcileWithGateway, releaseOrderInventory } from "@/lib/services/orders";
+import type { CapturedLookup } from "@/lib/services/payments";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
 import { canTransitionOrder, SHIPMENT_DRIVEN } from "@/lib/order-flow";
@@ -40,7 +41,8 @@ export async function adminListOrders(page = 1, perPage = 20, status?: OrderStat
 export async function advanceOrderStatus(
   actorUserId: string,
   orderId: string,
-  to: OrderStatus
+  to: OrderStatus,
+  deps: { findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null> } = {}
 ) {
   const order = await db.order.findUnique({
     where: { id: orderId },
@@ -63,6 +65,18 @@ export async function advanceOrderStatus(
      payment-provider-authoritative). Cash on delivery has no payment yet. */
   if (order.status === "pending_payment" && to === "confirmed" && order.paymentMethod !== "cod" && !funded) {
     throw new Error("PAYMENT_REQUIRED");
+  }
+  /* "Awaiting payment" may only mean the confirmation never reached us. The
+     customer's cancel and the expiry job both ask Razorpay before cancelling a
+     pending online order; this path did not, so an admin could cancel and
+     restock an order the customer had in fact paid for, and the money then
+     showed up only if a webhook happened to arrive. Same rule here: cancel on
+     a definite "nothing captured" and on nothing else. Outside any transaction. */
+  if (to === "cancelled" && order.status === "pending_payment" && !funded) {
+    const check = await reconcileWithGateway(order, { context: "admin_cancel", findCaptured: deps.findCaptured });
+    if (check === "settled" || check === "late") throw new Error("PAYMENT_FOUND");
+    if (check === "authorized") throw new Error("PAYMENT_IN_PROGRESS");
+    if (check === "unknown" || check === "unconfigured") throw new Error("PAYMENT_STATUS_UNKNOWN");
   }
   /* Cancelling a paid order is allowed — operations may have to — but nothing
      refunds it (ISS-025), so it must not happen quietly. */
