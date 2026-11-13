@@ -65,3 +65,31 @@ This review could not find, or produce, a payment completed end to end against R
 on the current staging build. Until tests 1, 2, 4 and 6 pass on staging with a real test-mode
 capture and refund, payment correctness rests on code reading and injected-gateway
 tests.
+
+
+## After the 14 Nov staging deploy
+
+Staging: `build-2026-11-13-001`, commit `1f09491` (#57–#62 included; #63 and #64 not).
+Source archive compared file by file with `git archive 1f09491`: no differences.
+
+| Check | Before (`ea02aac`) | After (`1f09491`) | Kind |
+|---|---|---|---|
+| `/`, `/categories`, `/search`, `/cart`, `/api/health`, `/api/v1/categories`, `/api/v1/products`, `/api/serviceability/190001` | 200 | 200 | live, anonymous |
+| `/checkout`, `/admin`, `/admin/launch-control` signed out | 307 | 307 | live, anonymous |
+| `/api/v1/orders` without a token | 401 | 401 | live |
+| `/api/cron/cleanup-orders` without the secret | — | 401 | live |
+| Webhook post with no signature | — | 400 | live |
+| Unknown category | — | 404 | live |
+| Products returned by `/api/v1/products` | 27 | 27 | live |
+| CLIENT TESTING banner | present | present | live |
+| All 20 category links on the home page | — | 200 each | live, in a browser |
+| Product page `ppc-cement-50kg`: title, price, Add to cart, no broken images, no console errors | — | as expected | live, in a browser |
+| Launch Control with the new switchboard ("Change what customers see", "Recent changes") | absent | present | live, operator session, **viewed only** |
+
+Not run: the repository's Playwright smoke suite. This machine has no browser binary
+for the installed Playwright version, and the workflow cannot be started on GitHub
+because it is not on the default branch. The browser checks above cover the same
+anonymous journey by hand; they are not the suite.
+
+Nothing was changed on staging by these checks. No switch was applied, no order
+placed, no payment attempted. Scenarios 1–6, 8, 10–12 remain **not run**.

@@ -30,6 +30,16 @@ the merged branch. No schema change. Nothing is deployed: staging still runs
 
 Still in review: #63, #64, #65, workspace #24 and #25.
 
+## 1b. Staging deployed, 14 Nov 2026 (01:04 IST)
+
+With the owner's approval, `npm run deploy:staging` from a clean checkout of the
+release head. Staging now serves **`build-2026-11-13-001`** (the build is named in
+UTC) at 100%, and its uploaded source is byte-identical to `1f09491` (1,110 files;
+the same four ignored paths excluded). Previous build and rollback target:
+`build-2026-11-08-001` (`ea02aac`). No migration was needed or run. Production was
+not touched: still `build-2026-11-07-001`, `51a2da8`. Evidence: `UAT_EVIDENCE.md`,
+"After the 14 Nov staging deploy".
+
 ## 2. Merge order (each needs the owner's approval)
 
 1. **#57** — one test file; removes an intermittent failure from every later run.

@@ -4,7 +4,7 @@
 
 **Paid ordering: NO-GO.**
 **Production as it runs today (catalogue and enquiries, no orders, no payments): no reason found to change it.**
-**Staging deploy of the release branch (`1f09491`, #57–#62 merged 14 Nov, CI green): ready to request.**
+**Staging: deployed 14 Nov from `1f09491` and verified against its source. The transaction scenarios have still not been run.**
 
 ## Why paid ordering is NO-GO
 

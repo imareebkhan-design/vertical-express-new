@@ -54,6 +54,11 @@ found in any worktree (VERIFIED) — the earlier report of one no longer applies
 
 ## 3. What is running
 
+> **Superseded for staging on 14 Nov 2026.** Staging was redeployed and now serves
+> `build-2026-11-13-001` from `1f09491` (verified against its source archive, 1,110
+> files). The staging column below is the 13 Nov baseline, kept as the record of what
+> the audit looked at. Production is unchanged.
+
 | | Staging | Production |
 |---|---|---|
 | URL | `ve-staging--vertical-express.asia-southeast1.hosted.app` | `www.verticalexpress.in` (apex redirects 301) |
