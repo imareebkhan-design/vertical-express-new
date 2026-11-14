@@ -195,3 +195,55 @@ test("a successful add shows the toast and the server's cart", async () => {
   assert.equal(h.result.current.count, 1);
   assert.equal(h.result.current.loaded, true);
 });
+
+/* The operations console sits under the same provider and shows no cart. Its
+   reads were sent as server actions on every console page, focus and tab
+   switch, and — since a page's server actions go one at a time — stood in
+   front of the operator's own save (staging, 14 Nov 2026). */
+function setupPaused(paused: boolean) {
+  const calls = { cart: 0, wish: 0 };
+  const actions: CartActions = {
+    getCart: async () => { calls.cart++; return summary("c"); },
+    getMyWishlistIds: async () => { calls.wish++; return []; },
+    addToCart: async () => { throw new Error("Unexpected add"); },
+    updateCartItem: async () => { throw new Error("Unexpected update"); },
+    removeCartItem: async () => { throw new Error("Unexpected remove"); },
+  };
+  /* The wrapper is not handed the hook's props, so the flag is held here. */
+  const state = { paused };
+  const hook = renderHook(useCart, {
+    wrapper: ({ children }: { children: React.ReactNode }) => (
+      <CartStateProvider actions={actions} paused={state.paused}>{children}</CartStateProvider>
+    ),
+  });
+  const setPaused = (next: boolean) => { state.paused = next; hook.rerender(); };
+  return { ...hook, calls, setPaused };
+}
+
+test("paused (the operations console): nothing is read on arrival, on focus, when the tab returns, or after a sign-in", async () => {
+  const h = setupPaused(true);
+  await act(async () => {});
+  await act(async () => { window.dispatchEvent(new window.Event("focus")); });
+  await act(async () => { document.dispatchEvent(new window.Event("visibilitychange")); });
+  await act(async () => { announceAuthChanged(); });
+  assert.deepEqual(h.calls, { cart: 0, wish: 0 });
+  assert.equal(h.result.current.loaded, false, "no cart is claimed to be on screen");
+});
+
+test("lifting the pause (console → shop) reads the cart and wishlist once", async () => {
+  const h = setupPaused(true);
+  await act(async () => {});
+  h.setPaused(false);
+  await act(async () => {});
+  assert.deepEqual(h.calls, { cart: 1, wish: 1 });
+  assert.equal(h.result.current.summary.cartId, "c");
+  assert.equal(h.result.current.loaded, true);
+});
+
+test("not paused (the shop): reads on arrival and on focus, as before", async () => {
+  const h = setupPaused(false);
+  await act(async () => {});
+  assert.deepEqual(h.calls, { cart: 1, wish: 1 });
+  await act(async () => { window.dispatchEvent(new window.Event("focus")); });
+  assert.equal(h.calls.cart, 2);
+});

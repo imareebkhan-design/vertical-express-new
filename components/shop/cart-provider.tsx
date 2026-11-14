@@ -82,10 +82,21 @@ export function CartStateProvider({
   children,
   actions,
   readTimeoutMs = CART_READ_TIMEOUT_MS,
+  paused = false,
 }: {
   children: React.ReactNode;
   actions: CartActions;
   readTimeoutMs?: number;
+  /**
+   * True where no screen shows a cart (the operations console). Nothing is
+   * read on its own while paused — not on arrival, on focus, when the tab is
+   * shown again, or after a sign-in — and the cart is read as soon as it is
+   * lifted. Next.js sends a page's server actions one at a time, so these
+   * reads stood in front of whatever the operator did next: on staging, 14 Nov
+   * 2026, a price save clicked just after the page opened was sent ~3.5 s
+   * later, behind a cart read and a wishlist read nobody was looking at.
+   */
+  paused?: boolean;
 }) {
   const { getCart, addToCart, updateCartItem, removeCartItem, getMyWishlistIds } = actions;
   const [summary, setSummary] = useState<CartSummary>(EMPTY_SUMMARY);
@@ -151,10 +162,15 @@ export function CartStateProvider({
     } catch { /* A wishlist outage must not restore a previous identity. */ }
   }, [getMyWishlistIds]);
 
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+
+  /* On arrival, and again whenever a pause is lifted (console → shop). */
   useEffect(() => {
+    if (paused) return;
     void refresh();
     void refreshWishlist();
-  }, [refresh, refreshWishlist]);
+  }, [paused, refresh, refreshWishlist]);
 
   /* E8: the cart belongs to whoever is signed in. After sign-in (the guest cart
      merged) or sign-out, re-fetch rather than keep the previous customer's
@@ -172,15 +188,20 @@ export function CartStateProvider({
       if (lastAddedTimer.current) clearTimeout(lastAddedTimer.current);
       for (const timer of syncTimers.current.values()) clearTimeout(timer);
       syncTimers.current.clear();
+      /* The previous customer's cart is cleared either way; it is only read
+         again where a cart is shown. */
+      if (pausedRef.current) return;
       void refresh();
       void refreshWishlist();
     };
     const onVisible = () => {
-      if (document.visibilityState === "visible") void refresh();
+      if (document.visibilityState === "visible" && !pausedRef.current) void refresh();
     };
     /* Two windows side by side: switching between them fires no
        visibilitychange, only focus. */
-    const onFocus = () => void refresh();
+    const onFocus = () => {
+      if (!pausedRef.current) void refresh();
+    };
     const off = onAuthChanged(reload);
     const timers = syncTimers.current;
     document.addEventListener("visibilitychange", onVisible);
