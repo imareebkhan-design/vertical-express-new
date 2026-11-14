@@ -33,6 +33,7 @@ import { CartLoadError } from "@/components/shop/cart-load-error";
 import type { ActionResult } from "@/lib/validators";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import type { PaymentStateName } from "@/lib/payment-status-copy";
+import { loadRazorpayScript, PAYMENT_WINDOW_UNAVAILABLE_MESSAGE } from "@/lib/razorpay-script";
 
 type Address = AddressFormValues & { id: string };
 type PayMethod = "online" | "cod";
@@ -224,11 +225,20 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
       setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
       return;
     }
-    await loadRazorpayScript();
+    /* The order exists by now. A blocked or failed script must leave the
+       customer with their order and a way to pay it, not the error page. */
+    try {
+      await loadRazorpayScript();
+    } catch {
+      setError(PAYMENT_WINDOW_UNAVAILABLE_MESSAGE);
+      askServer(orderNo);
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Razorpay = (window as any).Razorpay;
     if (!Razorpay) {
-      setError("Couldn't load the payment window. Please retry.");
+      setError(PAYMENT_WINDOW_UNAVAILABLE_MESSAGE);
+      askServer(orderNo);
       return;
     }
     const rz = new Razorpay({
@@ -697,22 +707,3 @@ function PayOption({
   );
 }
 
-/** Lazy-load Razorpay Checkout once. Resolves immediately if already present. */
-function loadRazorpayScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return resolve();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).Razorpay) return resolve();
-    const existing = document.getElementById("razorpay-checkout-js");
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "razorpay-checkout-js";
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("razorpay script failed"));
-    document.body.appendChild(s);
-  });
-}

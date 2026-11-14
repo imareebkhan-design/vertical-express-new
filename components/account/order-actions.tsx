@@ -12,6 +12,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { CONTACT } from "@/lib/data";
 import type { CancelState } from "@/lib/order-display";
+import { loadRazorpayScript, PAYMENT_WINDOW_UNAVAILABLE_MESSAGE } from "@/lib/razorpay-script";
 import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 /** Cancel / reorder / retry controls on the order detail page. */
@@ -96,11 +97,16 @@ export function OrderActions({
     orderNumber: string,
     rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
-    await loadRazorpayScript();
+    try {
+      await loadRazorpayScript();
+    } catch {
+      setError(PAYMENT_WINDOW_UNAVAILABLE_MESSAGE);
+      return;
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const Razorpay = (window as any).Razorpay;
     if (!Razorpay) {
-      setError("Couldn't load payment window.");
+      setError(PAYMENT_WINDOW_UNAVAILABLE_MESSAGE);
       return;
     }
     const timeout = checkoutTimeoutSeconds(rzp);
@@ -216,21 +222,3 @@ export function OrderActions({
   );
 }
 
-function loadRazorpayScript(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (typeof window === "undefined") return resolve();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if ((window as any).Razorpay) return resolve();
-    const existing = document.getElementById("razorpay-checkout-js");
-    if (existing) {
-      existing.addEventListener("load", () => resolve());
-      return;
-    }
-    const s = document.createElement("script");
-    s.id = "razorpay-checkout-js";
-    s.src = "https://checkout.razorpay.com/v1/checkout.js";
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("razorpay script failed"));
-    document.body.appendChild(s);
-  });
-}
