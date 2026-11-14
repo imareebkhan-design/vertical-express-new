@@ -183,3 +183,60 @@ New purchase with a TEST payment (1), payment failure (2), abandoned checkout (3
 duplicate event against the live webhook (4), cart-add of a hidden product, cross-customer
 access, stock adjustment and order edits (8), failed delivery and return to
 warehouse (12), #63's hop check, #64 with a real content blocker, any device test.
+
+## Live purchase, fulfilment and failure scenarios — 14 Nov 2026, 11:34–11:48 IST
+
+Staging `build-2026-11-13-001` (`1f09491`), Razorpay TEST mode. Driven by script in
+two dedicated Chrome windows: a customer signed in by phone and an operator signed in
+by the owner. **The owner completed the payment in Razorpay's window by hand**; nothing
+else was done by hand. Every result was then read back from the staging database.
+Staging-live evidence — not automated tests, not mocked.
+
+| # | Scenario | Result | Evidence |
+|---|---|---|---|
+| 1 | Successful purchase | **PASS** | Order `VE-2026-MWG044KT135E`, ₹199 (taxable ₹168.64 + CGST ₹15.18 + SGST ₹15.18), free delivery. Placed 06:04:57 UTC as `pending_payment`; stock of `QA-STAGING-1` 52 → 51. Paid in Razorpay's test window; `payment.captured` webhook confirmed the order at 06:07:00. Payment `pay_Tzwzh…`, gateway order `order_Tzwx…`, signature verified, one payment row, event id stored. Stock stayed 51 — deducted once. Customer saw "Order placed · Paid online", then Confirmed on the order page |
+| 3 | Abandoned checkout | **PASS** | Order `VE-2026-MWG095HAE742`: placed, Razorpay window left without paying. Order page showed "Payment pending" with Complete Payment and Cancel; no paid order existed; stock 51 → 50. Customer cancelled (asks first): order `cancelled`, "Not paid", stock back to 51. The 15-minute expiry job was not waited for |
+| 12 | Operational completion | **PASS** | Same paid order, from the console only: found in Orders (Paid / Unfulfilled, payment reference, tax split, timeline); dispatch board → Mark packed → assign driver → Dispatch (issues the customer's code; customer page showed Out for delivery and the code) → a wrong code was refused ("That code does not match this delivery") → the right code delivered it. Order `delivered` 06:13:38. No script, no database edit |
+| 12b | Failed delivery | **PASS** (PR #61, live) | October paid order `VE-2026-MV2QYSVM0394`: assigned, dispatched, then "Delivery failed: received back" — asks what happened and confirms the goods are back. Shipment returned to `packed`, order corrected `out_for_delivery → packed`, `shipment.received_back` audited with the reason. Then cancelled on its order page (confirmation names the refund worklist): stock restored 51 → 52, `inventory.released` audited |
+| 6 | Refund after cancellation | **PASS** (second time) | The same order appeared under Payments → Refund required. ₹199 refunded with a reason and the two-step confirm (the script would have stopped on any other amount). Razorpay accepted `rfnd_TzxA…`; 40 s later its webhook marked it processed and the payment `refunded` |
+| 9 | Unauthorised access | **PASS** | A phone-only customer account opening `/admin` is told it is not an operator and gets no console. A different signed-in account opening the first customer's order, order summary, confirmation and tracking pages saw none of the order's contents, and its own order list did not include it |
+| 7 | Cart holding an item whose category is then hidden | **PASS**, with a usability gap | Customer put `tile-adhesive-20kg` in the cart; operator hid Tiling (the review dialog warned "1 item already in shoppers' carts can no longer be bought"). The customer's cart then read "Your cart is empty" and checkout had no Place order — the item could not be bought. After Undo the item was back in the cart. **Gap:** the cart gives no explanation while the item is hidden (register G-54) |
+| 8 | Admin audit trail | **PASS** | Every step above wrote audit rows: `shipment.status_changed`, `shipment.assigned`, `order.status_changed`, `shipment.received_back`, `order.status_corrected`, `inventory.released`, `payment.refund_requested / _pending / _processed` |
+| 2 | Payment failure | **Not run** | Needs a second hand-completed payment using Razorpay's Failure option |
+| 4 | Duplicate payment event (live) | **Not run** | Needs a replay from the Razorpay dashboard, or approval to sign a test event |
+| 5 | Concurrent stock (live) | **Not run on staging** | Local harness only, 60/60 |
+| 8 | Stock adjustment, order edits | **Not run** | — |
+| 11 | Network interruption | **Partly** | Leaving the payment window (scenario 3) is the closest case run; no connection was cut mid-request |
+| 10 | Mobile | **Not run** | No device |
+
+### Reconciliation, staging database
+
+| | Start of 14 Nov | Now |
+|---|---|---|
+| Orders | 21 | 23 (one delivered, one cancelled unpaid) |
+| Pending payment | 0 | 0 |
+| Payments captured / refunded | 11 / 0 | 10 / 2 (11 + 1 new − 2 refunded) |
+| Refund rows | 0 | 2, both processed by webhook, ₹199 each |
+| Stock movements | 58 | 62 |
+| Units on hand, all SKUs | 2,502 | 2,502 (one sold, one restocked) |
+| `QA-STAGING-1`, Srinagar Central | 52 | 52 |
+| Lowest stock row | 0 | 0 — nothing negative |
+| Tiling category / products listed | shown / 27 | shown / 27 |
+
+### Seen while testing
+
+- **Nothing was sent to the customer or the operator** at any step. Each change wrote
+  `order.notification_pending`; the order-confirmation email sits queued. This is G-14,
+  now observed live.
+- **"About 60 minutes" was shown as the delivery time** at checkout, on the confirmation
+  and on the order page. It is seed data, not an owner-confirmed promise (G-01).
+- **Console actions took 5–7 s to show their result** on the dispatch board. PR #66
+  removes part of that wait; it is not deployed.
+- The dispatch-board card kept the label "Awaiting" while its shipment was out for
+  delivery. Cosmetic; not investigated.
+
+### Left on staging
+
+Two new orders under the QA customer (one delivered, one cancelled), one October order
+now cancelled and refunded, two processed test refunds, the audit rows above. Both
+carts used are empty. No price, product, category or setting differs from before.

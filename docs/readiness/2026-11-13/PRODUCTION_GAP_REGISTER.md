@@ -73,6 +73,7 @@ Every P0 below is business data or a release-hygiene fact.
 | G-51 | Staging has no uptime check; alerts reach Cloud Logging only | Cloud Monitoring † | Open |
 | G-52 | Admin product page can show the previous price and review on the first reload after a save (database correct throughout) | Seen live on staging, 14 Nov, `qa-staging-paint-tin` † | **Root cause found, fix in review** — PR #66. Not caching: the reload started before the save was sent, because the console's saves queued behind storefront cart and wishlist reads fired on every page (staging request log). Not yet verified on staging † |
 | G-53 | Launch Control UI test "apply sends every reviewed row…" times out at its 5 s budget under the full UI run (1 of 264) and passes 3/3 alone | Local full run, 14 Nov † | Open — intermittent test, not a product defect |
+| G-54 | A cart whose item becomes hidden (category or brand switched off) reads "Your cart is empty" with no explanation; the item returns when it is shown again | Seen live on staging, 14 Nov, `tile-adhesive-20kg` †; `lib/services/cart.ts:166-168` | Open — say which item is unavailable instead of dropping it silently |
 
 ## Verified sound (no action)
 
