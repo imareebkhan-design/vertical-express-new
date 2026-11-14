@@ -147,7 +147,7 @@ test("admin status change is audited with before/after; unchanged is a no-op", a
 
 test("v1 endpoint: catalog-only by slug → 201; draft → 404; malformed body → 400", async () => {
   const post = (slug: string, body: unknown) =>
-    handleProductEnquiry(new Request(`http://t/api/v1/products/${slug}/enquiry`, { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { "x-real-ip": `10.9.${tag.length}.${Math.floor(Math.random() * 250)}` } }), slug);
+    handleProductEnquiry(new Request(`http://t/api/v1/products/${slug}/enquiry`, { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers: { "x-forwarded-for": `10.9.${tag.length}.${Math.floor(Math.random() * 250)}` } }), slug);
   const ok = await post(`enq-${tag}-co`, { name: "Imran", phone: phone() });
   assert.equal(ok.status, 201);
   const body = await ok.json();
