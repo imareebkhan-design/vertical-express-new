@@ -71,6 +71,7 @@ Every P0 below is business data or a release-hygiene fact.
 | G-49 | Returns never restock or refund; no refund on a delivered order; exceptions queue is narrow; no global audit page | `actions/returns.ts:9-11`; `exceptions.ts:35-125` | Open — partly owner policy |
 | G-50 | Production's serving build is documented only in unmerged PR #41 | `CURRENT_STATE.md` † | Open — merge #41 |
 | G-51 | Staging has no uptime check; alerts reach Cloud Logging only | Cloud Monitoring † | Open |
+| G-52 | Admin product page can show the previous price and review on the first reload after a save (database correct throughout) | Seen live on staging, 14 Nov, `qa-staging-paint-tin` † | Open — not investigated |
 
 ## Verified sound (no action)
 

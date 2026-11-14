@@ -4,7 +4,7 @@
 
 **Paid ordering: NO-GO.**
 **Production as it runs today (catalogue and enquiries, no orders, no payments): no reason found to change it.**
-**Staging: deployed 14 Nov from `1f09491` and verified against its source. The transaction scenarios have still not been run.**
+**Staging: deployed 14 Nov from `1f09491` and verified against its source. Run live there: catalogue visibility, price edit with console review, and a TEST-mode refund confirmed by Razorpay's webhook. Not run: any new purchase, payment failure, duplicate event, concurrency, fulfilment or device test.**
 
 ## Why paid ordering is NO-GO
 

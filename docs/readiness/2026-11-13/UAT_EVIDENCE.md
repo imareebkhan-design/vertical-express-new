@@ -93,3 +93,53 @@ anonymous journey by hand; they are not the suite.
 
 Nothing was changed on staging by these checks. No switch was applied, no order
 placed, no payment attempted. Scenarios 1–6, 8, 10–12 remain **not run**.
+
+## Live scenarios on staging, 14 Nov 2026 (01:17–01:23 IST)
+
+Build `build-2026-11-13-001`, commit `1f09491`. Run in a browser under the owner's
+operator sign-in, with the owner's approval. Synthetic QA data and Razorpay TEST
+mode only. Each result below was observed live and then checked in the staging
+database; none is an automated test.
+
+| # | Scenario | Result | What was done and seen |
+|---|---|---|---|
+| 7 | Catalogue visibility | **PASS** (cart-add not exercised) | Launch Control: switched Tiling off. Review dialog showed "27 → 26 (1 hidden)", "20 → 19". After Apply: `/category/tiling` 404, `/api/v1/categories/tiling` 404, absent from the category list, `/product/tile-adhesive-20kg` 404, API product 404, absent from the product list (26), search and suggestions. Undo showed "26 → 27", and after it every one of those returned. Audit: `catalogue.category_hidden` + `catalogue.launch_batch`, then `catalogue.category_shown` + `catalogue.launch_batch` carrying `undoOf`. The first batch reads "Undone" in Recent changes. Not exercised: adding the hidden product to a cart by variant id |
+| 8 | Admin workflow | **PASS** for price and review; stock and order edits not run | `qa-staging-paint-tin`: selling price ₹349 → ₹339, saved. The review was cleared and the product left the shop (API 404, page 404, 26 listed). "Record review" on the product page (PR #62) with a note and the confirmation: product back on sale at ₹339 with the operator as reviewer — no script. Price restored to ₹349 and the review recorded again; 27 listed. Audit: two `variant.price_changed` with before and after, two `catalogue.commercial_review_recorded` |
+| 6 | Cancellation and refund | **PASS** for refund; a fresh paid cancel not run | Order `VE-2026-MUZ7TZF154CC` — paid in TEST mode on 8 Oct, cancelled, never refunded — was on Payments → Refund required. Refund ₹199 with a reason and the two-step confirm. Razorpay accepted it (`rfnd_TzmV…`); the row showed pending, and the page offered "Check with Razorpay" instead of a second Refund. 40 seconds later the row was `processed` and the payment `refunded`, written by Razorpay's **webhook** (`payment.refund_processed`, actor system, source webhook) — nobody pressed Check. One refund row exists |
+| 4 | Duplicate payment event | **Not run** | — |
+| 1, 2, 3, 5, 11 | Purchase, failure, abandonment, concurrency, interruption | **Not run** | See below |
+| 12 | Operational completion | **Not run** | See below |
+| 10 | Mobile | **Not run** | No device |
+
+What the refund result also shows: a signed Razorpay TEST webhook reaches this
+staging build and is accepted. That had not been observed on any build before today.
+
+### Why the rest stopped
+
+The browser tools available to this session changed when it was resumed; pages can
+no longer be driven from here. The purchase scenarios additionally need a payment
+completed inside Razorpay's own window, which this session does not do — the person
+testing completes that step.
+
+### State of staging afterwards
+
+| | Before | After |
+|---|---|---|
+| Orders / pending | 21 / 0 | 21 / 0 |
+| Captured payments | 11 | 10 (one now `refunded`) |
+| Refund rows | 0 | 1, processed, ₹199 |
+| Stock movements / units on hand | 58 / — | 58 / 2,502 (no stock moved) |
+| Tiling category | shown | shown |
+| `QA-STAGING-2` price | ₹349 | ₹349 |
+| `qa-staging-paint-tin` reviewer | `qa-fixture` | the operator's account (a real difference left behind) |
+| Products listed | 27 | 27 |
+
+Also left: three rate-limit counter rows from the 13 Nov header probes, and eleven
+audit rows from the scenarios above.
+
+### Defect found while testing
+
+**G-52 (P2).** Immediately after saving a price on the admin product page, one reload
+showed the previous price and the previous review; the next reload was correct. The
+database held the new values throughout. An operator who reloads to confirm a change
+can be shown the old state. Not yet investigated.
