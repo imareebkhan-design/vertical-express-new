@@ -7,7 +7,8 @@ import { getAdminUser } from "@/lib/services/admin/authz";
 import { recordAudit } from "@/lib/services/audit";
 import { EXPORT_LIMIT } from "@/lib/services/admin/orders-list";
 
-export async function handleLedgerExport(request: Request, getAdmin = getAdminUser) {
+/** `getAdmin` and `limit` are injected in tests; the route passes neither. */
+export async function handleLedgerExport(request: Request, getAdmin = getAdminUser, limit = EXPORT_LIMIT) {
   const admin = await getAdmin();
   if (!admin) return NextResponse.json({ error: "Admin access required" }, { status: 403 });
   const day = new URL(request.url).searchParams.get("day") ?? istDateKey(new Date());
@@ -21,12 +22,12 @@ export async function handleLedgerExport(request: Request, getAdmin = getAdminUs
   } as const;
   const gatewayIds = { gatewayOrderId: true, gatewayPaymentId: true } as const;
   const [payments, refunds] = await db.$transaction([
-    db.payment.findMany({ where: { createdAt }, take: EXPORT_LIMIT + 1,
+    db.payment.findMany({ where: { createdAt }, take: limit + 1,
       select: { ...shared, ...gatewayIds } }),
-    db.paymentRefund.findMany({ where: { createdAt }, take: EXPORT_LIMIT + 1,
+    db.paymentRefund.findMany({ where: { createdAt }, take: limit + 1,
       select: { ...shared, gatewayRefundId: true, paymentId: true, payment: { select: gatewayIds } } }),
   ], { isolationLevel: "RepeatableRead" });
-  if (payments.length + refunds.length > EXPORT_LIMIT) {
+  if (payments.length + refunds.length > limit) {
     return NextResponse.json({ error: "This day exceeds the export row limit." }, { status: 413 });
   }
   const rows = [
