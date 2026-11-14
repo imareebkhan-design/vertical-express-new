@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { istDateKey } from "@/lib/ist";
 import { AlertTriangle } from "lucide-react";
 import { adminListPayments, adminPaymentHealth } from "@/lib/services/admin/stock";
 import { activeGateway } from "@/lib/services/payments";
@@ -52,6 +53,13 @@ export default async function AdminPayments({
           {total} payment records · active gateway: {gateway}
         </p>
       </div>
+
+      <form action="/admin/payments/export" className="flex flex-wrap items-end gap-3">
+        <label className="text-sm">Ledger creation date (IST)
+          <input type="date" name="day" required defaultValue={istDateKey(new Date())} className="block rounded border p-2" />
+        </label>
+        <button type="submit" className="rounded border px-3 py-2 text-sm font-semibold">Export payments and refunds</button>
+      </form>
 
       {/*
         "Payments & webhooks" — the figures the artboard leads with.
