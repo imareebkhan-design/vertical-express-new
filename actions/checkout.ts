@@ -1,46 +1,36 @@
 "use server";
 
+import { ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
+import { LATE_PAYMENT_MESSAGE, paymentTermsFor } from "@/lib/payment-window";
 import { revalidatePath } from "next/cache";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId, getAuthUser } from "@/lib/auth/current-user";
 import { getCartSummary } from "@/lib/services/cart";
+import { resolveCoupon, refusalMessage } from "@/lib/services/coupon-eligibility";
 import {
   computeTotals,
   placeOrder as placeOrderService,
-  markOrderPaid,
+  confirmOnlinePayment,
   type CheckoutTotals,
 } from "@/lib/services/checkout";
-import { activeGateway, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
-import { getOrderByNo } from "@/lib/services/orders";
-import { sendOrderConfirmationEmail } from "@/lib/services/email";
-import { createSupabaseServer } from "@/lib/supabase/server";
+import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
+import { classifyPlaceOrderError } from "@/lib/checkout-errors";
+import { normaliseContactEmail } from "@/lib/contact-email";
+import { gatePlaceOrderReplay, type PaymentState } from "@/lib/services/payment-status";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
-/** Fire the order-confirmation email for a freshly-confirmed order (P1-1). */
-async function emailOrderConfirmation(userId: string, orderNo: string, toEmail: string | null) {
-  if (!toEmail) return;
-  const order = await getOrderByNo(userId, orderNo);
-  if (!order || order.status === "pending_payment") return;
-  const addr = order.address as { name?: string } | null;
-  await sendOrderConfirmationEmail(toEmail, {
-    orderNo: order.orderNo,
-    paymentMethod: order.paymentMethod,
-    items: order.items.map((i) => ({ title: i.title, qty: i.qty, lineTotalPaise: i.lineTotalPaise })),
-    subtotalPaise: order.subtotalPaise,
-    taxPaise: order.taxPaise,
-    deliveryFeePaise: order.deliveryFeePaise,
-    totalPaise: order.totalPaise,
-    etaMinutes: order.etaMinutes,
-    customerName: addr?.name ?? null,
-  });
-}
-
 /** Live totals for a chosen delivery pincode (delivery fee, ETA, serviceability, optional coupon). */
-export async function getCheckoutTotals(pincode: string, couponCode?: string): Promise<ActionResult<CheckoutTotals>> {
+export async function getCheckoutTotals(
+  pincode: string,
+  couponCode?: string,
+  /* Requested, not granted — `computeTotals` re-resolves whether express is
+     actually on offer. A browser must not be able to name what it pays. */
+  wantsExpress = false
+): Promise<ActionResult<CheckoutTotals>> {
   const userId = await getAuthUserId();
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  return succeed(await computeTotals(cart, pincode, null, couponCode));
+  return succeed(await computeTotals(cart, pincode, null, couponCode, userId, wantsExpress));
 }
 
 /** Validate a coupon code against current user cart. */
@@ -49,16 +39,28 @@ export async function validateCoupon(code: string, pincode: string): Promise<Act
   if (!userId) return fail("UNAUTHENTICATED", "Please log in to use coupons");
   const cart = await getCartSummary(userId, null);
   if (cart.lines.length === 0) return fail("CONFLICT", "Your cart is empty");
-  const totals = await computeTotals(cart, pincode, null, code);
-  if (totals.discountPaise === 0 && totals.deliveryFeePaise !== 0) {
-    return fail("VALIDATION", "Invalid or applicable conditions not met for this coupon");
-  }
-  return succeed(totals);
+  /* Ask the eligibility rules directly rather than inferring failure from a
+     zero discount. The old check — "no discount and delivery still charged" —
+     could not tell a coupon that does not exist from one this customer has
+     already used, so both produced the same shrug. It also misread a valid
+     free-delivery coupon on an order that already had free delivery as a
+     failure. */
+  const decision = await resolveCoupon({
+    code,
+    subtotalPaise: cart.subtotalPaise,
+    userId,
+  });
+  if (!decision.ok) return fail("VALIDATION", refusalMessage(decision.reason));
+
+  return succeed(await computeTotals(cart, pincode, null, code, userId));
 }
 
 interface PlaceOrderData {
+  /** Only on a replayed attempt: the server's payment state (lib/services/payment-status.ts). */
+  paymentState: PaymentState | null;
   orderNo: string;
-  razorpay: { orderId: string; amountPaise: number; keyId: string } | null;
+  /** `payBy`: when the order stops accepting payment (lib/payment-window.ts). */
+  razorpay: { orderId: string; amountPaise: number; keyId: string; payBy: string | null; payWithinSeconds: number | null } | null;
 }
 
 export async function placeOrder(input: {
@@ -66,34 +68,57 @@ export async function placeOrder(input: {
   paymentMethod: "online" | "cod";
   notes?: string;
   idempotencyKey?: string;
+  /** Re-validated server-side; the client's discount figure is never trusted. */
+  couponCode?: string | null;
+  /**
+   * Where to send the receipt, offered at checkout when the account has no
+   * email of its own. Never written to the user record.
+   */
+  contactEmail?: string | null;
+  /* Requested, not granted — re-resolved server-side. */
+  wantsExpress?: boolean;
+  /* The total on screen. Checked, never charged: the server's own figure is. */
+  expectedTotalPaise?: number;
 }): Promise<ActionResult<PlaceOrderData>> {
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return fail("UNAUTHENTICATED", "Please log in to checkout");
-  const userEmail = authData.user?.email ?? null;
+  const user = await getAuthUser();
+  if (!user) return fail("UNAUTHENTICATED", "Please log in to checkout");
+  const userId = user.id;
+  if (!orderingOpen()) return fail("ORDERING_CLOSED", ORDERING_CLOSED_MESSAGE, undefined, { orderingClosed: true });
 
   // "online" maps to whichever gateway is active (dummy now, razorpay later).
   const method: PaymentMethodId = input.paymentMethod === "cod" ? "cod" : activeGateway();
 
+  /* Shape-checked, not merely trimmed. This string is handed to an email
+     provider and stored on the order, so a value that is not an address is
+     refused rather than kept and silently never delivered to. */
+  const contactEmail = normaliseContactEmail(input.contactEmail);
+  if (input.contactEmail && contactEmail === null) {
+    return fail("VALIDATION", "That email address does not look right", "contactEmail");
+  }
+
   try {
-    const result = await placeOrderService({
+    const result = await gatePlaceOrderReplay(userId, await placeOrderService({
       userId,
       addressId: input.addressId,
       paymentMethod: method,
       notes: input.notes,
       idempotencyKey: input.idempotencyKey,
-    });
+      couponCode: input.couponCode,
+      contactEmail,
+      wantsExpress: input.wantsExpress,
+      expectedTotalPaise:
+        typeof input.expectedTotalPaise === "number" && Number.isSafeInteger(input.expectedTotalPaise)
+          ? input.expectedTotalPaise
+          : undefined,
+    }));
     revalidatePath("/cart");
     revalidatePath("/account/orders");
 
-    // P1-1: order-confirmation email for immediately-confirmed orders (COD/dummy).
-    // Pending-payment (Razorpay) orders are emailed after payment is verified.
-    if (!result.requiresPaymentConfirmation) {
-      await emailOrderConfirmation(userId, result.orderNo, userEmail);
-    }
     return succeed({
       orderNo: result.orderNo,
+      /* Set on a replay: "pending" means a payment may already be on its way —
+         the client shows the pending state, never Checkout or the confirmation. */
+      paymentState: result.paymentState ?? null,
       // Razorpay checkout inputs (present only when the online gateway is active
       // and the order awaits payment). Dummy/COD → null, client skips the modal.
       razorpay:
@@ -102,19 +127,12 @@ export async function placeOrder(input: {
               orderId: result.gatewayOrderId,
               amountPaise: result.amountPaise ?? 0,
               keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "",
+              ...(result.placedAt ? paymentTermsFor(result.placedAt) : { payBy: null, payWithinSeconds: null }),
             }
           : null,
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Could not place order";
-    if (msg.startsWith("OUT_OF_STOCK:")) {
-      return fail("OUT_OF_STOCK", `${msg.split(":")[1]} is out of stock`);
-    }
-    if (msg === "PINCODE_UNSERVICEABLE") return fail("PINCODE_UNSERVICEABLE", "This pincode isn't serviceable");
-    if (msg === "COD_UNAVAILABLE") return fail("CONFLICT", "Pay on delivery isn't available here");
-    if (msg === "CART_EMPTY") return fail("CONFLICT", "Your cart is empty");
-    if (msg === "ADDRESS_NOT_FOUND") return fail("NOT_FOUND", "Select a valid delivery address");
-    return fail("PAYMENT_FAILED", "Something went wrong placing your order");
+    return classifyPlaceOrderError<PlaceOrderData>(e);
   }
 }
 
@@ -125,24 +143,21 @@ export async function confirmRazorpayPayment(input: {
   razorpayPaymentId: string;
   signature: string;
 }): Promise<ActionResult<{ orderNo: string }>> {
-  const supabase = await createSupabaseServer();
-  const { data: authData } = await supabase.auth.getUser();
-  const userId = authData.user?.id ?? null;
-  if (!userId) return fail("UNAUTHENTICATED", "Please log in");
+  const user = await getAuthUser();
+  if (!user) return fail("UNAUTHENTICATED", "Please log in");
+  const userId = user.id;
 
-  const valid = verifyRazorpaySignature({
+  const res = await confirmOnlinePayment({
+    userId,
+    orderNo: input.orderNo,
     razorpayOrderId: input.razorpayOrderId,
     razorpayPaymentId: input.razorpayPaymentId,
     signature: input.signature,
   });
-  if (!valid) return fail("PAYMENT_FAILED", "Payment could not be verified");
-
-  const res = await markOrderPaid({
-    orderNo: input.orderNo,
-    userId,
-    gatewayPaymentId: input.razorpayPaymentId,
-  });
-  if (!res.ok) return fail("NOT_FOUND", "Order not found");
-  await emailOrderConfirmation(userId, input.orderNo, authData.user?.email ?? null);
+  /* The customer paid; the order had already expired. Said as that, never as a
+     failed verification — which reads as "pay again" (the app's route already
+     tells them apart, lib/api/v1.ts). */
+  if (res.reason === "late_payment") return fail("CONFLICT", LATE_PAYMENT_MESSAGE);
+  if (!res.ok) return fail("PAYMENT_FAILED", "Payment could not be verified");
   return succeed({ orderNo: input.orderNo });
 }

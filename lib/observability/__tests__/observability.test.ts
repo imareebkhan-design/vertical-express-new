@@ -82,13 +82,22 @@ test("Observability: AsyncLocalStorage propagates requestId and userId correctly
 
 test("Observability: MetricsTracker calculates and reports durations", async () => {
   const tracker = new MetricsTracker("test-service");
-  
-  // Simulate delay
-  await new Promise((resolve) => setTimeout(resolve, 10));
-  
+
+  const DELAY_MS = 10;
+  await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
+
   const duration = tracker.end("test_event", { meta: "test-data" });
-  
-  assert.ok(duration >= 10);
+
+  // Asserting `duration >= DELAY_MS` looks right and is flaky: setTimeout only
+  // guarantees it fires no EARLIER than the delay on ITS clock, and the timer
+  // and performance.now() do not share a resolution — 10ms routinely measures
+  // as 9.98. That failed roughly half the time under load.
+  //
+  // What actually needs to hold is that the tracker measures real elapsed time
+  // rather than returning zero or a constant, so allow one tick of slack and
+  // pin a sane upper bound instead.
+  assert.ok(duration >= DELAY_MS - 2, `expected ~${DELAY_MS}ms, measured ${duration}ms`);
+  assert.ok(duration < 5000, `duration ${duration}ms is implausible`);
 });
 
 test("Observability: Sentry and PostHog capture does not fail when DSN/Key is missing", () => {

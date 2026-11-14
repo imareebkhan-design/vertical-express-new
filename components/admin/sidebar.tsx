@@ -1,0 +1,175 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  FileSpreadsheet,
+  BarChart3,
+  Box,
+  CreditCard,
+  Home,
+  MapPin,
+  PieChart,
+  ShoppingBag,
+  Tag,
+  Users,
+  Warehouse,
+  AlertTriangle,
+  Truck,
+  RefreshCw,
+  ListOrdered,
+  FileText,
+  Factory,
+  LifeBuoy,
+  Wallet,
+  Receipt,
+  UserCog,
+  SlidersHorizontal,
+  PlusSquare, MessageSquareText, BadgeCheck, IdCard, FolderTree, Rocket } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+/**
+ * Operations console navigation.
+ *
+ * The full destination set from the operations canvas — nineteen entries across
+ * five groups. Ten of them were missing entirely, which meant a third of the
+ * console the design specifies simply did not exist and nothing said so.
+ *
+ * Every entry leads to a real screen. Where the screen is designed but not
+ * built, it says what it will do and what it needs first, rather than 404ing —
+ * a dispatcher who clicks Returns mid-shift and gets an error page learns not
+ * to trust the tool.
+ *
+ * Grouped by job rather than by data model, because the people using this are a
+ * dispatcher, a warehouse hand, an accountant and the owner — not developers.
+ *
+ * A fixed sidebar rather than the storefront's floating nav: this is a tool, and
+ * a dispatcher needs every destination reachable without a menu.
+ */
+
+export const GROUPS: { heading: string; items: { href: string; label: string; icon: typeof Home }[] }[] = [
+  {
+    heading: "Operations",
+    items: [
+      { href: "/admin", label: "Today", icon: Home },
+      { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
+      { href: "/admin/dispatch", label: "Dispatch", icon: Truck },
+      { href: "/admin/drivers", label: "Drivers & vehicles", icon: IdCard },
+      { href: "/admin/returns", label: "Returns", icon: RefreshCw },
+    ],
+  },
+  {
+    heading: "Catalog & stock",
+    items: [
+      { href: "/admin/listing", label: "Listing", icon: PlusSquare },
+      { href: "/admin/launch-control", label: "Launch control", icon: Rocket },
+      { href: "/admin/products", label: "Products", icon: Box },
+      { href: "/admin/catalogue-update", label: "Prices & stock files", icon: FileSpreadsheet },
+      { href: "/admin/catalogue-approvals", label: "Approvals", icon: BadgeCheck },
+      { href: "/admin/brands", label: "Brands", icon: Tag },
+      { href: "/admin/categories", label: "Categories", icon: FolderTree },
+      { href: "/admin/inventory", label: "Inventory", icon: Warehouse },
+      { href: "/admin/stock-ledger", label: "Stock ledger", icon: ListOrdered },
+      { href: "/admin/purchasing", label: "Purchasing", icon: FileText },
+      { href: "/admin/suppliers", label: "Suppliers", icon: Factory },
+    ],
+  },
+  {
+    heading: "Customers",
+    items: [
+      { href: "/admin/customers", label: "Customers", icon: Users },
+      { href: "/admin/support", label: "Support", icon: LifeBuoy },
+      { href: "/admin/enquiries", label: "Enquiries", icon: MessageSquareText },
+    ],
+  },
+  {
+    heading: "Money",
+    items: [
+      { href: "/admin/cod-cash", label: "COD cash", icon: Wallet },
+      { href: "/admin/invoices", label: "Invoices", icon: Receipt },
+      { href: "/admin/payments", label: "Payments", icon: CreditCard },
+      { href: "/admin/credit", label: "Credit", icon: BarChart3 },
+    ],
+  },
+  {
+    heading: "Configure",
+    items: [
+      { href: "/admin/serviceability", label: "Service areas", icon: MapPin },
+      { href: "/admin/coupons", label: "Coupons", icon: Tag },
+      { href: "/admin/staff", label: "Staff & roles", icon: UserCog },
+      { href: "/admin/settings", label: "Settings", icon: SlidersHorizontal },
+      { href: "/admin/bi", label: "Reports", icon: PieChart },
+    ],
+  },
+];
+
+export function AdminSidebar({
+  adminEmail,
+  gatewayWarning,
+}: {
+  adminEmail: string;
+  gatewayWarning: string | null;
+}) {
+  const pathname = usePathname();
+
+  return (
+    <aside className="hidden w-[246px] flex-none flex-col gap-0.5 bg-white p-3.5 lg:flex print:hidden">
+      <Link href="/admin" className="mb-3 flex items-center gap-2.5 px-3 py-1">
+        <span className="grid size-8 flex-none place-items-center rounded-chip bg-brand">
+          <BarChart3 className="size-4 text-ink" aria-hidden />
+        </span>
+        <span className="min-w-0">
+          <span className="block truncate text-[13px] font-extrabold tracking-tight">
+            Vertical Express
+          </span>
+          <span className="block text-[11px] font-semibold text-ink-500">Operations</span>
+        </span>
+      </Link>
+
+      {GROUPS.map((group) => (
+        <div key={group.heading}>
+          <p className="px-3 pb-1.5 pt-3.5 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-ink-300">
+            {group.heading}
+          </p>
+          {group.items.map(({ href, label, icon: Icon }) => {
+            const active = href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex h-9.5 items-center gap-2.5 rounded-panel px-3 text-[13px] transition-colors",
+                  active
+                    ? "bg-ink font-bold text-white"
+                    : "font-semibold text-ink-700 hover:bg-hush"
+                )}
+              >
+                <Icon className={cn("size-4", active ? "text-white" : "text-ink-500")} aria-hidden />
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
+
+      <div className="flex-1" />
+
+      {gatewayWarning && (
+        <div className="flex items-start gap-2.5 rounded-panel bg-ops-bad-tint p-3">
+          <AlertTriangle className="mt-0.5 size-4 flex-none text-ops-bad" aria-hidden />
+          <p className="text-[11px] font-bold leading-snug text-ops-bad">{gatewayWarning}</p>
+        </div>
+      )}
+
+      <div className="mt-2 flex items-center gap-2.5 rounded-full px-3 py-2.5">
+        <span className="grid size-7 flex-none place-items-center rounded-full bg-amber-soft text-[10px] font-extrabold">
+          {adminEmail.slice(0, 2).toUpperCase()}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-ink-500">
+          {adminEmail}
+        </span>
+      </div>
+    </aside>
+  );
+}

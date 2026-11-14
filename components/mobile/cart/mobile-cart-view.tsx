@@ -2,15 +2,19 @@
 
 import React, { useState, useRef, useTransition, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
-
-import { RefreshCw, Trash2, ArrowRight, ShoppingCart, Bookmark } from "lucide-react";
+import { RefreshCw, ArrowRight, ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
+import { groupCartByShipment } from "@/lib/cart-shipments";
+import { CartShipmentGroups } from "@/components/mobile/cart/cart-shipment-groups";
+import { CartLoadError } from "@/components/shop/cart-load-error";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ORDERING_CLOSED_MESSAGE } from "@/lib/commerce-mode";
 
 export function MobileCartView() {
-  const { summary, refresh, updateItem, removeItem, pending } = useCart();
+  const { summary, loaded, loadFailed, refresh, updateItem, removeItem, pending } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [refreshing, setRefreshing] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -72,7 +76,6 @@ export function MobileCartView() {
     } else {
       await removeItem(itemId);
     }
-    await refresh();
   };
 
   const handleQtyIncrease = async (itemId: string, currentQty: number) => {
@@ -80,16 +83,16 @@ export function MobileCartView() {
     triggerHaptic("light");
 
     await updateItem(itemId, currentQty + 1);
-    await refresh();
   };
 
   const handleItemRemove = async (itemId: string) => {
     triggerHaptic("medium");
     await removeItem(itemId);
-    await refresh();
   };
 
-  if (!mounted) return <CartSkeleton />;
+  /* Not "Your cart is empty" before the cart has arrived (W-B1-G2). */
+  if (mounted && !loaded && loadFailed) return <CartLoadError onRetry={refresh} />;
+  if (!mounted || !loaded) return <CartSkeleton />;
 
   const isEmpty = !summary || summary.lines.length === 0;
 
@@ -153,93 +156,27 @@ export function MobileCartView() {
           </div>
         ) : (
           <div className="p-4 space-y-4">
-            {/* Cart Items list */}
-            <div className="rounded-2xl border border-mist/20 bg-white shadow-2xs divide-y divide-mist/10">
-              {summary.lines.map((line) => (
-                <div key={line.itemId} className="p-4 flex gap-3">
-                  {/* Image container */}
-                  <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-mist/5 border border-mist/15">
-                    {line.imageUrl ? (
-                      <Image
-                        src={line.imageUrl}
-                        alt={line.title}
-                        fill
-                        className="object-contain p-1"
-                        sizes="64px"
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-[10px] text-ink/20">VE</div>
-                    )}
-                  </div>
+            {/* One card per shipment — the split checkout persists (W-18). */}
+            <CartShipmentGroups
+              shipments={groupCartByShipment(summary.lines)}
+              count={summary.count}
+              pending={pending}
+              onDecrease={handleQtyDecrease}
+              onIncrease={handleQtyIncrease}
+              onRemove={handleItemRemove}
+            />
 
-                  {/* Info block */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between">
-                    <div>
-                      <h4 className="truncate text-xs font-bold text-ink leading-tight">{line.title}</h4>
-                      <p className="text-[10px] text-ink/40 font-semibold mt-0.5 leading-none">
-                        Unit price: {formatPaise(line.unitPricePaise)}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center justify-between gap-2 mt-2">
-                      <span className="text-xs font-extrabold text-ink leading-none">
-                        {formatPaise(line.lineTotalPaise)}
-                      </span>
-
-                      <div className="flex items-center gap-2">
-                        {/* Save for later placeholder */}
-                        <button
-                          onClick={() => triggerHaptic("light")}
-                          className="flex size-7 items-center justify-center rounded-lg border border-mist/20 text-ink/45 hover:bg-mist/5"
-                          title="Save for later"
-                        >
-                          <Bookmark className="size-3.5" />
-                        </button>
-
-                        <button
-                          onClick={() => handleItemRemove(line.itemId)}
-                          className="flex size-7 items-center justify-center rounded-lg border border-mist/20 text-danger hover:bg-danger/5"
-                          title="Remove item"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-
-                        {/* Stepper qty controls */}
-                        <div className="flex h-7 items-center bg-brand-deep text-white rounded-lg px-1">
-                          <button
-                            onClick={() => handleQtyDecrease(line.itemId, line.qty)}
-                            disabled={pending}
-                            className="flex size-5.5 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
-                          >
-                            -
-                          </button>
-                          <span className="text-[10px] font-extrabold px-1 text-center min-w-4">
-                            {line.qty}
-                          </span>
-                          <button
-                            onClick={() => handleQtyIncrease(line.itemId, line.qty)}
-                            disabled={pending}
-                            className="flex size-5.5 items-center justify-center font-bold hover:bg-white/10 rounded-md disabled:opacity-50"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Delivery serviceability info card */}
+            {/* Delivery serviceability info card — it points at checkout, so not in COMMERCE_MODE=catalogue. */}
+            {orderingOpen && (
             <div className="rounded-2xl border border-mist/20 bg-white p-4 shadow-2xs space-y-3">
               <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 leading-none">
                 Delivery Details
               </h3>
               <p className="text-xs font-semibold text-ink/75 leading-relaxed">
-                Vertical Express delivers all building materials across Srinagar in 60 minutes. Choose your exact delivery address on the next screen.
+                Vertical Express delivers building materials across Srinagar. Choose your exact delivery address on the next screen.
               </p>
             </div>
+            )}
           </div>
         )}
       </div>
@@ -253,10 +190,14 @@ export function MobileCartView() {
               {formatPaise(summary.lines.reduce((s, l) => s + l.lineTotalPaise, 0))}
             </span>
             <span className="text-[9px] text-ink/40 font-semibold mt-1 block">
-              GST and Delivery calculated at checkout
+              Includes GST · delivery calculated at checkout
             </span>
           </div>
 
+          {/* COMMERCE_MODE=catalogue: checkout is closed; say so instead of offering it. */}
+          {!orderingOpen ? (
+            <p className="max-w-[55%] text-[11px] font-semibold leading-snug text-ink/70">{ORDERING_CLOSED_MESSAGE}</p>
+          ) : (
           <Link
             href="/checkout"
             onClick={() => triggerHaptic("medium")}
@@ -264,6 +205,7 @@ export function MobileCartView() {
           >
             Checkout <ArrowRight className="ml-1.5 size-4" />
           </Link>
+          )}
         </div>
       )}
     </div>
@@ -272,7 +214,7 @@ export function MobileCartView() {
 
 function CartSkeleton() {
   return (
-    <div className="flex flex-col min-h-screen bg-surface pb-24 animate-pulse">
+    <div role="status" aria-busy="true" aria-label="Loading your cart" className="flex flex-col min-h-screen bg-surface pb-24 animate-pulse">
       {/* Header Skeleton */}
       <div className="flex items-center justify-between border-b border-mist/20 bg-surface/95 px-4 pb-3 pt-[calc(env(safe-area-inset-top,12px)+6px)]">
         <div className="space-y-1.5">

@@ -1,10 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 /**
  * global-error.tsx — catches errors in the root layout itself.
  * Must render its own <html> and <body> since the layout may be broken.
+ *
+ * Reports to Sentry (ISS-012). React swallows render errors once a boundary
+ * handles them, so without this an error that breaks the entire shell would be
+ * the one class of failure Sentry never hears about.
  */
 export default function GlobalError({
   error,
@@ -14,6 +19,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    Sentry.captureException(error);
     console.error(error);
   }, [error]);
 
@@ -28,13 +34,13 @@ export default function GlobalError({
           alignItems: "center",
           justifyContent: "center",
           gap: "1.5rem",
-          background: "#f9f9f9",
+          background: "#F3F2F0",
           fontFamily: "system-ui, sans-serif",
           textAlign: "center",
           padding: "1rem",
         }}
       >
-        <span style={{ fontSize: "3rem" }}>⚠️</span>
+        <span style={{ fontSize: "3rem" }} aria-hidden>!</span>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 800, color: "#111" }}>
           Something went wrong
         </h1>
@@ -50,7 +56,7 @@ export default function GlobalError({
           onClick={reset}
           style={{
             padding: "0.6rem 1.5rem",
-            background: "#FFD600",
+            background: "#EDAF1C",
             border: "none",
             borderRadius: "9999px",
             fontWeight: 700,

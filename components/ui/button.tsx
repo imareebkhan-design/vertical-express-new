@@ -7,17 +7,25 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary:
-          "bg-brand text-ink shadow-card hover:bg-brand-dark hover:shadow-card-hover",
-        dark: "bg-ink text-white hover:bg-neutral-800",
-        outline:
-          "border border-brand-deep bg-transparent text-brand-deep hover:bg-surface",
+        // Near-black is the primary action. Amber is an accent, not a CTA — it
+        // cannot carry white text and reads as decoration when it carries every
+        // button on the page.
+        primary: "bg-ink text-white hover:bg-ink/90 hover:shadow-card-hover",
+        // Amber fill with ink text. For the rare emphasised action on a dark
+        // panel, where ink-on-ink would disappear.
+        accent: "bg-brand text-ink shadow-card hover:bg-brand-dark hover:shadow-card-hover",
+        // Secondary. A tint fill rather than a stroke — the system has no hard
+        // 1px borders.
+        secondary: "bg-chip text-ink hover:bg-hush",
+        outline: "bg-chip text-ink hover:bg-hush",
         ghost: "bg-transparent text-ink hover:bg-surface",
+        /** @deprecated identical to `primary`; kept so existing usages compile. */
+        dark: "bg-ink text-white hover:bg-ink/90",
       },
       size: {
-        sm: "h-8 rounded-md px-3 text-xs uppercase tracking-wide",
-        md: "h-10 rounded-lg px-5 text-sm",
-        lg: "h-12 rounded-lg px-7 text-base",
+        sm: "h-9 rounded-full px-4 text-xs",
+        md: "h-11 rounded-full px-6 text-sm",
+        lg: "h-13 rounded-full px-8 text-base",
         icon: "size-10 rounded-full",
       },
     },

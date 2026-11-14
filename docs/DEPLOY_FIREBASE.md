@@ -1,0 +1,222 @@
+# Deploying to Firebase App Hosting
+
+> Status, environment model, gates and the phased path to production live in [`PRODUCTION_ROADMAP.md`](PRODUCTION_ROADMAP.md). This file is the operational runbook only.
+
+Vercel is no longer the deployment target (its project returns `402 DEPLOYMENT_DISABLED`).
+The same Next.js app — website, `/api/v1`, webhooks — runs on **Firebase App Hosting**
+(Cloud Run + Cloud Build). Database (Supabase PostgreSQL), Prisma, Firebase Auth and
+Razorpay are unchanged.
+
+Project: **`vertical-express`** (the project that already owns the app's Firebase Auth —
+`FIREBASE_PROJECT_ID` and the mobile `google-services.json` point at it).
+Backend id: **`ve-staging`** — a TEST backend. Config: `apphosting.yaml`, `firebase.json`, `.firebaserc`.
+
+## Compatibility (checked against this repository)
+
+| Area | Result |
+|---|---|
+| Next.js 15.5.23 | COMPATIBLE — App Hosting's Next adapter runs it on Cloud Run |
+| Node | REQUIRES CONFIG — `engines.node >=22` added (CI/local use 24) |
+| Prisma 7 + `@prisma/adapter-pg` | COMPATIBLE — plain TCP to Postgres; `prisma generate` runs in `postinstall` |
+| Firebase Admin | COMPATIBLE — explicit service-account env (no ADC fallback); 3 vars via Secret Manager |
+| Route handlers / webhook raw body | COMPATIBLE — the Razorpay route uses `req.text()` |
+| Middleware | COMPATIBLE — cookie *presence* check only; no Node/Edge-only APIs |
+| Filesystem | COMPATIBLE — no runtime file writes |
+| Build | COMPATIBLE — App Hosting runs `npm run build`; the `prebuild` dev-server guard does not fire on a clean builder |
+| `generateStaticParams` at build | REQUIRES CONFIG — queries Prisma, so `DATABASE_URL` is a BUILD-time secret and the DB must be reachable from Cloud Build |
+| Session cookie | COMPATIBLE — named `__session`, the one cookie Firebase's CDN forwards to the backend |
+| Reserved env names | REQUIRES SMALL CODE CHANGE — App Hosting **rejects env vars starting `FIREBASE_`** (also `X_GOOGLE_`, `EXT_`, `KIT_`). Found at first use, not in the original audit. The Firebase Admin credentials are therefore supplied as `FB_ADMIN_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY`; `lib/auth/firebase-admin.ts` reads those first and still accepts the legacy `FIREBASE_*` names (verified with a real ID token). `NEXT_PUBLIC_FIREBASE_*` is unaffected. |
+| Payments guard | REQUIRES SMALL CODE CHANGE — App Hosting always runs `NODE_ENV=production`, which refused the test gateway. Added the guarded `ALLOW_TEST_GATEWAY=1` opt-in (only with `rzp_test_` keys; `dummy` stays forbidden). Tested. |
+| Vercel-specific code | none. `vercel.json` (cron) and the `vercel-build` script were removed on 2 Nov 2026 |
+| Cron | REPLACED — Cloud Scheduler job `ve-staging-cleanup-orders` (below) |
+
+## Before anything: owner actions
+
+1. **Get the billing account for `vertical-express` open and the project on Blaze** — <https://console.firebase.google.com/project/vertical-express/usage/details> (and <https://console.cloud.google.com/billing>).
+   Verified blocker (latest, 2026-09-20): `firebase apphosting:backends:list` fails with
+   *"HTTP 400 … Billing account for project '202621320146' is not open"* (earlier it said *"must be on the Blaze plan"*). A billing account is linked but not open.
+   (Also required for Cloud Run, Secret Manager and Cloud Scheduler.)
+2. **Staging database — DECIDED: a separate Supabase project** (see §Staging database). The staging
+   backend must never point at the production project `gsfslnxvwmrgulzqypdp`.
+3. Confirm Supabase accepts connections from Google Cloud (no network allow-list blocking it).
+
+## Staging database
+
+Decision (owner, 2026-09-20): `ve-staging` uses its **own** PostgreSQL, isolated from production.
+Existing provider, safest option: a **new Supabase project** in the same org and region (`ap-south-1`),
+named e.g. `vertical-express-staging`. (No Supabase CLI or access token is configured on this machine, so
+creating it is a dashboard action.)
+
+Owner steps:
+1. Supabase dashboard → New project → `vertical-express-staging`, region **South Asia (Mumbai)**, set a database password.
+2. Project → **Connect**: copy the *Transaction pooler* URL (port 6543) and the *Direct/Session* URL (5432).
+3. Put them in a new file `homerun-clone/.env.staging` (gitignored — `.env*`; never paste them into chat):
+   ```
+   DATABASE_URL="postgresql://postgres.<ref>:<password>@aws-1-ap-south-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+   DIRECT_URL="postgresql://postgres.<ref>:<password>@aws-1-ap-south-1.pooler.supabase.com:5432/postgres"
+   ```
+Then: `scripts/staging-db.sh migrate` applies every migration (including the `gateway_order_id` unique index) and
+prints `migrate status`. The script **refuses** to run if the URLs point at the production project or at two
+different projects (tested). The full 18-migration chain was rehearsed on an empty local database: all applied,
+status "up to date", unique index present.
+
+The staging database starts **empty** — no catalogue is fabricated for it. To exercise the journey it needs
+products, a warehouse and a serviceable pincode; the repo's `prisma db seed` provides a clearly fictional demo
+set (used by CI). **Decided (owner, 2026-09-20): load it into staging only** — never production. Status and gates: `PRODUCTION_ROADMAP.md`.
+
+## Runbook
+
+```bash
+cd homerun-clone
+firebase login                                  # already done as imareebkhan@gmail.com
+firebase use vertical-express                   # .firebaserc already defaults to it
+
+# 1. migrate the staging DB (see above), then secrets (values never printed) from .env.staging
+scripts/staging-db.sh migrate
+scripts/apphosting-secrets.sh .env.staging
+
+# 2. create the backend, then grant it the secrets (command printed by the script)
+npx -y firebase-tools@latest apphosting:backends:create --backend ve-staging \
+     --primary-region <region>   # closest offered to Mumbai (DB is ap-south-1): asia-south1 if listed, else asia-southeast1
+
+# 3. migrations are applied by hand (step 1) — NEVER from the build (see Migrations)
+
+# 4. deploy
+npm run deploy:staging
+```
+
+**Backend created 2026-09-21:** `ve-staging`, region **`asia-southeast1`** (App Hosting offers only asia-east1, asia-southeast1, europe-west4, us-central1, us-east4, us-east5 — `asia-south1`/Mumbai is not available; Singapore is closest), runtime nodejs22, URL `https://ve-staging--vertical-express.asia-southeast1.hosted.app` (serves nothing until the first rollout). Secrets created and granted: `firebase-client-email`, `firebase-private-key`, `razorpay-key-secret`, `razorpay-webhook-secret`, `cron-secret`. **Still missing: `database-url`** (needs the real `.env.staging`).
+
+After the first rollout the backend has a URL of the form
+`https://ve-staging--vertical-express.<region>.hosted.app`. Then:
+- set `NEXT_PUBLIC_SITE_URL` to it (in `apphosting.yaml`) and roll out again;
+- add the host to Firebase Auth **Authorized domains** (web sign-in) — `firebase.json` `auth.authorizedDomains`;
+- set `EXPO_PUBLIC_API_URL` in `mobile/eas.json` (development + preview profiles) to it.
+
+## Migrations
+
+### Staging release source (PR #38)
+
+After owner approval and integration, deploy staging only from a clean checkout of
+`release/rc-2026-10-19` at the current fetched canonical repository head. `npm run deploy:staging`
+enforces that source and names only `ve-staging`; it refuses feature branches,
+uncommitted files, and stale release heads. Do not bypass it with a direct Firebase
+deploy from an older feature branch: that previously replaced the audit and GUID
+fixes. The command does not merge, migrate, or deploy production. PR #38 must be
+approved and merged first; these instructions do not authorize that merge.
+
+The guard fetches the canonical `imareebkhan-design/vertical-express-new` repository
+directly (a fork named `origin` cannot satisfy it), archives the verified commit
+into a temporary directory, and invokes pinned Firebase CLI 15.35.0 through `npx`.
+Ignored local files and edits made after verification cannot enter that snapshot.
+The temporary source is removed on success or failure. No global Firebase install is required.
+
+The build does **not** touch the database and must not. App Hosting runs `npm run build`, which does **not**
+run `scripts/predeploy-migrations.mjs` (the ISS-024 pending-migration gate; it was wired only to the removed
+`vercel-build` script). Nothing at build time catches a pending migration, so apply them before the rollout that needs them,
+deliberately, from a machine with `DIRECT_URL`: `npm run db:deploy`.
+
+**Pending migration `20260920120000_payments_gateway_order_unique`** makes `payments.gateway_order_id` unique.
+It FAILS if duplicates exist (intended). Before applying it to any shared/real database run:
+
+```sql
+SELECT gateway_order_id, count(*) FROM payments
+WHERE gateway_order_id IS NOT NULL GROUP BY 1 HAVING count(*) > 1;
+```
+and resolve any rows by hand. It has been applied only to the local test database.
+
+## Razorpay (TEST mode)
+
+Webhook URL to register in the Razorpay dashboard (test mode):
+`https://<backend-host>/api/webhooks/razorpay`, events `payment.captured`, `payment.failed` (and `order.paid`).
+The webhook secret is generated by `scripts/apphosting-secrets.sh` into the gitignored `.env.local.secrets`
+(`RAZORPAY_WEBHOOK_SECRET`) and stored as the `razorpay-webhook-secret` secret; paste the **same** value into
+the dashboard. Live mode is not configured and needs the owner's approval.
+
+## Client address (rate limiting)
+
+Per-address rate limits key on the address the platform appended to
+`x-forwarded-for`, counted from the right (`lib/client-address.ts`).
+`TRUSTED_PROXY_HOPS` is the number of entries the platform adds after the
+client's; unset means 1 (Google's load balancer appends the client, then itself).
+
+**Check it after the first staging rollout that carries this code, before any
+production rollout.** From a machine whose public address you know:
+
+1. `curl -H "x-forwarded-for: 203.0.113.77" -H "x-real-ip: 203.0.113.8" https://<staging>/api/v1/serviceability/190001`
+2. In the staging database: `select bucket from rate_limits where bucket like 'api-svc:%' order by window_start desc limit 3;`
+
+The newest bucket must end in **your** address. If it ends in a Google address,
+the platform adds more hops than configured: raise `TRUSTED_PROXY_HOPS` in
+`apphosting.yaml` by one and repeat. If it ends in `203.0.113.x`, lower it. A
+wrong value is not harmless: too low puts every visitor in one bucket.
+
+## Order-expiry cron (replaces `vercel.json`)
+
+`/api/cron/cleanup-orders` (Bearer `CRON_SECRET`, 15-minute expiry, idempotent) must run every 5 minutes.
+Cloud Scheduler HTTP job (needs the Cloud Scheduler API and Blaze):
+
+```bash
+gcloud scheduler jobs create http ve-cleanup-orders \
+  --project vertical-express --location <region> --schedule "*/5 * * * *" \
+  --uri "https://<backend-host>/api/cron/cleanup-orders" --http-method GET \
+  --headers "Authorization=Bearer $(grep ^CRON_SECRET= .env.local.secrets | cut -d= -f2)"
+```
+The endpoint stays protected: without the header it answers 401. Note `gcloud` is not installed on the
+current dev machine; the same job can be created in the Cloud Console (Cloud Scheduler → Create job).
+
+## Vercel leftovers — removed 2 Nov 2026
+
+`vercel.json` (its only content was the cron) and the `vercel-build` script are gone. They were removed only once
+the Cloud Scheduler job `ve-staging-cleanup-orders` (asia-southeast1, `*/5 * * * *`) was confirmed ENABLED, so there
+was never a moment with no expiry job. Local `.vercel/` / `.vercel-old/` folders are untracked and safe to delete.
+A production backend needs its own scheduler job pointing at its host.
+
+## Production — `ve-production` (set up 3 Nov 2026)
+
+Backend **`ve-production`**, region `asia-southeast1`, environment name `production`, URL
+`https://ve-production--vertical-express.asia-southeast1.hosted.app`.
+
+Config is split by environment. App Hosting reads `apphosting.yaml` (shared: runConfig, Firebase web config,
+Firebase Admin, server-only Google keys, `ADMIN_EMAILS`, the product-photo bucket) and then the file named after
+the backend's environment: `apphosting.staging.yaml` for `ve-staging` (environment `staging`) and
+`apphosting.production.yaml` for `ve-production`. An environment file can replace a variable but not remove one
+(App Hosting rejects empty values), so **nothing that differs between staging and production may go in
+`apphosting.yaml`** — above all no payment setting. `lib/__tests__/apphosting-production.test.ts` enforces this.
+
+Production runs **catalogue mode** (`COMMERCE_MODE=catalogue`, `VE_DEPLOY_ENV=production`): browsing and
+enquiries, no orders, no payments, and no payment variable at all. Its own secrets: `database-url-production`
+(the production Supabase project `gsfslnxvwmrgulzqypdp`, transaction pooler) and `cron-secret-production` (value
+also in the gitignored `.env.production.secrets`).
+
+Deploy: `npx -y firebase-tools@latest deploy --only apphosting:ve-production`. Migrations first, by hand, with the
+guard's explicit production confirmation and a backup taken first:
+`VE_ALLOW_REMOTE_DB=1 VE_EXPECTED_DB_REF=gsfslnxvwmrgulzqypdp VE_CONFIRM_PRODUCTION_DB=gsfslnxvwmrgulzqypdp npx prisma migrate deploy`.
+
+Production database, 3 Nov 2026: restored from Supabase's pause; backed up (`pg_dump`) before any change; all 38
+migrations applied; the 59 fictional August demo products **archived** (not deleted); the 263 reviewed
+catalogue-only products (XTRA POWER 211, SGW 27, HI-MAX 25) with their 265 approved photos, 3 brands and 3 new
+categories copied from staging in one transaction (categories matched by slug).
+
+Cleanup cron: Cloud Scheduler job `ve-production-cleanup-orders` (asia-southeast1, `*/5 * * * *`, Bearer
+`cron-secret-production`), created and test-run successfully on 3 Nov 2026.
+
+Domains on `ve-production`: `www.verticalexpress.in` (serves the site; canonical) and `verticalexpress.in` (to
+redirect 301 to www — set once Firebase finishes creating it, which waits on the DNS change). DNS is at GoDaddy
+and is the owner's change; the records App Hosting asks for are shown under the backend's domains in the
+Firebase console.
+
+Still open for production:
+- **Live payments** — `COMMERCE_MODE=transactional`, `PAYMENT_GATEWAY=razorpay-live`, live keys and the live
+  webhook, together, after the owner's approval (`PRODUCTION_ROADMAP.md` 5.5).
+- **Browser Maps key** restricted to `verticalexpress.in` (`NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY`); unset, so maps
+  show their fallback.
+- **Own product-photo bucket** — production reads the one public bucket `ve-staging-product-images`.
+
+## EAS (mobile builds)
+
+The EAS project `@vertical-express/vertical-express` had **no environment variables**. Created for the
+`development` and `preview` environments (2026-09-20): `GOOGLE_SERVICES_JSON` and `GOOGLE_SERVICE_INFO_PLIST`
+(file, sensitive) and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. Still to add once the backend URL exists:
+`EXPO_PUBLIC_API_URL` (`eas env:create --name EXPO_PUBLIC_API_URL --value https://<backend-host> --environment development --environment preview`).
+`production` was left empty on purpose.

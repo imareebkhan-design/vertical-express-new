@@ -18,8 +18,12 @@
 | **BLOCKS P0B** | Needed shortly after launch, not before |
 | **DOES NOT BLOCK** | Engineering can proceed now; this refines or improves later |
 
-**Status:** all items are `AWAITING` — Owner Decision Gate Round 1 has been issued and
-not yet answered.
+**Status (4 Nov 2026):** the numbered items below are still `AWAITING`; none of them has
+been answered. The owner *has* made the separate decisions recorded in the **Answer log** at
+the end of this file: catalogue mode, the coming-soon categories, image rights, the HomeRun
+image library, the enquiry notifications and the address pin. Those decisions govern the code
+today. They were recorded in code comments and commit messages and are collected here for
+the first time.
 
 ---
 
@@ -57,6 +61,7 @@ not yet answered.
 | 3.6 | Product images — brand-supplied or shot in-house | BLOCKS P0B | ~6 real images exist; the rest fall back to category images. **Competitor imagery may not be used.** | AWAITING |
 | 3.7 | Unit of measure and pack size per product | BLOCKS P0B | Needed to replace the `unitLabel` display string with structured UoM (ISS-032) | AWAITING |
 | 3.8 | Product weight | BLOCKS P0B | Needed for weight-based delivery fees and vehicle class (ISS-033) | AWAITING |
+| 3.9 | May products be prepared (catalogue-only or published) while their category or brand is hidden? | Launch Control | Without it, a category must be shown as "Coming soon" before its products can be staged | **ANSWERED 12 Nov 2026: yes**, with no customer exposure or purchase path while hidden (Launch Control PR-4; `productReadinessWhere`, `lib/catalog-policy.ts`) |
 
 ## 4. Real pricing
 
@@ -100,10 +105,10 @@ not yet answered.
 |---|---|---|---|---|
 | 7.1 | Razorpay merchant account status | **BLOCKS P0A** | Onboarding takes 3–7 days and needs GST, PAN, bank proof and business registration. **On the critical path — start now.** *(Status only. Never paste keys into a chat.)* | AWAITING |
 | 7.2 | Which online methods at launch — UPI, cards, net banking | BLOCKS P0B | UPI alone covers most of this market | AWAITING |
-| 7.3 | Is COD required at launch? | **BLOCKS P0A** | Likely a large share of GMV; shapes the fulfilment build | AWAITING |
-| 7.4 | **COD maximum order value** | **BLOCKS P0A** | **There is currently no limit at all** — a ₹5,00,000 COD order is accepted (ISS-010) | AWAITING |
-| 7.5 | COD cap for first-time customers | **BLOCKS P0A** | Standard fraud control; none exists | AWAITING |
-| 7.6 | Who physically collects COD cash | **BLOCKS P0A** | Determines the reconciliation model (ISS-010) | AWAITING |
+| 7.3 | Is COD required at launch? | ANSWERED | Owner disabled COD on 4 Nov 2026; no new COD orders | DISABLED |
+| 7.4 | **COD maximum order value** | DEFERRED WHILE COD DISABLED | **There is currently no limit at all** — a ₹5,00,000 COD order is accepted (ISS-010) | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
+| 7.5 | COD cap for first-time customers | DEFERRED WHILE COD DISABLED | Standard fraud control; none exists | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
+| 7.6 | Who physically collects COD cash | DEFERRED WHILE COD DISABLED | Determines the reconciliation model (ISS-010) | NOT REQUIRED FOR ONLINE-ONLY LAUNCH |
 | 7.7 | Who reconciles cash, and how often | **BLOCKS P0A** | Untracked cash is the most common quiet loss in hyperlocal commerce | AWAITING |
 | 7.8 | Cancellation policy and window | BLOCKS P0B | Currently unenforced | AWAITING |
 | 7.9 | Refund process and who approves | BLOCKS P0B | No refund entity or workflow exists (ISS-025) | AWAITING |
@@ -170,6 +175,21 @@ not yet answered.
 
 ---
 
+## 12. Homepage merchandising (added 7 Oct 2026)
+
+Every value below lives in `lib/merchandising/home.ts` and nowhere else. Until it is
+answered the homepage shows a truthful default, never a guessed offer.
+
+| # | Question | Blocking | Status |
+|---|---|---|---|
+| 12.1 | **Launch banner wording, and is there a launch offer?** If yes: what it is, which categories, start and end dates. Goes in `LAUNCH_BANNER.offer`. The current line "Explore launch offers across selected categories" leans on the existing Deals shelf — confirm or reword | DOES NOT BLOCK | AWAITING |
+| 12.2 | **Deal of the Day** — which product, at what price (set it on the product in admin; a struck-through MRP shows only if the product has a compare-at price above it), and until when (`expiresAt`, drives the countdown). Until then: "Launch deal — coming soon" | DOES NOT BLOCK | AWAITING |
+| 12.3 | **"Trending in Srinagar" picks** — four curated groups (new build, floors & walls, bath & kitchen, woodwork), labelled "Curated" on screen. Confirm or replace. A real ranking needs order analytics, which do not exist yet | DOES NOT BLOCK | AWAITING |
+| 12.4 | **Category pictures** — six categories have one (cut from the generated login scenes). Waterproofing, adhesives, switches, lighting, fans, CPVC and hardware show their icon. Steel/TMT, CCTV, power tools, doors and wood flooring are **inactive** in the catalogue, so the homepage does not show them at all — activate them and supply a picture each | DOES NOT BLOCK | AWAITING |
+| 12.5 | **Banner imagery** — banners use AI-generated editorial scenes (no products, no marks). Approve, or supply real photography of the Srinagar store and stock | DOES NOT BLOCK | AWAITING |
+
+---
+
 ## What is NOT blocked — engineering proceeds now
 
 **None of the following requires owner input. Work on these while waiting.**
@@ -208,7 +228,7 @@ not yet answered.
 | Service | Purpose | Lead time | Blocking |
 |---|---|---|---|
 | **Razorpay** merchant | Payments | **3–7 days** | **BLOCKS P0A — start immediately** |
-| **SMS provider** (MSG91 / Twilio) in Supabase | Phone OTP | **DLT registration 3–5 days** | **BLOCKS P0A — start immediately** |
+| **SMS delivery** for Firebase Phone Auth (in use since 1 Sep; Supabase auth is retired) | Phone OTP — real SMS delivery still unverified (ISS-089) | **DLT registration 3–5 days** | **BLOCKS P0A — start immediately** |
 | Sentry | Error monitoring | Instant | BLOCKS P0A |
 | Google Business Profile | Local SEO, and a real Google rating to eventually replace the fabricated one | 1–2 weeks verification | DOES NOT BLOCK |
 | Domain DNS access | Canonical domain, email | — | BLOCKS P0A |
@@ -223,4 +243,19 @@ Status to `CONFIRMED` above and note where the value now lives in code or config
 
 | Date | Item(s) | Answer | Recorded in |
 |---|---|---|---|
-| — | — | *Round 1 issued, awaiting response* | — |
+| — | Round 1 (§1–§11) | *Issued, awaiting response* | — |
+| 9 Oct 2026 | Enquiry notifications | No email or WhatsApp notification for a product enquiry until a business contact and notification policy are confirmed. Enquiries land in the admin queue only | `lib/services/product-enquiries.ts` |
+| 11 Oct 2026 | Image rights (relates to 3.6) | In production an approved photo also needs an *attested* reuse-rights licence code; an approval recorded with rights unconfirmed can never become a production listing on its own | `lib/catalog-policy.ts` `approvedImageWhere()` |
+| 12 Oct 2026 | Category discovery (relates to 3.1) | Discovery is separate from publication: an active category in the original departments is shown even with no approved product, labelled "Coming soon", with no count, price, stock or basket action | `lib/category-directory.ts` |
+| 16 Oct 2026 | Address pin vs Google pincode | Keep the customer's pin; record Google's pincode beside it; flag the difference for ops before dispatch rather than refusing the address | `lib/services/addresses.ts`, `lib/location/address-pin.ts` |
+| 17 Oct 2026 | HomeRun image library (relates to 3.6) | The owner wrote that the library they downloaded is licensed for Vertical Express product photos (licence code `homerun-library-owner-licensed`). **Rights only**: each photo still needs mapping and per-photo approval. Branding, logos, banners and copy stay off-limits. **No licence document is on file**; the source folder is a saved copy of HomeRun's home page with no licence notes. Supplying that supporting document is document request DOC-01, not an outstanding owner approval | `lib/catalog-policy.ts`, `CLAUDE.md`, workspace `docs/catalog/homerun-production-images-2026-10-17/` |
+| 31 Oct 2026 | Trading mode | Build a catalogue-and-enquiries mode alongside the transactional one. `ve-production` runs `COMMERCE_MODE=catalogue` (no ordering, no payment configuration) | `lib/commerce-mode.ts`, `apphosting.production.yaml` (PR #25) |
+| 2 Nov 2026 | MRP and launch mode *(in unmerged PRs, not yet in the release branch)* | (a) A variant may sell at its verified MRP and be discounted later; selling above MRP is refused. (b) The agreed launch is transactional; in that mode catalogue-only products are hidden and take no enquiries | PR #29 (`claude/mrp-equals-price`), PR #31 (`claude/transactional-launch-surfaces`) |
+| 3 Nov 2026 | Domain *(observed, not an answer to 1.6)* | `www.verticalexpress.in` serves `ve-production` and the apex 301-redirects to it, so the DNS change was made. The owner should still confirm 1.6 as final | Live probe, 3 Nov |
+
+
+## Owner clarifications — 4 Nov 2026
+
+- The owner personally handles enquiries through the existing admin inbox. Email and WhatsApp alerts are not part of this launch workflow.
+- COD is disabled from now on. Existing historic COD records remain intact; this does not authorize any invented stock, prices, delivery policy or payment credentials.
+- Public legal identity, business contact, confirmed prices/physical stock, delivery and returns remain unresolved unless separately evidenced.

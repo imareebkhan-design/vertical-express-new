@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@/prisma/generated/client/client";
 import { verifyRazorpayWebhook } from "@/lib/services/payments";
 import { db } from "@/lib/db";
+import { settleCapturedPayment } from "@/lib/services/checkout";
+import { applyRefundWebhook } from "@/lib/services/refunds";
 import { runWithContext, trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 
 export async function POST(req: NextRequest) {
@@ -19,19 +21,54 @@ export async function POST(req: NextRequest) {
       const rawBody = await req.text();
       const isValid = verifyRazorpayWebhook(rawBody, signature);
       if (!isValid) {
-        triggerAlert("webhook_signature_failed", "Invalid Razorpay webhook signature", { signature });
+        /* The header is whatever the caller sent; it is not logged. */
+        triggerAlert("webhook_signature_failed", "Invalid Razorpay webhook signature");
         metric.end("webhook_invalid_signature");
         return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
       }
 
       const payload = JSON.parse(rawBody);
       const event = payload.event as string;
-      const eventId = payload.event_id as string | undefined;
+
+      /* Refund events (ISS-025): matched to our refund row by Razorpay's refund
+         id or the receipt we sent; dashboard refunds are recorded too. Handled
+         before the payment paths, which key their dedupe on the payment row. */
+      if (typeof event === "string" && event.startsWith("refund.")) {
+        const refundEntity = payload.payload?.refund?.entity ?? {};
+        const outcome = await applyRefundWebhook(refundEntity);
+        if (outcome === "unknown_payment") {
+          /* Money went back to someone for a payment this database has no row
+             for. Acknowledged so Razorpay stops retrying, but never silently. */
+          triggerAlert("webhook_refund_unmatched", "Razorpay reported a refund for a payment we have no record of", {
+            event,
+            razorpayRefundId: refundEntity.id,
+            razorpayPaymentId: refundEntity.payment_id,
+          });
+        }
+        metric.end("webhook_refund", { event, outcome });
+        return NextResponse.json({ status: `refund_${outcome}` });
+      }
+      /* Razorpay sends the event id ONLY in the `x-razorpay-event-id` header —
+         its webhook body has no `event_id`. The header is authoritative; the
+         body field is a fallback for callers that put it there. Reading only
+         the body left gatewayEventId NULL for every real delivery and skipped
+         the dedupe fast path (verified against a real delivery, 21 Sep 2026). */
+      const headerEventId = req.headers.get("x-razorpay-event-id")?.trim() || undefined;
+      const bodyEventId = typeof payload.event_id === "string" ? payload.event_id : undefined;
+      const eventId = headerEventId ?? bodyEventId;
       const paymentEntity = payload.payload?.payment?.entity;
       const orderEntity = payload.payload?.order?.entity;
 
       const razorpayOrderId = paymentEntity?.order_id || orderEntity?.id;
       const razorpayPaymentId = paymentEntity?.id;
+      /* Only the ids the payload actually carries. An undefined field inside
+         an OR is dropped by Prisma, and the empty condition left behind
+         matches every payment — findFirst would then pick an unrelated one.
+         An empty OR matches nothing, which is the right answer here. */
+      const paymentKeys = [
+        ...(razorpayOrderId ? [{ gatewayOrderId: razorpayOrderId }] : []),
+        ...(razorpayPaymentId ? [{ gatewayPaymentId: razorpayPaymentId }] : []),
+      ];
 
       if (!razorpayOrderId) {
         metric.end("webhook_ignored_no_order_id", { event });
@@ -52,10 +89,7 @@ export async function POST(req: NextRequest) {
       if (event === "payment.captured" || event === "order.paid") {
         const existingPayment = await db.payment.findFirst({
           where: {
-            OR: [
-              { gatewayOrderId: razorpayOrderId },
-              { gatewayPaymentId: razorpayPaymentId },
-            ],
+            OR: paymentKeys,
           },
           include: { order: true },
         });
@@ -93,35 +127,23 @@ export async function POST(req: NextRequest) {
             );
           }
           try {
-            await db.$transaction(async (tx) => {
-              await tx.payment.update({
-                where: { id: existingPayment.id },
-                data: {
-                  status: "captured",
-                  gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
-                  gatewayEventId: eventId || existingPayment.gatewayEventId,
-                  signatureVerified: true,
-                  raw: payload,
-                },
-              });
-
-              if (existingPayment.order.status === "pending_payment") {
-                await tx.order.update({
-                  where: { id: existingPayment.orderId },
-                  data: { status: "confirmed" },
-                });
-
-                await tx.orderStatusEvent.create({
-                  data: {
-                    orderId: existingPayment.orderId,
-                    fromStatus: "pending_payment",
-                    toStatus: "confirmed",
-                    note: `Razorpay webhook event: ${event}`,
-                  },
-                });
-              }
+            const outcome = await settleCapturedPayment({
+              paymentId: existingPayment.id,
+              orderId: existingPayment.orderId,
+              orderNo: existingPayment.order.orderNo,
+              amountPaise: existingPayment.amountPaise,
+              gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+              eventId,
+              raw: payload,
+              source: "webhook",
+              note: `Razorpay webhook event: ${event}`,
             });
-            trackEvent("payment_success", { orderNo: existingPayment.order.orderNo, gatewayPaymentId: razorpayPaymentId });
+            if (outcome === "late_recorded" || outcome === "late_already_recorded") {
+              /* 200, not an error: Razorpay must stop retrying. The capture is
+                 recorded and flagged for a human; see `settleCapturedPayment`. */
+              metric.end("webhook_late_payment", { event, outcome });
+              return NextResponse.json({ status: "late_payment_recorded" });
+            }
           } catch (e) {
             captureException(e, { razorpayOrderId, razorpayPaymentId });
             if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
@@ -130,22 +152,35 @@ export async function POST(req: NextRequest) {
             }
             throw e;
           }
+        } else {
+          /* A signed capture for an order this database has no payment row for:
+             money Razorpay holds that no order here accounts for. It is
+             acknowledged (a retry cannot make the row appear) but a human must
+             look — nothing else would ever surface it. */
+          triggerAlert("webhook_capture_unmatched", "Razorpay reported a captured payment that matches no order here", {
+            event,
+            razorpayOrderId,
+            razorpayPaymentId,
+            amountPaise: paymentEntity?.amount ?? orderEntity?.amount_paid ?? null,
+          });
+          metric.end("webhook_capture_unmatched", { event });
+          return NextResponse.json({ status: "unmatched_recorded" });
         }
       } else if (event === "payment.failed") {
         const existingPayment = await db.payment.findFirst({
           where: {
-            OR: [
-              { gatewayOrderId: razorpayOrderId },
-              { gatewayPaymentId: razorpayPaymentId },
-            ],
+            OR: paymentKeys,
           },
           include: { order: true },
         });
 
         if (existingPayment) {
           try {
-            await db.payment.update({
-              where: { id: existingPayment.id },
+            /* A failure report never downgrades money that has already been
+               captured: Razorpay can deliver a failed *attempt's* event after the
+               retry that succeeded. */
+            await db.payment.updateMany({
+              where: { id: existingPayment.id, status: { in: ["created", "authorized", "failed"] } },
               data: {
                 status: "failed",
                 gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
@@ -170,8 +205,8 @@ export async function POST(req: NextRequest) {
     } catch (err: unknown) {
       captureException(err);
       metric.end("webhook_error");
-      const message = err instanceof Error ? err.message : "Webhook processing error";
-      return NextResponse.json({ error: message }, { status: 500 });
+      /* Captured above with its detail; the caller gets no internals. */
+      return NextResponse.json({ error: "Webhook processing error" }, { status: 500 });
     }
   });
 }

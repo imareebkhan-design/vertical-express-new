@@ -1,0 +1,46 @@
+.ve-login-showcase { width: 100%; }
+.ve-login-scene-window { position: relative; aspect-ratio: 3 / 2; overflow: hidden; border-radius: 24px; background: #ded6c6; isolation: isolate; }
+.ve-login-scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; transition: opacity .7s ease, visibility .7s; }
+.ve-login-scene[data-active="true"] { opacity: 1; visibility: visible; z-index: 1; }
+.ve-login-scene-image { object-fit: cover; }
+.ve-login-scene-caption { position: absolute; inset: auto 0 0; padding: 60px 26px 24px; background: linear-gradient(transparent, rgba(26,23,17,.83)); color: white; }
+.ve-login-scene-caption > span { font-size: 12px; letter-spacing: .04em; }
+.ve-login-scene-caption h2 { margin-top: 7px; font-size: clamp(22px,2.4vw,34px); font-weight: 700; letter-spacing: -.035em; line-height: 1.1; }
+.ve-login-tool-scene { position: absolute; inset: 0; background: #ebe5d8; }
+.ve-login-tool { position: absolute; width: 38%; height: 58%; background: white; border-radius: 20px; box-shadow: 0 16px 32px -20px #53483266; }
+.ve-login-tool-0 { left: 4%; top: 20%; transform: rotate(-9deg); }
+.ve-login-tool-1 { left: 30%; top: 7%; transform: rotate(3deg); }
+.ve-login-tool-2 { right: 3%; top: 23%; transform: rotate(10deg); }
+.ve-login-tool-image { object-fit: contain; padding: 16px; }
+.ve-login-carousel-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+.ve-login-scene-select, .ve-login-transport { display: flex; align-items: center; gap: 4px; }
+.ve-login-carousel-bar button { min-height: 44px; border-radius: 999px; cursor: pointer; transition: background .15s; color: #676259; }
+.ve-login-carousel-bar button:focus-visible { outline: 2px solid #38342c; outline-offset: 2px; }
+.ve-login-carousel-bar button:hover { background: #e7e1d5; }
+.ve-login-scene-select button { display: flex; align-items: center; gap: 7px; padding: 0 11px; font-size: 12px; font-weight: 600; }
+.ve-login-scene-select button[aria-pressed="true"] { color: #24221d; background: #e9dfc5; }
+.ve-login-indicator { width: 5px; height: 5px; border-radius: 50%; background: #aaa292; }
+.ve-login-scene-select button[aria-pressed="true"] .ve-login-indicator { background: #725416; }
+.ve-login-transport button { width: 36px; display: grid; place-items: center; }
+.ve-login-image-note { margin: 4px 0 0; font-size: 10px; line-height: 1.4; color: #716c62; min-height: 14px; }
+.ve-login-editorial { background: #eeebe3; padding: 36px clamp(28px,4vw,64px); display: flex; flex-direction: column; gap: 30px; }
+.ve-login-brand-row { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.ve-login-city { font-size: 11px; color: #6b655a; letter-spacing: .12em; text-transform: uppercase; }
+.ve-login-intro h2 { font-size: clamp(30px,3.1vw,46px); line-height: 1.08; letter-spacing: -.045em; font-weight: 750; color: #24221d; }
+.ve-login-intro h2 span { color: #777064; font-weight: 400; }
+.ve-login-intro p { max-width: 470px; margin-top: 14px; font-size: 14px; line-height: 1.65; color: #676259; }
+.ve-login-browse { display: inline-flex; align-items: center; min-height: 44px; font-size: 13px; font-weight: 650; color: #24221d; text-decoration: underline; text-underline-offset: 4px; }
+@media (min-width: 1024px) { .ve-login-editorial { width: 58%; flex: none; } }
+@media (max-width: 767px) {
+ .ve-login-scene-window { aspect-ratio: 1.65; border-radius: 18px; }
+ .ve-login-scene-caption { padding: 42px 17px 17px; }
+ .ve-login-scene-caption > span { font-size: 10px; }
+ .ve-login-scene-caption h2 { font-size: 22px; }
+ .ve-login-carousel-bar { gap: 0; }
+ .ve-login-scene-select { gap: 0; }
+ .ve-login-scene-select button { padding: 0 8px; font-size: 11px; gap: 5px; }
+ .ve-login-transport { gap: 0; }
+ .ve-login-transport button { width: 32px; }
+ .ve-login-image-note { font-size: 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .ve-login-scene, .ve-login-carousel-bar button { transition: none; } }

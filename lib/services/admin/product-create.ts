@@ -1,0 +1,239 @@
+import "server-only";
+import { db } from "@/lib/db";
+import { recordAudit, type DbClient } from "@/lib/services/audit";
+import { sellableReasons } from "@/lib/services/admin/publish-guard";
+import type { DeliverySpeed, ProductStatus } from "@/prisma/generated/client/client";
+import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
+
+/**
+ * Listing a product — putting a new thing on the shelf.
+ *
+ * The console could edit a product and not create one, so everything in the
+ * catalogue arrived from a seed file. That is the difference between a shop
+ * somebody runs and a demo somebody deployed.
+ *
+ * WHY THIS IS ONE TRANSACTION AND NOT THREE WRITES
+ *
+ * A product needs three rows before it is a real listing, and any two of them
+ * without the third is a broken shelf entry that looks fine on the products
+ * screen:
+ *
+ *   Product with no variant — nothing to add to a cart. The catalogue renders
+ *   it and the buy button has nothing to point at.
+ *
+ *   Variant with no inventory row — reads as out of stock everywhere, forever,
+ *   with no row to adjust. The inventory screen cannot even show it.
+ *
+ * So all three commit together or none does. The opening stock also writes a
+ * StockMovement, because the stock ledger's whole promise is that every
+ * quantity can be explained, and "it was there when I arrived" is not an
+ * explanation.
+ */
+export interface NewProduct {
+  title: string;
+  slug: string;
+  brandId: string;
+  categoryId: string;
+  description: string | null;
+  unitLabel: string;
+  deliverySpeed: DeliverySpeed | null;
+  status: ProductStatus;
+  variant: {
+    name: string;
+    sku: string;
+    pricePaise: number;
+    /** The struck-through price. Null when there is no discount to show. */
+    compareAtPaise: number | null;
+  };
+  /** Optional opening stock. Zero is normal — stock usually arrives later. */
+  openingStock: { warehouseId: string; qty: number } | null;
+  /**
+   * The 60-minute run: whether this product goes on it, and where.
+   *
+   * Two fields rather than one because they answer different questions. Off
+   * with pincodes listed is still off — the switch wins — so turning express
+   * off for a product does not lose the pincode list it was set up with.
+   */
+  express: { eligible: boolean; pincodes: string[] };
+}
+
+export type CreateResult =
+  | { ok: true; slug: string }
+  | { ok: false; error: "slug_taken" | "sku_taken" | "unknown" }
+  | { ok: false; error: "not_sellable"; reasons: string[] };
+
+/** A `published` listing that fails the commercial readiness gate. Thrown inside
+ *  the caller's transaction so nothing of the listing is written. */
+export class NotSellableError extends Error {
+  constructor(readonly slug: string, readonly reasons: string[]) {
+    super(`${slug} is not sellable: ${reasons.join("; ")}`);
+  }
+}
+
+
+/**
+ * The five writes that make a listing, against a caller's transaction.
+ *
+ * Split out of `createProduct` so the CSV importer can put a whole file in one
+ * transaction rather than one per product. A second copy of these writes would
+ * be the thing that drifts: the bulk path would keep working while quietly
+ * forgetting the stock movement, or the audit row, and nothing would say so.
+ *
+ * The caller owns the transaction and therefore owns the rollback.
+ */
+export async function writeProduct(
+  tx: DbClient,
+  input: NewProduct,
+  actor: { id: string; email: string }
+): Promise<string> {
+  const product = await tx.product.create({
+    data: {
+      title: input.title,
+      slug: input.slug,
+      brandId: input.brandId,
+      categoryId: input.categoryId,
+      description: input.description,
+      unitLabel: input.unitLabel,
+      deliverySpeed: input.deliverySpeed,
+      status: input.status,
+      expressEligible: input.express.eligible,
+    },
+  });
+
+  /* Inside the same transaction as the product. An express promise that
+     outlives a failed product creation would offer an hour on a row that
+     does not exist. Duplicates are dropped here rather than by the unique
+     constraint, so a repeated pincode in the form is not an error. */
+  const pincodes = [...new Set(input.express.pincodes)];
+  if (pincodes.length > 0) {
+    await tx.productExpressPincode.createMany({
+      data: pincodes.map((pincode) => ({ productId: product.id, pincode })),
+    });
+  }
+
+  const variant = await tx.productVariant.create({
+    data: {
+      productId: product.id,
+      name: input.variant.name,
+      sku: input.variant.sku,
+      pricePaise: input.variant.pricePaise,
+      compareAtPaise: input.variant.compareAtPaise,
+      isDefault: true,
+      isActive: true,
+    },
+  });
+
+  if (input.openingStock) {
+    const { warehouseId, qty } = input.openingStock;
+    await tx.inventory.create({
+      data: { variantId: variant.id, warehouseId, qtyOnHand: qty },
+    });
+
+    /* Only when there is something to explain. An inventory row created at
+       zero has no movement behind it, and inventing one would put a
+       "received 0" in the ledger that never happened. */
+    if (qty > 0) {
+      await tx.stockMovement.create({
+        data: {
+          variantId: variant.id,
+          warehouseId,
+          qtyDelta: qty,
+          qtyAfter: qty,
+          reason: "received",
+          note: "Opening stock when the product was listed",
+          actorEmail: actor.email,
+        },
+      });
+    }
+  }
+
+  await recordAudit(tx, {
+    actorType: "admin",
+    actorId: actor.id,
+    action: "catalog.product_listed",
+    entityType: "Product",
+    entityId: product.id,
+    before: null,
+    after: {
+      slug: product.slug,
+      title: product.title,
+      status: product.status,
+      sku: variant.sku,
+      pricePaise: variant.pricePaise,
+      openingStock: input.openingStock?.qty ?? 0,
+    },
+  });
+
+  /* The commercial readiness gate, after every write and in the same
+     transaction: a listing created straight into `published` passes exactly
+     the checks the catalog_only → published transition does, or none of it
+     is written. A new listing has no approved photo yet, so in practice it is
+     created as a draft and published once its photo is attached. */
+  if (input.status === "published") {
+    const reasons = await sellableReasons(tx, product.id);
+    if (reasons.length) throw new NotSellableError(product.slug, reasons);
+  }
+
+  return product.slug;
+}
+
+/**
+ * List one product.
+ *
+ * Opens a transaction of its own around `writeProduct`, so a single listing is
+ * still all-or-nothing from the caller's side.
+ */
+export async function createProduct(
+  input: NewProduct,
+  actor: { id: string; email: string }
+): Promise<CreateResult> {
+  try {
+    const slug = await db.$transaction((tx) => writeProduct(tx, input, actor));
+    return { ok: true, slug };
+  } catch (err) {
+    if (err instanceof NotSellableError) return { ok: false, error: "not_sellable", reasons: err.reasons };
+    /* Both slug and sku are unique, and telling somebody which one collided is
+       the difference between a fixable message and a shrug. */
+    const message = err instanceof Error ? err.message : "";
+    if (message.includes("slug")) return { ok: false, error: "slug_taken" };
+    if (message.includes("sku")) return { ok: false, error: "sku_taken" };
+    return { ok: false, error: "unknown" };
+  }
+}
+
+/** Everything the listing form needs to offer as a choice. */
+export async function listingFormOptions() {
+  const [brands, categories, warehouses] = await Promise.all([
+    db.brand.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true },
+    }),
+    db.category.findMany({
+      where: { isActive: true },
+      orderBy: [{ group: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true, group: true, isBulk: true },
+    }),
+    db.warehouse.findMany({
+      where: { isActive: true },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, city: true },
+    }),
+  ]);
+  /* The tax rate travels with the category so the form can show what will be
+     charged without a client-side copy of the rate table. One source of truth;
+     a copy would drift, and the screen where somebody sets a price is the worst
+     place for a stale rate. */
+  return {
+    brands,
+    warehouses,
+    categories: categories.map((c) => {
+      const tax = CATEGORY_TAX_CONFIGS[c.slug];
+      return {
+        ...c,
+        hsn: tax?.hsn ?? null,
+        gstRatePct: tax?.ratePct ?? null,
+      };
+    }),
+  };
+}

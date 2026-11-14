@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
@@ -23,29 +23,24 @@ interface WalletSwitcherProps {
 
 export function WalletSwitcher({ wallet, transactions }: WalletSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return <MobileWalletView balancePaise={wallet.balancePaise} transactions={transactions} />;
   }
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
+        <h1 className="mb-6 text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">Wallet</h1>
         <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
           <AccountNav active="/account/wallet" />
           <div>
-            <h1 className="mb-6 text-2xl font-extrabold tracking-tight">My Wallet</h1>
             <WalletView
               balancePaise={wallet.balancePaise}
               transactions={transactions}
@@ -57,3 +52,4 @@ export function WalletSwitcher({ wallet, transactions }: WalletSwitcherProps) {
     </>
   );
 }
+

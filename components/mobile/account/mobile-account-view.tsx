@@ -4,14 +4,13 @@ import React, { useState, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
+  BadgeCheck,
   User,
   Package,
   MapPin,
   Wallet,
   Bell,
   Fingerprint,
-  Moon,
-  Info,
   LogOut,
   ChevronRight,
   LifeBuoy,
@@ -19,7 +18,7 @@ import {
   WifiOff,
   Heart,
 } from "lucide-react";
-import { signOut } from "@/actions/auth";
+import { signOutEverywhereOnThisDevice } from "@/lib/auth/sign-out-client";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { checkBiometrics } from "@/lib/native/biometrics";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
@@ -30,8 +29,15 @@ interface MobileAccountViewProps {
   addressesCount: number;
   wishlistCount: number;
   email: string | null;
+  /** How most customers here are identified. Email is the exception. */
+  phone: string | null;
+  /** The name the customer gave us, if any — never invented. */
+  fullName?: string | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   recentOrders: any[];
+  /** The customer's saved delivery addresses, shown as sites. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  sites: any[];
 }
 
 export function MobileAccountView({
@@ -39,17 +45,18 @@ export function MobileAccountView({
   addressesCount,
   wishlistCount,
   email,
+  phone,
+  fullName = null,
   recentOrders,
+  sites,
 }: MobileAccountViewProps) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [loggingOut, startLogout] = useTransition();
 
   // Settings states
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [biometricsAvailable, setBiometricsAvailable] = useState(false);
   const [biometricsEnabled, setBiometricsEnabled] = useState(false);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
 
@@ -66,9 +73,7 @@ export function MobileAccountView({
     });
 
     if (typeof window !== "undefined") {
-      setNotificationsEnabled(localStorage.getItem("ve_notifications_enabled") !== "false");
       setBiometricsEnabled(localStorage.getItem("ve_biometric_enabled") === "true");
-      setDarkModeEnabled(localStorage.getItem("ve_dark_mode_enabled") === "true");
       
       // Setup online/offline listeners
       setIsOffline(!navigator.onLine);
@@ -82,27 +87,6 @@ export function MobileAccountView({
       };
     }
   }, []);
-
-  const handleNotificationToggle = async () => {
-    triggerHaptic("light");
-    const nextState = !notificationsEnabled;
-    if (nextState) {
-      try {
-        const { requestPushPermission } = await import("@/lib/native/push");
-        const granted = await requestPushPermission();
-        if (!granted) {
-          alert("Push notification permissions denied. Please enable them in system settings.");
-          setNotificationsEnabled(false);
-          localStorage.setItem("ve_notifications_enabled", "false");
-          return;
-        }
-      } catch {
-        // Fallback for non-native context
-      }
-    }
-    setNotificationsEnabled(nextState);
-    localStorage.setItem("ve_notifications_enabled", nextState ? "true" : "false");
-  };
 
   const handleBiometricToggle = async () => {
     triggerHaptic("light");
@@ -131,17 +115,10 @@ export function MobileAccountView({
     localStorage.setItem("ve_biometric_enabled", nextState ? "true" : "false");
   };
 
-  const handleDarkModeToggle = () => {
-    triggerHaptic("light");
-    const nextState = !darkModeEnabled;
-    setDarkModeEnabled(nextState);
-    localStorage.setItem("ve_dark_mode_enabled", nextState ? "true" : "false");
-  };
-
   const handleLogout = () => {
     triggerHaptic("medium");
     startLogout(async () => {
-      await signOut();
+      await signOutEverywhereOnThisDevice();
       router.push("/");
       router.refresh();
     });
@@ -166,11 +143,13 @@ export function MobileAccountView({
     let title = `Order #${o.orderNo} Update`;
     let body = `Your order status is now ${o.status}.`;
     if (o.status === "confirmed") {
-      title = `Order #${o.orderNo} Confirmed!`;
-      body = `Vertical Express has accepted your order. Delivering soon!`;
+      title = `Order #${o.orderNo} confirmed`;
+      body = `Your order is confirmed.`;
     } else if (o.status === "delivered") {
-      title = `Order #${o.orderNo} Delivered! 🎉`;
-      body = `Cashback reward of 5% has been added to your wallet balance.`;
+      title = `Order #${o.orderNo} delivered`;
+      /* Not "credit has been added": cashback depends on a rule the order may
+         not meet, and the wallet screen is where that is stated truthfully. */
+      body = `Your order was delivered.`;
     }
     return {
       id: o.id,
@@ -203,7 +182,7 @@ export function MobileAccountView({
             title="Notifications"
           >
             <Bell className="size-4" />
-            {notificationsEnabled && mockNotifications.length > 0 && (
+            {mockNotifications.length > 0 && (
               <span className="absolute right-1 top-1 size-2 rounded-full bg-danger" />
             )}
           </button>
@@ -225,12 +204,28 @@ export function MobileAccountView({
           <div className="flex size-14 items-center justify-center rounded-full bg-brand-deep/15 text-brand-deep">
             <User className="size-7" />
           </div>
+          {/*
+            The customer's own identity, which this screen used to invent.
+
+            It read `email.split("@")[0]` with a fallback of "VE Builder", and
+            "ve-user@example.com" beneath it. Those were not placeholders for
+            signed-out visitors — this page redirects those away. They were what
+            every customer with no email address saw as their own name, and in
+            a market that signs in by phone that is most of them. Somebody
+            checking they were logged into the right account was shown a name
+            that belonged to nobody.
+
+            Phone leads because phone is how people get in here. Email is shown
+            when it is the only thing we have, and neither is fabricated.
+          */}
           <div className="min-w-0">
-            <h2 className="text-sm font-extrabold text-ink leading-none capitalize">
-              {email ? email.split("@")[0] : "VE Builder"}
+            <h2 className="text-sm font-extrabold text-ink leading-none">
+              {fullName ?? phone ?? email ?? "Your account"}
             </h2>
             <p className="text-[11px] text-ink/40 font-semibold mt-1.5 truncate">
-              {email || "ve-user@example.com"}
+              {fullName
+                ? [phone, email].filter(Boolean).join(" · ") || "Signed in"
+                : phone && email ? email : phone ? "Signed in by phone" : email ? "Signed in by email" : "Signed in"}
             </p>
           </div>
         </div>
@@ -266,18 +261,98 @@ export function MobileAccountView({
           />
         </div>
 
+        {/*
+          "Your sites" — the account artboard.
+
+          A contractor is not shipping to a home; they are shipping to a plot
+          with a gate a truck may or may not fit through. The addresses were
+          already loaded on this screen and reduced to a number, which meant the
+          one line that decides whether a delivery is possible — "narrow lane,
+          small vehicle only" — existed in the database and was shown nowhere
+          the customer could check it.
+
+          Nothing new is stored. This is the same address list the addresses
+          screen edits, read as sites.
+        */}
+        {sites.length > 0 && (
+          <div className="mt-6">
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
+                Your sites
+              </h3>
+              <button
+                onClick={() => {
+                  triggerHaptic("light");
+                  router.push("/account/addresses");
+                }}
+                className="text-[10px] font-bold text-ink/50"
+              >
+                Manage
+              </button>
+            </div>
+            <div className="space-y-2">
+              {sites.slice(0, 3).map((a) => (
+                <button
+                  key={a.id}
+                  onClick={() => {
+                    triggerHaptic("light");
+                    router.push("/account/addresses");
+                  }}
+                  className="w-full rounded-2xl border border-mist/25 bg-surface p-3 text-left active:scale-[0.99]"
+                >
+                  <div className="flex items-center gap-2">
+                    <MapPin className="size-3.5 shrink-0 text-ink/40" />
+                    <p className="truncate text-xs font-extrabold text-ink">{a.name}</p>
+                    {a.isDefault && (
+                      <span className="rounded-full bg-chip px-2 py-0.5 text-[9px] font-bold text-ink">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 truncate text-[10px] font-semibold text-ink/50">
+                    {[a.line1, a.city, a.pincode].filter(Boolean).join(" · ")}
+                  </p>
+                  {/* The line that decides whether a truck can reach the gate. */}
+                  {a.accessNote && (
+                    <p className="mt-1 text-[10px] font-bold leading-[14px] text-ink/70">
+                      {a.accessNote}
+                    </p>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Activity block */}
         <div className="rounded-2xl border border-mist/15 bg-white shadow-2xs divide-y divide-mist/10 overflow-hidden">
           <h3 className="p-4 text-[10px] font-extrabold uppercase tracking-wider text-ink/35 leading-none bg-surface/30">
             My Activity
           </h3>
           <Link
+            href="/account/profile"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <BadgeCheck className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">Profile &amp; GST</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Name, buyer type and business details</p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+
+          <Link
             href="/account/wishlist"
             onClick={() => triggerHaptic("light")}
             className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-pink-50 text-pink-600">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
                 <Heart className="size-4.5" />
               </div>
               <div>
@@ -289,6 +364,79 @@ export function MobileAccountView({
             </div>
             <ChevronRight className="size-4 text-ink/30" />
           </Link>
+
+          {/*
+            "Wallet & credit" on the Account artboard. The wallet half is real —
+            the Wallet and WalletTransaction models exist and /account/wallet
+            renders them. The credit half is not built and is not mine to
+            invent: credit terms are on the deferred list in CLAUDE.md, so the
+            row says wallet and stops there rather than promising a facility
+            nobody has decided the terms of.
+          */}
+          <Link
+            href="/account/wallet"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <Wallet className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">Wallet</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">
+                  Balance and transaction history
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+
+          <Link
+            href="/account/orders"
+            onClick={() => triggerHaptic("light")}
+            className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
+                <Package className="size-4.5" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-ink">My Orders</p>
+                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">
+                  {ordersCount} order{ordersCount !== 1 ? "s" : ""}
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="size-4 text-ink/30" />
+          </Link>
+        </div>
+
+        {/*
+          The artboard's footer links. Legal pages are launch blockers in their
+          own right (ISS-008) and a customer on a phone has no other route to
+          them once the web footer is gone.
+
+          Returns & refunds points at /refunds, which exists. An earlier pass
+          removed this link after checking for /returns and concluding the page
+          was missing — it was the wrong path, not a missing page.
+        */}
+        <div className="rounded-2xl border border-mist/15 bg-white shadow-2xs divide-y divide-mist/10 overflow-hidden">
+          {[
+            { href: "/refunds", label: "Returns & refunds" },
+            { href: "/terms", label: "Terms" },
+            { href: "/privacy", label: "Privacy" },
+          ].map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => triggerHaptic("light")}
+              className="w-full text-left p-4 flex items-center justify-between active:bg-mist/5 block"
+            >
+              <p className="text-xs font-bold text-ink">{label}</p>
+              <ChevronRight className="size-4 text-ink/30" />
+            </Link>
+          ))}
         </div>
 
         {/* Account settings block */}
@@ -297,38 +445,11 @@ export function MobileAccountView({
             App Settings
           </h3>
 
-          {/* Notifications Toggle */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600">
-                <Bell className="size-4.5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-ink">Push Notifications</p>
-                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Order updates & wallet alerts</p>
-              </div>
-            </div>
-            <button
-              onClick={handleNotificationToggle}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                notificationsEnabled ? "bg-brand-deep" : "bg-mist/35"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block size-3.5 transform rounded-full bg-white transition-transform",
-                  notificationsEnabled ? "translate-x-4.5" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
           {/* Biometric Toggle if Available */}
           {biometricsAvailable && (
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-teal-50 text-teal-600">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-amber-soft text-ink">
                   <Fingerprint className="size-4.5" />
                 </div>
                 <div>
@@ -353,33 +474,6 @@ export function MobileAccountView({
             </div>
           )}
 
-          {/* Dark Mode Toggle */}
-          <div className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 items-center justify-center rounded-xl bg-purple-50 text-purple-600">
-                <Moon className="size-4.5" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-ink">Dark Mode (Beta)</p>
-                <p className="text-[9px] text-ink/50 font-semibold mt-0.5">Toggle interface design theme</p>
-              </div>
-            </div>
-            <button
-              onClick={handleDarkModeToggle}
-              className={cn(
-                "relative inline-flex h-5 w-9 items-center rounded-full transition-colors",
-                darkModeEnabled ? "bg-brand-deep" : "bg-mist/35"
-              )}
-            >
-              <span
-                className={cn(
-                  "inline-block size-3.5 transform rounded-full bg-white transition-transform",
-                  darkModeEnabled ? "translate-x-4.5" : "translate-x-1"
-                )}
-              />
-            </button>
-          </div>
-
           {/* Help & Support */}
           <button
             onClick={() => {
@@ -400,16 +494,6 @@ export function MobileAccountView({
             <ChevronRight className="size-4 text-ink/30" />
           </button>
 
-          {/* App Version Info */}
-          <div className="p-4 flex items-center gap-3 bg-surface/20">
-            <div className="flex size-9 items-center justify-center rounded-xl bg-mist/20 text-ink/65">
-              <Info className="size-4.5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-ink">App Version</p>
-              <p className="text-[9px] text-ink/40 font-semibold mt-0.5">Vertical Express Native Shell v1.0.2</p>
-            </div>
-          </div>
         </div>
 
         {/* Logout CTA */}
@@ -430,7 +514,7 @@ export function MobileAccountView({
         title="Notifications Inbox"
       >
         <div className="space-y-4 pb-8 max-h-[70vh] overflow-y-auto">
-          {!notificationsEnabled || mockNotifications.length === 0 ? (
+          {mockNotifications.length === 0 ? (
             <div className="py-12 text-center text-xs font-bold text-ink/45">
               All caught up! No new notifications.
             </div>
@@ -469,20 +553,12 @@ export function MobileAccountView({
       >
         <div className="space-y-4 pb-8">
           <p className="text-xs font-semibold text-ink/75 leading-relaxed">
-            Need help with your building materials order? Contact our regional support team in Srinagar directly.
+            Need help with an order? Email us with your order number.
           </p>
           <div className="rounded-xl border border-mist/20 p-4 bg-white space-y-3">
             <div>
-              <span className="text-[9px] font-extrabold uppercase text-ink/40">Customer Support Phone</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">+91 94190 12345</p>
-            </div>
-            <div>
               <span className="text-[9px] font-extrabold uppercase text-ink/40">Support Email</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">support@verticalexpress.com</p>
-            </div>
-            <div>
-              <span className="text-[9px] font-extrabold uppercase text-ink/40">Warehouse Location</span>
-              <p className="text-xs font-extrabold text-ink mt-0.5">Rajbagh Industrial Zone, Srinagar, J&K</p>
+              <p className="text-xs font-extrabold text-ink mt-0.5">info@verticalexpress.in</p>
             </div>
           </div>
         </div>

@@ -17,7 +17,7 @@ export default function Error({
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-surface px-4 text-center">
-      <span className="text-5xl">⚠️</span>
+      <span className="text-5xl" aria-hidden>!</span>
       <h1 className="text-2xl font-extrabold text-ink">Something went wrong</h1>
       <p className="max-w-sm text-sm text-neutral-500">
         An unexpected error occurred. Our team has been notified. You can try again or return home.

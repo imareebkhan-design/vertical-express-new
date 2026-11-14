@@ -5,9 +5,13 @@ import { motion } from "framer-motion";
 import { Check, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { formatPaise } from "@/lib/money";
-import { BulkTierTable } from "@/components/shop/bulk-tier-table";
 import { cn } from "@/lib/utils";
 import type { ProductDetail } from "@/lib/services/catalog";
+import { SpeedChip, speedClassFor } from "@/components/ui/speed-chip";
+import { discountPercent } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ProductEnquiry } from "@/components/shop/product-enquiry";
 
 /**
  * PDP purchase panel: variant selector, tier-aware pricing, qty stepper,
@@ -16,6 +20,7 @@ import type { ProductDetail } from "@/lib/services/catalog";
  */
 export function PdpActions({ product }: { product: ProductDetail }) {
   const { addItem } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [variantId, setVariantId] = useState(
     product.variants.find((v) => v.isDefault)?.id ?? product.variants[0]?.id
   );
@@ -36,14 +41,43 @@ export function PdpActions({ product }: { product: ProductDetail }) {
     return applicable?.pricePaise ?? variant.pricePaise;
   }, [variant, qty]);
 
-  if (!variant) return null;
+  /* COMMERCE_MODE=catalogue: the price stays as published, the cart controls
+     become the enquiry form. The server refuses the add regardless. */
+  if (product.purchasable && variant && !orderingOpen) {
+    return (
+      <div className="flex flex-col gap-4">
+        <span className="text-3xl font-extrabold tabular-nums tracking-[-0.02em]">{formatPaise(variant.pricePaise)}</span>
+        <p className="-mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+          Price {product.unitLabel.replace(/^per\s+/i, "per ")}, <strong className="font-bold">including GST</strong>.
+        </p>
+        <ProductEnquiry productId={product.id} productTitle={product.title} />
+      </div>
+    );
+  }
+
+  // Catalog-only (or nothing sellable): state it plainly, offer no cart control.
+  if (!product.purchasable || !variant) {
+    return (
+      <div className="space-y-4">
+        <p className="text-xl font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+        {/* Only a catalog-only product invites an enquiry; a sellable product that is
+            momentarily without a variant shows the price label alone. */}
+        {!product.purchasable && <ProductEnquiry productId={product.id} productTitle={product.title} />}
+      </div>
+    );
+  }
+
+  /* The selected variant's own stock. Per variant rather than per product,
+     because a 50 kg bag being sold out says nothing about the 25 kg one — and
+     the variant is what goes in the cart.
+
+     Nothing here previously knew about stock at all: the page offered "Add to
+     cart" on an empty shelf, and `lib/services/cart.ts` refused it with
+     OUT_OF_STOCK only after the customer pressed the button. */
+  const soldOut = !variant.inStock;
 
   const hasDiscount = variant.compareAtPaise != null && variant.compareAtPaise > variant.pricePaise;
   const lineTotal = unitPaise * qty;
-
-  const nextTier = [...variant.bulkTiers]
-    .sort((a, b) => a.minQty - b.minQty)
-    .find((t) => qty < t.minQty);
 
   const handleAdd = async () => {
     const ok = await addItem(variant.id, qty, product.title);
@@ -53,17 +87,39 @@ export function PdpActions({ product }: { product: ProductDetail }) {
     }
   };
 
+  const off = discountPercent(unitPaise, variant.compareAtPaise);
+  const speed = speedClassFor(product.categoryIsBulk, product.deliverySpeed);
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Price */}
-      <div className="flex items-baseline gap-3">
-        <span className="text-3xl font-extrabold">{formatPaise(unitPaise)}</span>
+      {/* Price · struck MRP · percent off */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <span className="text-3xl font-extrabold tabular-nums tracking-[-0.02em]">
+          {formatPaise(unitPaise)}
+        </span>
         {hasDiscount && (
-          <s className="text-lg font-semibold text-neutral-400">
+          <s className="text-lg font-semibold tabular-nums text-ink-300">
             {formatPaise(variant.compareAtPaise!)}
           </s>
         )}
-        <span className="text-sm font-semibold text-neutral-400">{product.unitLabel}</span>
+        {off !== null && (
+          <span className="inline-flex h-[19px] items-center rounded-full bg-amber-soft px-[7px] text-[10px] font-extrabold text-ink">
+            {off}% off
+          </span>
+        )}
+      </div>
+
+      {/* Tax treatment. Rates and HSN codes are owner-confirmed per category in
+          lib/services/tax.ts, and prices are stored GST-inclusive, so this
+          states what the checkout actually charges. */}
+      <p className="-mt-2 text-[13px] font-medium leading-[18.5px] text-ink-700">
+        Price {product.unitLabel.replace(/^per\s+/i, "per ")}, <strong className="font-bold">including GST</strong>.
+      </p>
+
+      {/* Delivery speed belongs to the goods, never to the header. The panel
+          below the buy box says how it travels; the chip is enough here. */}
+      <div>
+        <SpeedChip speed={speed} />
       </div>
 
       {/* Variant selector (only if multiple) */}
@@ -74,8 +130,9 @@ export function PdpActions({ product }: { product: ProductDetail }) {
               key={v.id}
               onClick={() => setVariantId(v.id)}
               className={cn(
-                "rounded-[8px] border-2 px-3 py-2 text-sm font-bold transition-all duration-200",
-                v.id === variantId ? "border-brand-deep bg-brand-deep text-white" : "border-neutral-200 hover:border-brand-deep"
+                "rounded-full px-4 py-2 text-sm font-bold transition-colors duration-200",
+                v.id === variantId ? "bg-ink text-white" : "bg-chip text-ink hover:bg-hush",
+                !v.inStock && "line-through opacity-55"
               )}
             >
               {v.name}
@@ -84,26 +141,20 @@ export function PdpActions({ product }: { product: ProductDetail }) {
         </div>
       )}
 
-      {/* Bulk tiers */}
-      <BulkTierTable
-        basePaise={variant.pricePaise}
-        tiers={variant.bulkTiers}
-        unitLabel={product.unitLabel}
-        activeQty={qty}
-      />
-
-      {nextTier && (
-        <p className="rounded-lg bg-brand/15 px-3 py-2 text-sm font-bold text-brand-deep">
-          Add {nextTier.minQty - qty} more to unlock {formatPaise(nextTier.pricePaise)} {product.unitLabel}
-        </p>
-      )}
+      {/* Trade / bulk tier pricing is not promoted — owner decision, 25 Aug 2026.
+          The ladder is NOT removed from price resolution above: lib/services/cart.ts
+          and checkout.ts still apply it server-side, so hiding it here while leaving
+          it there would make the displayed price differ from the charged price.
+          Retiring it properly is a server change (cart, checkout, catalog, schema)
+          and belongs with the Phase 3 work, not a visual pass. */}
 
       {/* Qty + add (desktop) */}
       <div className="hidden items-center gap-3 sm:flex">
         <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-11 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -113,27 +164,36 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           </span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-11 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-11 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={soldOut ? undefined : { scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
+          disabled={soldOut}
+          className={
+            soldOut
+              ? "flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-chip text-sm font-extrabold uppercase tracking-wider text-neutral-500"
+              : "flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+          }
         >
-          {added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
+          {soldOut
+            ? "Out of stock"
+            : added ? <><Check className="size-4" /> Added</> : <><ShoppingCart className="size-4" /> Add to cart · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
 
       {/* Sticky mobile action bar */}
-      <div className="fixed inset-x-0 bottom-20 z-30 flex items-center gap-3 border-t border-hairline-border bg-white/90 backdrop-blur-md p-3 shadow-[0_-4px_12px_rgba(15,33,56,0.08)] sm:hidden">
+      <div className="fixed inset-x-0 bottom-20 z-30 flex items-center gap-3 border-t border-hairline-border bg-white/90 backdrop-blur-md p-3 shadow-[0_-4px_12px_rgba(17,17,17,0.08)] sm:hidden">
         <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
           <button
             onClick={() => setQty((q) => Math.max(1, q - 1))}
-            className="grid size-10 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-10 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Decrease quantity"
           >
             <Minus className="size-4" />
@@ -141,18 +201,24 @@ export function PdpActions({ product }: { product: ProductDetail }) {
           <span className="w-9 text-center text-sm font-extrabold">{qty}</span>
           <button
             onClick={() => setQty((q) => Math.min(999, q + 1))}
-            className="grid size-10 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+            disabled={soldOut}
+            className="grid size-10 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed disabled:opacity-40"
             aria-label="Increase quantity"
           >
             <Plus className="size-4" />
           </button>
         </div>
         <motion.button
-          whileTap={{ scale: 0.95 }}
+          whileTap={soldOut ? undefined : { scale: 0.95 }}
           onClick={handleAdd}
-          className="flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-[8px] bg-brand text-sm font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] active:scale-95 transition-all duration-200"
+          disabled={soldOut}
+          className={
+            soldOut
+              ? "flex h-11 flex-1 cursor-not-allowed items-center justify-center gap-2 rounded-full bg-chip text-sm font-extrabold uppercase tracking-wider text-neutral-500"
+              : "flex h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-ink text-sm font-extrabold uppercase tracking-wider text-white shadow-card active:scale-95 transition-all duration-200"
+          }
         >
-          {added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
+          {soldOut ? "Out of stock" : added ? <><Check className="size-4" /> Added</> : <>Add · {formatPaise(lineTotal)}</>}
         </motion.button>
       </div>
     </div>

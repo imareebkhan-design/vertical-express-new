@@ -1,5 +1,9 @@
 # Auth setup — required Supabase + Vercel configuration (P0-3)
 
+> **RETIRED (12 Oct 2026, ISS-094).** This describes the Supabase sign-in path, which has been deleted from the app.
+> Sign-in is Firebase phone OTP + Google (`lib/auth/`, `components/auth/sign-in-form.tsx`). Kept for history only;
+> nothing here needs configuring.
+
 Production domain: **`https://new-virticalexpress.vercel.app`**
 
 The code now sends the login email with a link that returns to **`${NEXT_PUBLIC_SITE_URL}/auth/confirm`**, which exchanges the token for a session. For this to work in production you must set three things outside the code:

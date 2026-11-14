@@ -105,8 +105,22 @@ export function log(level: LogLevel, payload: LogPayload) {
 // 4. Sentry wrapper integration
 let sentryInitialized = false;
 
+/**
+ * Legacy initialiser, kept for the `captureException` path below.
+ *
+ * Since ISS-012 the real initialisation lives in the per-runtime config files
+ * (`sentry.server.config.ts`, `sentry.edge.config.ts`, `instrumentation-client.ts`)
+ * that `instrumentation.ts` loads at startup. This now defers to whatever they
+ * configured: re-running `Sentry.init` would replace a client that already has
+ * the correct tracing sample rate and environment with this one's narrower
+ * settings, silently changing behaviour depending on which ran first.
+ */
 export function initSentry() {
   if (sentryInitialized) return;
+  if (Sentry.getClient()) {
+    sentryInitialized = true;
+    return;
+  }
   const dsn = process.env.SENTRY_DSN || process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (dsn) {
     Sentry.init({

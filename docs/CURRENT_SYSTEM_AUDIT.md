@@ -6,6 +6,19 @@
 **Method:** full source inspection of the cloned repository + black-box probing of the live deployment
 **Status:** NO CODE MODIFIED. This is an assessment only.
 
+> ### This is a dated snapshot, not a description of the system today
+>
+> Everything below describes commit `449f036` as it stood on **6 August 2026**. A
+> month of work has landed since. Findings are **not** updated in place — an audit
+> that gets quietly rewritten stops being evidence of anything — so read any
+> statement here as "was true on 6 August", and check the code before acting on it.
+>
+> `docs/KNOWN_ISSUES.md` is the current register. Where the two disagree, that file
+> and the code win.
+>
+> The largest change since: **Section 7's claim that the fulfilment half has no
+> software is no longer true.** See the note there.
+
 ---
 
 # 1. Executive Summary
@@ -24,7 +37,7 @@ The problems are not architectural. They are three specific classes:
 
 **Class 2 — The catalog is entirely fictional.** Ten invented brands (`BuildPro`, `AquaSeal`, `FlowMax`, `GripFast`, `HomeCrown`, `LumenX`, `PowerCell`, `SteelEdge`, `TimberCraft`, `Voltix`), 45 invented products, invented prices. The *machinery* around the catalog is production-grade. The *contents* are placeholder. This is a data problem, not an engineering problem, and it is the largest single blocker to launch.
 
-**Class 3 — The fulfilment half does not exist.** The chain runs `product → cart → checkout → order → confirmed` and stops. There is no shipment, no driver, no pick list, no proof of delivery, no COD reconciliation. Order status can reach `delivered` only by an admin manually clicking through statuses with no operational system behind it.
+**Class 3 — The fulfilment half does not exist.** The chain runs `product → cart → checkout → order → confirmed` and stops. There is no shipment, no driver, no pick list, no proof of delivery, no COD reconciliation. *(6 Aug 2026. Substantially built since — see Section 7.)* Order status can reach `delivered` only by an admin manually clicking through statuses with no operational system behind it.
 
 ## 1.3 The verdict
 
@@ -479,6 +492,26 @@ Plus 3 route handlers for things that cannot be actions: typeahead (`GET`), pinc
    delivery OTP, proof of delivery, COD collection record, cash reconciliation.
    The operational half of the business has no software.
 ```
+
+> **Superseded, 5 September 2026.** The paragraph above was true of `449f036`. It is
+> now wrong about nine of its eleven nouns. Built since:
+>
+> | Then | Now |
+> |---|---|
+> | no shipment | `Shipment` + `ShipmentItem`, created in the checkout transaction |
+> | never advances | `lib/shipment-flow.ts` state machine; `advanceShipment` writes it |
+> | no driver, no vehicle | `Driver` and `Vehicle`, with roster management |
+> | no assignment | `assignShipment`; dispatch refuses to leave without a driver |
+> | no dispatch | `/admin/dispatch` — to pack, to dispatch, on the road |
+> | no pick list | aggregated by item, express first |
+> | no packing slip | `/admin/shipments/[id]/packing-slip`, print view |
+> | no delivery OTP | six digits, issued once at `out_for_delivery`, never logged |
+> | no proof of delivery | `confirmDelivery` — constant-time compare, rate-limited |
+>
+> **Still absent, and correctly described above:** the COD collection record and cash
+> reconciliation (ISS-010 — COD is switched off by the owner's decision, so there is
+> nothing to reconcile yet). Slot selection is also still absent (ISS-057): the
+> delivery windows are the owner's to set and have not been given.
 
 ## 10.3 Backend defects found
 

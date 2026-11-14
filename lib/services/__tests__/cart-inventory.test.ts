@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { addItem, updateItemQty, getCartSummary, resolveWarehouseId } from "../cart";
 import { randomUUID } from "crypto";
+import { createApprovedCatalogueFixture } from "../../../test-support/catalogue-fixtures";
+import { liveTestCityId } from "@/test-support/service-city";
 
 // Test-wide unique keys to prevent collision
 const TEST_PINCODE_1 = "999901";
@@ -10,27 +12,12 @@ const TEST_PINCODE_2 = "999902";
 const TEST_USER_1 = randomUUID();
 const TEST_USER_2 = randomUUID();
 
-let categoryId: string;
-let brandId: string;
+let catalogueFixture: Awaited<ReturnType<typeof createApprovedCatalogueFixture>>;
 let warehouseId1: string;
 let warehouseId2: string;
-let productId: string;
 let variantId: string;
 
 before(async () => {
-  // 1. Fetch an existing category and brand to attach the test product to
-  const existingCat = await db.category.findFirst({ select: { id: true } });
-  if (!existingCat) {
-    throw new Error("No categories found in seed to attach test product to.");
-  }
-  categoryId = existingCat.id;
-
-  const existingBrand = await db.brand.findFirst({ select: { id: true } });
-  if (!existingBrand) {
-    throw new Error("No brands found in seed to attach test product to.");
-  }
-  brandId = existingBrand.id;
-
   // 2. Insert test user records
   await db.user.createMany({
     data: [
@@ -59,10 +46,11 @@ before(async () => {
   warehouseId2 = wh2.id;
 
   // 4. Insert test serviceable pincodes mapping to warehouses
+  const cityId = await liveTestCityId();
   await db.serviceablePincode.createMany({
     data: [
-      { pincode: TEST_PINCODE_1, warehouseId: warehouseId1, isActive: true },
-      { pincode: TEST_PINCODE_2, warehouseId: warehouseId2, isActive: true },
+      { pincode: TEST_PINCODE_1, warehouseId: warehouseId1, cityId, isActive: true },
+      { pincode: TEST_PINCODE_2, warehouseId: warehouseId2, cityId, isActive: true },
     ],
   });
 
@@ -93,26 +81,8 @@ before(async () => {
   });
 
   // 6. Create test product & variant
-  const prod = await db.product.create({
-    data: {
-      title: "Test Cement Bag",
-      slug: `test-cement-${Date.now()}`,
-      description: "Test description",
-      categoryId,
-      brandId,
-    },
-  });
-  productId = prod.id;
-
-  const v = await db.productVariant.create({
-    data: {
-      productId,
-      name: "50kg Bag",
-      sku: `SKU-TEST-${Date.now()}`,
-      pricePaise: 35000,
-    },
-  });
-  variantId = v.id;
+  catalogueFixture = await createApprovedCatalogueFixture();
+  variantId = catalogueFixture.variant.id;
 
   // 7. Seed stock:
   // Warehouse 1 (User 1) has 10 items
@@ -145,15 +115,8 @@ after(async () => {
     await db.inventory.deleteMany({
       where: { variantId },
     });
-    await db.productVariant.delete({
-      where: { id: variantId },
-    });
   }
-  if (productId) {
-    await db.product.delete({
-      where: { id: productId },
-    });
-  }
+  if (catalogueFixture) await catalogueFixture.cleanup();
   const whIds = [warehouseId1, warehouseId2].filter(Boolean) as string[];
   if (whIds.length > 0) {
     await db.warehouse.deleteMany({

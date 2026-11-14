@@ -24,8 +24,16 @@ export function StatusControl({
     return <span className="text-xs font-semibold text-neutral-400">No actions</span>;
   }
 
-  const onChange = (value: string) => {
+  const onChange = (value: string, select: HTMLSelectElement) => {
     if (!value) return;
+    /* A cancellation cannot be undone, and on a paid order it leaves a refund to
+       issue. A mis-picked option used to cancel at once (staging UAT, 8 Nov 2026). */
+    if (value === "cancelled" && !window.confirm(
+      `Cancel this ${kind}? This cannot be undone.${kind === "order" ? " If it was paid, it moves to Payments → Refund required." : ""}`,
+    )) {
+      select.value = "";
+      return;
+    }
     setError(false);
     startTransition(async () => {
       const res =
@@ -44,8 +52,8 @@ export function StatusControl({
       ) : (
         <select
           defaultValue=""
-          onChange={(e) => onChange(e.target.value)}
-          className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
+          onChange={(e) => onChange(e.target.value, e.currentTarget)}
+          className="cursor-pointer rounded-field border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
         >
           <option value="">Advance…</option>
           {options.map((o) => (

@@ -1,65 +1,172 @@
 @import "tailwindcss";
+@import "./login-showcase.css";
+@import "./home-merchandising.css";
 
 @theme {
-  /* Brand palette updated from Stitch design system "Architectural Lifestyle" */
-  --color-background: #f8f9fe;
-  --color-on-background: #191c1f;
-  --color-surface: #f8f9fe;
-  --color-surface-dim: #d9dadf;
-  --color-surface-bright: #f8f9fe;
-  --color-surface-container-lowest: #ffffff;
-  --color-surface-container-low: #f2f3f8;
-  --color-surface-container: #edeef3;
-  --color-surface-container-high: #e7e8ed;
-  --color-surface-container-highest: #e1e2e7;
-  --color-on-surface: #191c1f;
-  --color-on-surface-variant: #44474d;
-  --color-outline: #74777e;
-  --color-outline-variant: #c4c6ce;
-  --color-primary: #00091a;
-  --color-primary-container: #0f2138;
-  
-  --color-secondary: #795900;
-  --color-secondary-container: #febf06;
-  --color-tertiary: #090909;
-  --color-tertiary-container: #202020;
-  --color-error: #ba1a1a;
-  --color-error-container: #ffdad6;
+  /* ------------------------------------------------------------------------
+   * Vertical Express design tokens.
+   *
+   * Two colours do the work: amber for fills, marks and accents, and near-black
+   * for every primary action. Everything else is neutral warm grey. Amber never
+   * carries body text — against the warm canvas it sits near 2:1 and fails AA.
+   *
+   * Replaces the previous "Architectural Lifestyle" palette. Navy #0F2138 and
+   * gold #FCBD00 are gone; the alias layer below carries the ~340 existing
+   * utility usages onto the new values without touching the components.
+   * See design.md for the full system.
+   * ---------------------------------------------------------------------- */
 
-  /* Premium Design Brand Named Colors */
-  --color-champagne-gold: #FCBD00;
-  --color-muted-gold: #E5AC00;
-  --color-deep-navy: #0F2138;
-  --color-ink-black: #0A0A0A;
-  --color-ice-tile: #EEF9FB;
-  --color-surface-soft: #EFF0F5;
-  --color-hairline-border: #F5F5F5;
-  --color-success-express: #1A7F37;
-  --color-danger-crimson: #C8102E;
+  /* Ground */
+  --color-canvas: #F3F2F0;   /* page background — never pure white */
+  --color-paper: #FFFFFF;    /* cards sit on the canvas in white */
 
-  /* Maintain backward compatibility with the existing code naming style */
-  --color-brand: var(--color-champagne-gold);
-  --color-brand-dark: var(--color-muted-gold);
-  --color-brand-deep: var(--color-deep-navy);
-  --color-ink: var(--color-ink-black);
-  --color-navy: var(--color-deep-navy);
-  --color-slate-dark: #1e293b;
-  --color-surface: var(--color-surface-soft);
-  --color-tile: var(--color-ice-tile);
-  --color-success: var(--color-success-express);
-  --color-danger: var(--color-danger-crimson);
+  /* Ink ramp */
+  --color-ink-900: #111111;  /* primary actions, all body text */
+  --color-ink-700: #3D3B38;  /* secondary text */
+  --color-ink-500: #8B8781;  /* muted text */
+  --color-ink-300: #B7B3AC;  /* faint text, strikethroughs */
 
-  /* Typography */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  /* Neutral fills */
+  --color-chip: #EDEBE7;     /* inactive chips, quiet fills */
+  --color-chip-soft: #F2F0EC;/* icon buttons, input wells */
+  --color-hush: #EFEDE9;     /* hover fills */
+  --color-line: #E7E4DF;     /* 1.5px soft rules — never a hard 1px border */
 
-  /* Border radius */
-  --radius-card: 1rem; /* Cards & Containers: 1rem (16px) per design guidelines */
+  /* Trade tints — the quiet background wash behind a category's tile or card.
+     Warm for the building trades, cool for the wet and electrical ones, so a
+     category reads by temperature before it reads by label.
+
+     These were referenced as `var(--t-civil, #F0ECE6)` in 15 places before they
+     existed, so every one silently used its hex fallback and bypassed the token
+     layer. Values are the fallbacks, unchanged — nothing renders differently. */
+  --t-civil: #F0ECE6;        /* cement, masonry, hardware */
+  --t-furn: #F3ECE2;         /* plywood, fittings, joinery */
+  --t-elec: #EBF1F5;         /* wires, switches, lighting */
+  --t-plumb: #E8EFF2;        /* pipes, tanks, sanitary */
+
+  /* Accent */
+  --color-amber: #EDAF1C;
+  --color-amber-deep: #D69B12; /* hover only */
+  --color-amber-soft: #FBEFCF; /* urgency, low stock, seasonal, prompts */
+
+  /* Category tints — a category inherits its L1 group's tint, never its own */
+  --color-tint-civil: #EFE2D6;
+  --color-tint-furniture: #F5E9C8;
+  --color-tint-electrical: #E3E8F1;
+  --color-tint-plumbing: #E8E4EE;
+
+  /* Material-style semantic names kept so existing utilities keep resolving */
+  --color-background: var(--color-canvas);
+  --color-on-background: var(--color-ink-900);
+  --color-surface-dim: var(--color-chip);
+  --color-surface-bright: var(--color-paper);
+  --color-surface-container-lowest: var(--color-paper);
+  --color-surface-container-low: var(--color-chip-soft);
+  --color-surface-container: var(--color-chip);
+  --color-surface-container-high: var(--color-hush);
+  --color-surface-container-highest: var(--color-line);
+  --color-on-surface: var(--color-ink-900);
+  --color-on-surface-variant: var(--color-ink-700);
+  --color-outline: var(--color-ink-500);
+  --color-outline-variant: var(--color-line);
+  --color-primary: var(--color-ink-900);
+  --color-primary-container: var(--color-ink-900);
+  --color-secondary: var(--color-amber-deep);
+  --color-secondary-container: var(--color-amber);
+  --color-tertiary: var(--color-ink-900);
+  --color-tertiary-container: var(--color-ink-700);
+  --color-error: #AE3626;
+  --color-error-container: #F7E3DF;
+
+  /* ---- Alias layer -------------------------------------------------------
+   * These names are used ~340 times across the components. Repointing them is
+   * what moves the whole storefront without editing 83 files.
+   * -------------------------------------------------------------------- */
+  /* `mist` predates the token migration and was never carried across: it is used
+     265 times over 25 files (almost all of components/mobile) and resolved to
+     nothing, so `border border-mist/40` fell back to currentColor — a hard dark
+     rule exactly where the system forbids one — and `bg-mist/40` painted nothing
+     at all. Aliased rather than swept through 25 files, the same way the names
+     below were. ink-300 is the right anchor: at the /20–/40 opacities in use it
+     lands on #E9E8E6, within a hair of --color-line. */
+  --color-mist: var(--color-ink-300);
+
+  --color-brand: var(--color-amber);          /* accent fills, marks, the bolt */
+  --color-brand-dark: var(--color-amber-deep);
+  --color-brand-deep: var(--color-ink-900);   /* was navy — 256 usages land here */
+  --color-ink: var(--color-ink-900);
+  --color-surface: var(--color-hush);
+  --color-surface-soft: var(--color-hush);
+  --color-tile: var(--color-tint-electrical);
+  --color-hairline-border: var(--color-line);
+
+  /* Functional status. Green is deliberately absent: confirmation is expressed
+     with an amber tick and a word, not a green one. `danger` stays a colour
+     because an unreadable error message is worse than a third hue. */
+  --color-success: var(--color-ink-900);
+  --color-danger: #AE3626;
+
+  /* ---- Operations console only -------------------------------------------
+   * The storefront uses ink, amber and grey, and bans green and red: a shopper
+   * does not need to scan sixty rows for a breach. A dispatcher does, and three
+   * states are not enough to do it at speed.
+   *
+   * These five are for /admin ONLY and must never appear on a customer-facing
+   * surface. Every chip built from them carries a word as well as a colour, so
+   * hue speeds up scanning rather than carrying the meaning.
+   * -------------------------------------------------------------------- */
+  --color-ops-ok: #1E7A5A;        /* settled, delivered, banked, healthy */
+  --color-ops-ok-tint: #E2EFE9;
+  --color-ops-warn: #8A6206;      /* needs a person today */
+  --color-ops-warn-tint: var(--color-amber-soft);
+  --color-ops-bad: #AE3626;       /* a promise is broken or about to be */
+  --color-ops-bad-tint: #F7E3DF;
+  --color-ops-info: #2A5C93;      /* in progress, nobody need act */
+  --color-ops-info-tint: #E3EAF3;
+
+  /* ---- Warm neutral ramp -------------------------------------------------
+   * Tailwind's built-in `neutral` is a COOL grey, and it is used 376 times in
+   * live code — beside the warm canvas (#F3F2F0) that mismatch is most of what
+   * reads as "the site is drifting". Overriding the scale in place warms every
+   * one of them at once, the same lever the alias layer above used to move ~340
+   * usages without editing 83 files.
+   *
+   * Steps 100–500, 700 and 900 are existing system tokens. 50, 600, 800 and 950
+   * are interpolated between them to keep the scale monotonic — warmed
+   * neighbours of colours the system already owns, not new hues.
+   * -------------------------------------------------------------------- */
+  --color-neutral-50:  #F5F4F1;
+  --color-neutral-100: #F2F0EC;  /* = chip-soft */
+  --color-neutral-200: #EDEBE7;  /* = chip */
+  --color-neutral-300: #E7E4DF;  /* = line */
+  --color-neutral-400: #B7B3AC;  /* = ink-300 */
+  --color-neutral-500: #8B8781;  /* = ink-500 */
+  --color-neutral-600: #6B6660;
+  --color-neutral-700: #3D3B38;  /* = ink-700 */
+  --color-neutral-800: #262320;
+  --color-neutral-900: #111111;  /* = ink-900 */
+  --color-neutral-950: #0A0908;
+
+  /* Border radius — large. 20–28px on cards, fully round on buttons and chips. */
+  --radius-card: 1.5rem;      /* 24px */
+  --radius-card-lg: 1.75rem;  /* 28px — outer cards, hero panels */
+  --radius-panel: 1.25rem;    /* 20px — inner cards, tint panels */
   --radius-pill: 9999px;
 
-  /* Shadows */
-  --shadow-card: 0 4px 12px rgba(15, 33, 56, 0.08); /* Ambient shadow with hint of navy per guidelines */
-  --shadow-card-hover: 0 8px 24px rgba(15, 33, 56, 0.12);
-  --shadow-header: 0 2px 12px rgba(15, 33, 56, 0.05);
+  /* Two sizes the 20–28px scale above cannot serve, named here so they stop
+   * being undocumented exceptions:
+   *   chip  — elements under ~48px (thumbnails, small tiles). 20px on a 40px
+   *           square is a circle, so the scale's floor is genuinely wrong here.
+   *   field — inputs. This is what components/ui/input.tsx has always rendered;
+   *           naming it records the decision rather than silently changing
+   *           every form on the site to 20px. */
+  --radius-chip: 0.75rem;   /* 12px */
+  --radius-field: 1rem;     /* 16px */
+
+  /* Shadows — wide, soft, low opacity. No hard borders anywhere. */
+  --shadow-card: 0 6px 20px rgba(17, 17, 17, 0.05), 0 1px 3px rgba(17, 17, 17, 0.04);
+  --shadow-card-hover: 0 12px 34px rgba(17, 17, 17, 0.08), 0 2px 6px rgba(17, 17, 17, 0.04);
+  --shadow-header: 0 1px 0 rgba(17, 17, 17, 0.05);
 
   --ease-brand: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -85,6 +192,18 @@
   }
 }
 
+/* Typography.
+ *
+ * `--font-jakarta` is defined by next/font on <body>, not on :root. A plain
+ * `@theme` block resolves its values at :root, where that variable does not
+ * exist — which is why `--font-sans` previously resolved to Tailwind's default
+ * stack and the site rendered in the system font rather than the brand face.
+ * `@theme inline` substitutes the value at the point of use instead, so the
+ * `font-sans` utility and the body both pick up the real font. */
+@theme inline {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+}
+
 html {
   scroll-behavior: auto; /* Lenis owns scrolling */
 }
@@ -105,23 +224,31 @@ html.lenis body {
 body {
   background: var(--color-background);
   color: var(--color-on-surface);
-  font-family: var(--font-sans);
+  /* `--font-jakarta` directly, not `var(--font-sans)`: `@theme inline` above
+     substitutes into Tailwind utilities rather than emitting a `--font-sans`
+     custom property, so a raw rule cannot read it. */
+  font-family: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  padding-top: 4rem; /* 64px for mobile TopAppBar */
-  padding-bottom: 5rem; /* 80px for mobile BottomNavBar */
 }
 
-@media (min-width: 1024px) {
+/* Clearance for the fixed top app bar and bottom nav that `components/sections/
+   navbar.tsx` renders below 1024px.
+ *
+ * Scoped to 768–1023 only. Under 768 the storefront now renders the app-language
+ * views, which carry their own 59px reserved safe area and a floating pill nav —
+ * no fixed chrome to clear — so the old unconditional padding pushed every
+ * mobile-web screen 64px down the page and left 80px dead at the bottom. */
+@media (min-width: 768px) and (max-width: 1023.98px) {
   body {
-    padding-top: 0;
-    padding-bottom: 0;
+    padding-top: 4rem;
+    padding-bottom: 5rem;
   }
 }
 
 ::selection {
-  background: var(--color-champagne-gold);
-  color: var(--color-ink-black);
+  background: var(--color-amber-soft);
+  color: var(--color-ink-900);
 }
 
 /* Hide horizontal scrollbars on carousels while keeping them scrollable */
@@ -133,9 +260,10 @@ body {
   display: none;
 }
 
-/* Accessible focus ring matching brand */
+/* Focus ring. Ink rather than amber: amber against the warm canvas is roughly
+   1.9:1 and would not meet the 3:1 a focus indicator needs. */
 :focus-visible {
-  outline: 2px solid var(--color-deep-navy);
+  outline: 2px solid var(--color-ink-900);
   outline-offset: 2px;
 }
 

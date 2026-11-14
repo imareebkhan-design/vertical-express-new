@@ -1,6 +1,9 @@
 "use client";
 
-import React, { useState, useTransition, useEffect } from "react";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
+import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
+import React, { useRef, useState, useTransition, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -15,15 +18,23 @@ import {
 } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
-import { cancelOrder, retryOrderPayment } from "@/actions/orders";
+import { cancelOrder, retryOrderPayment, checkPaymentStatus } from "@/actions/orders";
 import { confirmRazorpayPayment } from "@/actions/checkout";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import { cn } from "@/lib/utils";
+import { CONTACT } from "@/lib/data";
+import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
+import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
+import { DeliveryCodeCard, type DeliveryCodeShipment } from "@/components/orders/delivery-code-card";
+import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
+import type { PaymentStateName } from "@/lib/payment-status-copy";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 interface MobileOrderDetailViewProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: ({ speedClass: string } & DeliverySelectionShipment & Partial<DeliveryCodeShipment>)[];
 }
 
 const TIMELINE = ["confirmed", "packed", "out_for_delivery", "delivered"] as const;
@@ -34,11 +45,16 @@ const TIMELINE_LABEL: Record<string, string> = {
   delivered: "Delivered",
 };
 
-export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
+export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailViewProps) {
   const router = useRouter();
+  const orderingOpen = useOrderingOpen();
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  /* Set when Checkout closed or its callback could not be verified: the server
+     (checkPaymentStatus) says what happened, never the browser. */
+  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const rzOpen = useRef(false); // one Razorpay window at a time
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   useEffect(() => {
@@ -47,7 +63,11 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
 
   const addr = order.address as unknown as OrderAddressSnapshot;
   const cancelled = order.status === "cancelled";
-  const cancellable = order.status === "pending_payment" || order.status === "confirmed";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const cancelState = customerCancelState(payment);
+  const cancellable = cancelState.kind === "allowed";
+  const eta = etaLine(order, shipments);
+  const totals = orderTotals(order);
   const currentIdx = TIMELINE.indexOf(order.status as (typeof TIMELINE)[number]);
   const isPendingPayment = order.status === "pending_payment";
 
@@ -73,8 +93,13 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
   // Launch Razorpay Payment Window
   const openRazorpay = async (
     orderNo: string,
-    rzp: { orderId: string; amountPaise: number; keyId: string }
+    rzp: { orderId: string; amountPaise: number; keyId: string; payBy?: string | null; payWithinSeconds?: number | null }
   ) => {
+    const timeout = checkoutTimeoutSeconds(rzp);
+    if (timeout === "closed") {
+      setError(PAYMENT_WINDOW_CLOSED_MESSAGE);
+      return;
+    }
     try {
       await loadRazorpayScript();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,7 +115,9 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
         currency: "INR",
         name: "Vertical Express",
         order_id: rzp.orderId,
-        theme: { color: "#efc41a" },
+        /* Closes Checkout before the order's payment window does (lib/payment-window.ts). */
+        ...(timeout !== null ? { timeout } : {}),
+        theme: { color: "#EDAF1C" },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         handler: async (response: any) => {
           triggerHaptic("medium");
@@ -101,8 +128,9 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             signature: response.razorpay_signature,
           });
 
+          rzOpen.current = false;
           if (!confirm.ok) {
-            setError(confirm.error.message);
+            setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
             return;
           }
           triggerHaptic("heavy");
@@ -110,12 +138,14 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
         },
         modal: {
           ondismiss: () => {
-            setError("Payment was closed. Tap Complete Payment to retry.");
+            rzOpen.current = false;
+            setPaymentCheck({ orderNo, initial: null });
           },
         },
       };
 
       const rz = new Razorpay(options);
+      rzOpen.current = true;
       rz.open();
     } catch {
       setError("Payment checkout configuration failed.");
@@ -123,12 +153,15 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
   };
 
   const handleRetryPayment = () => {
+    if (rzOpen.current) return;
     setError(null);
+    setPaymentCheck(null);
     triggerHaptic("medium");
     startTransition(async () => {
       const res = await retryOrderPayment(order.orderNo);
       if (!res.ok) {
-        setError(res.error.message);
+        if (res.error.code === "UNAVAILABLE") setPaymentCheck({ orderNo: order.orderNo, initial: "pending" });
+        else setError(res.error.message);
         return;
       }
 
@@ -147,6 +180,10 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
       const res = await cancelOrder(order.orderNo, "Cancelled by mobile customer");
       if (!res.ok) {
         setError(res.error.message);
+        /* A refusal can mean the server just found the order paid (E5): show
+           the order as it now is, not the stale "awaiting payment". */
+        setConfirmingCancel(false);
+        router.refresh();
         return;
       }
       setConfirmingCancel(false);
@@ -194,6 +231,20 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
 
       <div className="p-4 space-y-4">
         {/* Error Banner */}
+        {paymentCheck && (
+          <PaymentStatusNotice
+            key={paymentCheck.orderNo}
+            orderNo={paymentCheck.orderNo}
+            check={checkPaymentStatus}
+            initialState={paymentCheck.initial}
+            onPaid={() => {
+              setPaymentCheck(null);
+              router.refresh();
+            }}
+            onPay={handleRetryPayment}
+            orderHref={`/account/orders/${paymentCheck.orderNo}`}
+          />
+        )}
         {error && (
           <div className="rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             {error}
@@ -241,20 +292,29 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
                 );
               })}
             </ol>
-            {order.etaMinutes && currentIdx < 3 && (
-              <div className="bg-emerald-50 text-emerald-600 rounded-xl p-3 text-xs font-bold text-center flex items-center justify-center gap-1.5">
-                <Clock className="size-4 animate-pulse" />
-                <span>Estimated delivery in ~{order.etaMinutes} mins</span>
+            {eta && (
+              <div className="bg-amber-soft text-ink rounded-xl p-3 text-xs font-bold text-center flex items-center justify-center gap-1.5">
+                <Clock className="size-4 shrink-0" />
+                <span>{eta}</span>
               </div>
             )}
           </div>
         )}
 
-        {cancelled && order.cancelledReason && (
+        <DeliveryCodeCard orderNo={order.orderNo} shipments={shipments.map((s) => ({ sequence: s.sequence, deliveryCode: s.deliveryCode ?? null }))} />
+
+        {isLatePaid(order) ? (
+          <div role="status" className="rounded-2xl bg-brand/15 p-4 text-xs font-bold text-ink">
+            {LATE_PAYMENT_MESSAGE}
+          </div>
+        ) : null}
+        {cancelled && order.cancelledReason && !isLatePaid(order) && (
           <div className="rounded-2xl bg-danger/10 p-4 text-xs font-bold text-danger">
             This order was cancelled. Reason: {order.cancelledReason}
           </div>
         )}
+
+        <OrderExpressSelection expressFeePaise={order.expressFeePaise} shipments={shipments} />
 
         {/* Items detail list */}
         <div className="rounded-2xl border border-mist/15 bg-white p-4 shadow-2xs space-y-4">
@@ -265,10 +325,10 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {order.items.map((item: any) => (
               <li key={item.id} className="py-3 flex gap-3 first:pt-0 last:pb-0">
-                <span className="size-12 shrink-0 overflow-hidden rounded-lg bg-mist/5 border border-mist/15">
+                <span className={cn("size-12 shrink-0 overflow-hidden rounded-lg border border-mist/15", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt="" className="size-full object-contain p-1" />
+                    <img src={item.imageUrl} alt="" className={PRODUCT_PHOTO} />
                   )}
                 </span>
                 <div className="min-w-0 flex-1 flex flex-col justify-between py-0.5">
@@ -283,29 +343,20 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
           </ul>
 
           <dl className="space-y-1.5 border-t border-mist/10 pt-3 text-xs font-bold text-ink/80">
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Subtotal</dt>
-              <dd>{formatPaise(order.subtotalPaise)}</dd>
-            </div>
-            {order.taxPaise > 0 && (
-              <div className="flex justify-between">
-                <dt className="font-semibold text-ink/50">GST (18% inclusive)</dt>
-                <dd>{formatPaise(order.taxPaise)}</dd>
+            {totals.lines.map((l) => (
+              <div key={l.label} className="flex justify-between">
+                <dt className="font-semibold text-ink/50">{l.label}</dt>
+                <dd className={l.value === "FREE" ? "font-bold text-ink" : ""}>{l.value}</dd>
               </div>
-            )}
-            <div className="flex justify-between">
-              <dt className="font-semibold text-ink/50">Delivery Charges</dt>
-              <dd className={order.deliveryFeePaise === 0 ? "text-emerald-600" : ""}>
-                {order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}
-              </dd>
-            </div>
+            ))}
             <div className="flex justify-between border-t border-mist/10 pt-2.5 text-sm font-extrabold text-ink">
               <dt>Total Amount</dt>
-              <dd className="text-brand-deep">{formatPaise(order.totalPaise)}</dd>
+              <dd className="text-brand-deep">{totals.total}</dd>
             </div>
           </dl>
+          {totals.discountNote && <p className="text-[10px] font-bold text-success">{totals.discountNote}</p>}
           <div className="border-t border-mist/10 pt-3 text-[10px] font-bold text-ink/45">
-            Payment Mode: {order.paymentMethod === "cod" ? "Cash on Delivery" : "Online Gateway"}
+            Payment: {paymentLabel(payment)}
           </div>
         </div>
 
@@ -329,8 +380,9 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
 
         {/* Action Controls */}
         <div className="flex flex-col gap-2 pt-2">
-          {/* Payment retry banner */}
-          {isPendingPayment && (
+          {/* Payment retry banner. Not in COMMERCE_MODE=catalogue, where the server
+              refuses a new payment; a payment already made is still checked. */}
+          {isPendingPayment && orderingOpen && (
             <button
               onClick={handleRetryPayment}
               disabled={pending}
@@ -349,7 +401,7 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
             className="w-full flex items-center justify-center gap-2 rounded-xl border border-mist/20 py-3 text-xs font-extrabold text-ink bg-white active:bg-mist/5"
           >
             <FileText className="size-4 text-ink/65" />
-            <span>Download Invoice</span>
+            <span>Order summary</span>
           </Link>
 
           {/* Cancel Trigger */}
@@ -365,6 +417,17 @@ export function MobileOrderDetailView({ order }: MobileOrderDetailViewProps) {
               <XCircle className="size-4" />
               <span>Cancel Order</span>
             </button>
+          )}
+
+          {/* Paid online — no self-cancel: nothing refunds the payment yet (ISS-025). */}
+          {cancelState.kind === "paid-online" && (
+            <p className="rounded-xl border border-mist/20 bg-white p-3 text-[11px] font-semibold leading-snug text-ink/70">
+              This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
+              <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${order.orderNo}`} className="font-bold text-ink underline">
+                {CONTACT.email}
+              </a>{" "}
+              with the order number.
+            </p>
           )}
 
           {/* Cancellation Confirm Panel */}
