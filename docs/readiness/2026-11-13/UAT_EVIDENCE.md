@@ -143,3 +143,43 @@ audit rows from the scenarios above.
 showed the previous price and the previous review; the next reload was correct. The
 database held the new values throughout. An operator who reloads to confirm a change
 can be shown the old state. Not yet investigated.
+
+## 14 Nov 2026, later — G-52 resolved, test tooling restored
+
+### G-52: root cause and fix
+
+Not a caching defect. The admin product page is `force-dynamic` and was never cached.
+The staging request log shows the reload (GET 19:49:57.84 UTC) **started before** the
+price save was sent (POST 19:49:58.18), so it rendered the database as it then was.
+The save was late because the shared cart provider reads the cart and wishlist on
+every page, the console included — on arrival, on focus and when the tab returns —
+and a page's server actions are sent one at a time, so the save queued behind them.
+
+Fix: PR #66 — the cart provider is paused on `/admin` routes. Regression test: the
+paused provider makes no read on arrival, focus, tab return or sign-in (it made 3
+cart and 2 wishlist reads before the change). **Not yet verified on staging** (needs
+a deploy).
+
+### Browser and harness capability now
+
+| Capability | State |
+|---|---|
+| Built-in browser pane | Control tools not available to this session |
+| Playwright 1.64.1 | Installed; its cached Chromium is the wrong version |
+| Playwright driving the installed Chrome (`channel: "chrome"`) | **Works**, no download |
+| Repository smoke suite against staging | **14/14 passed** on `build-2026-11-13-001` (anonymous, phone 380 and desktop 1440) |
+| A dedicated Chrome window with its own empty profile, driven over a local debugging port | **Works** — the staging login page was read and can be driven. Signed-in scenarios need the owner to sign in there once |
+| Test sign-in harness on staging | None exists; none was created |
+
+### Run locally against the test database (automated, gateway injected — not staging)
+
+Stock concurrency, idempotent placement, duplicate capture, settlement, expiry and
+ledger-completeness tests on the release code: **60/60**. This is the isolated
+harness evidence for scenarios 4 and 5; it is not a live gateway result.
+
+### Still not run on staging
+
+New purchase with a TEST payment (1), payment failure (2), abandoned checkout (3),
+duplicate event against the live webhook (4), cart-add of a hidden product, cross-customer
+access, stock adjustment and order edits (8), failed delivery and return to
+warehouse (12), #63's hop check, #64 with a real content blocker, any device test.
