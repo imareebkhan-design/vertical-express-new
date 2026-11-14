@@ -49,6 +49,17 @@ export const SETTING_KEYS = {
    * reports `no_price` until this is set.
    */
   expressFeePaise: "delivery.express_fee_paise",
+  /**
+   * Basket value, in paise, at or above which standard delivery is free.
+   *
+   * Absent means there is no free-delivery offer: every order pays its
+   * pincode's delivery fee. This was a hardcoded ₹500 in the cart service that
+   * nobody had chosen (ISS-030); it waived the fee at checkout for any basket
+   * over ₹500 and was reported to the phone app as the shop's offer. Waiving a
+   * delivery fee is a cost to the business, so it happens only once the owner
+   * has entered a figure.
+   */
+  freeDeliveryThresholdPaise: "delivery.free_threshold_paise",
   /** Default catalogue sort. */
   defaultSort: "catalog.default_sort",
   /**

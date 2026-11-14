@@ -6,8 +6,34 @@ import { isPurchasableStatus } from "@/lib/catalog-visibility";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
+import { SETTING_KEYS, parsePaise, readSetting } from "@/lib/services/settings";
 
-const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
+/**
+ * The free-delivery offer for a basket, given the owner's threshold.
+ *
+ * `thresholdPaise` null means no threshold has been set, so there is no offer:
+ * the three fields read 0, 0 and false. They stay numbers because the phone
+ * app's cart contract types them as numbers; a threshold of 0 is how "no
+ * offer" is said on that contract.
+ *
+ * Pure, so the rule can be tested without a database.
+ */
+export function freeDeliveryFor(subtotalPaise: number, thresholdPaise: number | null) {
+  if (thresholdPaise === null || thresholdPaise <= 0) {
+    return { freeDeliveryThresholdPaise: 0, freeDeliveryRemainingPaise: 0, qualifiesFreeDelivery: false };
+  }
+  return {
+    freeDeliveryThresholdPaise: thresholdPaise,
+    freeDeliveryRemainingPaise: Math.max(0, thresholdPaise - subtotalPaise),
+    qualifiesFreeDelivery: subtotalPaise >= thresholdPaise && subtotalPaise > 0,
+  };
+}
+
+/** The owner's free-delivery threshold in paise, or null when none is set. */
+export async function readFreeDeliveryThresholdPaise(): Promise<number | null> {
+  const paise = parsePaise(await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise));
+  return paise !== null && paise > 0 ? paise : null;
+}
 
 export interface CartLine {
   itemId: string;
@@ -62,9 +88,7 @@ const EMPTY: CartSummary = {
   lines: [],
   count: 0,
   subtotalPaise: 0,
-  freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  freeDeliveryRemainingPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  qualifiesFreeDelivery: false,
+  ...freeDeliveryFor(0, null),
 };
 
 /** Resolve active warehouse scoped to user address pincode or fallback. */
@@ -223,16 +247,13 @@ export async function getCartSummary(
 
   const subtotalPaise = lines.reduce((sum, l) => sum + (l.inStock ? l.lineTotalPaise : 0), 0);
   const count = lines.reduce((sum, l) => sum + (l.inStock ? l.qty : 0), 0);
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - subtotalPaise);
 
   return {
     cartId: cart.id,
     lines,
     count,
     subtotalPaise,
-    freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-    freeDeliveryRemainingPaise: remaining,
-    qualifiesFreeDelivery: subtotalPaise >= FREE_DELIVERY_THRESHOLD_PAISE && subtotalPaise > 0,
+    ...freeDeliveryFor(subtotalPaise, await readFreeDeliveryThresholdPaise()),
   };
 }
 

@@ -39,6 +39,9 @@ export default async function AdminSettings() {
           expressFeeRupees: s[SETTING_KEYS.expressFeePaise]
             ? String(Number(s[SETTING_KEYS.expressFeePaise]) / 100)
             : "",
+          freeDeliveryRupees: s[SETTING_KEYS.freeDeliveryThresholdPaise]
+            ? String(Number(s[SETTING_KEYS.freeDeliveryThresholdPaise]) / 100)
+            : "",
           packSlaMinutes: s[SETTING_KEYS.packSlaMinutes] ?? "",
           deliverySlaMinutes: s[SETTING_KEYS.deliverySlaMinutes] ?? "",
           codEnabled: s[SETTING_KEYS.codEnabled] === "true" ? "true" : "false",
