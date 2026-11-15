@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
+import { countPaymentExceptions } from "@/lib/services/payment-exceptions";
 
 /**
  * What is wrong right now — the "Exceptions" panel of artboard 1.
@@ -33,7 +34,7 @@ export interface OpsExceptions {
 }
 
 export async function getOpsExceptions(): Promise<OpsExceptions> {
-  const [settings, outOfStock, lowStock, staleOrders, pincodeCount] = await Promise.all([
+  const [settings, outOfStock, lowStock, staleOrders, pincodeCount, paymentExceptions] = await Promise.all([
     readSettings(),
     db.inventory.count({ where: { qtyOnHand: { lte: 0 } } }),
     /* At or below the reorder point but not yet empty — the window in which
@@ -48,6 +49,7 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
       },
     }),
     db.serviceablePincode.count({ where: SERVICEABLE_WHERE }),
+    countPaymentExceptions(),
   ]);
 
   const found: OpsException[] = [];
@@ -66,6 +68,20 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
         "Orders can confirm with no money taken. Every revenue figure in the console " +
         "is a figure for money that may not exist. ISS-002.",
       href: "/admin/payments",
+    });
+  }
+
+  /* Signed captures the webhook could not settle (A-3): money Razorpay holds
+     that no order here accounts for, or holds in the wrong amount. There is no
+     resolved state yet, so this counts every one ever recorded. */
+  if (paymentExceptions > 0) {
+    found.push({
+      severity: "bad",
+      title: `${paymentExceptions} ${paymentExceptions === 1 ? "captured payment needs" : "captured payments need"} investigation`,
+      detail:
+        "Razorpay captured money that matches no order here, or in a different amount " +
+        "from what the order expects. Nothing settles or refunds these automatically.",
+      href: "/admin/payments#needs-investigation",
     });
   }
 

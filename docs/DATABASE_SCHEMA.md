@@ -334,6 +334,30 @@ One row per refund of a captured payment: `payment_id`, `order_id`, `amount_pais
 — it is additive. Dropping it loses the refund record; do that only on a database
 where no refund was ever made.
 
+## `payment_exceptions` (migration `20261116120000_payment_exceptions`, 16 Nov 2026, A-3 / ISS-107)
+
+One row per correctly signed Razorpay capture the webhook could not settle:
+`reason` (`PaymentExceptionReason`: `unmatched` — matches no order or payment here;
+`amount_mismatch` — matches a payment row but for a different amount),
+`gateway_payment_id` (required), `gateway_order_id`, `gateway_event_id` (first
+delivery's), `event`, `amount_paise` (what Razorpay captured; null only for an
+unmatched payload with no integer amount), `currency`, `expected_amount_paise` and
+`order_id` (mismatch only), `received_at`.
+
+- Unique `(gateway_payment_id, reason)`: the idempotency guarantee. A replay or a
+  concurrent second delivery hits P2002 and stores nothing new.
+- CHECK `payment_exceptions_mismatch_complete`: a mismatch row always carries both
+  amounts and the order.
+- FK `order_id → orders ON DELETE RESTRICT`. RLS enabled, no policies. Rows are never
+  deleted; there is no resolved state yet (owner policy).
+- Read by `lib/services/payment-exceptions.ts` for `/admin/payments` ("Needs
+  investigation") and the Today exceptions panel.
+
+**Rollback:** code first (earlier code never reads the table; the webhook goes back to
+alert-only and to a 400 on mismatch), then the table may stay — it is additive.
+Dropping it loses the record of money nobody has accounted for; do that only where it
+is empty.
+
 ## Launch Control batches (no schema change, 12 Nov 2026)
 
 Category and brand visibility changes made through Launch Control (`/admin/launch-control`) are grouped into

@@ -46,6 +46,8 @@ before(async () => {
 after(async () => {
   process.env.RAZORPAY_KEY_SECRET = prev.c;
   process.env.RAZORPAY_WEBHOOK_SECRET = prev.w;
+  await db.paymentException.deleteMany({ where: { orderId: { in: orderIds } } });
+  await db.paymentException.deleteMany({ where: { gatewayPaymentId: { in: hookedPaymentIds } } });
   await db.orderStatusEvent.deleteMany({ where: { orderId: { in: orderIds } } });
   await db.payment.deleteMany({ where: { orderId: { in: orderIds } } });
   await db.order.deleteMany({ where: { id: { in: orderIds } } });
@@ -73,7 +75,14 @@ async function makeOrder(opts: { user?: string; status?: "pending_payment" | "ca
   return { id: order.id, orderNo: order.orderNo, gw, amount, paymentId: order.payments[0].id };
 }
 
-const pid = () => `pay_${randomUUID().slice(0, 12)}`;
+/* Every payment id this file sends, so the after hook can remove the
+   payment_exceptions rows (A-3) the unmatched and mismatch cases record. */
+const hookedPaymentIds: string[] = [];
+const pid = () => {
+  const id = `pay_${randomUUID().slice(0, 12)}`;
+  hookedPaymentIds.push(id);
+  return id;
+};
 const clientSig = (o: string, p: string) => createHmac("sha256", CHECKOUT_SECRET).update(`${o}|${p}`).digest("hex");
 
 function hook(event: string, gw: string, paymentId: string, amount: number, eventId = `evt_${randomUUID().slice(0, 10)}`) {
@@ -127,10 +136,20 @@ test("webhook: the same event delivered twice, and a second event for the same p
   assert.equal((await state(o)).payments[0].gatewayPaymentId, p);
 });
 
-test("webhook: a wrong amount is refused and nothing is recorded", async () => {
+/* The next test and "late capture with the wrong amount" asserted a 400 (gap
+   G-34). Rewritten deliberately for A-3: a signed capture for the wrong amount
+   is recorded as an amount_mismatch exception and acknowledged with 200 so
+   Razorpay stops retrying. Nothing settles, as before. */
+test("webhook: a wrong amount does not settle; it is recorded for investigation", async () => {
   const o = await makeOrder();
-  const res = await webhook(hook("payment.captured", o.gw, pid(), o.amount - 1));
-  assert.equal(res.status, 400);
+  const p = pid();
+  const res = await webhook(hook("payment.captured", o.gw, p, o.amount - 1));
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).status, "amount_mismatch_recorded");
+  const exc = await db.paymentException.findMany({ where: { gatewayPaymentId: p } });
+  assert.equal(exc.length, 1);
+  assert.equal(exc[0].reason, "amount_mismatch");
+  assert.equal(exc[0].orderId, o.id);
   const row = await state(o);
   assert.equal(row.status, "pending_payment");
   assert.equal(row.payments[0].status, "created");
@@ -171,11 +190,14 @@ test("late capture: redelivery is idempotent — still one event", async () => {
   assert.equal((await events(o.id)).filter((e) => /after this order expired/.test(e.note ?? "")).length, 1);
 });
 
-test("late capture with the wrong amount is refused, not recorded", async () => {
+test("late capture with the wrong amount is not settled; it is recorded for investigation", async () => {
   const o = await makeOrder({ status: "cancelled" });
-  const res = await webhook(hook("payment.captured", o.gw, pid(), o.amount + 1));
-  assert.equal(res.status, 400);
+  const p = pid();
+  const res = await webhook(hook("payment.captured", o.gw, p, o.amount + 1));
+  assert.equal(res.status, 200);
+  assert.equal((await db.paymentException.count({ where: { gatewayPaymentId: p, reason: "amount_mismatch" } })), 1);
   assert.equal((await state(o)).payments[0].status, "created");
+  assert.equal((await state(o)).status, "cancelled");
 });
 
 test("payment.failed never downgrades a captured payment; it does mark an unpaid one failed", async () => {
