@@ -172,6 +172,39 @@ the Cloud Scheduler job `ve-staging-cleanup-orders` (asia-southeast1, `*/5 * * *
 was never a moment with no expiry job. Local `.vercel/` / `.vercel-old/` folders are untracked and safe to delete.
 A production backend needs its own scheduler job pointing at its host.
 
+## Order and payment alerts
+
+Set up and test delivery in staging before enabling paid orders. Use a verified
+Cloud Monitoring notification channel for the operator on call. Configure a
+separate policy and log filter for each App Hosting backend so staging incidents
+can be identified immediately.
+
+1. In Logs Explorer, select the backend's Cloud Run service and confirm that one
+   application log arrives with `jsonPayload.service` and `jsonPayload.event`.
+   Record the service name from `resource.labels.service_name` for that backend.
+2. Create a log-based alert scoped to that service with
+   `jsonPayload.service="alert-notifier"`. This includes payment exceptions and
+   `late_capture_sweep_failed`. Add the notification channel to the alert policy.
+3. Create a log-based counter scoped to the same service and matching
+   `jsonPayload.service="cron-service"` and
+   `jsonPayload.event="cleanup_orders_cron_success"`. Confirm the metric receives
+   data from the five-minute schedule, then create a metric-absence condition for
+   15 minutes. The success event measures order cleanup. The exception alert in
+   step 2 separately detects a late-capture sweep that throws while cleanup still
+   returns HTTP 200.
+4. On staging, use an approved, signed Razorpay TEST-mode exception to prove
+   that an operator receives an incident notification. With an approved staging
+   maintenance window, pause the staging scheduler long enough to verify the
+   absence alert. Resume the job immediately after the alert or at the end of the
+   window, whichever comes first. Confirm the next successful run and incident
+   recovery. Record the incident IDs, build, timestamps and acknowledgement in
+   the staging acceptance record.
+
+Server exception reporting through Sentry is a separate integration. If it is
+enabled, provision an environment-specific `SENTRY_DSN` in Secret Manager and
+grant the matching backend identity access before adding a runtime secret
+reference to its hosting file.
+
 ## Production — `ve-production` (set up 3 Nov 2026)
 
 Backend **`ve-production`**, region `asia-southeast1`, environment name `production`, URL
