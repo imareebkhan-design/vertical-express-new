@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { POST } from "@/app/api/webhooks/razorpay/route";
-import { listPaymentExceptions, countPaymentExceptions } from "@/lib/services/payment-exceptions";
+import { listPaymentExceptions, countPaymentExceptions, countPaymentExceptionRows, recordCaptureException } from "@/lib/services/payment-exceptions";
 import { getOpsExceptions } from "@/lib/services/admin/exceptions";
 
 /**
@@ -295,10 +295,29 @@ test("the Needs investigation list and the Today count read back what was stored
   for (const key of ["phone", "email", "address", "userId"]) assert.ok(!(key in list[0]), `list exposes ${key}`);
 
   const total = await countPaymentExceptions();
-  assert.equal(total, await db.paymentException.count());
+  const distinct = await db.paymentException.findMany({ distinct: ["gatewayPaymentId"], select: { id: true } });
+  assert.equal(total, distinct.length);
+  assert.equal(await countPaymentExceptionRows(), await db.paymentException.count());
   const { found } = await getOpsExceptions();
   const entry = found.find((e) => e.href === "/admin/payments#needs-investigation");
   assert.ok(entry, "Today does not show the count");
   assert.equal(entry.severity, "bad");
   assert.match(entry.title, new RegExp(`^${total} captured payments? needs? investigation$`));
+});
+
+test("Today counts a payment recorded under both reasons once", async () => {
+  const payId = id("pay_both");
+  const before = await countPaymentExceptions();
+  await recordCaptureException({ reason: "unmatched", gatewayPaymentId: payId, event: "payment.captured", amountPaise: 800 });
+  await recordCaptureException({
+    reason: "amount_mismatch",
+    gatewayPaymentId: payId,
+    gatewayOrderId: GATEWAY_ORDER_ID,
+    event: "payment.captured",
+    amountPaise: 800,
+    expectedAmountPaise: EXPECTED,
+    orderId: ORDER_ID,
+  });
+  assert.equal((await rowsFor(payId)).length, 2, "both reasons are kept as evidence");
+  assert.equal(await countPaymentExceptions(), before + 1, "but it is one captured payment");
 });

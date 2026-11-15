@@ -8,7 +8,7 @@ import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { listRecentRefunds } from "@/lib/services/refunds";
-import { listPaymentExceptions } from "@/lib/services/payment-exceptions";
+import { countPaymentExceptionRows, listPaymentExceptions } from "@/lib/services/payment-exceptions";
 import { RefundCheck, RefundControl } from "@/components/admin/refund-control";
 import { adminCheckRefund, adminRefundPayment } from "@/actions/refunds";
 
@@ -24,13 +24,14 @@ export default async function AdminPayments({
   if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures, refunds, investigate] = await Promise.all([
+  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures, refunds, investigate, investigateTotal] = await Promise.all([
     adminListPayments(page),
     adminPaymentHealth(),
     listCapturedPaymentsOnDeadOrders(),
     listDuplicateCaptures(),
     listRecentRefunds(),
     listPaymentExceptions(),
+    countPaymentExceptionRows(),
   ]);
   const refundRequired = [...onDeadOrders, ...secondCaptures];
   /* A payment with a refund in flight stays on the list (its money has not
@@ -196,8 +197,14 @@ export default async function AdminPayments({
         className={"rounded-panel p-4 shadow-card " + (investigate.length > 0 ? "bg-ops-bad-tint" : "bg-white")}
       >
         <h2 id="needs-investigation-heading" className="text-[13px] font-extrabold text-ink">
-          Needs investigation · {investigate.length}
+          Needs investigation · {investigateTotal}
         </h2>
+        {investigateTotal > investigate.length && (
+          <p className="mt-1 text-[12px] font-semibold text-ops-bad">
+            Showing the newest {investigate.length} of {investigateTotal}. Older ones are still recorded in
+            payment_exceptions; this list has no further pages yet.
+          </p>
+        )}
         {investigate.length === 0 ? (
           <p className="mt-1 text-[12px] font-semibold text-ink-500">
             Every signed capture matched an order and its amount.

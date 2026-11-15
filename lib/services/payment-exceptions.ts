@@ -83,7 +83,16 @@ export async function listPaymentExceptions(limit = 100) {
   });
 }
 
-/** Every recorded exception. There is no resolved state yet, so this is all of them. */
+/** Distinct captured payments with at least one exception — one payment can
+ *  carry both reasons, and it is still one sum of money. There is no resolved
+ *  state yet, so this is all of them. */
 export async function countPaymentExceptions() {
+  const [row] = await db.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT gateway_payment_id)::bigint AS count FROM payment_exceptions`;
+  return Number(row?.count ?? 0);
+}
+
+/** Exception rows, for the Payments screen to say when its list is truncated. */
+export async function countPaymentExceptionRows() {
   return db.paymentException.count();
 }
