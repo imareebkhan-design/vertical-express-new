@@ -119,6 +119,8 @@ after(async () => {
   await db.cartItem.deleteMany({ where: { cart: { userId: USER } } });
   await db.cart.deleteMany({ where: { userId: USER } });
   await db.address.deleteMany({ where: { userId: USER } });
+  await db.couponRedemption.deleteMany({ where: { userId: USER } });
+  await db.coupon.deleteMany({ where: { code: { startsWith: TAG } } });
   await db.serviceablePincode.deleteMany({ where: { pincode: PINCODE } });
   await db.stockMovement.deleteMany({ where: { variantId } }).catch(() => {});
   await db.inventory.deleteMany({ where: { variantId } });
@@ -151,7 +153,7 @@ test("the rule itself: no threshold is no offer, and the boundary is inclusive",
 
 /* ------------------------------------------------------------ setting absent */
 
-test("no setting: the cart reports no offer as 0 / 0 / false — numbers, as the phone app's contract types them", async () => {
+test("setting absent: the cart reports no offer as 0 / 0 / false — numbers, as the phone app's contract types them", async () => {
   assert.equal(await readFreeDeliveryThresholdPaise(), null);
 
   const empty = await cart();
@@ -169,7 +171,7 @@ test("no setting: the cart reports no offer as 0 / 0 / false — numbers, as the
   assert.strictEqual(c.qualifiesFreeDelivery, false);
 });
 
-test("no setting: a large basket pays the pincode's fee in the quote and on the placed order", async () => {
+test("setting absent: a large basket pays the pincode's fee in the quote and on the placed order", async () => {
   await addItem(USER, null, variantId, 50); // ₹10,000 — twenty times the old hardcoded figure
   const c = await cart();
   assert.equal(c.subtotalPaise, 50 * UNIT);
@@ -186,7 +188,7 @@ test("no setting: a large basket pays the pincode's fee in the quote and on the 
 
 /* -------------------------------------------------------- setting configured */
 
-test("threshold set, basket exactly on it: delivery is free in the cart, the quote and the order", async () => {
+test("setting configured, cart exactly at the threshold: delivery is free in the cart, the quote and the order", async () => {
   await setThreshold(String(BASKET));
   await addItem(USER, null, variantId, 3);
 
@@ -203,7 +205,7 @@ test("threshold set, basket exactly on it: delivery is free in the cart, the quo
   assert.equal(order.totalPaise, q.totalPaise);
 });
 
-test("threshold set, basket one paisa short: the full fee is charged, and the cart says how far there is to go", async () => {
+test("setting configured, cart below the threshold by one paisa: the full fee is charged, and the cart says how far there is to go", async () => {
   await setThreshold(String(BASKET + 1));
   await addItem(USER, null, variantId, 3);
 
@@ -219,7 +221,7 @@ test("threshold set, basket one paisa short: the full fee is charged, and the ca
   assert.equal(order.deliveryFeePaise, FEE);
 });
 
-test("threshold set, basket above it: delivery is free and the free and paid totals differ by exactly the fee", async () => {
+test("setting configured, cart above the threshold: delivery is free and the free and paid totals differ by exactly the fee", async () => {
   await addItem(USER, null, variantId, 3);
   const paid = await quote(); // no threshold yet
   assert.equal(paid.deliveryFeePaise, FEE);
@@ -235,7 +237,7 @@ test("threshold set, basket above it: delivery is free and the free and paid tot
 
 /* --------------------------------------------------- changed, and removed again */
 
-test("the owner changes the figure, then removes it: each read follows the setting as it is now", async () => {
+test("threshold changed: the next read uses the new figure, in both directions", async () => {
   await addItem(USER, null, variantId, 3);
 
   await setThreshold(String(BASKET));
@@ -249,24 +251,94 @@ test("the owner changes the figure, then removes it: each read follows the setti
   assert.equal(raised.qualifiesFreeDelivery, false);
   assert.equal((await quote()).deliveryFeePaise, FEE, "the old figure was still being applied");
 
-  await setThreshold(null); // removed
+  await setThreshold(String(UNIT)); // lowered below it
+  const lowered = await cart();
+  assert.equal(lowered.freeDeliveryThresholdPaise, UNIT);
+  assert.equal(lowered.qualifiesFreeDelivery, true);
+  assert.equal((await quote()).deliveryFeePaise, 0);
+});
+
+test("setting removed again: the offer and the waiver both stop", async () => {
+  await addItem(USER, null, variantId, 3);
+  await setThreshold(String(BASKET));
+  assert.equal((await cart()).qualifiesFreeDelivery, true);
+  assert.equal((await quote()).deliveryFeePaise, 0);
+
+  await setThreshold(null); // the row is gone
   const gone = await cart();
   assert.deepEqual(
     [gone.freeDeliveryThresholdPaise, gone.freeDeliveryRemainingPaise, gone.qualifiesFreeDelivery],
-    [0, 0, false]
+    [0, 0, false],
+    "the cart still advertises an offer"
   );
-  assert.equal((await quote()).deliveryFeePaise, FEE);
+  const q = await quote();
+  assert.equal(q.deliveryFeePaise, FEE, "the fee is still waived");
+  const placed = await place(q.totalPaise);
+  const order = await db.order.findUniqueOrThrow({ where: { orderNo: placed.orderNo } });
+  assert.equal(order.deliveryFeePaise, FEE, "an order placed after removal was still delivered free");
 
   /* Cleared from the settings screen, which stores an empty string rather than
      deleting the row (`adminSaveSettings`). Same answer. */
+  await addItem(USER, null, variantId, 3);
+  await setThreshold(String(BASKET));
+  assert.equal((await quote()).deliveryFeePaise, 0);
   await setThreshold("");
   assert.equal((await cart()).qualifiesFreeDelivery, false);
   assert.equal((await quote()).deliveryFeePaise, FEE);
 });
 
+/* ------------------------------------- what was already true, and still is */
+
+test("existing delivery-fee behaviour: the fee is the pincode's own, and a pincode that charges nothing is free without any threshold", async () => {
+  await addItem(USER, null, variantId, 1);
+  assert.equal((await quote()).deliveryFeePaise, FEE, "the pincode's fee, with no threshold");
+
+  await setThreshold(String(BASKET)); // one unit is below it
+  assert.equal((await quote()).deliveryFeePaise, FEE, "a threshold the basket does not reach changes nothing");
+
+  await setThreshold(null);
+  await db.serviceablePincode.updateMany({ where: { pincode: PINCODE }, data: { deliveryFeePaise: 0 } });
+  try {
+    const c = await cart();
+    assert.equal(c.qualifiesFreeDelivery, false, "a free pincode is not a basket-size offer");
+    assert.equal((await quote()).deliveryFeePaise, 0, "a pincode set to charge nothing still charges nothing");
+  } finally {
+    await db.serviceablePincode.updateMany({ where: { pincode: PINCODE }, data: { deliveryFeePaise: FEE } });
+  }
+});
+
+test("existing coupon behaviour: a discount coupon is worth the same either way, and a free-delivery coupon waives only a fee that is being charged", async () => {
+  const flat = `${TAG}FLAT`;
+  const freeDel = `${TAG}FREEDEL`;
+  await db.coupon.create({ data: { code: flat, type: "flat", value: 5000, minOrderPaise: 0, isActive: true } });
+  await db.coupon.create({ data: { code: freeDel, type: "free_delivery", value: 0, minOrderPaise: 0, isActive: true } });
+  await addItem(USER, null, variantId, 3);
+  const withCoupon = async (code: string) => computeTotals(await cart(), PINCODE, STATE, code, USER);
+
+  /* No threshold: the fee is charged, so the free-delivery coupon has something to waive. */
+  const flatNoOffer = await withCoupon(flat);
+  assert.equal(flatNoOffer.discountPaise, 5000);
+  assert.equal(flatNoOffer.deliveryFeePaise, FEE, "a discount coupon does not touch the delivery fee");
+  const freeNoOffer = await withCoupon(freeDel);
+  assert.equal(freeNoOffer.deliveryFeePaise, 0);
+  assert.equal(freeNoOffer.couponDeliveryWaivedPaise, FEE, "the coupon is what waived the fee");
+
+  /* Threshold met: delivery is already free, the discount is unchanged, and the
+     free-delivery coupon waives nothing (so placement does not spend it — coupon-e6). */
+  await setThreshold(String(BASKET));
+  const flatOffer = await withCoupon(flat);
+  assert.equal(flatOffer.discountPaise, 5000, "the threshold changed what a discount coupon is worth");
+  assert.equal(flatOffer.deliveryFeePaise, 0);
+  assert.equal(flatNoOffer.totalPaise - flatOffer.totalPaise, FEE);
+  const freeOffer = await withCoupon(freeDel);
+  assert.equal(freeOffer.deliveryFeePaise, 0);
+  assert.equal(freeOffer.couponDeliveryWaivedPaise, 0, "nothing was left for the coupon to waive");
+  assert.equal(freeOffer.couponRejection, null);
+});
+
 /* ------------------------------------------- the rule moved between quote and order */
 
-test("quoted free, threshold removed before the press: refused with TOTAL_CHANGED, nothing written; the re-quote then places with the fee", async () => {
+test("quote-to-order mismatch, offer withdrawn after the quote: refused with TOTAL_CHANGED, nothing written; the re-quote then places with the fee", async () => {
   await setThreshold(String(BASKET));
   await addItem(USER, null, variantId, 3);
   const shown = await quote();
@@ -289,7 +361,7 @@ test("quoted free, threshold removed before the press: refused with TOTAL_CHANGE
   assert.equal(order.totalPaise, fresh.totalPaise);
 });
 
-test("quoted with the fee, threshold set before the press: also refused — a cheaper total is still not the one shown", async () => {
+test("quote-to-order mismatch, offer started after the quote: also refused — a cheaper total is still not the one shown", async () => {
   await addItem(USER, null, variantId, 3);
   const shown = await quote();
   assert.equal(shown.deliveryFeePaise, FEE);
