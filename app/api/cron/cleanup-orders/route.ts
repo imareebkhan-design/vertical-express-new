@@ -3,7 +3,7 @@ import crypto from "node:crypto";
 import { cleanupExpiredPendingOrders, sweepCancelledOrdersForLateCaptures } from "@/lib/services/orders";
 import { pruneRateLimits } from "@/lib/services/rate-limit";
 import { deliverOrderEmails } from "@/lib/services/order-emails";
-import { runWithContext, MetricsTracker, captureException } from "@/lib/observability";
+import { runWithContext, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 
 /**
  * Timing-safe comparison for two UTF-8 strings (ISS-043).
@@ -69,7 +69,12 @@ export async function GET(request: NextRequest) {
       /* Money paid after a cancel, whose webhook never arrived. Same rule as
          the housekeeping above: its failure must not cost the cleanup result. */
       let lateCaptureSweep: { checked: number; lateCaptures: number } | null = null;
-      try { lateCaptureSweep = await sweepCancelledOrdersForLateCaptures(); } catch (err) { captureException(err); }
+      try {
+        lateCaptureSweep = await sweepCancelledOrdersForLateCaptures();
+      } catch (err) {
+        captureException(err);
+        triggerAlert("late_capture_sweep_failed", "The scheduled late-capture sweep failed");
+      }
       let emails = null;
       try { emails = await deliverOrderEmails(); } catch (err) { captureException(err); }
       metric.end("cleanup_orders_cron_success", { cancelledCount, prunedRateLimits });
