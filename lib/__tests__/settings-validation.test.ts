@@ -4,7 +4,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFlag, parsePercent, parsePaise, freeDeliveryInputToStored } from "@/lib/services/settings";
+import { parseFlag, parsePercent, parsePaise, freeDeliveryInputToStored, parseFreeDeliveryThresholdPaise } from "@/lib/services/settings";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -144,6 +144,31 @@ test("the free-delivery field refuses zero, negatives and anything that is not a
   for (const bad of ["0", "0.00", "-1", "-750", "abc", "₹750", "7.505", "1e3", "750 rupees"]) {
     assert.equal(freeDeliveryInputToStored(bad), null, `${JSON.stringify(bad)} must be refused`);
   }
+});
+
+test("a stored free-delivery threshold is plain digits above zero, or it is no offer", () => {
+  assert.equal(parseFreeDeliveryThresholdPaise("75000"), 75000);
+  assert.equal(parseFreeDeliveryThresholdPaise(" 75000 "), 75000);
+  /* Stricter than parsePaise on purpose: Number() would accept the last three. */
+  for (const bad of ["", "  ", "0", "-75000", "abc", "12.5", "1e5", "75000.00", "0x10", null, undefined]) {
+    assert.equal(parseFreeDeliveryThresholdPaise(bad), null, `${JSON.stringify(bad)} must not become a threshold`);
+  }
+});
+
+test("the settings screen shows the threshold through the cart's parser, not Number()", () => {
+  /* The screen used `Number(stored) / 100`, which shows a hand-edited "1e5" as
+     ₹1000. The cart refuses that value, but saving the form — for any reason —
+     would then have written it back as a valid, live threshold. */
+  const page = readFileSync(join(ROOT, "app/admin/settings/page.tsx"), "utf8");
+  assert.match(
+    page,
+    /parseFreeDeliveryThresholdPaise\(s\[SETTING_KEYS\.freeDeliveryThresholdPaise\]\)/,
+    "the settings page reads the stored threshold without the strict parser"
+  );
+  assert.ok(
+    !/Number\(s\[SETTING_KEYS\.freeDeliveryThresholdPaise\]\)/.test(page),
+    "the settings page converts the stored threshold with Number()"
+  );
 });
 
 test("the free-delivery threshold is on the settings screen and saved through the validated path", () => {

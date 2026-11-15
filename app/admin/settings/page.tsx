@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { OpsScreen } from "@/components/admin/ops-screen";
 import { SettingsForm } from "@/components/admin/settings-form";
-import { SETTING_KEYS, readSettings } from "@/lib/services/settings";
+import { SETTING_KEYS, parseFreeDeliveryThresholdPaise, readSettings } from "@/lib/services/settings";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
@@ -39,9 +39,13 @@ export default async function AdminSettings() {
           expressFeeRupees: s[SETTING_KEYS.expressFeePaise]
             ? String(Number(s[SETTING_KEYS.expressFeePaise]) / 100)
             : "",
-          freeDeliveryRupees: s[SETTING_KEYS.freeDeliveryThresholdPaise]
-            ? String(Number(s[SETTING_KEYS.freeDeliveryThresholdPaise]) / 100)
-            : "",
+          /* Through the same parser the cart uses: a stored value the cart
+             refuses shows as blank, so saving the form cannot turn it into a
+             live threshold. */
+          freeDeliveryRupees: (() => {
+            const paise = parseFreeDeliveryThresholdPaise(s[SETTING_KEYS.freeDeliveryThresholdPaise]);
+            return paise === null ? "" : String(paise / 100);
+          })(),
           packSlaMinutes: s[SETTING_KEYS.packSlaMinutes] ?? "",
           deliverySlaMinutes: s[SETTING_KEYS.deliverySlaMinutes] ?? "",
           codEnabled: s[SETTING_KEYS.codEnabled] === "true" ? "true" : "false",

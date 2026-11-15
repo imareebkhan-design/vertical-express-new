@@ -118,6 +118,22 @@ export async function writeSetting(
 }
 
 /**
+ * The stored free-delivery threshold, in paise, or null for "no offer".
+ *
+ * Plain digits above zero only, which is all the settings screen ever stores.
+ * `parsePaise` goes through Number(), so "1e5" or "60000.00" in a hand-edited
+ * row would otherwise become a threshold nobody typed. The cart and the
+ * settings screen both read through this, so the screen can never show — and
+ * then re-save as valid — a value the cart refuses.
+ */
+export function parseFreeDeliveryThresholdPaise(raw: string | null | undefined): number | null {
+  const v = raw?.trim() ?? "";
+  if (!/^\d+$/.test(v)) return null;
+  const paise = Number(v);
+  return Number.isSafeInteger(paise) && paise > 0 ? paise : null;
+}
+
+/**
  * What the settings screen's "Free delivery from" field stores.
  *
  * Blank stores "" — no offer. A rupee amount above zero stores its paise as a

@@ -287,6 +287,20 @@ test("setting removed again: the offer and the waiver both stop", async () => {
   assert.equal((await quote()).deliveryFeePaise, FEE);
 });
 
+test("setting configured, no cart yet: the offer is reported the same as for an empty cart", async () => {
+  await setThreshold(String(BASKET));
+  const want = [BASKET, BASKET, false];
+  const triple = (c: Awaited<ReturnType<typeof getCartSummary>>) =>
+    [c.freeDeliveryThresholdPaise, c.freeDeliveryRemainingPaise, c.qualifiesFreeDelivery];
+
+  assert.deepEqual(triple(await getCartSummary(null, null)), want, "a visitor with no identity");
+  assert.deepEqual(triple(await getCartSummary(randomUUID(), null)), want, "a customer with no cart row");
+  assert.deepEqual(triple(await cart()), want, "a customer whose cart is empty");
+
+  await setThreshold(null);
+  assert.deepEqual(triple(await getCartSummary(randomUUID(), null)), [0, 0, false], "and no offer once it is removed");
+});
+
 /* ------------------------------------- what was already true, and still is */
 
 test("existing delivery-fee behaviour: the fee is the pincode's own, and a pincode that charges nothing is free without any threshold", async () => {

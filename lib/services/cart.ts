@@ -6,7 +6,7 @@ import { isPurchasableStatus } from "@/lib/catalog-visibility";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
-import { SETTING_KEYS, parsePaise, readSetting } from "@/lib/services/settings";
+import { SETTING_KEYS, parseFreeDeliveryThresholdPaise, readSetting } from "@/lib/services/settings";
 
 /**
  * The free-delivery offer for a basket, given the owner's threshold.
@@ -31,13 +31,7 @@ export function freeDeliveryFor(subtotalPaise: number, thresholdPaise: number | 
 
 /** The owner's free-delivery threshold in paise, or null when none is set. */
 export async function readFreeDeliveryThresholdPaise(): Promise<number | null> {
-  const raw = (await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise))?.trim() ?? "";
-  /* Plain digits only, which is all the settings screen ever stores.
-     `parsePaise` goes through Number(), so "1e5" or "60000.00" in a hand-edited
-     row would otherwise become a threshold nobody typed. */
-  if (!/^\d+$/.test(raw)) return null;
-  const paise = parsePaise(raw);
-  return paise !== null && paise > 0 ? paise : null;
+  return parseFreeDeliveryThresholdPaise(await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise));
 }
 
 export interface CartLine {
@@ -95,6 +89,14 @@ const EMPTY: CartSummary = {
   subtotalPaise: 0,
   ...freeDeliveryFor(0, null),
 };
+
+/**
+ * The summary for somebody with no cart row yet. It still carries the owner's
+ * threshold, so "no cart" and "an empty cart" describe the same offer.
+ */
+async function emptySummary(): Promise<CartSummary> {
+  return { ...EMPTY, ...freeDeliveryFor(0, await readFreeDeliveryThresholdPaise()) };
+}
 
 /** Resolve active warehouse scoped to user address pincode or fallback. */
 export async function resolveWarehouseId(userId: string | null): Promise<string> {
@@ -161,7 +163,7 @@ export async function getCartSummary(
   anonId: string | null
 ): Promise<CartSummary> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return EMPTY;
+  if (!cart) return emptySummary();
 
   const items = await db.cartItem.findMany({
     where: { cartId: cart.id, variant: { isActive: true, product: { status: "published", AND: [catalogListingWhere()] } } },
@@ -324,7 +326,7 @@ export async function updateItemQty(
   qty: number
 ): Promise<UpdateCartQtyResult> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return { summary: EMPTY };
+  if (!cart) return { summary: await emptySummary() };
 
   const item = await db.cartItem.findFirst({
     where: { id: itemId, cartId: cart.id },

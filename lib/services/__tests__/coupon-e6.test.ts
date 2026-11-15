@@ -192,28 +192,32 @@ test("a free-delivery coupon is used up like any other: its per-customer limit h
   const code = `${TAG}FREEDEL`;
   await coupon(code, { type: "free_delivery", value: 0, perUserLimit: 1 });
 
-  await addItem(USER, null, variants.cheap, 1); // ₹300, no free-delivery threshold set: delivery is charged
-  const quote = await computeTotals(await getCartSummary(USER, null), PINCODE, STATE, code, USER);
-  assert.equal(quote.deliveryFeePaise, 0, "the coupon waives the fee");
-  const first = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
-  const o1 = await db.order.findFirstOrThrow({ where: { orderNo: first.orderNo } });
-  assert.equal(o1.deliveryFeePaise, 0);
-  assert.equal(o1.couponCode, code, "the order records the coupon that waived its delivery");
-  assert.equal(await redemptions(code), 1, "the use is recorded");
-  assert.equal(await counter(code), 1);
+  /* The fee is only charged while no threshold waives it, so this test says
+     so rather than relying on the settings row happening to be empty. */
+  await withFreeDeliveryThreshold(null, async () => {
+    await addItem(USER, null, variants.cheap, 1); // ₹300, no free-delivery threshold set: delivery is charged
+    const quote = await computeTotals(await getCartSummary(USER, null), PINCODE, STATE, code, USER);
+    assert.equal(quote.deliveryFeePaise, 0, "the coupon waives the fee");
+    const first = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
+    const o1 = await db.order.findFirstOrThrow({ where: { orderNo: first.orderNo } });
+    assert.equal(o1.deliveryFeePaise, 0);
+    assert.equal(o1.couponCode, code, "the order records the coupon that waived its delivery");
+    assert.equal(await redemptions(code), 1, "the use is recorded");
+    assert.equal(await counter(code), 1);
 
-  await addItem(USER, null, variants.cheap, 1);
-  /* Submitting it again is refused (revalidation) rather than silently charged
-     the fee; placed without it, the fee is charged. */
-  await assert.rejects(
-    placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() }),
-    /COUPON_NOT_APPLICABLE:per_user_limit_reached/
-  );
-  const second = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: null, idempotencyKey: randomUUID() });
-  const o2 = await db.order.findFirstOrThrow({ where: { orderNo: second.orderNo } });
-  assert.equal(o2.deliveryFeePaise, FEE, "a one-per-customer coupon does not waive delivery a second time");
-  assert.equal(o2.couponCode, null);
-  assert.equal(await redemptions(code), 1);
+    await addItem(USER, null, variants.cheap, 1);
+    /* Submitting it again is refused (revalidation) rather than silently charged
+       the fee; placed without it, the fee is charged. */
+    await assert.rejects(
+      placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() }),
+      /COUPON_NOT_APPLICABLE:per_user_limit_reached/
+    );
+    const second = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: null, idempotencyKey: randomUUID() });
+    const o2 = await db.order.findFirstOrThrow({ where: { orderNo: second.orderNo } });
+    assert.equal(o2.deliveryFeePaise, FEE, "a one-per-customer coupon does not waive delivery a second time");
+    assert.equal(o2.couponCode, null);
+    assert.equal(await redemptions(code), 1);
+  });
 });
 
 test("a free-delivery coupon on an order that already has free delivery takes nothing and spends nothing", async () => {
