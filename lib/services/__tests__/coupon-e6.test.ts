@@ -21,6 +21,7 @@ import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
+import { SETTING_KEYS } from "@/lib/services/settings";
 const SUITE_START = new Date();
 
 const PINCODE = "999916";
@@ -43,6 +44,23 @@ async function clearCart(userId: string) {
 
 async function coupon(code: string, data: Record<string, unknown>) {
   return db.coupon.create({ data: { code, isActive: true, minOrderPaise: 0, ...data } as never });
+}
+
+/** A fixture, not a policy: any figure between the ₹300 and ₹640 baskets. */
+const THRESHOLD = 50000;
+
+/** Run `fn` with the free-delivery threshold set (or absent), then restore it. */
+async function withFreeDeliveryThreshold(value: string | null, fn: () => Promise<void>) {
+  const key = SETTING_KEYS.freeDeliveryThresholdPaise;
+  const saved = await db.setting.findUnique({ where: { key } });
+  try {
+    if (value === null) await db.setting.deleteMany({ where: { key } });
+    else await db.setting.upsert({ where: { key }, create: { key, value }, update: { value } });
+    await fn();
+  } finally {
+    if (saved) await db.setting.upsert({ where: { key }, create: saved, update: saved });
+    else await db.setting.deleteMany({ where: { key } });
+  }
 }
 
 const redemptions = (couponCode: string) => db.couponRedemption.count({ where: { coupon: { code: couponCode } } });
@@ -90,7 +108,7 @@ before(async () => {
     await db.inventory.create({ data: { variantId: v.id, warehouseId, qtyOnHand: 500 } });
     variants[key] = v.id;
   };
-  await mk("cheap", other.id, 30000); // ₹300 — under the ₹500 free-delivery threshold
+  await mk("cheap", other.id, 30000); // ₹300 — the small basket; below THRESHOLD when a test sets one
   await mk("cement", cement.id, 32000); // 28% GST
   await mk("fitting", other.id, 11800); // 18% GST (or the category's rate)
   await approveTestProductsCreatedSince(SUITE_START);
@@ -174,7 +192,7 @@ test("a free-delivery coupon is used up like any other: its per-customer limit h
   const code = `${TAG}FREEDEL`;
   await coupon(code, { type: "free_delivery", value: 0, perUserLimit: 1 });
 
-  await addItem(USER, null, variants.cheap, 1); // ₹300, below the ₹500 threshold: delivery is charged
+  await addItem(USER, null, variants.cheap, 1); // ₹300, no free-delivery threshold set: delivery is charged
   const quote = await computeTotals(await getCartSummary(USER, null), PINCODE, STATE, code, USER);
   assert.equal(quote.deliveryFeePaise, 0, "the coupon waives the fee");
   const first = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
@@ -201,12 +219,39 @@ test("a free-delivery coupon is used up like any other: its per-customer limit h
 test("a free-delivery coupon on an order that already has free delivery takes nothing and spends nothing", async () => {
   const code = `${TAG}FREEDEL2`;
   await coupon(code, { type: "free_delivery", value: 0, perUserLimit: 1 });
-  await addItem(USER, null, variants.cement, 2); // ₹640 — already over the threshold
-  const placed = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
-  const o = await db.order.findFirstOrThrow({ where: { orderNo: placed.orderNo } });
-  assert.equal(o.deliveryFeePaise, 0);
-  assert.equal(o.couponCode, null, "nothing was waived by the coupon");
-  assert.equal(await redemptions(code), 0);
+  await addItem(USER, null, variants.cement, 2); // ₹640
+
+  /* "Already has free delivery" is only true once the owner has set a
+     threshold this basket clears. There is no built-in one (ISS-030), so the
+     test sets its own and puts back whatever was there. */
+  await withFreeDeliveryThreshold(String(THRESHOLD), async () => {
+    const cart = await getCartSummary(USER, null);
+    assert.equal(cart.qualifiesFreeDelivery, true, "the basket clears the threshold this test set");
+    const placed = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
+    const o = await db.order.findFirstOrThrow({ where: { orderNo: placed.orderNo } });
+    assert.equal(o.deliveryFeePaise, 0);
+    assert.equal(o.couponCode, null, "nothing was waived by the coupon");
+    assert.equal(await redemptions(code), 0);
+  });
+});
+
+test("with no threshold set, the same basket pays the fee and the free-delivery coupon is what waives it", async () => {
+  const code = `${TAG}FREEDEL3`;
+  await coupon(code, { type: "free_delivery", value: 0, perUserLimit: 1 });
+  await addItem(USER, null, variants.cement, 2); // ₹640 — the basket of the test above
+
+  await withFreeDeliveryThreshold(null, async () => {
+    const cart = await getCartSummary(USER, null);
+    assert.equal(cart.qualifiesFreeDelivery, false, "no threshold, so nothing is free by basket size");
+    const without = await computeTotals(cart, PINCODE, STATE, null, USER);
+    assert.equal(without.deliveryFeePaise, FEE, "without the coupon the pincode fee is charged");
+
+    const placed = await placeOrder({ userId: USER, addressId, paymentMethod: "dummy", couponCode: code, idempotencyKey: randomUUID() });
+    const o = await db.order.findFirstOrThrow({ where: { orderNo: placed.orderNo } });
+    assert.equal(o.deliveryFeePaise, 0, "the coupon waived the fee");
+    assert.equal(o.couponCode, code, "and the order records it");
+    assert.equal(await redemptions(code), 1, "and it is spent");
+  });
 });
 
 /* ------------------------------------------------ revalidation at placement */

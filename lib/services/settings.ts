@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { DbClient } from "@/lib/services/audit";
 import { log } from "@/lib/observability";
+import { parseRupeeInput } from "@/lib/money";
 
 /**
  * Operational settings, edited in the console rather than deployed.
@@ -114,6 +115,20 @@ export async function writeSetting(
     event: "setting_changed",
     metadata: { key, updatedBy },
   });
+}
+
+/**
+ * What the settings screen's "Free delivery from" field stores.
+ *
+ * Blank stores "" — no offer. A rupee amount above zero stores its paise as a
+ * string. Anything else is null, which the settings action refuses: zero is
+ * not read as "always free" and a malformed figure is not read as anything.
+ */
+export function freeDeliveryInputToStored(input: string): string | null {
+  const v = input.trim();
+  if (v === "") return "";
+  const paise = parseRupeeInput(v);
+  return paise !== null && paise > 0 ? String(paise) : null;
 }
 
 /**

@@ -93,7 +93,7 @@ the first time.
 | 6.2 | Godown origin point for delivery | **BLOCKS P0A** | Warehouse record and delivery planning | AWAITING |
 | 6.3 | **Realistic delivery SLA — the 60-minute claim** | **BLOCKS P0A** | The site promises 60 minutes everywhere. Recommendation is to launch at "same day, order before 2 PM" and tighten publicly (DEC-017). This is the owner's call and it must match reality. | AWAITING |
 | 6.4 | Delivery charges | **BLOCKS P0A** | Currently from a seeded placeholder | AWAITING |
-| 6.5 | Free-delivery threshold | **BLOCKS P0A** | `FREE_DELIVERY_THRESHOLD_PAISE = 50000` (₹500) is a **hardcoded guess in `lib/services/cart.ts`** (ISS-030) | AWAITING |
+| 6.5 | Free-delivery threshold | **BLOCKS P0A** | Was a **hardcoded ₹500 guess in `lib/services/cart.ts`** (ISS-030). Since 15 Nov 2026 it is the setting "Free delivery from" in Admin → Settings, blank by default: no order gets free delivery by basket size until a figure is entered there | AWAITING (the figure; no longer blocks — unset is safe) |
 | 6.6 | Delivery operating hours and days | **BLOCKS P0A** | Do not promise hours that cannot be staffed | AWAITING |
 | 6.7 | Vehicles — how many and what type | BLOCKS P0B | Old City lanes may need a two- or three-wheeler path | AWAITING |
 | 6.8 | Heavy-material restrictions (cement, tanks, sheets) | BLOCKS P0B | Whether these ship on the same vehicle or are scheduled separately | AWAITING |

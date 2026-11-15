@@ -31,7 +31,12 @@ export function freeDeliveryFor(subtotalPaise: number, thresholdPaise: number | 
 
 /** The owner's free-delivery threshold in paise, or null when none is set. */
 export async function readFreeDeliveryThresholdPaise(): Promise<number | null> {
-  const paise = parsePaise(await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise));
+  const raw = (await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise))?.trim() ?? "";
+  /* Plain digits only, which is all the settings screen ever stores.
+     `parsePaise` goes through Number(), so "1e5" or "60000.00" in a hand-edited
+     row would otherwise become a threshold nobody typed. */
+  if (!/^\d+$/.test(raw)) return null;
+  const paise = parsePaise(raw);
   return paise !== null && paise > 0 ? paise : null;
 }
 
