@@ -2,7 +2,7 @@
 /**
  * Read-only security smoke checks against a STAGING deployment (ISS-108).
  *
- *   node scripts/staging-security-smoke.mjs https://<staging-host> [product-slug]
+ *   node scripts/staging-security-smoke.mjs https://staging-host product-slug
  *
  * It sends no credentials and writes nothing: every request is either
  * unauthenticated or carries a deliberately invalid token, and every check
@@ -10,33 +10,37 @@
  * image upload, test-mode checkout) need a real staging account and are a
  * manual runbook: docs/security/staging-smoke-iss-108.md.
  *
- * Refuses any host that does not look like a staging or local target, so it
- * cannot be pointed at production by accident.
+ * Exit code: 1 if any check fails. The login-CSRF probe (ISS-109) reports OPEN
+ * while that issue stands; OPEN does not fail the run, but it is never PASS.
  */
+import { classifyCsrfProbe, isAllowedSmokeHost, validateJsonLd } from "./staging-smoke-checks.mjs";
 
-const base = process.argv[2];
-const productSlug = process.argv[3];
-if (!base) {
-  console.error("usage: node scripts/staging-security-smoke.mjs <staging-base-url> [product-slug]");
+const [baseArg, productSlug] = process.argv.slice(2);
+if (!baseArg || !productSlug) {
+  console.error("usage: node scripts/staging-security-smoke.mjs STAGING_BASE_URL PRODUCT_SLUG");
   process.exit(2);
 }
-const target = new URL(base);
-const allowed = /(^|[.-])(staging|stg|preview|dev|test)([.-]|$)|^localhost$|^127\.0\.0\.1$/i;
-if (!allowed.test(target.hostname)) {
+const target = new URL(baseArg);
+if (!isAllowedSmokeHost(target.hostname)) {
   console.error(`Refusing ${target.hostname}: not recognisably a staging or local host.`);
   process.exit(2);
 }
 
 const results = [];
-function record(name, pass, detail, kind = "check") {
-  results.push({ name, pass, detail, kind });
-  console.log(`${pass ? "PASS" : kind === "finding" ? "OPEN" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
+function record(name, outcome, detail) {
+  results.push({ name, outcome, detail });
+  console.log(`${outcome.toUpperCase().padEnd(4)}  ${name}${detail ? ` — ${detail}` : ""}`);
 }
+const expect = (name, ok, detail) => record(name, ok ? "pass" : "fail", detail);
 
+/* Only paths on the operator-chosen, allowlisted staging origin are fetched;
+   the path is always a literal from this file (or the slug, URL-encoded). */
 async function req(path, init = {}) {
-  const res = await fetch(new URL(path, target), { redirect: "manual", ...init });
-  const text = await res.text();
-  return { status: res.status, text };
+  const url = new URL(path, target);
+  if (url.origin !== target.origin) throw new Error(`refusing off-origin request to ${url.origin}`);
+  // nosemgrep: rules_lgpl_javascript_ssrf_rule-node-ssrf -- operator CLI tool; origin pinned to the allowlisted staging host above.
+  const res = await fetch(url, { redirect: "manual", ...init });
+  return { status: res.status, text: await res.text() };
 }
 
 /* 1. An invalid ID token produces no session. */
@@ -46,85 +50,52 @@ async function req(path, init = {}) {
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ idToken: "not-a-real-token" }),
   });
-  record("invalid ID token is refused by /api/auth/session", r.status === 401, `status ${r.status}`);
+  expect("invalid ID token is refused by /api/auth/session", r.status === 401, `status ${r.status}`);
 }
 
-/* 2. Login CSRF probe: a cross-site, preflight-free request. A safe server
-      refuses it before looking at the token (403/415). Reaching token
-      verification (401) means a forged form post with a real attacker token
-      would be accepted. Reported as an open finding, not a failure of this PR. */
+/* 2. Login-CSRF probe (ISS-109): cross-site, preflight-free text/plain POST. */
 {
   const r = await req("/api/auth/session", {
     method: "POST",
     headers: { "content-type": "text/plain", origin: "https://attacker.example" },
     body: '{"idToken":"not-a-real-token","x":"="}',
   });
-  const refusedEarly = r.status === 403 || r.status === 415;
-  record(
-    "cross-site text/plain session POST is refused before token verification",
-    refusedEarly,
-    `status ${r.status}${refusedEarly ? "" : " (handler reached: login CSRF open, ISS-109)"}`,
-    "finding"
-  );
+  const c = classifyCsrfProbe(r.status);
+  record("cross-site text/plain session POST is refused before token verification", c.outcome, c.detail);
 }
 
 /* 3. Bearer API refuses missing and invalid tokens. */
 {
   const none = await req("/api/v1/me");
-  record("/api/v1/me without a token is 401", none.status === 401, `status ${none.status}`);
+  expect("/api/v1/me without a token is 401", none.status === 401, `status ${none.status}`);
   const bad = await req("/api/v1/me", { headers: { authorization: "Bearer not-a-real-token" } });
-  record("/api/v1/me with an invalid token is 401", bad.status === 401, `status ${bad.status}`);
+  expect("/api/v1/me with an invalid token is 401", bad.status === 401, `status ${bad.status}`);
 }
 
 /* 4. Admin image upload refuses cross-site and unauthenticated callers. */
 {
-  const cross = await req("/api/admin/product-images", {
-    method: "POST",
-    headers: { origin: "https://attacker.example" },
-  });
-  record("image upload refuses a foreign Origin", cross.status === 403, `status ${cross.status}`);
+  const cross = await req("/api/admin/product-images", { method: "POST", headers: { origin: "https://attacker.example" } });
+  expect("image upload refuses a foreign Origin", cross.status === 403, `status ${cross.status}`);
   const anon = await req("/api/admin/product-images", { method: "POST", headers: { origin: target.origin } });
-  record("image upload refuses a signed-out caller", anon.status === 403, `status ${anon.status}`);
+  expect("image upload refuses a signed-out caller", anon.status === 403, `status ${anon.status}`);
 }
 
 /* 5. Cron endpoint refuses a caller without the secret. */
 {
   const r = await req("/api/cron/cleanup-orders");
-  record("cron endpoint refuses a caller without CRON_SECRET", r.status === 401 || r.status === 403, `status ${r.status}`);
+  expect("cron endpoint refuses a caller without CRON_SECRET", r.status === 401 || r.status === 403, `status ${r.status}`);
 }
 
-/* 6. JSON-LD: every structured-data block parses, and none contains a raw "<". */
-async function checkJsonLd(path) {
+/* 6. JSON-LD: home page blocks are valid; the product page must carry a named Product node. */
+async function checkJsonLd(path, requiredType) {
   const r = await req(path);
-  if (r.status !== 200) {
-    record(`JSON-LD on ${path}`, false, `page status ${r.status}`);
-    return;
-  }
-  const blocks = [...r.text.matchAll(/<script type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  if (blocks.length === 0) {
-    record(`JSON-LD on ${path}`, false, "no structured data found");
-    return;
-  }
-  let ok = true;
-  const problems = [];
-  for (const b of blocks) {
-    if (b.includes("<")) {
-      ok = false;
-      problems.push("raw '<' inside a block");
-    }
-    try {
-      JSON.parse(b);
-    } catch {
-      ok = false;
-      problems.push("block is not valid JSON");
-    }
-  }
-  record(`JSON-LD on ${path} (${blocks.length} block${blocks.length === 1 ? "" : "s"})`, ok, problems.join("; "));
+  if (r.status !== 200) return expect(`JSON-LD on ${path}`, false, `page status ${r.status}`);
+  const v = validateJsonLd(r.text, requiredType);
+  expect(`JSON-LD on ${path}${requiredType ? ` (requires ${requiredType})` : ""}`, v.ok, v.ok ? `${v.blocks} block(s)` : v.problems.join("; "));
 }
 await checkJsonLd("/");
-if (productSlug) await checkJsonLd(`/product/${encodeURIComponent(productSlug)}`);
+await checkJsonLd(`/product/${encodeURIComponent(productSlug)}`, "Product");
 
-const failed = results.filter((r) => !r.pass && r.kind === "check");
-const open = results.filter((r) => !r.pass && r.kind === "finding");
-console.log(`\n${results.length - failed.length - open.length} passed, ${failed.length} failed, ${open.length} open finding(s).`);
-process.exit(failed.length ? 1 : 0);
+const count = (o) => results.filter((r) => r.outcome === o).length;
+console.log(`\n${count("pass")} passed, ${count("fail")} failed, ${count("open")} open finding(s).`);
+process.exit(count("fail") ? 1 : 0);

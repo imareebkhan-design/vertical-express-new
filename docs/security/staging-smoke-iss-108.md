@@ -73,8 +73,12 @@ Use a staging QA product, never a live catalogue product.
 1. Paste the staging product URL into Google's Rich Results Test. **Expect:**
    Product and BreadcrumbList detected, no errors.
 2. On a QA product, set the title to `Drill </script><b>x</b>` in admin, view the
-   page source. **Expect:** the title appears as `</script>` inside the
-   JSON-LD and the page renders normally. Restore the title afterwards.
+   page source. **Expect:** inside the JSON-LD block the title reads
+   `Drill \u003c/script>\u003cb>x\u003c/b>` — every `<` written as the six
+   characters backslash, `u`, `0`, `0`, `3`, `c` — and there is no raw `</script>`
+   until the block's own closing tag. The page renders normally and the
+   Rich Results Test still reads the title as `Drill </script><b>x</b>`.
+   Restore the title afterwards.
 
 ### B6. Checkout and payment regression (test mode only)
 1. With staging in Razorpay **test mode**, place an order with a test card.

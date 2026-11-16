@@ -8,6 +8,8 @@
  * JSON unicode escape for U+003C leaves the JSON meaning unchanged and gives
  * the parser nothing to match.
  */
-export function serializeJsonLd(data: unknown): string {
+export function serializeJsonLdAsHtml(data: unknown): string {
+  /* The "AsHtml" suffix is the contract the xss/no-mixed-html lint rule reads:
+     this function's output is safe to place in HTML as-is. Keep it true. */
   return JSON.stringify(data).replace(/</g, "\\u003c");
 }

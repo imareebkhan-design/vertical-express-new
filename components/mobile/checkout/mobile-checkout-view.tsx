@@ -1,5 +1,6 @@
 "use client";
 
+import { generateIdempotencyKey } from "@/lib/idempotency-key";
 import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned-address-notice";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
@@ -54,18 +55,6 @@ const LABEL_DISPLAY: Record<string, string> = {
   office: "Work",
   home: "Home",
   other: "Other",
-};
-
-/* The idempotency key. randomUUID is missing outside a secure context, but
-   getRandomValues is not, so the fallback stays cryptographically random
-   instead of dropping to Math.random. */
-const generateUUID = () => {
-  const webCrypto = globalThis.crypto;
-  if (typeof webCrypto.randomUUID === "function") {
-    return webCrypto.randomUUID();
-  }
-  const bytes = webCrypto.getRandomValues(new Uint8Array(16));
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
 export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutViewProps) {
@@ -131,7 +120,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   const [wantsExpress, setWantsExpress] = useState(false);
 
   // Idempotency key stable for retry
-  const idempotencyKey = useRef<string>(generateUUID());
+  const idempotencyKey = useRef<string>(generateIdempotencyKey());
 
   const selected = addresses.find((a) => a.id === selectedAddressId);
   const { pincode: chosenPincode, city: chosenCity, place: chosenPlace } = useDeliveryPincode();

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { serializeJsonLd } from "@/lib/json-ld";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
 import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -98,10 +98,7 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
     <>
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: serializeJsonLd(productJsonLd) }}
-        />
+        <JsonLdScript data={productJsonLd} />
 
         <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-1 text-xs font-bold text-neutral-500">
           <Link href="/" className="hover:text-ink">Home</Link>

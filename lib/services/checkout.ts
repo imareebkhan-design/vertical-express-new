@@ -1,5 +1,5 @@
 import "server-only";
-import { randomInt } from "node:crypto";
+import { generateOrderNumber } from "@/lib/order-number";
 import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { Prisma } from "@/prisma/generated/client/client";
@@ -237,18 +237,6 @@ export async function computeTotals(
   };
 }
 
-function orderNumber(): string {
-  const year = new Date().getFullYear();
-  const ts = Date.now().toString(36).toUpperCase();
-  /* randomInt, not Math.random: the suffix is what keeps an order number from
-     being worked out from the time it was placed. */
-  const rand = randomInt(0, 0x10000)
-    .toString(16)
-    .toUpperCase()
-    .padStart(4, "0");
-  return `VE-${year}-${ts}${rand}`;
-}
-
 export interface PlaceOrderResult {
   orderNo: string;
   /** The order's status when this call returned. On an idempotent replay it is the
@@ -442,7 +430,7 @@ export async function placeOrder(params: {
   /* The order number is chosen before the gateway order so Razorpay's `receipt`
      carries it (it used to be the literal "pending" on every order, so the
      dashboard could not be searched by order number). */
-  const orderNo = orderNumber();
+  const orderNo = generateOrderNumber();
   const payResult = await provider.createOrder({
     orderId: orderNo,
     amountPaise: totals.totalPaise,
