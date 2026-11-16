@@ -69,6 +69,45 @@ Most other Codacy findings are false positives or sit in local scripts (`docs/ca
 
 **Rollback:** revert the commit; no schema or data change.
 
+## RPT-01 / roadmap B-2 — Today counted unpaid orders as revenue, started the day at the server's midnight, and said nothing about money owed back
+
+**Status:** FIXED on `claude/today-paid-revenue` (roadmap B-2, 16 Nov 2026); review pending.
+**Severity:** Launch blocker (the first screen an operator opens stated money wrongly). **Found:** 14 Nov 2026 audit (RPT-01, RPT-03, CUS-02).
+
+Three defects on figures an operator reads without checking:
+
+1. **Unpaid orders were revenue.** "Orders today" showed the sum of every order placed
+   today that was not cancelled, so an order waiting for payment, or abandoned at the
+   gateway, was in the figure. Customer "lifetime value" on `/admin/customers` and the
+   customer page was summed the same way.
+2. **"Today" was the server's day.** The boundary was `setHours(0,0,0,0)` on the host
+   clock. On a UTC host that is 5:30 AM in Srinagar, so the figure dropped everything sold
+   before 5:30 AM and kept the previous evening. "Captured today" on Payments had the same
+   boundary.
+3. **Money owed back was only on Payments.** A capture on a cancelled order (including one
+   that arrived after the order expired), a second capture on a paid order, and a refund
+   that failed were not in the Today exceptions list.
+
+**Fix.** One rule for "paid", in `lib/services/admin/paid-orders.ts`: a payment on the
+order is captured and the order is not cancelled, refund-initiated or refunded. Today's
+figure and customer value sum only those orders, each once at its own total (a second
+capture is a refund owed, not revenue). The card now reads "₹X paid on N of them". The
+day boundary is the IST day (`istTodayStart` in `lib/ist.ts`) on Today and on Payments,
+the same boundary the ledger export uses. The exceptions list gains three entries, read
+through the functions the Payments screen uses (`listCapturedPaymentsOnDeadOrders`,
+`listDuplicateCaptures`) so the two screens cannot disagree, plus a count of payments
+whose refund failed with nothing newer in flight. The customer order count and
+last-order date are unchanged: they describe orders placed.
+Tests: `lib/services/__tests__/today-money.test.ts`.
+
+**Not counted, deliberately.** A cash-on-delivery order is never "paid" here, because no
+row records cash being handed over. COD is switched off; if the owner turns it on, a
+collection record is needed before COD can appear in revenue.
+
+**Still open.** Reports (`/admin/bi`) still sums cancelled and unpaid orders and shows
+refunds as ₹0 (RPT-02, roadmap C-8). A late capture is not listed separately from other
+captures on cancelled orders: both are the same state and the same remedy.
+
 ## ISS-107 — A signed capture that could not settle left no record an operator could see
 
 **Status:** FIXED on `claude/unmatched-captures` (roadmap A-3, 16 Nov 2026); review pending.

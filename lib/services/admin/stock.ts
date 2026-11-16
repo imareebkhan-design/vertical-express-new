@@ -1,5 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { istTodayStart } from "@/lib/ist";
+import { isPaidOrder } from "@/lib/services/admin/paid-orders";
 
 /**
  * Inventory view for the operations console.
@@ -102,6 +104,7 @@ export interface CustomerRow {
   email: string | null;
   createdAt: Date;
   orderCount: number;
+  /** Paid orders only; see `lib/services/admin/paid-orders.ts`. */
   lifetimePaise: number;
   lastOrderAt: Date | null;
 }
@@ -139,7 +142,12 @@ export async function adminListCustomers(page = 1, perPage = 30, search?: string
         createdAt: true,
         orders: {
           where: { status: { notIn: ["cancelled", "refunded"] } },
-          select: { totalPaise: true, placedAt: true },
+          select: {
+            status: true,
+            totalPaise: true,
+            placedAt: true,
+            payments: { where: { status: "captured" }, select: { id: true }, take: 1 },
+          },
         },
       },
     }),
@@ -154,7 +162,9 @@ export async function adminListCustomers(page = 1, perPage = 30, search?: string
         email: u.email,
         createdAt: u.createdAt,
         orderCount: u.orders.length,
-        lifetimePaise: u.orders.reduce((s, o) => s + o.totalPaise, 0),
+        /* Value is what was paid for. The order count and last-order date stay
+           as placed orders: an unpaid order is still an order the customer made. */
+        lifetimePaise: u.orders.filter(isPaidOrder).reduce((s, o) => s + o.totalPaise, 0),
         lastOrderAt: u.orders.reduce<Date | null>(
           (latest, o) => (!latest || o.placedAt > latest ? o.placedAt : latest),
           null
@@ -215,9 +225,9 @@ export async function adminListPayments(page = 1, perPage = 30) {
  * means storing the gateway timestamp, and counting duplicates means logging
  * the rejection rather than swallowing it.
  */
-export async function adminPaymentHealth() {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+export async function adminPaymentHealth(now: Date = new Date()) {
+  /* The IST day, the same boundary Today and the ledger export use. */
+  const startOfToday = istTodayStart(now);
 
   const [capturedToday, failedToday, unverifiedToday] = await Promise.all([
     db.payment.aggregate({
@@ -333,6 +343,7 @@ export async function adminCustomerDetail(id: string) {
           paymentMethod: true,
           totalPaise: true,
           placedAt: true,
+          payments: { where: { status: "captured" }, select: { id: true }, take: 1 },
           _count: { select: { items: true } },
         },
       },
@@ -341,20 +352,23 @@ export async function adminCustomerDetail(id: string) {
 
   if (!user) return null;
 
-  /* Cancelled and refunded orders are excluded from value, matching the list
-     screen. Money that came back is not lifetime value. */
+  /* Cancelled and refunded orders are excluded from the count, matching the
+     list screen. Value is narrower still: only orders that were paid for
+     (RPT-01). An order awaiting payment is an order, but it is not value. */
   const counted = user.orders.filter(
     (o) => o.status !== "cancelled" && o.status !== "refunded"
   );
-  const lifetimePaise = counted.reduce((s, o) => s + o.totalPaise, 0);
+  const paid = counted.filter(isPaidOrder);
+  const lifetimePaise = paid.reduce((s, o) => s + o.totalPaise, 0);
 
   return {
     ...user,
     lifetimePaise,
     orderCount: counted.length,
-    /* Integer division on paise — an average in rupees-with-decimals would be a
+    /* Per paid order, so the average is of the same orders the value sums.
+       Integer division on paise — an average in rupees-with-decimals would be a
        float touching currency. */
-    averageOrderPaise: counted.length ? Math.round(lifetimePaise / counted.length) : null,
+    averageOrderPaise: paid.length ? Math.round(lifetimePaise / paid.length) : null,
     lastOrderAt: counted[0]?.placedAt ?? null,
   };
 }
