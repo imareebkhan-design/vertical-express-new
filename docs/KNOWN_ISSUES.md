@@ -1,5 +1,42 @@
 # Known Issues — Vertical Express
 
+## ISS-111 — Every operator holds every admin power
+
+**Status:** OPEN, by design pending owner decision. **Severity:** Low (insider / stolen-account blast radius).
+**Found:** security recheck, 16 Nov 2026.
+
+`getAdminUser()` (`lib/services/admin/authz.ts`) is a single tier: a verified email on `ADMIN_EMAILS` can change
+prices, issue refunds, edit roster and settings. Refunds are well guarded otherwise — amount computed and capped
+server-side under a row lock, reason required, audit row written (`lib/services/refunds.ts`) — but one operator can
+issue one alone. Options: permission tiers on the `admin_users` table the comment already anticipates, or a second
+approver for refunds above an owner-set amount.
+
+## ISS-110 — Public booking form can be flooded by rotating phone numbers
+
+**Status:** OPEN. **Severity:** Medium (spam rows and ops noise; no money or SMS spent). **Found:** security recheck,
+16 Nov 2026.
+
+`submitBooking` (`actions/booking.ts:30`) limits 5 per hour **per submitted phone number**, a value the caller
+chooses. Changing the number each time bypasses it, and there is no per-IP bucket or bot check. The same key lets
+anyone exhaust a real customer's quota by submitting with their number. Fix: add a per-IP bucket
+(`getClientIp`, as `actions/location.ts` does) alongside the phone bucket, and a global daily ceiling.
+
+## ISS-109 — Login CSRF: `/api/auth/session` accepts a cross-site form post
+
+**Status:** OPEN. **Severity:** Medium. **Found:** security recheck, 16 Nov 2026.
+
+The route's comment says a cross-origin POST "of `application/json` fails its preflight". It does, but the handler
+never requires that content type: `request.json()` parses a `text/plain` body just as happily (checked with Node's
+`Request`), and nothing compares `Origin`. A page on another site can auto-submit a `<form enctype="text/plain">`
+whose body is `{"idToken":"<attacker's own valid token>","x":"="}` — a top-level navigation, so the `Set-Cookie`
+lands — and the victim is signed in to the attacker's account, where anything they enter (addresses, orders) is
+visible to the attacker. `DELETE` (sign-out) has the same gap, with lower impact.
+
+The admin image upload route already has the right guard (`sameOrigin` in
+`lib/services/admin/image-upload-handler.ts`). Fix: apply the same Origin check to both methods and refuse any
+`Content-Type` other than `application/json` with `415`. `scripts/staging-security-smoke.mjs` check A2 reports this
+as OPEN until fixed.
+
 ## ISS-108 — Codacy scan (16 Nov 2026): vulnerable dependencies and three unescaped JSON-LD tags
 
 **Status:** PARTLY FIXED on `claude/security-codacy-fixes`; review pending.
