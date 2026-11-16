@@ -18,8 +18,8 @@ const EMPTY_SUMMARY: CartSummary = {
   lines: [],
   count: 0,
   subtotalPaise: 0,
-  freeDeliveryThresholdPaise: 50000,
-  freeDeliveryRemainingPaise: 50000,
+  freeDeliveryThresholdPaise: 0,
+  freeDeliveryRemainingPaise: 0,
   qualifiesFreeDelivery: false,
 };
 

@@ -122,12 +122,12 @@ export async function computeTotals(
 
   /* Charged on top, and NOT waived by the free-delivery threshold.
    *
-   * That threshold zeroes the *standard* fee over ₹500 — a rule nobody chose
-   * and which is already flagged (ISS-030). Express is a paid upgrade the
-   * customer asked for; nothing the owner has said suggests spending over ₹500
-   * makes a sixty-minute delivery free, and inventing that would give away the
-   * one delivery service that costs real money to run. Flagged rather than
-   * assumed either way. */
+   * That threshold is the owner's setting (`delivery.free_threshold_paise`,
+   * absent until they enter a figure — ISS-030) and it zeroes the *standard*
+   * fee only. Express is a paid upgrade the customer asked for; nothing the
+   * owner has said suggests that clearing the threshold makes a sixty-minute
+   * delivery free, and inventing that would give away the one delivery service
+   * that costs real money to run. Flagged rather than assumed either way. */
   const expressChosen = wantsExpress && express.available && express.feePaise !== null;
   if (expressChosen) deliveryFeePaise += express.feePaise!;
 

@@ -6,8 +6,33 @@ import { isPurchasableStatus } from "@/lib/catalog-visibility";
 import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
+import { SETTING_KEYS, parseFreeDeliveryThresholdPaise, readSetting } from "@/lib/services/settings";
 
-const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
+/**
+ * The free-delivery offer for a basket, given the owner's threshold.
+ *
+ * `thresholdPaise` null means no threshold has been set, so there is no offer:
+ * the three fields read 0, 0 and false. They stay numbers because the phone
+ * app's cart contract types them as numbers; a threshold of 0 is how "no
+ * offer" is said on that contract.
+ *
+ * Pure, so the rule can be tested without a database.
+ */
+export function freeDeliveryFor(subtotalPaise: number, thresholdPaise: number | null) {
+  if (thresholdPaise === null || thresholdPaise <= 0) {
+    return { freeDeliveryThresholdPaise: 0, freeDeliveryRemainingPaise: 0, qualifiesFreeDelivery: false };
+  }
+  return {
+    freeDeliveryThresholdPaise: thresholdPaise,
+    freeDeliveryRemainingPaise: Math.max(0, thresholdPaise - subtotalPaise),
+    qualifiesFreeDelivery: subtotalPaise >= thresholdPaise && subtotalPaise > 0,
+  };
+}
+
+/** The owner's free-delivery threshold in paise, or null when none is set. */
+export async function readFreeDeliveryThresholdPaise(): Promise<number | null> {
+  return parseFreeDeliveryThresholdPaise(await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise));
+}
 
 export interface CartLine {
   itemId: string;
@@ -62,10 +87,16 @@ const EMPTY: CartSummary = {
   lines: [],
   count: 0,
   subtotalPaise: 0,
-  freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  freeDeliveryRemainingPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  qualifiesFreeDelivery: false,
+  ...freeDeliveryFor(0, null),
 };
+
+/**
+ * The summary for somebody with no cart row yet. It still carries the owner's
+ * threshold, so "no cart" and "an empty cart" describe the same offer.
+ */
+async function emptySummary(): Promise<CartSummary> {
+  return { ...EMPTY, ...freeDeliveryFor(0, await readFreeDeliveryThresholdPaise()) };
+}
 
 /** Resolve active warehouse scoped to user address pincode or fallback. */
 export async function resolveWarehouseId(userId: string | null): Promise<string> {
@@ -132,7 +163,7 @@ export async function getCartSummary(
   anonId: string | null
 ): Promise<CartSummary> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return EMPTY;
+  if (!cart) return emptySummary();
 
   const items = await db.cartItem.findMany({
     where: { cartId: cart.id, variant: { isActive: true, product: { status: "published", AND: [catalogListingWhere()] } } },
@@ -223,16 +254,13 @@ export async function getCartSummary(
 
   const subtotalPaise = lines.reduce((sum, l) => sum + (l.inStock ? l.lineTotalPaise : 0), 0);
   const count = lines.reduce((sum, l) => sum + (l.inStock ? l.qty : 0), 0);
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - subtotalPaise);
 
   return {
     cartId: cart.id,
     lines,
     count,
     subtotalPaise,
-    freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-    freeDeliveryRemainingPaise: remaining,
-    qualifiesFreeDelivery: subtotalPaise >= FREE_DELIVERY_THRESHOLD_PAISE && subtotalPaise > 0,
+    ...freeDeliveryFor(subtotalPaise, await readFreeDeliveryThresholdPaise()),
   };
 }
 
@@ -298,7 +326,7 @@ export async function updateItemQty(
   qty: number
 ): Promise<UpdateCartQtyResult> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return { summary: EMPTY };
+  if (!cart) return { summary: await emptySummary() };
 
   const item = await db.cartItem.findFirst({
     where: { id: itemId, cartId: cart.id },

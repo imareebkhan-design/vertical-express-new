@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { DbClient } from "@/lib/services/audit";
 import { log } from "@/lib/observability";
+import { parseRupeeInput } from "@/lib/money";
 
 /**
  * Operational settings, edited in the console rather than deployed.
@@ -49,6 +50,17 @@ export const SETTING_KEYS = {
    * reports `no_price` until this is set.
    */
   expressFeePaise: "delivery.express_fee_paise",
+  /**
+   * Basket value, in paise, at or above which standard delivery is free.
+   *
+   * Absent means there is no free-delivery offer: every order pays its
+   * pincode's delivery fee. This was a hardcoded ₹500 in the cart service that
+   * nobody had chosen (ISS-030); it waived the fee at checkout for any basket
+   * over ₹500 and was reported to the phone app as the shop's offer. Waiving a
+   * delivery fee is a cost to the business, so it happens only once the owner
+   * has entered a figure.
+   */
+  freeDeliveryThresholdPaise: "delivery.free_threshold_paise",
   /** Default catalogue sort. */
   defaultSort: "catalog.default_sort",
   /**
@@ -103,6 +115,36 @@ export async function writeSetting(
     event: "setting_changed",
     metadata: { key, updatedBy },
   });
+}
+
+/**
+ * The stored free-delivery threshold, in paise, or null for "no offer".
+ *
+ * Plain digits above zero only, which is all the settings screen ever stores.
+ * `parsePaise` goes through Number(), so "1e5" or "60000.00" in a hand-edited
+ * row would otherwise become a threshold nobody typed. The cart and the
+ * settings screen both read through this, so the screen can never show — and
+ * then re-save as valid — a value the cart refuses.
+ */
+export function parseFreeDeliveryThresholdPaise(raw: string | null | undefined): number | null {
+  const v = raw?.trim() ?? "";
+  if (!/^\d+$/.test(v)) return null;
+  const paise = Number(v);
+  return Number.isSafeInteger(paise) && paise > 0 ? paise : null;
+}
+
+/**
+ * What the settings screen's "Free delivery from" field stores.
+ *
+ * Blank stores "" — no offer. A rupee amount above zero stores its paise as a
+ * string. Anything else is null, which the settings action refuses: zero is
+ * not read as "always free" and a malformed figure is not read as anything.
+ */
+export function freeDeliveryInputToStored(input: string): string | null {
+  const v = input.trim();
+  if (v === "") return "";
+  const paise = parseRupeeInput(v);
+  return paise !== null && paise > 0 ? String(paise) : null;
 }
 
 /**

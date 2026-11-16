@@ -343,7 +343,7 @@ This does **not** establish the cause of the owner's original red error. Firebas
 | ISS-027 | Admin authorization via env allowlist only | MEDIUM | Security | OPEN |
 | ISS-028 | Order numbers are non-sequential | LOW | Orders | OPEN |
 | ISS-029 | Webhook handles only `payment.captured` | LOW | Payments | PARTIAL — `refund.*` events handled 19 Oct |
-| ISS-030 | Free-delivery threshold hardcoded in source | LOW | Pricing | BLOCKED (OWNER) |
+| ISS-030 | Free-delivery threshold hardcoded in source | LOW | Pricing | FIXED in code 15 Nov (owner setting, off until set); the figure itself awaits the owner (OD-3) |
 | ISS-031 | Three animation libraries shipped to mobile | LOW | Performance | OPEN |
 | ISS-032 | Unit of measure stored as a display string | LOW | Data model | OPEN |
 | ISS-033 | No product weight or dimensions | LOW | Data model | OPEN |
@@ -1898,7 +1898,7 @@ endpoint.
 |---|---|---|---|---|---|
 | **ISS-028** | Order numbers non-sequential | Orders | `orderNumber()` uses `Date.now().toString(36)` + random hex → `VE-2026-M8X2A1F4`. Hard to read over the phone; gaps look like missing orders to an accountant. | Sequential per year from a Postgres sequence: `VE-2026-000123`. Keep the unique constraint. | No |
 | **ISS-029** | Webhook handles only `payment.captured` | Payments | `payment.failed`, `refund.processed`, `order.paid` are ignored. | Handle failure (release order), refund confirmation, and add a reconciliation poller for orders stuck in `pending_payment` >20 min. | No |
-| **ISS-030** | Free-delivery threshold hardcoded | Pricing | `FREE_DELIVERY_THRESHOLD_PAISE = 50000` (₹500) is a constant in source. | Move to configuration. **The value itself is a guess.** | **YES — Q6** |
+| **ISS-030** | Free-delivery threshold hardcoded | Pricing | `FREE_DELIVERY_THRESHOLD_PAISE = 50000` (₹500) was a constant in source. **Fixed 15 Nov 2026 (audit A-5):** the constant is gone; the threshold is the setting `delivery.free_threshold_paise` (Admin → Settings → "Free delivery from"), absent by default. Absent means no waiver: the cart reports 0 / 0 / false and every order pays its pincode fee. No schema change. Tests: `lib/services/__tests__/free-delivery-threshold.test.ts`. | The figure is still the owner's to choose; nothing waives a fee until they enter one. | **YES — Q6 / OD-3 (value only)** |
 | **ISS-031** | Three animation libraries shipped | Performance | `framer-motion` + `gsap` + `lenis` all in the bundle, plus a welcome-popup interstitial. `lenis` hijacks native scroll, which degrades perceived performance on low-end Android and breaks scroll anchoring. | Remove `lenis` and `gsap`, keep `framer-motion`. Remove the welcome popup. Audit `next/image` usage. | No |
 | **ISS-032** | UoM stored as a display string | Data model | `Product.unitLabel` is `"per bag"` — a string. Cannot compute ₹/kg, cannot validate quantity steps, cannot prevent "0.5 bags of cement". | Structured `uom` enum + `packSize` + `packUnit` + `minOrderQty` + `qtyStep`. (This is the same class of bug that makes HomeRun render `₹0.0/`.) | Q2/Q3 |
 | **ISS-033** | No product weight or dimensions | Data model | Cannot compute delivery fee by weight, cannot determine vehicle class, cannot flag heavy-material handling. | Add `weightGrams` and optional dimensions to `ProductVariant`. | Q2 |
