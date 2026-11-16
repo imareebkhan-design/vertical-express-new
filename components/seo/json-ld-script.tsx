@@ -15,6 +15,7 @@ export function JsonLdScript({ data }: { data: unknown }) {
   return (
     <script
       type="application/ld+json"
+      // nosemgrep -- same sink as above; the audit rule anchors on this attribute.
       dangerouslySetInnerHTML={{ __html: serializeJsonLdAsHtml(data) }}
     />
   );
