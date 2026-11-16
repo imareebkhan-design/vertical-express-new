@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { Prisma, PaymentMethod, OrderStatus } from "@/prisma/generated/client/client";
 import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/settings";
 import { orderNeedsTruck } from "@/lib/speed";
+import { addDays, istDateKey } from "@/lib/ist";
+import { PAID_ORDER_WHERE, isPaidOrder } from "@/lib/services/admin/paid-orders";
 
 /** ISO week label, e.g. "W31". The artboard's x-axis. */
 function isoWeek(d: Date): string {
@@ -39,9 +41,14 @@ export interface BiDashboardData {
     discountsPaise: number;
     gstPaise: number;
     shippingPaise: number;
+    /** Net sales per paid order. */
     aovPaise: number;
+    /** Every order placed in the period, whatever became of it. */
     ordersCount: number;
+    /** The orders the money figures are summed over; see paid-orders.ts. */
+    paidOrdersCount: number;
     growthPct: number;
+    /** Refund rows the gateway processed in the period, from `payment_refunds`. */
     refundsPaise: number;
     cashbackIssuedPaise: number;
     dailySales: { label: string; gross: number; net: number }[];
@@ -124,8 +131,14 @@ export interface BiDashboardData {
     taxesPaise: number;
     walletLiabilityPaise: number;
     refundsPaise: number;
+    /** Captured in the period less refunds processed in it. Both from the ledger. */
     cashFlowPaise: number;
-    gatewaySettlementPaise: number;
+    /**
+     * Null: what Razorpay settles is the capture less its fee and tax on the
+     * fee, and neither is recorded here. This was `netSales * 0.98`, a two per
+     * cent fee nobody agreed with Razorpay, shown as a settlement figure.
+     */
+    gatewaySettlementPaise: number | null;
     outstandingPaise: number;
   };
   operations: {
@@ -243,10 +256,25 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     });
   }
 
+  /**
+   * The orders money is summed over (RPT-02).
+   *
+   * Every sales figure below used to run over all orders in the period, so a
+   * cancelled order and an order nobody paid for were in gross sales, GST and
+   * delivery income. They now run over paid orders only, by the rule Today
+   * uses. `filteredOrders` is still what the status counts, timings and
+   * activity charts read: those describe orders placed, not money.
+   */
+  const paidOrders = filteredOrders.filter((o) =>
+    isPaidOrder({ status: o.status, payments: o.payments.filter((p) => p.status === "captured") })
+  );
+
+  const paidOrderIds = new Set(paidOrders.map((o) => o.id));
+
   // 5. Query previous period orders for revenue growth comparison
   const prevOrderWhere: Prisma.OrderWhereInput = {
     placedAt: { gte: prevStartDate, lte: prevEndDate },
-    status: { notIn: ["cancelled", "refunded"] },
+    ...PAID_ORDER_WHERE,
   };
   const prevPeriodOrders = await db.order.findMany({
     where: prevOrderWhere,
@@ -259,45 +287,63 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   let discounts = 0;
   let gstCollected = 0;
   let shippingRevenue = 0;
-  let refunds = 0;
+  let netSales = 0;
   const orderCount = filteredOrders.length;
 
   const dailyMap = new Map<string, { gross: number; net: number }>();
-  
-  // Seed dates in daily map
-  for (let d = new Date(startDate.getTime()); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().split("T")[0];
+
+  /* One row per IST calendar day, so a sale at 1 AM in Srinagar is on that
+     day's row and not the previous one. */
+  const lastDay = istDateKey(endDate);
+  for (let key = istDateKey(startDate); key <= lastDay; key = addDays(key, 1)) {
     dailyMap.set(key, { gross: 0, net: 0 });
   }
 
-  for (const o of filteredOrders) {
-    const isCancelled = o.status === "cancelled";
-    const isRefunded = o.status === "refunded" || o.status === "refund_initiated";
-
+  for (const o of paidOrders) {
     const oGross = o.items.reduce((sum, item) => sum + (item.lineTotalPaise ?? 0), 0);
-    const oDiscount = o.discountPaise;
-    const oTax = o.taxPaise;
-    const oShipping = o.deliveryFeePaise;
-    const oNet = o.totalPaise;
 
     grossSales += oGross;
-    discounts += oDiscount;
-    gstCollected += oTax;
-    shippingRevenue += oShipping;
+    discounts += o.discountPaise;
+    gstCollected += o.taxPaise;
+    shippingRevenue += o.deliveryFeePaise;
+    /* What the customer was charged, as stored on the order. Not re-derived
+       from the parts: the order total is the figure the payment was taken for. */
+    netSales += o.totalPaise;
 
-    if (isRefunded) {
-      refunds += oNet;
-    }
-
-    const dayKey = o.placedAt.toISOString().split("T")[0];
+    const dayKey = istDateKey(o.placedAt);
     const dayData = dailyMap.get(dayKey) || { gross: 0, net: 0 };
     dayData.gross += oGross;
-    dayData.net += isCancelled ? 0 : oNet;
+    dayData.net += o.totalPaise;
     dailyMap.set(dayKey, dayData);
   }
 
-  const netSales = Math.max(0, grossSales - discounts + gstCollected + shippingRevenue - refunds);
   const growthPct = prevPeriodNet > 0 ? Math.round(((netSales - prevPeriodNet) / prevPeriodNet) * 100) : 0;
+
+  /**
+   * Money in and money back, from the payment and refund rows themselves.
+   *
+   * Refunds were read from the order status `refunded` / `refund_initiated`,
+   * which nothing sets, so the figure was always zero (PAY-14). A refund is a
+   * `payment_refunds` row the gateway has processed. A payment whose status is
+   * now `refunded` was still money in when it was captured. Both are dated by
+   * the row's creation, the same basis as the Payments ledger export, and both
+   * honour the order filters above.
+   */
+  const { placedAt: _placedAt, ...orderScope } = orderWhere;
+  void _placedAt;
+  const ledgerRange = { gte: startDate, lte: endDate };
+  const [capturedIn, refundedOut] = await Promise.all([
+    db.payment.aggregate({
+      where: { status: { in: ["captured", "refunded"] }, createdAt: ledgerRange, order: orderScope },
+      _sum: { amountPaise: true },
+    }),
+    db.paymentRefund.aggregate({
+      where: { status: "processed", createdAt: ledgerRange, order: orderScope },
+      _sum: { amountPaise: true },
+    }),
+  ]);
+  const capturedPaise = capturedIn._sum.amountPaise ?? 0;
+  const refunds = refundedOut._sum.amountPaise ?? 0;
   
   // Cashback Issued during the range
   const cashbackTx = await db.walletTransaction.aggregate({
@@ -369,16 +415,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   const catSalesMap = new Map<string, number>();
   const brandSalesMap = new Map<string, number>();
 
-  for (const o of filteredOrders) {
-    const isRefunded = o.status === "refunded" || o.status === "refund_initiated";
+  /* Sold means paid for: an item on a cancelled or unpaid order was not sold. */
+  for (const o of paidOrders) {
     for (const item of o.items) {
       const title = item.title;
       const data = prodSalesMap.get(title) || { qty: 0, rev: 0, returns: 0 };
       data.qty += item.qty;
       data.rev += item.totalPaise ?? 0;
-      if (isRefunded) {
-        data.returns += item.qty;
-      }
       prodSalesMap.set(title, data);
 
       const cat = item.variant.product.category.slug;
@@ -414,7 +457,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   // Never Sold Products
   const soldProductIds = new Set<string>();
-  for (const o of filteredOrders) {
+  for (const o of paidOrders) {
     for (const item of o.items) {
       soldProductIds.add(item.variant.productId);
     }
@@ -491,7 +534,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   // 10. Customer Growth & Retention
   const totalCustomers = await db.user.count({ where: { role: "customer" } });
   
-  const customerOrdersAgg = filteredOrders.reduce((map, o) => {
+  /* Spend and repeat purchase are about paid orders. */
+  const customerOrdersAgg = paidOrders.reduce((map, o) => {
     const data = map.get(o.userId) || { count: 0, spent: 0, email: o.user.email || "unknown", name: o.user.phone || "User" };
     data.count++;
     data.spent += o.totalPaise;
@@ -578,7 +622,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       const name = warehouses.find(w => w.id === o.warehouseId)?.name || "Default Warehouse";
       const data = warehousePerfMap.get(name) || { count: 0, value: 0 };
       data.count++;
-      data.value += o.totalPaise;
+      /* Orders handled is every order; value is the paid ones. */
+      if (paidOrderIds.has(o.id)) data.value += o.totalPaise;
       warehousePerfMap.set(name, data);
     }
   }
@@ -680,9 +725,10 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       : null;
 
   // 13. Finance Cash Flows
-  const walletUsagePaise = filteredOrders.reduce((sum, o) => {
-    return sum + (o.paymentMethod === "cod" ? 0 : o.totalPaise); // non-cod is wallet or gateway payments
-  }, 0);
+  /* Kept under its old name for the screen: the total of paid orders. It was
+     every non-COD order's total, paid or not, labelled as wallet value; the
+     wallet cannot be spent at checkout. */
+  const walletUsagePaise = netSales;
   const outstandingPaise = filteredOrders.filter(o => o.status === "pending_payment").reduce((sum, o) => sum + o.totalPaise, 0);
 
   return {
@@ -698,8 +744,9 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       discountsPaise: discounts,
       gstPaise: gstCollected,
       shippingPaise: shippingRevenue,
-      aovPaise: orderCount > 0 ? Math.round(netSales / orderCount) : 0,
+      aovPaise: paidOrders.length > 0 ? Math.round(netSales / paidOrders.length) : 0,
       ordersCount: orderCount,
+      paidOrdersCount: paidOrders.length,
       growthPct,
       refundsPaise: refunds,
       cashbackIssuedPaise: cashbackIssued,
@@ -761,8 +808,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       taxesPaise: gstCollected,
       walletLiabilityPaise: walletLiability,
       refundsPaise: refunds,
-      cashFlowPaise: netSales - refunds,
-      gatewaySettlementPaise: Math.round(netSales * 0.98), // 2% gateway fee assumption
+      cashFlowPaise: capturedPaise - refunds,
+      gatewaySettlementPaise: null,
       outstandingPaise,
     },
     operations: {
