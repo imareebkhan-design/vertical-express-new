@@ -11,10 +11,10 @@ import { serializeJsonLdAsHtml } from "@/lib/json-ld";
  * block on this component so there is a single sink to review.
  */
 export function JsonLdScript({ data }: { data: unknown }) {
+  // nosemgrep -- the one reviewed JSON-LD sink: input is escaped by serializeJsonLdAsHtml (see above); proven by components/seo/__tests__/json-ld-script.test.tsx.
   return (
     <script
       type="application/ld+json"
-      // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml -- input is escaped by serializeJsonLdAsHtml; see comment above.
       dangerouslySetInnerHTML={{ __html: serializeJsonLdAsHtml(data) }}
     />
   );
