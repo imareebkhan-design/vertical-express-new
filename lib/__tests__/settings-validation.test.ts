@@ -4,7 +4,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFlag, parsePercent, parsePaise } from "@/lib/services/settings";
+import { parseFlag, parsePercent, parsePaise, freeDeliveryInputToStored, parseFreeDeliveryThresholdPaise } from "@/lib/services/settings";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
@@ -117,5 +117,81 @@ test("a blank express charge is not a free one", () => {
   assert.ok(
     !/expressFeePaise[^\n]*\?\?\s*0/.test(service),
     "the express fee falls back to zero, which reads as free delivery"
+  );
+});
+
+/**
+ * The free-delivery threshold — the owner's figure, or no offer (ISS-030).
+ *
+ * It was a hardcoded ₹500 in the cart service. Waiving a delivery fee costs the
+ * business money on every qualifying order, so the field has three answers and
+ * no fourth: blank (no offer), a rupee amount above zero (stored as paise), or
+ * refused. The amounts below are fixtures, not proposed thresholds.
+ */
+test("the free-delivery field: blank is unset, a rupee amount is stored as paise", () => {
+  assert.equal(freeDeliveryInputToStored(""), "", "blank must store as unset");
+  assert.equal(freeDeliveryInputToStored("   "), "", "whitespace is blank");
+  assert.equal(freeDeliveryInputToStored("750"), "75000");
+  assert.equal(freeDeliveryInputToStored(" 750 "), "75000");
+  assert.equal(freeDeliveryInputToStored("1,250"), "125000");
+  assert.equal(freeDeliveryInputToStored("999.5"), "99950");
+  assert.equal(freeDeliveryInputToStored("0.01"), "1", "one paisa is above zero");
+});
+
+test("the free-delivery field refuses zero, negatives and anything that is not an amount", () => {
+  /* Zero would mean "every delivery is free" — a standing cost that must be
+     typed as a real figure on purpose, not arrive by clearing a field to 0. */
+  for (const bad of ["0", "0.00", "-1", "-750", "abc", "₹750", "7.505", "1e3", "750 rupees"]) {
+    assert.equal(freeDeliveryInputToStored(bad), null, `${JSON.stringify(bad)} must be refused`);
+  }
+});
+
+test("a stored free-delivery threshold is plain digits above zero, or it is no offer", () => {
+  assert.equal(parseFreeDeliveryThresholdPaise("75000"), 75000);
+  assert.equal(parseFreeDeliveryThresholdPaise(" 75000 "), 75000);
+  /* Stricter than parsePaise on purpose: Number() would accept the last three. */
+  for (const bad of ["", "  ", "0", "-75000", "abc", "12.5", "1e5", "75000.00", "0x10", null, undefined]) {
+    assert.equal(parseFreeDeliveryThresholdPaise(bad), null, `${JSON.stringify(bad)} must not become a threshold`);
+  }
+});
+
+test("the settings screen shows the threshold through the cart's parser, not Number()", () => {
+  /* The screen used `Number(stored) / 100`, which shows a hand-edited "1e5" as
+     ₹1000. The cart refuses that value, but saving the form — for any reason —
+     would then have written it back as a valid, live threshold. */
+  const page = readFileSync(join(ROOT, "app/admin/settings/page.tsx"), "utf8");
+  assert.match(
+    page,
+    /parseFreeDeliveryThresholdPaise\(s\[SETTING_KEYS\.freeDeliveryThresholdPaise\]\)/,
+    "the settings page reads the stored threshold without the strict parser"
+  );
+  assert.ok(
+    !/Number\(s\[SETTING_KEYS\.freeDeliveryThresholdPaise\]\)/.test(page),
+    "the settings page converts the stored threshold with Number()"
+  );
+});
+
+test("the free-delivery threshold is on the settings screen and saved through the validated path", () => {
+  const form = readFileSync(join(ROOT, "components/admin/settings-form.tsx"), "utf8");
+  const page = readFileSync(join(ROOT, "app/admin/settings/page.tsx"), "utf8");
+  const action = readFileSync(join(ROOT, "actions/settings.ts"), "utf8");
+  const cart = readFileSync(join(ROOT, "lib/services/cart.ts"), "utf8");
+
+  assert.match(form, /values\.freeDeliveryRupees/, "the form renders no free-delivery field");
+  assert.match(form, /set\("freeDeliveryRupees"\)/, "the free-delivery field cannot be edited");
+  assert.match(page, /freeDeliveryThresholdPaise/, "the settings page never reads the stored threshold");
+  assert.match(
+    action,
+    /refine\(\(v\) => freeDeliveryInputToStored\(v\) !== null/,
+    "the action no longer refuses what the parser refuses"
+  );
+  assert.match(
+    action,
+    /SETTING_KEYS\.freeDeliveryThresholdPaise,\s*(\/\*[^*]*\*\/\s*)?freeDeliveryInputToStored\(/,
+    "the action does not store the parsed paise"
+  );
+  assert.ok(
+    !/FREE_DELIVERY_THRESHOLD_PAISE|=\s*50_?000\b/.test(cart),
+    "a hardcoded free-delivery threshold is back in the cart service"
   );
 });

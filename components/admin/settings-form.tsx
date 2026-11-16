@@ -22,6 +22,7 @@ export function SettingsForm({
     gstin: string;
     expressMinutes: string;
     expressFeeRupees: string;
+    freeDeliveryRupees: string;
     packSlaMinutes: string;
     deliverySlaMinutes: string;
     codEnabled: string;
@@ -111,6 +112,23 @@ export function SettingsForm({
             inputMode="decimal"
             placeholder="not offered"
             aria-label="Express delivery charge in rupees"
+            className={field}
+          />
+        </div>
+      </Row>
+
+      <Row
+        label="Free delivery from"
+        hint="Basket value at which standard delivery becomes free. Blank means no free delivery: every order pays the delivery fee set for its pincode in Service areas. Setting this waives that fee on every basket at or above the amount, from the next order."
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-bold text-ink-500">₹</span>
+          <input
+            value={values.freeDeliveryRupees}
+            onChange={(e) => set("freeDeliveryRupees")(e.target.value)}
+            inputMode="decimal"
+            placeholder="no free delivery"
+            aria-label="Basket value for free delivery in rupees"
             className={field}
           />
         </div>

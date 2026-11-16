@@ -4,7 +4,13 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { parseRupeeInput } from "@/lib/money";
-import { SETTING_KEYS, writeSetting, readSettings, type SettingKey } from "@/lib/services/settings";
+import {
+  SETTING_KEYS,
+  writeSetting,
+  readSettings,
+  freeDeliveryInputToStored,
+  type SettingKey,
+} from "@/lib/services/settings";
 import { recordAudit } from "@/lib/services/audit";
 import { db } from "@/lib/db";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
@@ -70,6 +76,16 @@ const schema = z.object({
       message: "The express charge must be a rupee amount above zero",
     }),
 
+  /* Blank means no free-delivery offer. Zero is refused rather than read as
+     "always free": a figure that waives every delivery fee should be typed on
+     purpose, as a real amount, not arrive by clearing a field to 0. */
+  freeDeliveryRupees: z
+    .string()
+    .trim()
+    .refine((v) => freeDeliveryInputToStored(v) !== null, {
+      message: "The free-delivery amount must be a rupee amount above zero, or blank for no free delivery",
+    }),
+
   /* Both are targets to measure against, not promises to a customer, so they
      are looser than the express window — but still whole minutes, and still
      blank-means-unset. Blank is what stops the console reporting compliance
@@ -113,6 +129,11 @@ export async function adminSaveSettings(input: unknown): Promise<ActionResult<nu
     [
       SETTING_KEYS.expressFeePaise,
       d.expressFeeRupees === "" ? "" : String(parseRupeeInput(d.expressFeeRupees)),
+    ],
+    [
+      SETTING_KEYS.freeDeliveryThresholdPaise,
+      /* The schema above refused anything this returns null for. */
+      freeDeliveryInputToStored(d.freeDeliveryRupees) ?? "",
     ],
     [SETTING_KEYS.packSlaMinutes, d.packSlaMinutes],
     [SETTING_KEYS.deliverySlaMinutes, d.deliverySlaMinutes],

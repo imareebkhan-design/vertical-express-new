@@ -311,19 +311,35 @@ test("asking for express when it is not on offer is quietly standard", async (t)
 });
 
 test("the express fee survives the free-delivery threshold", async (t) => {
-  /* The threshold zeroes the STANDARD fee over ₹500 — itself a rule nobody
-     chose (ISS-030). Express is a paid upgrade the customer asked for, and
+  /* The threshold is the owner's setting and zeroes the STANDARD fee only
+     (ISS-030: there is no built-in figure, so this test sets one and restores
+     what it found). Express is a paid upgrade the customer asked for, and
      nothing the owner has said makes it free above a spend. Flagged rather
      than assumed either way; this pins the behaviour so the decision is
      visible if it is ever revisited. */
   t.after(cleanup);
+  const thresholdKey = SETTING_KEYS.freeDeliveryThresholdPaise;
+  const savedThreshold = await db.setting.findUnique({ where: { key: thresholdKey } });
+  t.after(async () => {
+    if (savedThreshold) {
+      await db.setting.upsert({ where: { key: thresholdKey }, create: savedThreshold, update: savedThreshold });
+    } else {
+      await db.setting.deleteMany({ where: { key: thresholdKey } });
+    }
+  });
+  /* A fixture, not a policy: any figure the ₹10,000 basket below clears. */
+  await db.setting.upsert({
+    where: { key: thresholdKey },
+    create: { key: thresholdKey, value: "50000" },
+    update: { value: "50000" },
+  });
   await setFee("4900");
   const { variantId } = await scratchProduct({ eligible: true, pincodes: [PIN_SERVED] });
   const wh = await db.warehouse.findFirstOrThrow({ select: { id: true } });
   await db.inventory.create({ data: { variantId, warehouseId: wh.id, qtyOnHand: 100 } });
   const user = await scratchUser();
 
-  /* Well over the ₹500 threshold: 100 units at ₹100 each. */
+  /* Well over the threshold set above: 100 units at ₹100 each. */
   await db.cartItem.deleteMany({ where: { cart: { userId: user.id } } });
   const cart0 = await db.cart.upsert({ where: { userId: user.id }, create: { userId: user.id }, update: {} });
   await db.cartItem.create({ data: { cartId: cart0.id, variantId, qty: 100 } });
