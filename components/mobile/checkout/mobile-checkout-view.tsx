@@ -56,11 +56,16 @@ const LABEL_DISPLAY: Record<string, string> = {
   other: "Other",
 };
 
+/* The idempotency key. randomUUID is missing outside a secure context, but
+   getRandomValues is not, so the fallback stays cryptographically random
+   instead of dropping to Math.random. */
 const generateUUID = () => {
-  if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
-    return window.crypto.randomUUID();
+  const webCrypto = globalThis.crypto;
+  if (typeof webCrypto.randomUUID === "function") {
+    return webCrypto.randomUUID();
   }
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  const bytes = webCrypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 };
 
 export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutViewProps) {

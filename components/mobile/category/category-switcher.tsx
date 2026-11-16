@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { serializeJsonLd } from "@/lib/json-ld";
 import type { Category } from "@/prisma/generated/client/client";
 import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
@@ -120,7 +121,7 @@ export function CategorySwitcher(props: CategorySwitcherProps) {
       <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbJsonLd) }}
         />
 
         <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs font-bold text-ink-500">

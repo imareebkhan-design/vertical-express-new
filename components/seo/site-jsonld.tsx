@@ -1,4 +1,5 @@
 import "server-only";
+import { serializeJsonLd } from "@/lib/json-ld";
 
 /**
  * Site-level structured data: Organization and WebSite.
@@ -45,7 +46,7 @@ export function SiteJsonLd({ siteUrl }: { siteUrl: string }) {
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify({ "@context": "https://schema.org", "@graph": graph }),
+        __html: serializeJsonLd({ "@context": "https://schema.org", "@graph": graph }),
       }}
     />
   );

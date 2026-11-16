@@ -1,5 +1,33 @@
 # Known Issues — Vertical Express
 
+## ISS-108 — Codacy scan (16 Nov 2026): vulnerable dependencies and three unescaped JSON-LD tags
+
+**Status:** PARTLY FIXED on `claude/security-codacy-fixes`; review pending.
+**Severity:** High (dependency advisories); Low (code findings). **Found:** Codacy export, 16 Nov 2026.
+
+Fixed on the branch:
+- Capacitor iOS/Android 8.5.0 (remote content at the app origin, critical) → 8.6.2; Prisma 7.10.1,
+  `firebase-admin`, `posthog-js` (DOMPurify) and transitive packages updated by name. `npm audit --omit=dev`
+  went from 31 advisories (2 critical) to 10 (none critical). Next.js, Sentry and zod were already patched on
+  the release line.
+- Product, category and site JSON-LD now go through `serializeJsonLd` (`lib/json-ld.ts`), which escapes `<`
+  so a value containing `</script>` cannot close the tag.
+- Order-number suffix uses `crypto.randomInt`; the checkout idempotency key falls back to
+  `crypto.getRandomValues` instead of `Math.random`.
+
+Still open (each needs a major upgrade):
+- `firebase` client → `@firebase/firestore` / `@grpc/grpc-js` advisories. The web app does not import Firestore.
+- `@sentry/nextjs` 10 → 11 for its bundler-plugin chain (build-time only).
+- The Expo app's own lockfile (`mobile/`, workspace repo) was not audited or updated.
+
+Do not run a bare `npm audit fix` here: it downgrades `@typescript-eslint/eslint-plugin` under
+`eslint-config-next` to 6.x and lint crashes. Update packages by name.
+
+Most other Codacy findings are false positives or sit in local scripts (`docs/catalog/`, `.agents/`,
+`outputs/`, `mobile/scripts/`) that never run in production.
+
+**Rollback:** revert the commit; no schema or data change.
+
 ## ISS-107 — A signed capture that could not settle left no record an operator could see
 
 **Status:** FIXED on `claude/unmatched-captures` (roadmap A-3, 16 Nov 2026); review pending.

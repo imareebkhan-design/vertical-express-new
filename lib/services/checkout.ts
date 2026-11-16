@@ -1,4 +1,5 @@
 import "server-only";
+import { randomInt } from "node:crypto";
 import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { Prisma } from "@/prisma/generated/client/client";
@@ -239,7 +240,9 @@ export async function computeTotals(
 function orderNumber(): string {
   const year = new Date().getFullYear();
   const ts = Date.now().toString(36).toUpperCase();
-  const rand = Math.floor(Math.random() * 0xffff)
+  /* randomInt, not Math.random: the suffix is what keeps an order number from
+     being worked out from the time it was placed. */
+  const rand = randomInt(0, 0x10000)
     .toString(16)
     .toUpperCase()
     .padStart(4, "0");
