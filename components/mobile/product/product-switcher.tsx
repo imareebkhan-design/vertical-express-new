@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { JsonLdScript } from "@/components/seo/json-ld-script";
 import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
 import { useMobileSurface } from "@/hooks/use-mobile-surface";
@@ -19,7 +18,6 @@ import { RecentlyViewedTracker, RecentlyViewedSection } from "@/components/shop/
 import { PageLoader } from "@/components/page-loader";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { paiseToRupees } from "@/lib/money";
 import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 // Mobile Components
@@ -47,43 +45,6 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
 
   const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
 
-  const productJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.title,
-    description: product.description ?? undefined,
-    brand: { "@type": "Brand", name: product.brandName },
-    image: product.images.map((i) => i.url),
-    ...(product.ratingCount > 0
-      ? {
-          aggregateRating: {
-            "@type": "AggregateRating",
-            ratingValue: product.ratingAvg,
-            reviewCount: product.ratingCount,
-          },
-        }
-      : {}),
-    /* `availability` was the string "https://schema.org/InStock", hardcoded, on
-       every product. Structured data is a claim to a search engine that shows
-       up beside the result as "In stock", and this one was independent of the
-       inventory table — it stayed InStock through a sell-out. The PDP had no
-       stock data to state it from, because getProductBySlug never fetched the
-       inventory rows; it does now, so the claim follows the stock.
-
-       An offer with no default variant states no price and no availability
-       rather than ₹0 and in stock. */
-    offers: defaultVariant
-      ? {
-          "@type": "Offer",
-          priceCurrency: "INR",
-          price: paiseToRupees(defaultVariant.pricePaise),
-          availability: defaultVariant.inStock
-            ? "https://schema.org/InStock"
-            : "https://schema.org/OutOfStock",
-        }
-      : undefined,
-  };
-
   /* Up to four attributes, in the order the record lists them, joined the way
      the design sets a spec line. */
   const specLine = [
@@ -98,8 +59,6 @@ export function ProductSwitcher({ product, related, boughtWith }: ProductSwitche
     <>
       <Navbar />
       <main id="main-content" className="mx-auto max-w-7xl px-4 pb-24 pt-8 sm:px-6 sm:pb-12">
-        <JsonLdScript data={productJsonLd} />
-
         <nav aria-label="Breadcrumb" className="mb-6 flex flex-wrap items-center gap-1 text-xs font-bold text-neutral-500">
           <Link href="/" className="hover:text-ink">Home</Link>
           <ChevronRight className="size-3" aria-hidden />
