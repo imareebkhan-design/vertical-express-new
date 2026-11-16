@@ -5,6 +5,57 @@ import { db } from "@/lib/db";
 import { settleCapturedPayment } from "@/lib/services/checkout";
 import { applyRefundWebhook } from "@/lib/services/refunds";
 import { runWithContext, trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
+import { recordCaptureException, type CaptureExceptionInput } from "@/lib/services/payment-exceptions";
+
+/** The amount Razorpay reports as captured, in paise, or null if the payload
+ *  carries no integer amount. Same precedence the settlement path uses. */
+function capturedAmountFrom(
+  paymentEntity: { amount?: unknown } | undefined,
+  orderEntity: { amount_paid?: unknown; amount?: unknown } | undefined
+): number | null {
+  const raw = paymentEntity?.amount ?? orderEntity?.amount_paid ?? orderEntity?.amount;
+  if (raw === undefined || raw === null) return null;
+  const n = Number(raw);
+  return Number.isInteger(n) ? n : null;
+}
+
+function currencyFrom(paymentEntity: { currency?: unknown } | undefined, orderEntity: { currency?: unknown } | undefined) {
+  const c = paymentEntity?.currency ?? orderEntity?.currency;
+  return typeof c === "string" ? c : null;
+}
+
+/**
+ * Persist a signed capture that cannot be settled (A-3), then acknowledge it.
+ *
+ * Recorded → 200, so Razorpay stops retrying; the alert fires on first sight
+ * only (a replay hits the unique key and is `already_recorded`). If recording
+ * itself fails the webhook must NOT answer 200 — the evidence would be lost —
+ * so it alerts and answers 500, and Razorpay retries.
+ */
+async function recordAndAcknowledge(
+  input: CaptureExceptionInput,
+  alert: { type: string; message: string; metadata: Record<string, unknown> },
+  metric: MetricsTracker
+) {
+  let outcome;
+  try {
+    outcome = await recordCaptureException(input);
+  } catch (e) {
+    captureException(e, { reason: input.reason, razorpayPaymentId: input.gatewayPaymentId });
+    triggerAlert(
+      "webhook_exception_record_failed",
+      "A Razorpay capture that needs investigation could not be recorded; answering 500 so Razorpay retries",
+      { ...alert.metadata, reason: input.reason, alertType: alert.type }
+    );
+    metric.end("webhook_exception_record_failed", { reason: input.reason });
+    return NextResponse.json({ error: "Webhook processing error" }, { status: 500 });
+  }
+  if (outcome === "recorded") triggerAlert(alert.type, alert.message, alert.metadata);
+  metric.end(`webhook_${input.reason}_${outcome}`, { event: input.event });
+  return NextResponse.json({
+    status: outcome === "already_recorded" ? "already_recorded" : `${input.reason}_recorded`,
+  });
+}
 
 export async function POST(req: NextRequest) {
   const requestId = req.headers.get("x-request-id") || crypto.randomUUID();
@@ -71,6 +122,31 @@ export async function POST(req: NextRequest) {
       ];
 
       if (!razorpayOrderId) {
+        /* A signed capture with no Razorpay order id cannot belong to any order
+           here (checkout always creates one), so unless a payment row already
+           carries its payment id it is money nothing accounts for (A-3). */
+        if ((event === "payment.captured" || event === "order.paid") && razorpayPaymentId) {
+          const known = await db.payment.findFirst({ where: { gatewayPaymentId: razorpayPaymentId }, select: { id: true } });
+          if (!known) {
+            const amountPaise = capturedAmountFrom(paymentEntity, orderEntity);
+            return recordAndAcknowledge(
+              {
+                reason: "unmatched",
+                gatewayPaymentId: razorpayPaymentId,
+                gatewayEventId: eventId,
+                event,
+                amountPaise,
+                currency: currencyFrom(paymentEntity, orderEntity),
+              },
+              {
+                type: "webhook_capture_unmatched",
+                message: "Razorpay reported a captured payment that matches no order here",
+                metadata: { event, razorpayOrderId: null, razorpayPaymentId, amountPaise },
+              },
+              metric
+            );
+          }
+        }
         metric.end("webhook_ignored_no_order_id", { event });
         return NextResponse.json({ status: "ignored_no_order_id" });
       }
@@ -103,6 +179,41 @@ export async function POST(req: NextRequest) {
             capturedAmountPaise = Number(orderEntity.amount_paid);
           } else if (orderEntity?.amount !== undefined && orderEntity?.amount !== null) {
             capturedAmountPaise = Number(orderEntity.amount);
+          }
+
+          /* A valid amount that differs from what the payment expects: real
+             money in the wrong amount. Recorded and acknowledged (A-3) — a 400
+             made Razorpay retry for hours and changed nothing. A payload with no
+             usable amount at all is still rejected below. */
+          if (
+            capturedAmountPaise !== null &&
+            Number.isInteger(capturedAmountPaise) &&
+            capturedAmountPaise !== existingPayment.amountPaise &&
+            razorpayPaymentId
+          ) {
+            return recordAndAcknowledge(
+              {
+                reason: "amount_mismatch",
+                gatewayPaymentId: razorpayPaymentId,
+                gatewayOrderId: razorpayOrderId,
+                gatewayEventId: eventId,
+                event,
+                amountPaise: capturedAmountPaise,
+                currency: currencyFrom(paymentEntity, orderEntity),
+                expectedAmountPaise: existingPayment.amountPaise,
+                orderId: existingPayment.orderId,
+              },
+              {
+                type: "webhook_amount_mismatch",
+                message: "Razorpay webhook payment amount mismatch or invalid",
+                metadata: {
+                  expected: existingPayment.amountPaise,
+                  received: capturedAmountPaise,
+                  orderNo: existingPayment.order.orderNo,
+                },
+              },
+              metric
+            );
           }
 
           if (
@@ -154,9 +265,31 @@ export async function POST(req: NextRequest) {
           }
         } else {
           /* A signed capture for an order this database has no payment row for:
-             money Razorpay holds that no order here accounts for. It is
-             acknowledged (a retry cannot make the row appear) but a human must
-             look — nothing else would ever surface it. */
+             money Razorpay holds that no order here accounts for. Recorded for
+             the Payments screen and acknowledged (a retry cannot make the row
+             appear), A-3. */
+          if (razorpayPaymentId) {
+            const amountPaise = capturedAmountFrom(paymentEntity, orderEntity);
+            return recordAndAcknowledge(
+              {
+                reason: "unmatched",
+                gatewayPaymentId: razorpayPaymentId,
+                gatewayOrderId: razorpayOrderId,
+                gatewayEventId: eventId,
+                event,
+                amountPaise,
+                currency: currencyFrom(paymentEntity, orderEntity),
+              },
+              {
+                type: "webhook_capture_unmatched",
+                message: "Razorpay reported a captured payment that matches no order here",
+                metadata: { event, razorpayOrderId, razorpayPaymentId, amountPaise },
+              },
+              metric
+            );
+          }
+          /* No payment id to key a record on (an order-only payload): alert
+             only, as before. Real Razorpay captures always carry one. */
           triggerAlert("webhook_capture_unmatched", "Razorpay reported a captured payment that matches no order here", {
             event,
             razorpayOrderId,
@@ -164,7 +297,7 @@ export async function POST(req: NextRequest) {
             amountPaise: paymentEntity?.amount ?? orderEntity?.amount_paid ?? null,
           });
           metric.end("webhook_capture_unmatched", { event });
-          return NextResponse.json({ status: "unmatched_recorded" });
+          return NextResponse.json({ status: "unmatched_no_payment_id" });
         }
       } else if (event === "payment.failed") {
         const existingPayment = await db.payment.findFirst({

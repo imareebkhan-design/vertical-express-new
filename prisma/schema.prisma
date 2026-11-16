@@ -536,6 +536,8 @@ model Order {
   payments         Payment[]
   refunds          PaymentRefund[]
   returnRequests   ReturnRequest[]
+  /// Signed captures that claimed this order but could not settle it (A-3).
+  payExceptions    PaymentException[]
   /// The order-confirmation email queued at confirmation (audit F2).
   orderEmail       OrderEmail?
 
@@ -649,6 +651,47 @@ model PaymentRefund {
   @@index([paymentId])
   @@index([orderId])
   @@map("payment_refunds")
+}
+
+/// Why a signed Razorpay capture could not be settled (A-3).
+enum PaymentExceptionReason {
+  /// No order or payment row here matches the capture's ids.
+  unmatched
+  /// It matches a payment row, but the captured amount is not what that payment expects.
+  amount_mismatch
+}
+
+/// A correctly signed Razorpay capture the webhook could not settle (A-3):
+/// money Razorpay holds that this database does not account for. Written so the
+/// webhook can answer 200 (Razorpay stops retrying) without losing the evidence,
+/// and listed on the Payments screen under "Needs investigation".
+/// One row per gateway payment and reason, enforced by the unique key, so a
+/// replay or a concurrent second delivery stores nothing new. Read-only: there
+/// is no resolution workflow yet (owner policy). Rows are never deleted.
+model PaymentException {
+  id                  String                 @id @default(uuid()) @db.Uuid
+  reason              PaymentExceptionReason
+  gatewayPaymentId    String                 @map("gateway_payment_id")
+  gatewayOrderId      String?                @map("gateway_order_id")
+  /// The first delivery's event id (header `x-razorpay-event-id`).
+  gatewayEventId      String?                @map("gateway_event_id")
+  /// The Razorpay event name, e.g. `payment.captured` or `order.paid`.
+  event               String
+  /// What Razorpay says it captured. Null only when the payload carried no
+  /// integer amount (possible for `unmatched`; a mismatch always has one).
+  amountPaise         Int?                   @map("amount_paise")
+  currency            String?
+  /// `amount_mismatch` only: what our payment row expected.
+  expectedAmountPaise Int?                   @map("expected_amount_paise")
+  /// `amount_mismatch` only: the order whose payment the capture claimed.
+  orderId             String?                @map("order_id") @db.Uuid
+  receivedAt          DateTime               @default(now()) @map("received_at")
+  order               Order?                 @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([gatewayPaymentId, reason])
+  @@index([receivedAt(sort: Desc)])
+  @@index([orderId])
+  @@map("payment_exceptions")
 }
 
 model OrderStatusEvent {

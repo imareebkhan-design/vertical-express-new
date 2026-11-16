@@ -8,6 +8,7 @@ import { formatPaise } from "@/lib/money";
 import { OrderStatusChip, PaymentStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { listRecentRefunds } from "@/lib/services/refunds";
+import { countPaymentExceptionRows, listPaymentExceptions } from "@/lib/services/payment-exceptions";
 import { RefundCheck, RefundControl } from "@/components/admin/refund-control";
 import { adminCheckRefund, adminRefundPayment } from "@/actions/refunds";
 
@@ -23,12 +24,14 @@ export default async function AdminPayments({
   if (!(await getAdminUser())) return null;
   const sp = await searchParams;
   const page = sp.page ? parseInt(sp.page, 10) || 1 : 1;
-  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures, refunds] = await Promise.all([
+  const [{ payments, total, perPage }, health, onDeadOrders, secondCaptures, refunds, investigate, investigateTotal] = await Promise.all([
     adminListPayments(page),
     adminPaymentHealth(),
     listCapturedPaymentsOnDeadOrders(),
     listDuplicateCaptures(),
     listRecentRefunds(),
+    listPaymentExceptions(),
+    countPaymentExceptionRows(),
   ]);
   const refundRequired = [...onDeadOrders, ...secondCaptures];
   /* A payment with a refund in flight stays on the list (its money has not
@@ -175,6 +178,64 @@ export default async function AdminPayments({
                 ) : (
                   <RefundControl paymentId={p.id} amountPaise={p.amountPaise} refund={adminRefundPayment} />
                 )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/*
+        Signed Razorpay captures the webhook could not settle (A-3): money that
+        matches no order here, or matches one in the wrong amount. Recorded so
+        the webhook stops Razorpay retrying without losing the evidence.
+        Read-only on purpose: what happens to this money is the owner's policy,
+        so there is no refund or resolve control here.
+      */}
+      <section
+        id="needs-investigation"
+        aria-labelledby="needs-investigation-heading"
+        className={"rounded-panel p-4 shadow-card " + (investigate.length > 0 ? "bg-ops-bad-tint" : "bg-white")}
+      >
+        <h2 id="needs-investigation-heading" className="text-[13px] font-extrabold text-ink">
+          Needs investigation · {investigateTotal}
+        </h2>
+        {investigateTotal > investigate.length && (
+          <p className="mt-1 text-[12px] font-semibold text-ops-bad">
+            Showing the newest {investigate.length} of {investigateTotal}. Older ones are still recorded in
+            payment_exceptions; this list has no further pages yet.
+          </p>
+        )}
+        {investigate.length === 0 ? (
+          <p className="mt-1 text-[12px] font-semibold text-ink-500">
+            Every signed capture matched an order and its amount.
+          </p>
+        ) : (
+          <ul className="mt-2 divide-y divide-line">
+            {investigate.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-2 text-[12px] font-semibold">
+                <StatusChip tone="bad">{x.reason === "unmatched" ? "Matches no order" : "Amount mismatch"}</StatusChip>
+                <span className="tabular-nums">
+                  {x.amountPaise === null ? "amount not reported" : formatPaise(x.amountPaise)}
+                  {x.currency && x.currency !== "INR" ? ` ${x.currency}` : ""}
+                  {x.expectedAmountPaise !== null && (
+                    <span className="text-ink-500"> · expected {formatPaise(x.expectedAmountPaise)}</span>
+                  )}
+                </span>
+                {x.order ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Link href={`/admin/orders/${x.order.orderNo}`} className="font-extrabold text-ink underline">
+                      {x.order.orderNo}
+                    </Link>
+                    <OrderStatusChip status={x.order.status} />
+                  </span>
+                ) : (
+                  <span className="text-ink-500">no order here</span>
+                )}
+                <span className="text-ink-500">payment {x.gatewayPaymentId}</span>
+                <span className="text-ink-500">Razorpay order {x.gatewayOrderId ?? "—"}</span>
+                <span className="text-ink-500">
+                  {x.event} · {x.receivedAt.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+                </span>
               </li>
             ))}
           </ul>

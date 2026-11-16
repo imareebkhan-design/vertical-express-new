@@ -1,5 +1,38 @@
 # Known Issues — Vertical Express
 
+## ISS-107 — A signed capture that could not settle left no record an operator could see
+
+**Status:** FIXED on `claude/unmatched-captures` (roadmap A-3, 16 Nov 2026); review pending.
+**Severity:** Launch blocker (money held with no record). **Found:** 14 Nov 2026 audit.
+
+A correctly signed `payment.captured` / `order.paid` whose amount differed from the
+payment row raised `webhook_amount_mismatch`, stored nothing and answered **400**, so
+Razorpay retried for hours and every retry alerted again (gap G-34). A signed capture
+matching no order or payment raised `webhook_capture_unmatched` and stored nothing. In
+both cases a customer's money sat at Razorpay with nothing on any screen, and a
+mismatched order could stay `pending_payment` indefinitely (`reconcileWithGateway`
+answers `unknown` for a mismatch).
+
+**Fix.** New table `payment_exceptions` (migration `20261116120000_payment_exceptions`,
+see `docs/DATABASE_SCHEMA.md`). The webhook records the capture — reason `unmatched` or
+`amount_mismatch`, gateway ids, amount, currency, event id, expected amount and claimed
+order for a mismatch — then answers 200. The unique key (gateway payment id, reason) is
+the idempotency guarantee: replays and concurrent deliveries store one row, and the
+alert fires on first sight only. If the insert fails the webhook answers 500 and raises
+`webhook_exception_record_failed`, so Razorpay retries. Bad or missing signatures are
+rejected exactly as before. A signed capture with no Razorpay order id that no payment
+row knows is now recorded as `unmatched` (it used to be ignored). Operators see a
+"Needs investigation" list on `/admin/payments` and a count on Today.
+Tests: `lib/services/__tests__/webhook-exceptions.test.ts`; Tests 2, 3 and 7 in
+`webhook.test.ts` rewritten from "400" to "recorded, 200".
+
+**Still open (owner policy).** No resolve or refund workflow: what happens to unmatched
+or mismatched money is not decided, so the list is read-only and the Today count is
+all-time. A payload with no usable amount on a matched payment (missing or non-integer)
+still answers 400; an order-only payload with no payment id is still alert-only.
+`reconcileWithGateway` is unchanged, so a mismatched order still waits in
+`pending_payment` for a human.
+
 ## UAT QA catalogue — repeated opening stock at another warehouse
 
 **Status:** FIXED LOCALLY on `codex/uat-stock-rerun-guard`; review and integration pending.

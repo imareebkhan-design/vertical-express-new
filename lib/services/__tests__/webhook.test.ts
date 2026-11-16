@@ -70,6 +70,8 @@ after(async () => {
   process.env.RAZORPAY_WEBHOOK_SECRET = originalWebhookSecret;
 
   // Clean up mock records
+  await db.paymentException.deleteMany({ where: { orderId: TEST_ORDER_ID } });
+  await db.paymentException.deleteMany({ where: { gatewayPaymentId: { startsWith: "pay_orphan_" } } });
   await db.payment.deleteMany({ where: { orderId: TEST_ORDER_ID } });
   await db.orderStatusEvent.deleteMany({ where: { orderId: TEST_ORDER_ID } });
   await db.order.delete({ where: { id: TEST_ORDER_ID } });
@@ -130,7 +132,18 @@ test("Test 1 — Webhook verification with exact amount updates payment and orde
   assert.equal(updatedOrder?.status, "confirmed");
 });
 
-test("Test 2 — Webhook verification with lower amount rejects payment and order remains pending_payment", async () => {
+/* Tests 2, 3 and 7 asserted a 400 on a signed capture for the wrong amount
+   (gap G-34). Rewritten deliberately for A-3: the capture is recorded as an
+   amount_mismatch exception and acknowledged with 200 so Razorpay stops
+   retrying. What they protect is unchanged — nothing settles, the order stays
+   pending_payment. */
+async function mismatchRow(gatewayPaymentId: string) {
+  return db.paymentException.findUnique({
+    where: { gatewayPaymentId_reason: { gatewayPaymentId, reason: "amount_mismatch" } },
+  });
+}
+
+test("Test 2 — signed capture for a lower amount is recorded as a mismatch, not settled; order remains pending_payment", async () => {
   // Revert payment status back to created for this test
   await db.payment.update({ where: { id: PAYMENT_RECORD_ID }, data: { status: "created", gatewayPaymentId: null } });
   await db.order.update({ where: { id: TEST_ORDER_ID }, data: { status: "pending_payment" } });
@@ -154,7 +167,12 @@ test("Test 2 — Webhook verification with lower amount rejects payment and orde
   const req = createSignedRequest(payload, WEBHOOK_SECRET, eventId);
   const res = await POST(req);
 
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 200);
+  assert.equal((await res.json()).status, "amount_mismatch_recorded");
+  const row = await mismatchRow(gatewayPaymentId);
+  assert.equal(row?.amountPaise, 1);
+  assert.equal(row?.expectedAmountPaise, EXPECTED_AMOUNT_PAISE);
+  assert.equal(row?.orderId, TEST_ORDER_ID);
 
   // Check DB status was NOT updated
   const payment = await db.payment.findUnique({ where: { id: PAYMENT_RECORD_ID } });
@@ -164,7 +182,7 @@ test("Test 2 — Webhook verification with lower amount rejects payment and orde
   assert.equal(order?.status, "pending_payment");
 });
 
-test("Test 3 — Webhook verification with higher amount rejects payment and order remains pending_payment", async () => {
+test("Test 3 — signed capture for a higher amount is recorded as a mismatch, not settled", async () => {
   const gatewayPaymentId = `pay_higher_${crypto.randomUUID().slice(0, 8)}`;
   const eventId = `evt_higher_${crypto.randomUUID().slice(0, 8)}`;
 
@@ -184,7 +202,8 @@ test("Test 3 — Webhook verification with higher amount rejects payment and ord
   const req = createSignedRequest(payload, WEBHOOK_SECRET, eventId);
   const res = await POST(req);
 
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 200);
+  assert.equal((await mismatchRow(gatewayPaymentId))?.amountPaise, EXPECTED_AMOUNT_PAISE + 1);
 
   const payment = await db.payment.findUnique({ where: { id: PAYMENT_RECORD_ID } });
   assert.equal(payment?.status, "created");
@@ -283,7 +302,7 @@ test("Test 6 — Webhook idempotency prevents processing duplicate valid events"
   assert.equal(orderAfter2?.status, "delivered");
 });
 
-test("Test 7 — Webhook verification with wrong amount and valid signature fails amount check", async () => {
+test("Test 7 — wrong amount with a valid signature is recorded as a mismatch and does not settle", async () => {
   // Reset payment status back to created for this test
   await db.payment.update({ where: { id: PAYMENT_RECORD_ID }, data: { status: "created", gatewayPaymentId: null } });
   await db.order.update({ where: { id: TEST_ORDER_ID }, data: { status: "pending_payment" } });
@@ -308,7 +327,8 @@ test("Test 7 — Webhook verification with wrong amount and valid signature fail
   const req = createSignedRequest(payload, WEBHOOK_SECRET, eventId);
   const res = await POST(req);
 
-  assert.equal(res.status, 400);
+  assert.equal(res.status, 200);
+  assert.equal((await mismatchRow(gatewayPaymentId))?.amountPaise, 500);
 
   // Check DB status was NOT updated
   const payment = await db.payment.findUnique({ where: { id: PAYMENT_RECORD_ID } });
