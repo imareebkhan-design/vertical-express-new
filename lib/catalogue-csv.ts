@@ -354,6 +354,22 @@ export function skuForSlug(slug: string): string {
 /* The parser                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The looked-up cells of every data row, as typed.
+ *
+ * For rows the parser rejects: their brand, category and warehouse are never
+ * resolved, so a wrong price on a row hid an unknown brand on the same row
+ * until the second upload. With these the caller can look them up anyway.
+ */
+export function lookupCells(text: string): { line: number; brand: string; category: string; warehouse: string }[] {
+  const records = readRecords(text);
+  return records.slice(1).flatMap((r) => {
+    if (r.fields.length < CATALOGUE_HEADER.length) return [];
+    const f = r.fields.map((x) => x.trim());
+    return [{ line: r.line, brand: f[1], category: f[2], warehouse: f[8] }];
+  });
+}
+
 const MAX_ROWS = 2000;
 
 export function parseCatalogueCsv(text: string): CatalogueParseResult {

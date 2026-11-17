@@ -133,6 +133,31 @@ async function resolveWorld() {
 }
 
 /**
+ * Brand, category and warehouse problems for rows the parser already rejected.
+ * Blank cells are left to the parser, which has reported them.
+ */
+export async function lookupIssues(
+  cells: readonly { line: number; brand: string; category: string; warehouse: string }[]
+): Promise<CsvIssue[]> {
+  if (cells.length === 0) return [];
+  const world = await resolveWorld();
+  const key = (s: string) => s.trim().toLowerCase();
+  const issues: CsvIssue[] = [];
+  for (const c of cells) {
+    if (c.brand && !world.brandBy.has(key(c.brand))) {
+      issues.push({ line: c.line, column: "brand", message: `There is no brand called "${c.brand}". Known: ${world.brandNames.join(", ")}` });
+    }
+    if (c.category && !world.categoryBy.has(key(c.category))) {
+      issues.push({ line: c.line, column: "category", message: `There is no category called "${c.category}". Valid: ${world.categorySlugs.join(", ")}` });
+    }
+    if (c.warehouse && !world.warehouseBy.has(key(c.warehouse))) {
+      issues.push({ line: c.line, column: "warehouse", message: `There is no warehouse called "${c.warehouse}". Known: ${world.warehouseNames.join(", ")}` });
+    }
+  }
+  return issues;
+}
+
+/**
  * Resolve a parsed file against the catalogue. Writes nothing.
  *
  * Used by both the preview and the import, so the two can never disagree about

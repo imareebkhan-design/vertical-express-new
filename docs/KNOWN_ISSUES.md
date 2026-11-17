@@ -1,5 +1,38 @@
 # Known Issues — Vertical Express
 
+## ISS-114 — A product added from the dashboard could never be approved, so never published
+
+**Status:** FIXED (catalogue admin workflow, 17 Nov 2026). **Severity:** High for launch.
+
+`/admin/catalogue-approvals` lists only the batches named in `lib/catalog/approval-batches.json`. A product created by
+the listing form or a CSV was in none of them, so its identity and photo could not be approved from any screen, and the
+publish gate refuses a product without that approval. The same approval form, on the same service
+(`recordCatalogueApproval`), now sits on the product's own page. The product page also opens with the publish checklist
+(`lib/product-live.ts`), each open step beside the panel that fixes it, and a Publish button on the existing gated,
+audited status change.
+
+Related gaps fixed in the same change: a pack with no stock record had no console route to one (only the stock-count
+file) — the product page creates it at zero; a CSV row with stock 0 and a named warehouse wrote no stock record, leaving
+the product unpublishable; a `published` CSV row was refused only at confirm, with no line number — now at preview; a
+row with a bad price did not have its brand looked up until the next upload; the photo panel did not refresh the page
+after an upload.
+
+**Correction to the 14 Nov audit (G-40 / CAT-02):** catalogue import already writes one `catalog.product_listed` audit
+row per created product (`writeProduct`), in the import's transaction. No new audit was added.
+
+## ISS-113 — Archived products keep their web address and item code
+
+**Status:** MITIGATED. Listing a product whose web address or SKU belongs to an archived product failed with "already in
+use", and the archived holder does not appear in the default product view. The listing form and the CSV preview now name
+the archived holder and how to bring it back. The one-time reset (ISS-112) frees the names by suffixing them. Archiving
+a single product later still keeps its names, deliberately: unarchiving it must not collide.
+
+## ISS-112 — The previous catalogue was still in the database
+
+**Status:** READY, awaiting owner approval for each environment. `scripts/catalogue-reset.mts`, runbook
+`docs/runbooks/CATALOGUE_RESET.md`. Rehearsed on a local copy of staging, including restore. Not run on staging or
+production.
+
 ## ISS-111 — Every operator holds every admin power
 
 **Status:** OPEN, by design pending owner decision. **Severity:** Low (insider / stolen-account blast radius).

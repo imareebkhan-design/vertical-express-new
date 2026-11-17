@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { CATALOGUE_HEADER, parseCatalogueCsv } from "@/lib/catalogue-csv";
-import { importCatalogue, previewCatalogue } from "@/lib/services/admin/catalogue-import";
+import { importCatalogue, lookupIssues, previewCatalogue } from "@/lib/services/admin/catalogue-import";
+import { lookupCells } from "@/lib/catalogue-csv";
 
 /**
  * Importing a catalogue file.
@@ -548,4 +549,16 @@ test("a confirmation that fails leaves nothing behind, and the same file then im
   assert.equal(again.ok, true);
   if (again.ok) assert.deepEqual([again.result.created, again.result.skipped], [1, 1], "the row that was blocked did not import on the retry");
   assert.equal(await db.product.count({ where: { title: { in: [w.base.title, other] } } }), 2);
+});
+
+test("a row the parser rejects still has its brand, category and warehouse looked up", async (t) => {
+  t.after(cleanup);
+  const w = await world();
+  const csv = file(row(w.base, { price_rupees: "abc", brand: "NoSuchBrand", category: "no-such-category", warehouse: "Nowhere", stock: "1" }));
+  const parsed = parseCatalogueCsv(csv);
+  assert.equal(parsed.ok, false, "the price should have been refused by the parser");
+  const issues = await lookupIssues(lookupCells(csv));
+  assert.deepEqual(issues.map((i) => [i.line, i.column]), [[2, "brand"], [2, "category"], [2, "warehouse"]]);
+  /* A row whose cells all exist adds nothing. */
+  assert.deepEqual(await lookupIssues(lookupCells(file(row(w.base)))), []);
 });

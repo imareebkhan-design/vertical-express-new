@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { parseCatalogueCsv, type CsvIssue } from "@/lib/catalogue-csv";
+import { lookupCells, parseCatalogueCsv, type CsvIssue } from "@/lib/catalogue-csv";
 import {
   importCatalogue,
+  lookupIssues,
   previewCatalogue,
   type ImportPreview,
   type ImportResult,
@@ -89,7 +90,13 @@ async function collect(text: string): Promise<{ preview: ImportPreview; issues: 
       ? await previewCatalogue(parsed.rows)
       : { toCreate: [], skipped: [], issues: [] };
 
-  const issues = [...(parsed.ok ? [] : parsed.issues), ...preview.issues].sort(
+  /* Rows the parser rejected are still looked up, so an unknown brand on a row
+     with a bad price is reported now rather than on the next upload. */
+  const parserIssues = parsed.ok ? [] : parsed.issues;
+  const rejected = new Set(parserIssues.map((i) => i.line));
+  const lookups = await lookupIssues(lookupCells(text).filter((c) => rejected.has(c.line)));
+  const seen = new Set(parserIssues.map((i) => `${i.line}:${i.column}`));
+  const issues = [...parserIssues, ...lookups.filter((i) => !seen.has(`${i.line}:${i.column}`)), ...preview.issues].sort(
     (a, b) => a.line - b.line
   );
   return { preview, issues };

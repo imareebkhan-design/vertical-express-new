@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/lib/validators";
 
 /**
@@ -385,6 +386,7 @@ export function PhotosPanel({
   remove: RemovePhoto;
   upload?: UploadPhoto;
 }) {
+  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [alt, setAlt] = useState("");
   const [licence, setLicence] = useState(licences[0] ?? "");
@@ -399,6 +401,7 @@ export function PhotosPanel({
     start(async () => {
       const r = await work();
       setMessage(r.ok ? { ok: true, text: done } : { ok: false, text: r.error.message });
+      if (r.ok) router.refresh();
     });
   };
 
@@ -431,6 +434,9 @@ export function PhotosPanel({
       setAlt("");
       setSourceUrl("");
       if (fileRef.current) fileRef.current.value = "";
+      /* The photo list, the approval form and the checklist above all read
+         what was just attached; without this they showed it only after a reload. */
+      router.refresh();
     });
   };
 
