@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { createProduct, listingFormOptions } from "@/lib/services/admin/product-create";
+import { createProduct, listingFormOptions, productTypeLabel } from "@/lib/services/admin/product-create";
 import { db } from "@/lib/db";
 
 /**
@@ -204,4 +204,35 @@ test("the form is offered only brands and categories that exist", async () => {
     assert.equal(cement.gstRatePct, 28, "the cement rate stopped travelling with the category");
     assert.ok(cement.hsn, "the HSN code is missing");
   }
+});
+
+test("a product type is stored as a specification, and blank ones are dropped", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const r = await refs();
+  const res = await createProduct(
+    { ...draft(`${P}-type`, `${SKU}-TYPE`, r), specs: [{ label: " Grade ", value: " OPC 53 " }, { label: "Weight", value: "  " }] },
+    { id: r.actor?.id ?? randomUUID(), email: "zzz@demo.invalid" }
+  );
+  assert.equal(res.ok, true);
+  const p = await db.product.findUniqueOrThrow({ where: { slug: `${P}-type` }, select: { specs: true } });
+  assert.deepEqual(p.specs, [{ label: "Grade", value: "OPC 53" }]);
+});
+
+test("a product listed with no type has no specifications, as before", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const r = await refs();
+  await createProduct(draft(`${P}-notype`, `${SKU}-NOTYPE`, r), { id: r.actor?.id ?? randomUUID(), email: "zzz@demo.invalid" });
+  const p = await db.product.findUniqueOrThrow({ where: { slug: `${P}-notype` }, select: { specs: true } });
+  assert.equal(p.specs, null);
+});
+
+test("product type means the category's first browse attribute", async () => {
+  assert.equal(productTypeLabel("cement"), "Grade");
+  assert.equal(productTypeLabel("tiling"), "Type");
+  assert.equal(productTypeLabel("a-category-with-no-config"), "Type");
+  const options = await listingFormOptions();
+  const cement = options.categories.find((c) => c.slug === "cement");
+  if (cement) assert.equal(cement.typeLabel, "Grade");
 });

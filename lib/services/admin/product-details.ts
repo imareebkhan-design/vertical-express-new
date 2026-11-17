@@ -195,3 +195,43 @@ export async function setDefaultVariant(variantId: string, actor: { id: string |
     return { ok: true as const, variantId };
   });
 }
+
+export type StockRecordResult =
+  | { ok: true; created: boolean }
+  | { ok: false; code: "NOT_FOUND" | "INVALID"; detail?: string };
+
+/**
+ * Give a variant a stock record at a warehouse, at zero.
+ *
+ * A product listed with no warehouse has no inventory row, and the publish
+ * check refuses "unknown" stock: zero has to be said, not assumed. The only
+ * console route to a first row was the stock-count file. This writes the row
+ * and nothing else — no movement, because nothing arrived; stock is then
+ * counted in on the Inventory screen, with a reason, like any other. A record
+ * that already exists is left alone. Stock does not clear the price review
+ * (migration `20261009100000`).
+ */
+export async function createStockRecord(
+  variantId: string,
+  warehouseId: string,
+  actor: { id: string | null; email: string }
+): Promise<StockRecordResult> {
+  return db.$transaction(async (tx) => {
+    const variant = await tx.productVariant.findUnique({ where: { id: variantId }, select: { id: true, sku: true, productId: true } });
+    if (!variant) return { ok: false as const, code: "NOT_FOUND" as const };
+    const wh = await tx.warehouse.findFirst({ where: { id: warehouseId, isActive: true }, select: { id: true, name: true } });
+    if (!wh) return { ok: false as const, code: "INVALID" as const, detail: "That warehouse is not active" };
+    const existing = await tx.inventory.findUnique({ where: { variantId_warehouseId: { variantId, warehouseId } }, select: { id: true } });
+    if (existing) return { ok: true as const, created: false };
+    await tx.inventory.create({ data: { variantId, warehouseId, qtyOnHand: 0 } });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "catalogue.stock_record_created",
+      entityType: "product",
+      entityId: variant.productId,
+      after: { variantId, sku: variant.sku, warehouseId, warehouse: wh.name, qtyOnHand: 0, by: actor.email },
+    });
+    return { ok: true as const, created: true };
+  });
+}

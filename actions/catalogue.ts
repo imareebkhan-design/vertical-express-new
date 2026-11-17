@@ -49,7 +49,7 @@ import {
 const MAX_CHARS = 2_000_000;
 
 /** Line-numbered, capped, and the whole list in metadata for the UI to group. */
-function issuesToFailure<T>(issues: CsvIssue[]): ActionResult<T> {
+function issuesToFailure<T>(issues: CsvIssue[], preview?: ImportPreview): ActionResult<T> {
   /* Every problem at once. Reporting only the first means a person fixes one
      row, re-uploads, and finds the next — for as many rounds as there are
      mistakes. The cap is on what goes in the sentence, not on what is sent. */
@@ -59,7 +59,9 @@ function issuesToFailure<T>(issues: CsvIssue[]): ActionResult<T> {
     "VALIDATION",
     shown.join("\n") + (more > 0 ? `\n…and ${more} more` : ""),
     undefined,
-    { issues }
+    /* The rows that are fine travel with the ones that are not, so the screen
+       can say what would be created, skipped and rejected in one look. */
+    preview ? { issues, preview: { ...preview, issues: [] } } : { issues }
   );
 }
 
@@ -102,7 +104,7 @@ export async function adminPreviewCatalogue(csv: unknown): Promise<ActionResult<
   if (!payload.ok) return fail("VALIDATION", payload.message);
 
   const { preview, issues } = await collect(payload.text);
-  if (issues.length > 0) return issuesToFailure(issues);
+  if (issues.length > 0) return issuesToFailure(issues, preview);
 
   return succeed(preview);
 }

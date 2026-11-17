@@ -21,9 +21,9 @@ const primaryButton = "h-10 rounded-field bg-ink px-4 text-[13px] font-bold text
 
 type Message = { ok: boolean; text: string } | null;
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function Panel({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-panel bg-white p-4 shadow-card">
+    <section id={id} className="scroll-mt-4 rounded-panel bg-white p-4 shadow-card">
       <h2 className="text-[15px] font-bold tracking-tight text-ink">{title}</h2>
       <div className="mt-3 flex flex-col gap-3">{children}</div>
     </section>
@@ -93,7 +93,7 @@ export function DetailsPanel({
       setMessage({
         ok: true,
         text: r.data.identityReset
-          ? "Saved. The product has left the shop until its identity is approved again in Catalogue approvals."
+          ? "Saved. The product has left the shop until its identity is approved again under “Identity and photo approval” on this page."
           : r.data.commercialReset
             ? "Saved. The price and stock review was cleared; review it again before selling."
             : "Saved.",
@@ -169,7 +169,7 @@ export function DetailsPanel({
         {identityChanging && (
           <p role="alert" className="rounded-field bg-ops-warn-tint p-2 text-[12px] font-semibold text-ops-warn">
             The unit and specifications say what this product is. Saving a change takes it out of the shop until its identity is
-            approved again in Catalogue approvals.
+            approved again under &ldquo;Identity and photo approval&rdquo; on this page.
           </p>
         )}
         <Note message={message} />
@@ -426,7 +426,7 @@ export function PhotosPanel({
         ok: true,
         text: r.alreadyAttached
           ? "That photo is already on this product."
-          : "Uploaded. Customers will not see it until it is approved in Catalogue approvals.",
+          : "Uploaded. Customers will not see it until it is approved under “Identity and photo approval” on this page.",
       });
       setAlt("");
       setSourceUrl("");
@@ -435,7 +435,7 @@ export function PhotosPanel({
   };
 
   return (
-    <Panel title="Photos">
+    <Panel title="Photos" id="photos">
       {photos.length === 0 ? (
         <p className="text-[12.5px] font-semibold text-ink-700">No photos. The product is not shown in the shop without an approved lead photo.</p>
       ) : (
@@ -526,7 +526,7 @@ export function PhotosPanel({
             </label>
             <label className="flex items-center gap-2 text-[13px] font-semibold text-ink">
               <input type="checkbox" checked={makePrimary} onChange={(e) => setMakePrimary(e.target.checked)} />
-              Lead photo if the product has none
+              Lead photo (if the product has none yet)
             </label>
           </div>
           <div className="mt-2">
