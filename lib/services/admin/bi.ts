@@ -207,8 +207,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   if (filters.productId || filters.brandId || filters.categoryId) {
     orderWhere.items = {
       some: {
-        ...(filters.productId ? { variantId: filters.productId } : {}),
         variant: {
+          ...(filters.productId ? { productId: filters.productId } : {}),
           product: {
             ...(filters.brandId ? { brandId: filters.brandId } : {}),
             ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
@@ -216,6 +216,17 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
         },
       },
     };
+  }
+
+  // Apply the same customer scope to orders, comparison periods and ledger
+  // aggregates. Filtering only the loaded sales rows left cash flow unfiltered.
+  if (filters.customerType) {
+    const returning = await db.order.groupBy({
+      by: ["userId"],
+      having: { userId: { _count: { gt: 1 } } },
+    });
+    const ids = returning.map((o) => o.userId);
+    orderWhere.userId = filters.customerType === "new" ? { notIn: ids } : { in: ids };
   }
 
   // 4. Query matching orders
@@ -273,8 +284,9 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   // 5. Query previous period orders for revenue growth comparison
   const prevOrderWhere: Prisma.OrderWhereInput = {
+    ...orderWhere,
     placedAt: { gte: prevStartDate, lte: prevEndDate },
-    ...PAID_ORDER_WHERE,
+    AND: [PAID_ORDER_WHERE],
   };
   const prevPeriodOrders = await db.order.findMany({
     where: prevOrderWhere,
