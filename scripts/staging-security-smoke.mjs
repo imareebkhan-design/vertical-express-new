@@ -10,8 +10,7 @@
  * image upload, test-mode checkout) need a real staging account and are a
  * manual runbook: docs/security/staging-smoke-iss-108.md.
  *
- * Exit code: 1 if any check fails. The login-CSRF probe (ISS-109) reports OPEN
- * while that issue stands; OPEN does not fail the run, but it is never PASS.
+ * Exit code: 1 if any check fails or the login-CSRF probe remains OPEN.
  */
 import { classifyCsrfProbe, isAllowedSmokeHost, validateJsonLd } from "./staging-smoke-checks.mjs";
 
@@ -47,7 +46,7 @@ async function req(path, init = {}) {
 {
   const r = await req("/api/auth/session", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", origin: target.origin },
     body: JSON.stringify({ idToken: "not-a-real-token" }),
   });
   expect("invalid ID token is refused by /api/auth/session", r.status === 401, `status ${r.status}`);
@@ -98,4 +97,4 @@ await checkJsonLd(`/product/${encodeURIComponent(productSlug)}`, "Product");
 
 const count = (o) => results.filter((r) => r.outcome === o).length;
 console.log(`\n${count("pass")} passed, ${count("fail")} failed, ${count("open")} open finding(s).`);
-process.exit(count("fail") ? 1 : 0);
+process.exit(count("fail") || count("open") ? 1 : 0);
