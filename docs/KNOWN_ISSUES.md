@@ -1,5 +1,70 @@
 # Known Issues — Vertical Express
 
+## ISS-111 — Every operator holds every admin power
+
+**Status:** OPEN, by design pending owner decision. **Severity:** Low (insider / stolen-account blast radius).
+**Found:** security recheck, 16 Nov 2026.
+
+`getAdminUser()` (`lib/services/admin/authz.ts`) is a single tier: a verified email on `ADMIN_EMAILS` can change
+prices, issue refunds, edit roster and settings. Refunds are well guarded otherwise — amount computed and capped
+server-side under a row lock, reason required, audit row written (`lib/services/refunds.ts`) — but one operator can
+issue one alone. Options: permission tiers on the `admin_users` table the comment already anticipates, or a second
+approver for refunds above an owner-set amount.
+
+## ISS-110 — Public booking form can be flooded by rotating phone numbers
+
+**Status:** OPEN. **Severity:** Medium (spam rows and ops noise; no money or SMS spent). **Found:** security recheck,
+16 Nov 2026.
+
+`submitBooking` (`actions/booking.ts:30`) limits 5 per hour **per submitted phone number**, a value the caller
+chooses. Changing the number each time bypasses it, and there is no per-IP bucket or bot check. The same key lets
+anyone exhaust a real customer's quota by submitting with their number. Fix: add a per-IP bucket
+(`getClientIp`, as `actions/location.ts` does) alongside the phone bucket, and a global daily ceiling.
+
+## ISS-109 — Login CSRF: `/api/auth/session` accepts a cross-site form post
+
+**Status:** OPEN. **Severity:** Medium. **Found:** security recheck, 16 Nov 2026.
+
+The route's comment says a cross-origin POST "of `application/json` fails its preflight". It does, but the handler
+never requires that content type: `request.json()` parses a `text/plain` body just as happily (checked with Node's
+`Request`), and nothing compares `Origin`. A page on another site can auto-submit a `<form enctype="text/plain">`
+whose body is `{"idToken":"<attacker's own valid token>","x":"="}` — a top-level navigation, so the `Set-Cookie`
+lands — and the victim is signed in to the attacker's account, where anything they enter (addresses, orders) is
+visible to the attacker. `DELETE` (sign-out) has the same gap, with lower impact.
+
+The admin image upload route already has the right guard (`sameOrigin` in
+`lib/services/admin/image-upload-handler.ts`). Fix: apply the same Origin check to both methods and refuse any
+`Content-Type` other than `application/json` with `415`. `scripts/staging-security-smoke.mjs` check A2 reports this
+as OPEN until fixed.
+
+## ISS-108 — Codacy scan (16 Nov 2026): vulnerable dependencies and three unescaped JSON-LD tags
+
+**Status:** PARTLY FIXED on `claude/security-codacy-fixes`; review pending.
+**Severity:** High (dependency advisories); Low (code findings). **Found:** Codacy export, 16 Nov 2026.
+
+Fixed on the branch:
+- Capacitor iOS/Android 8.5.0 (remote content at the app origin, critical) → 8.6.2; Prisma 7.10.1,
+  `firebase-admin`, `posthog-js` (DOMPurify) and transitive packages updated by name. `npm audit --omit=dev`
+  went from 31 advisories (2 critical) to 10 (none critical). Next.js, Sentry and zod were already patched on
+  the release line.
+- Product, category and site JSON-LD now go through `serializeJsonLd` (`lib/json-ld.ts`), which escapes `<`
+  so a value containing `</script>` cannot close the tag.
+- Order-number suffix uses `crypto.randomInt`; the checkout idempotency key falls back to
+  `crypto.getRandomValues` instead of `Math.random`.
+
+Still open (each needs a major upgrade):
+- `firebase` client → `@firebase/firestore` / `@grpc/grpc-js` advisories. The web app does not import Firestore.
+- `@sentry/nextjs` 10 → 11 for its bundler-plugin chain (build-time only).
+- The Expo app's own lockfile (`mobile/`, workspace repo) was not audited or updated.
+
+Do not run a bare `npm audit fix` here: it downgrades `@typescript-eslint/eslint-plugin` under
+`eslint-config-next` to 6.x and lint crashes. Update packages by name.
+
+Most other Codacy findings are false positives or sit in local scripts (`docs/catalog/`, `.agents/`,
+`outputs/`, `mobile/scripts/`) that never run in production.
+
+**Rollback:** revert the commit; no schema or data change.
+
 ## ISS-107 — A signed capture that could not settle left no record an operator could see
 
 **Status:** FIXED on `claude/unmatched-captures` (roadmap A-3, 16 Nov 2026); review pending.
