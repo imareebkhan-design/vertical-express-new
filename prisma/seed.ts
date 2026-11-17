@@ -310,7 +310,7 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${PRODUCTS.length} products, ${SYNONYMS.length} synonyms.`);
+  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${resetInForce ? 0 : PRODUCTS.length} products, ${SYNONYMS.length} synonyms.`);
 }
 
 main()

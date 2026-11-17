@@ -359,7 +359,7 @@ export async function applyCatalogueReset(params: {
       const plan = await buildPlan(tx, params.cutoff, params.seedSlugs);
       if (plan.digest !== params.approvedDigest) {
         throw new ResetRefused(
-          `The catalogue changed since the manifest was produced (approved ${params.approvedDigest.slice(0, 12)}, now ${plan.digest.slice(0, 12)}). Nothing was written. Produce a new manifest and review it.`
+          `The approved digest ${params.approvedDigest.slice(0, 12)}… does not match this database, whose plan is now ${plan.digest.slice(0, 12)}…. Either the digest was mistyped or the catalogue changed since the manifest was produced. Nothing was written. Produce a new manifest and review it.`
         );
       }
       await params.onRecovery(await captureRecovery(tx, plan));

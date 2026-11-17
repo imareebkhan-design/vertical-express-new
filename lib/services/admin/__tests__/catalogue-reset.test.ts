@@ -148,7 +148,7 @@ test("apply refuses a database that no longer matches the approved manifest, and
   let captured = false;
   await assert.rejects(
     applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, onRecovery: () => { captured = true; } }),
-    (e: unknown) => e instanceof ResetRefused && /changed since the manifest/.test(e.message)
+    (e: unknown) => e instanceof ResetRefused && /does not match this database/.test(e.message)
   );
   assert.equal(captured, false, "a recovery file was produced for a refused apply");
   assert.deepEqual(await catalogueFingerprint(), before);
