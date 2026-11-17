@@ -44,6 +44,13 @@ const catalogue = JSON.parse(bytes.toString("utf8"));
 
 const { planRangeImport, applyRangeImport } = await import("@/lib/services/admin/catalogue-range-import");
 const { db } = await import("@/lib/db");
+const { catalogueResetInForce } = await import("@/lib/services/admin/catalogue-reset");
+/* A reset freed these products' web addresses; re-importing the ranges would
+   bring the previous catalogue back (scripts/catalogue-reset.mts). */
+if (apply && (await catalogueResetInForce())) {
+  await db.$disconnect();
+  refuse("a catalogue reset is in force on this database; re-importing the ranges would bring the previous catalogue back");
+}
 const summary = (p: Awaited<ReturnType<typeof planRangeImport>>) => ({
   categories: { create: p.categories.create.map((c) => c.slug), reuse: p.categories.reuse.length },
   brands: { create: p.brands.create.length, reuse: p.brands.reuse.length },
