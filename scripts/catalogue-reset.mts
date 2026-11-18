@@ -49,7 +49,7 @@ function target(): { ref: string; database: string; production: boolean } {
 
 function guardWrite(t: ReturnType<typeof target>) {
   const expect = arg("expect-ref");
-  if (!expect) refuse("pass --expect-ref=<supabase project ref> (or localhost) naming the database you mean to change");
+  if (!expect) refuse("pass --expect-ref=SUPABASE_PROJECT_REF (or localhost) naming the database you mean to change");
   if (t.ref !== expect) refuse(`DATABASE_URL belongs to ${t.ref}, not ${expect}`);
   if (t.production && !flag("production")) refuse(`${t.ref} is the production project. Add --production only once the owner has approved this manifest for production.`);
 }
@@ -84,7 +84,7 @@ function readJson(p: string | undefined, what: string): Record<string, unknown> 
 
 function cutoff(): Date {
   const raw = arg("cutoff");
-  if (!raw) refuse("pass --cutoff=<ISO time>. Products created before it are the previous catalogue.");
+  if (!raw) refuse("pass --cutoff=ISO_TIME. Products created before it are the previous catalogue.");
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) refuse(`--cutoff=${raw} is not a time`);
   return d;
@@ -158,8 +158,8 @@ Read-only. Nothing was written to the database to produce this.
 | | |
 |---|---|
 | Environment | ${env.ref}${env.production ? " (PRODUCTION)" : ""}, database \`${env.database}\` |
-| Database identity | \`${(m.database as { id: string }).id}\` |
-| Produced | ${m.generatedAt} from commit ${m.commit} |
+| Database identity | \`${String((m.database as { id: string }).id)}\` |
+| Produced | ${String(m.generatedAt)} from commit ${String(m.commit)} |
 | Cutoff | products created before ${p.cutoff} |
 | QA fixtures | ${p.options.archiveQaFixtures ? "archived, names kept (--archive-qa-fixtures)" : "left as they are"} |
 | Products created after the cutoff (untouched) | ${p.createdAfterCutoff} |
@@ -184,7 +184,7 @@ ${bySource}
 ${visible}
 ## Never changed — checked byte for byte before commit (the audit log may only grow)
 
-${Object.entries(p.preserved).map(([t, n]) => `- ${t}: ${n} rows${t === "audit_logs" ? " (may only grow)" : `, content ${p.preservedContent[t]?.slice(0, 12)}…`}`).join("\n")}
+${Object.entries(p.preserved).map(([t, n]) => `- ${t}: ${n} rows${t === "audit_logs" ? " (may only grow)" : `, content ${String(p.preservedContent[t] ?? "").slice(0, 12)}…`}`).join("\n")}
 
 ## Could anything bring them back?
 
@@ -209,7 +209,7 @@ const t = target();
 
 try {
   if (mode === "plan") {
-    const out = safePath(arg("out"), "--out=<directory outside the repository>");
+    const out = safePath(arg("out"), "--out (an absolute directory outside the repository)");
     const plan = await svc.planCatalogueReset(cutoff(), seedSlugs(), db, { archiveQaFixtures: flag("archive-qa-fixtures") });
     const database = await svc.databaseIdentity(db);
     const manifest = { kind: "catalogue-reset-manifest", version: 2, generatedAt: new Date().toISOString(), commit, environment: t, database, recreationRisks: RECREATION_RISKS, plan };
@@ -220,7 +220,7 @@ try {
     console.log(JSON.stringify({ environment: t, database: database.id, cutoff: plan.cutoff, digest: plan.digest, summary: plan.summary, createdAfterCutoff: plan.createdAfterCutoff, stillVisible: plan.remainingVisible.length, files: [`${stem}.json`, `${stem}.md`] }, null, 1));
   } else if (mode === "apply") {
     guardWrite(t);
-    const manifest = readJson(arg("manifest"), "--manifest=<the .json file plan wrote>");
+    const manifest = readJson(arg("manifest"), "--manifest (the .json file plan wrote)");
     const plan = manifest.plan as { digest?: string; cutoff?: string; options?: { archiveQaFixtures?: boolean } } | undefined;
     const approvedDb = (manifest.database as { id?: string } | undefined)?.id;
     if (manifest.kind !== "catalogue-reset-manifest" || manifest.version !== 2 || !plan?.digest || !plan.cutoff || !approvedDb) {
@@ -228,7 +228,7 @@ try {
     }
     const approve = arg("approve");
     if (!approve || approve !== plan.digest) refuse("--approve must be the digest printed in that manifest, typed out by the person approving it");
-    const recoveryOut = safePath(arg("recovery-out"), "--recovery-out=<file outside the repository>");
+    const recoveryOut = safePath(arg("recovery-out"), "--recovery-out (an absolute file outside the repository)");
     if (existsSync(recoveryOut)) refuse(`${recoveryOut} already exists; recovery files are never overwritten`);
     const res = await svc.applyCatalogueReset({
       cutoff: new Date(plan.cutoff),
@@ -241,7 +241,7 @@ try {
     console.log(JSON.stringify({ environment: t, applied: res, recovery: recoveryOut }, null, 1));
   } else if (mode === "restore") {
     guardWrite(t);
-    const rec = readJson(arg("recovery"), "--recovery=<the file apply wrote>");
+    const rec = readJson(arg("recovery"), "--recovery (the file apply wrote)");
     const removed = rec.removed as Record<string, unknown> | undefined;
     if (rec.kind !== "catalogue-reset-recovery" || typeof rec.digest !== "string" || !/^[a-f0-9]{64}$/.test(rec.digest)
       || !Array.isArray(rec.retired) || !removed || !Array.isArray(removed.products)) {
