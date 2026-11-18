@@ -5,7 +5,8 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { parsePincodeList } from "@/lib/pincode";
 import { parseRupeeInput } from "@/lib/money";
-import { createProduct } from "@/lib/services/admin/product-create";
+import { db } from "@/lib/db";
+import { createProduct, productTypeLabel } from "@/lib/services/admin/product-create";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -33,6 +34,9 @@ const schema = z
     brandId: z.string().uuid("Pick a brand"),
     categoryId: z.string().uuid("Pick a category"),
     description: z.string().trim().max(2000).optional(),
+    /* What kind of product this is within its category — a cement's grade, a
+       tile's type. Stored as a specification under the category's own label. */
+    productType: z.string().trim().max(200).optional(),
     unitLabel: z.string().trim().min(1).max(40),
     deliverySpeed: z.enum(["express", "scheduled", ""]),
     status: z.enum(["draft", "published"]),
@@ -101,6 +105,14 @@ export async function adminListProduct(
 
   const qty = v.openingStock === "" ? 0 : Number(v.openingStock);
 
+  /* The label comes from the category on the server, never from the form. */
+  let specs: { label: string; value: string }[] = [];
+  if (v.productType) {
+    const category = await db.category.findUnique({ where: { id: v.categoryId }, select: { slug: true } });
+    if (!category) return fail("VALIDATION", "Pick a category");
+    specs = [{ label: productTypeLabel(category.slug), value: v.productType }];
+  }
+
   const res = await createProduct(
     {
       title: v.title,
@@ -127,14 +139,34 @@ export async function adminListProduct(
          from the inventory screen straight away. Without one it reads as out
          of stock with no row to change. */
       openingStock: v.warehouseId ? { warehouseId: v.warehouseId, qty } : null,
+      specs,
     },
     { id: admin.id, email: admin.email }
   );
 
   if (!res.ok) {
     if (res.error === "not_sellable") return fail("VALIDATION", `Not ready to sell: ${res.reasons.join("; ")}. Save it as a draft instead.`);
-    if (res.error === "slug_taken") return fail("CONFLICT", "That slug is already in use");
-    if (res.error === "sku_taken") return fail("CONFLICT", "That SKU is already in use");
+    if (res.error === "slug_taken") {
+      /* Say what holds it. An archived product keeps its web address, and
+         "already in use" with nothing on the Products list to explain it sends
+         an operator hunting. */
+      const holder = await db.product.findUnique({ where: { slug: v.slug }, select: { status: true, title: true } });
+      return fail(
+        "CONFLICT",
+        holder?.status === "archived"
+          ? `The web address "${v.slug}" belongs to an archived product ("${holder.title}"). Open it from Products → Archived to bring it back, or change the web address here.`
+          : `The web address "${v.slug}" is already used by "${holder?.title ?? "another product"}". Change the web address, or open that product instead.`
+      );
+    }
+    if (res.error === "sku_taken") {
+      const holder = await db.productVariant.findUnique({ where: { sku: v.sku }, select: { product: { select: { title: true, status: true } } } });
+      return fail(
+        "CONFLICT",
+        `The item code ${v.sku} already belongs to "${holder?.product.title ?? "another product"}"` +
+          (holder?.product.status === "archived" ? " (archived)" : "") +
+          ". Item codes are never reused — choose a different one."
+      );
+    }
     return fail("CONFLICT", "That product could not be created");
   }
 

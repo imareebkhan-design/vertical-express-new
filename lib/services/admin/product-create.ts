@@ -4,6 +4,7 @@ import { recordAudit, type DbClient } from "@/lib/services/audit";
 import { sellableReasons } from "@/lib/services/admin/publish-guard";
 import type { DeliverySpeed, ProductStatus } from "@/prisma/generated/client/client";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
+import { attributeConfigFor } from "@/lib/catalog-attributes";
 
 /**
  * Listing a product — putting a new thing on the shelf.
@@ -55,6 +56,23 @@ export interface NewProduct {
    * off for a product does not lose the pincode list it was set up with.
    */
   express: { eligible: boolean; pincodes: string[] };
+  /**
+   * Specifications known when the product is listed, as `[{ label, value }]`.
+   *
+   * The listing form and the CSV send one row here: the product's type under
+   * the label its category is browsed by ("Grade" for cement, "Type" for tile —
+   * `productTypeLabel`). Stored in `products.specs`, where the storefront's
+   * "Shop by …" rail and filters already read it. Omitted: no specs.
+   */
+  specs?: { label: string; value: string }[];
+}
+
+/**
+ * What "product type" means for a category: the first attribute it is browsed
+ * by (lib/catalog-attributes.ts). Cement is chosen by grade, tile by type.
+ */
+export function productTypeLabel(categorySlug: string): string {
+  return attributeConfigFor(categorySlug).attributes[0] ?? "Type";
 }
 
 export type CreateResult =
@@ -86,6 +104,9 @@ export async function writeProduct(
   input: NewProduct,
   actor: { id: string; email: string }
 ): Promise<string> {
+  const specs = (input.specs ?? [])
+    .map((r) => ({ label: r.label.trim(), value: r.value.trim() }))
+    .filter((r) => r.label && r.value);
   const product = await tx.product.create({
     data: {
       title: input.title,
@@ -97,6 +118,7 @@ export async function writeProduct(
       deliverySpeed: input.deliverySpeed,
       status: input.status,
       expressEligible: input.express.eligible,
+      ...(specs.length > 0 ? { specs } : {}),
     },
   });
 
@@ -233,6 +255,9 @@ export async function listingFormOptions() {
         ...c,
         hsn: tax?.hsn ?? null,
         gstRatePct: tax?.ratePct ?? null,
+        /* What "product type" is called for this category, so the form asks
+           for a cement's grade and a tile's type without its own copy of the map. */
+        typeLabel: productTypeLabel(c.slug),
       };
     }),
   };

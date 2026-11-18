@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { istDayStart, istTodayStart } from "@/lib/ist";
@@ -32,7 +32,7 @@ let userId: string;
 before(async () => {
   userId = (
     await db.user.create({
-      data: { id: randomUUID(), phone: `+9195${String(Math.random()).slice(2, 10)}` },
+      data: { id: randomUUID(), phone: `+9195${String(randomInt(0, 100_000_000)).padStart(8, "0")}` },
       select: { id: true },
     })
   ).id;
