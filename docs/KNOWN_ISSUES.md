@@ -30,8 +30,11 @@ a single product later still keeps its names, deliberately: unarchiving it must 
 ## ISS-112 — The previous catalogue was still in the database
 
 **Status:** READY, awaiting owner approval for each environment. `scripts/catalogue-reset.mts`, runbook
-`docs/runbooks/CATALOGUE_RESET.md`. Rehearsed on a local copy of staging, including restore. Not run on staging or
-production.
+`docs/runbooks/CATALOGUE_RESET.md`. Rehearsed twice on local copies of staging, including restore. Read-only
+manifests produced for production and staging on 18 Nov. Not applied to either.
+
+Historical records: a retired pack's code is suffixed; screens that show a code read the sold code back
+(`lib/retired-sku.ts`). Orders, invoices, exports, refunds and returns never print it.
 
 ## ISS-111 — Every operator holds every admin power
 

@@ -3,7 +3,10 @@
  *
  *   Read-only manifest — writes nothing to the database:
  *     NODE_PATH=./test-support/stubs node --conditions=react-server --env-file=<env> --import tsx \
- *       scripts/catalogue-reset.mts plan --cutoff=2026-11-17T00:00:00Z --out=<dir outside the repo>
+ *       scripts/catalogue-reset.mts plan --cutoff=2026-11-17T00:00:00Z --out=<dir outside the repo> [--archive-qa-fixtures]
+ *
+ *   --archive-qa-fixtures (staging): archive the qa-staging-* test products too, keeping their
+ *   names, so customers see only launch products. Recorded in the manifest; apply uses it.
  *
  *   Apply exactly the reviewed manifest:
  *     … scripts/catalogue-reset.mts apply --manifest=<the .json plan wrote> --expect-ref=<ref|localhost> \
@@ -158,6 +161,7 @@ Read-only. Nothing was written to the database to produce this.
 | Database identity | \`${(m.database as { id: string }).id}\` |
 | Produced | ${m.generatedAt} from commit ${m.commit} |
 | Cutoff | products created before ${p.cutoff} |
+| QA fixtures | ${p.options.archiveQaFixtures ? "archived, names kept (--archive-qa-fixtures)" : "left as they are"} |
 | Products created after the cutoff (untouched) | ${p.createdAfterCutoff} |
 | **Digest to approve** | \`${p.digest}\` |
 
@@ -165,7 +169,7 @@ Read-only. Nothing was written to the database to produce this.
 
 | Action | Products | Meaning |
 |---|---|---|
-| retire | ${p.summary.retire} | Archived; web address and item codes get \`--${p.tag}\` so the real product can be listed again. History keeps pointing at it. |
+| retire | ${p.summary.retire} | Archived; web address and item codes get \`--${p.tag}\` so the real product can be listed again (QA fixtures keep their names). History keeps pointing at it. |
 | remove | ${p.summary.remove} | Deleted with its packs, photo rows, zero-stock records and cart lines. Nothing but the audit log refers to it. |
 | exclude | ${p.summary.exclude} | Left exactly as it is, for the reason given. |
 
@@ -206,7 +210,7 @@ const t = target();
 try {
   if (mode === "plan") {
     const out = safePath(arg("out"), "--out=<directory outside the repository>");
-    const plan = await svc.planCatalogueReset(cutoff(), seedSlugs());
+    const plan = await svc.planCatalogueReset(cutoff(), seedSlugs(), db, { archiveQaFixtures: flag("archive-qa-fixtures") });
     const database = await svc.databaseIdentity(db);
     const manifest = { kind: "catalogue-reset-manifest", version: 2, generatedAt: new Date().toISOString(), commit, environment: t, database, recreationRisks: RECREATION_RISKS, plan };
     mkdirSync(out, { recursive: true });
@@ -217,7 +221,7 @@ try {
   } else if (mode === "apply") {
     guardWrite(t);
     const manifest = readJson(arg("manifest"), "--manifest=<the .json file plan wrote>");
-    const plan = manifest.plan as { digest?: string; cutoff?: string } | undefined;
+    const plan = manifest.plan as { digest?: string; cutoff?: string; options?: { archiveQaFixtures?: boolean } } | undefined;
     const approvedDb = (manifest.database as { id?: string } | undefined)?.id;
     if (manifest.kind !== "catalogue-reset-manifest" || manifest.version !== 2 || !plan?.digest || !plan.cutoff || !approvedDb) {
       refuse("--manifest is not a catalogue reset manifest from this version of the script");
@@ -231,6 +235,7 @@ try {
       seedSlugs: seedSlugs(),
       approvedDigest: approve,
       approvedDatabaseId: approvedDb,
+      options: { archiveQaFixtures: plan.options?.archiveQaFixtures === true },
       onRecovery: (r) => durableWrite(recoveryOut, JSON.stringify({ kind: "catalogue-reset-recovery", environment: t, commit, ...r })),
     });
     console.log(JSON.stringify({ environment: t, applied: res, recovery: recoveryOut }, null, 1));

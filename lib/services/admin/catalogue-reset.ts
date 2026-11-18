@@ -96,6 +96,11 @@ export interface ResetEntry {
    * the manifest and the apply — a price, a photo, a status — refuses the apply.
    */
   state: string;
+  /**
+   * Retire only: archive but keep the web address and item codes. Used for
+   * staging QA fixtures, which the payment and UAT scripts find by name.
+   */
+  keepNames?: boolean;
   /** Retire only: what the web address and item codes become. */
   retiredSlug?: string;
   retiredSkus?: Record<string, string>;
@@ -121,8 +126,14 @@ export interface DatabaseIdentity {
   database: string;
 }
 
+export interface ResetOptions {
+  /** Archive `qa-staging-*` fixtures (keeping their names) instead of leaving them. Staging only. */
+  archiveQaFixtures: boolean;
+}
+
 export interface ResetPlan {
   cutoff: string;
+  options: ResetOptions;
   tag: string;
   entries: ResetEntry[];
   summary: Record<ResetAction, number>;
@@ -216,7 +227,7 @@ async function readRows(client: DbClient, cutoff: Date): Promise<{ rows: Row[]; 
   return { rows, after: n };
 }
 
-function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string, cutoff: Date): ResetEntry {
+function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string, cutoff: Date, options: ResetOptions): ResetEntry {
   const references: ResetReferences = {
     orderLines: r.order_lines, openOrderLines: r.open_order_lines, refundsOnTheseOrders: r.refunds,
     returnLines: r.return_lines, shipmentLines: r.shipment_lines, stockMovements: r.movements,
@@ -241,6 +252,20 @@ function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string, cutoff: D
 
   if (r.status === "archived" && r.slug.includes("--legacy-")) {
     return { ...base, action: "exclude", reason: "Already retired by an earlier reset." };
+  }
+  if (qa && options.archiveQaFixtures) {
+    if (r.status === "archived") return { ...base, action: "exclude", reason: "QA fixture already archived." };
+    const refs = [
+      r.order_lines ? `${r.order_lines} order line(s)${r.open_order_lines ? `, ${r.open_order_lines} still open` : ""}` : null,
+      r.movements ? `${r.movements} stock movement(s)` : null,
+      r.refunds ? `${r.refunds} refund(s)` : null,
+    ].filter(Boolean).join("; ");
+    return {
+      ...base, action: "retire", keepNames: true, retiredSlug: r.slug, retiredSkus: Object.fromEntries(r.skus.map((s) => [s, s])),
+      reason:
+        "Staging QA fixture, archived so customers see only launch products. Its web address and item codes are kept " +
+        "because npm run qa:fixture finds it by them." + (refs ? ` Its history stays attached: ${refs}. Archiving changes no order.` : ""),
+    };
   }
   if (qa) {
     return {
@@ -330,18 +355,20 @@ export function planDigest(entries: readonly ResetEntry[]): string {
   /* Over what the reset would do and why, not when it was read. */
   const stable = [...entries]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((e) => [e.id, e.slug, e.status, e.skus, e.action, e.references, e.state, e.retiredSlug ?? null, e.retiredSkus ?? null]);
+    .map((e) => [e.id, e.slug, e.status, e.skus, e.action, e.references, e.state, e.keepNames ?? false, e.retiredSlug ?? null, e.retiredSkus ?? null]);
   return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
 }
 
-async function buildPlan(client: DbClient, cutoff: Date, seedSlugs: ReadonlySet<string>): Promise<ResetPlan & { createdAfterCutoff: number }> {
+const NO_OPTIONS: ResetOptions = { archiveQaFixtures: false };
+
+async function buildPlan(client: DbClient, cutoff: Date, seedSlugs: ReadonlySet<string>, options: ResetOptions): Promise<ResetPlan & { createdAfterCutoff: number }> {
   const tag = resetTag(cutoff);
   const { rows, after } = await readRows(client, cutoff);
-  const entries = rows.map((r) => classify(r, seedSlugs, tag, cutoff));
+  const entries = rows.map((r) => classify(r, seedSlugs, tag, cutoff, options));
   const summary = { retire: 0, remove: 0, exclude: 0 } as Record<ResetAction, number>;
   for (const e of entries) summary[e.action] += 1;
   return {
-    cutoff: cutoff.toISOString(), tag, entries, summary,
+    cutoff: cutoff.toISOString(), options, tag, entries, summary,
     preserved: await preservedCounts(client),
     preservedContent: await preservedContent(client),
     remainingVisible: await remainingVisible(client, entries),
@@ -351,10 +378,10 @@ async function buildPlan(client: DbClient, cutoff: Date, seedSlugs: ReadonlySet<
 }
 
 /** The read-only plan. Nothing can be written: the transaction is declared READ ONLY. */
-export async function planCatalogueReset(cutoff: Date, seedSlugs: ReadonlySet<string>, client = db) {
+export async function planCatalogueReset(cutoff: Date, seedSlugs: ReadonlySet<string>, client = db, options: ResetOptions = NO_OPTIONS) {
   return client.$transaction(async (tx) => {
     await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
-    return buildPlan(tx, cutoff, seedSlugs);
+    return buildPlan(tx, cutoff, seedSlugs, options);
   });
 }
 
@@ -446,6 +473,8 @@ export async function applyCatalogueReset(params: {
   approvedDigest: string;
   /** The identity recorded in the approved manifest. Apply refuses any other database. */
   approvedDatabaseId: string;
+  /** The options the manifest was produced with. Different options produce a different digest. */
+  options?: ResetOptions;
   databaseUrl?: string;
   onRecovery: (r: ResetRecovery) => void | Promise<void>;
   client?: typeof db;
@@ -457,7 +486,7 @@ export async function applyCatalogueReset(params: {
       if (database.id !== params.approvedDatabaseId) {
         throw new ResetRefused(`The manifest was approved for ${params.approvedDatabaseId}, but this is ${database.id}. Nothing was written.`);
       }
-      const plan = await buildPlan(tx, params.cutoff, params.seedSlugs);
+      const plan = await buildPlan(tx, params.cutoff, params.seedSlugs, params.options ?? NO_OPTIONS);
       if (plan.digest !== params.approvedDigest) {
         throw new ResetRefused(
           `The approved digest ${params.approvedDigest.slice(0, 12)}… does not match this database, whose plan is now ${plan.digest.slice(0, 12)}…. Either the digest was mistyped or the catalogue changed since the manifest was produced. Nothing was written. Produce a new manifest and review it.`
@@ -466,7 +495,16 @@ export async function applyCatalogueReset(params: {
       await params.onRecovery(await captureRecovery(tx, plan, database));
 
       for (const e of plan.entries) {
-        if (e.action === "retire") {
+        if (e.action === "retire" && e.keepNames) {
+          await tx.$executeRaw`UPDATE products SET status = 'archived', updated_at = now() WHERE id = ${e.id}::uuid`;
+          await tx.auditLog.create({
+            data: {
+              actorType: "system", action: "catalogue.reset_retired", entityType: "product", entityId: e.id,
+              before: { status: e.status, slug: e.slug },
+              after: { status: "archived", slug: e.slug, namesKept: true, reason: e.reason, digest: plan.digest },
+            },
+          });
+        } else if (e.action === "retire") {
           for (const [from, to] of Object.entries(e.retiredSkus ?? {})) {
             await tx.$executeRaw`UPDATE product_variants SET sku = ${to}, updated_at = now() WHERE product_id = ${e.id}::uuid AND sku = ${from}`;
           }
@@ -591,9 +629,13 @@ export async function restoreCatalogueReset(recovery: ResetRecovery, client = db
 
       let retiredRestored = 0;
       let alreadyInPlace = 0;
-      for (const { product, variants, retiredSlug } of recovery.retired) {
-        const [now] = await tx.$queryRaw<{ slug: string }[]>`SELECT slug FROM products WHERE id = ${String(product.id)}::uuid`;
-        if (!now || now.slug !== retiredSlug) {
+      for (const { product, variants } of recovery.retired) {
+        const [now] = await tx.$queryRaw<{ slug: string; status: string }[]>`
+          SELECT slug, status::text AS status FROM products WHERE id = ${String(product.id)}::uuid`;
+        /* Already as it was (or gone): nothing to put back. A product archived
+           with its names kept has the same slug before and after, so the
+           status decides. */
+        if (!now || (now.slug === product.slug && now.status === product.status)) {
           alreadyInPlace += 1;
           continue;
         }

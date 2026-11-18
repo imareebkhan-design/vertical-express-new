@@ -309,3 +309,25 @@ test("the plan says what customers will still see after the reset", async () => 
   assert.ok(!slugs.includes(`${P}-ordered`) && !slugs.includes(`${P}-plain`), "a product the reset retires or removes is reported as remaining");
   assert.ok(Object.keys(plan.preservedContent).includes("categories") && Object.keys(plan.preservedContent).includes("settings"));
 });
+
+test("with --archive-qa-fixtures a QA fixture is archived under its own names, its open orders untouched, and restored", async () => {
+  const opts = { archiveQaFixtures: true };
+  const plan = await planCatalogueReset(CUTOFF, NONE, db, opts);
+  const qa = plan.entries.find((e) => e.id === ids.qa);
+  assert.equal(qa?.action, "retire");
+  assert.equal(qa?.keepNames, true);
+  /* A different option is a different plan: it cannot be applied under the other's digest. */
+  assert.notEqual(plan.digest, (await planCatalogueReset(CUTOFF, NONE)).digest);
+  /* The non-QA product in an open order is still left alone. */
+  assert.equal(plan.entries.find((e) => e.id === ids.open)?.action, "exclude");
+
+  let rec: ResetRecovery | null = null;
+  await applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, approvedDatabaseId: await thisDb(), options: opts, onRecovery: (r) => { rec = r; } });
+  const after = await db.product.findUniqueOrThrow({ where: { id: ids.qa }, select: { status: true, slug: true, variants: { select: { sku: true } } } });
+  assert.deepEqual(after, { status: "archived", slug: `${QA}-item`, variants: [{ sku: `${QA}-item`.toUpperCase() }] });
+  assert.equal(await db.product.count({ where: { id: ids.qa, AND: [catalogListingWhere()] } }), 0, "the archived fixture is still listed");
+
+  assert.ok(rec);
+  assert.equal((await restoreCatalogueReset(rec as ResetRecovery)).retiredRestored, 3);
+  assert.equal((await db.product.findUniqueOrThrow({ where: { id: ids.qa }, select: { status: true } })).status, "published");
+});
