@@ -379,10 +379,15 @@ async function buildPlan(client: DbClient, cutoff: Date, seedSlugs: ReadonlySet<
 
 /** The read-only plan. Nothing can be written: the transaction is declared READ ONLY. */
 export async function planCatalogueReset(cutoff: Date, seedSlugs: ReadonlySet<string>, client = db, options: ResetOptions = NO_OPTIONS) {
-  return client.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
-    return buildPlan(tx, cutoff, seedSlugs, options);
-  });
+  /* Read-only, but it reads every product's rows: against a remote database
+     this takes well over Prisma's 5-second default, as apply and restore do. */
+  return client.$transaction(
+    async (tx) => {
+      await tx.$executeRawUnsafe("SET TRANSACTION READ ONLY");
+      return buildPlan(tx, cutoff, seedSlugs, options);
+    },
+    { timeout: 600_000, maxWait: 30_000 }
+  );
 }
 
 /* ------------------------------------------------------------------ */
