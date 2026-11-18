@@ -357,6 +357,9 @@ export type SetPrimaryPhoto = (input: { imageId: string }) => Promise<ActionResu
 export type RemovePhoto = (input: { imageId: string }) => Promise<ActionResult<{ wasPrimary: boolean }>>;
 export type UploadPhoto = (form: FormData) => Promise<{ ok: boolean; error?: string; alreadyAttached?: boolean }>;
 
+/** Photos one product may carry — the server's MAX_PHOTOS_PER_PRODUCT. */
+export const MAX_PHOTOS = 30;
+
 /** The console's upload route. A route, not an action: actions are capped at 1 MB. */
 export const uploadViaRoute: UploadPhoto = async (form) => {
   try {
@@ -388,13 +391,19 @@ export function PhotosPanel({
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
   const [alt, setAlt] = useState("");
   const [licence, setLicence] = useState(licences[0] ?? "");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [makePrimary, setMakePrimary] = useState(false);
+  /* The first photo leads when the product has none yet; that is the usual
+     case for a new product, so it starts ticked. */
+  const [makePrimary, setMakePrimary] = useState(!photos.some((p) => p.isPrimary));
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
+  const [progress, setProgress] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  const room = Math.max(0, MAX_PHOTOS - photos.length);
 
   const run = (work: () => Promise<ActionResult<unknown>>, done: string) => {
     setMessage(null);
@@ -405,34 +414,54 @@ export function PhotosPanel({
     });
   };
 
+  /** Keep image files only, and no more than the product has room for. */
+  const pick = (list: FileList | null) => {
+    setMessage(null);
+    const chosen = [...(list ?? [])].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
+    const skipped = (list?.length ?? 0) - chosen.length;
+    const kept = chosen.slice(0, room);
+    setFiles(kept);
+    const notes = [
+      skipped > 0 ? `${skipped} file${skipped === 1 ? " is" : "s are"} not a JPEG, PNG or WebP photo and ${skipped === 1 ? "was" : "were"} left out.` : null,
+      chosen.length > room ? `This product can hold ${MAX_PHOTOS} photos; only the first ${room} chosen will be uploaded.` : null,
+    ].filter(Boolean);
+    if (notes.length) setMessage({ ok: false, text: notes.join(" ") });
+  };
+
   const submitUpload = () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setMessage({ ok: false, text: "Choose a photo" });
+    if (files.length === 0) {
+      setMessage({ ok: false, text: "Choose one or more photos from your computer first." });
       return;
     }
-    const form = new FormData();
-    form.set("file", file);
-    form.set("slug", slug);
-    form.set("alt", alt);
-    form.set("licence", licence);
-    form.set("sourceUrl", sourceUrl);
-    form.set("makePrimary", makePrimary ? "1" : "0");
     setMessage(null);
     start(async () => {
-      const r = await upload(form);
-      if (!r.ok) {
-        setMessage({ ok: false, text: r.error ?? "Upload failed" });
-        return;
+      let uploaded = 0;
+      let already = 0;
+      const failed: string[] = [];
+      /* One at a time: each photo is checked and stored on its own, and the
+         first one becomes the lead only if the product has none. */
+      for (const [n, file] of files.entries()) {
+        setProgress(`Uploading ${n + 1} of ${files.length}…`);
+        const form = new FormData();
+        form.set("file", file);
+        form.set("slug", slug);
+        form.set("alt", alt.trim() ? (files.length > 1 ? `${alt.trim()} (${n + 1})` : alt.trim()) : "");
+        form.set("licence", licence);
+        form.set("makePrimary", makePrimary && n === 0 ? "1" : "0");
+        const r = await upload(form);
+        if (!r.ok) failed.push(`${file.name}: ${r.error ?? "upload failed"}`);
+        else if (r.alreadyAttached) already += 1;
+        else uploaded += 1;
       }
-      setMessage({
-        ok: true,
-        text: r.alreadyAttached
-          ? "That photo is already on this product."
-          : "Uploaded. Customers will not see it until it is approved under “Identity and photo approval” on this page.",
-      });
+      setProgress(null);
+      const parts = [
+        uploaded ? `${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded. Customers will not see ${uploaded === 1 ? "it" : "them"} until the lead photo is approved under “Identity and photo approval” on this page.` : null,
+        already ? `${already} ${already === 1 ? "was" : "were"} already on this product.` : null,
+        failed.length ? `Not uploaded — ${failed.join("; ")}.` : null,
+      ].filter(Boolean);
+      setMessage({ ok: failed.length === 0, text: parts.join(" ") });
+      setFiles([]);
       setAlt("");
-      setSourceUrl("");
       if (fileRef.current) fileRef.current.value = "";
       /* The photo list, the approval form and the checklist above all read
          what was just attached; without this they showed it only after a reload. */
@@ -506,40 +535,98 @@ export function PhotosPanel({
             submitUpload();
           }}
         >
-          <p className="text-[13px] font-bold text-ink">Upload a photo</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            <label className="block sm:col-span-2">
-              <span className={label}>Photo (JPEG, PNG or WebP, up to 8 MB)</span>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="text-[13px]" />
-            </label>
-            <label className="block">
-              <span className={label}>Describe the photo</span>
-              <input value={alt} onChange={(e) => setAlt(e.target.value)} required maxLength={200} placeholder="Front of the 50 kg bag" className={field} />
-            </label>
-            <label className="block">
-              <span className={label}>Licence</span>
-              <select value={licence} onChange={(e) => setLicence(e.target.value)} className={field}>
-                {licences.map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block sm:col-span-2">
-              <span className={label}>Where it came from (https link)</span>
-              <input value={sourceUrl} onChange={(e) => setSourceUrl(e.target.value)} required type="url" placeholder="https://" className={field} />
-            </label>
-            <label className="flex items-center gap-2 text-[13px] font-semibold text-ink">
-              <input type="checkbox" checked={makePrimary} onChange={(e) => setMakePrimary(e.target.checked)} />
-              Lead photo (if the product has none yet)
-            </label>
-          </div>
-          <div className="mt-2">
-            <button type="submit" disabled={pending} className={primaryButton}>
-              {pending ? "Uploading…" : "Upload photo"}
-            </button>
-          </div>
+          <p className="text-[13px] font-bold text-ink">Add photos</p>
+          {room === 0 ? (
+            <p className="mt-2 text-[12.5px] font-semibold text-ops-warn">
+              This product has {MAX_PHOTOS} photos, the most it can hold. Remove one to add another.
+            </p>
+          ) : (
+            <>
+              <label
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  pick(e.dataTransfer.files);
+                }}
+                className={
+                  "mt-2 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-panel border-2 border-dashed px-4 py-6 text-center " +
+                  (dragging ? "border-ink bg-chip-soft" : "border-line bg-hush/40")
+                }
+              >
+                <span className="h-10 rounded-panel bg-ink px-5 text-[13px] font-bold leading-10 text-white">
+                  Choose photos from your computer
+                </span>
+                <span className="text-[12px] font-medium text-ink-700">
+                  or drag them here · JPEG, PNG or WebP, up to 8 MB each · up to {room} more
+                  {room === 1 ? " photo" : " photos"} on this product
+                </span>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  multiple
+                  accept="image/jpeg,image/png,image/webp"
+                  aria-label="Photos from your computer"
+                  className="sr-only"
+                  onChange={(e) => pick(e.target.files)}
+                />
+              </label>
+              {files.length > 0 && (
+                <ul aria-label="Chosen photos" className="mt-2 flex flex-wrap gap-2">
+                  {files.map((f, i) => (
+                    <li key={`${f.name}-${i}`} className="rounded-chip bg-chip px-2.5 py-1 text-[11.5px] font-semibold text-ink-700">
+                      {i === 0 && makePrimary ? "Lead · " : ""}
+                      {f.name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className={label}>Describe the photos (optional)</span>
+                  <input value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={200} placeholder="Front of the 50 kg bag" className={field} />
+                  <span className="mt-1 block text-[11.5px] font-medium text-ink-500">Left blank, the product&rsquo;s name is used.</span>
+                </label>
+                <label className="block">
+                  <span className={label}>Licence</span>
+                  <select value={licence} onChange={(e) => setLicence(e.target.value)} className={field}>
+                    {licences.map((l) => (
+                      <option key={l} value={l}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {!photos.some((p) => p.isPrimary) && (
+                  <label className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                    <input type="checkbox" checked={makePrimary} onChange={(e) => setMakePrimary(e.target.checked)} />
+                    Make the first photo the lead photo
+                  </label>
+                )}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button type="submit" disabled={pending || files.length === 0} className={primaryButton}>
+                  {pending ? progress ?? "Uploading…" : files.length > 1 ? `Upload ${files.length} photos` : "Upload photo"}
+                </button>
+                {files.length > 0 && !pending && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFiles([]);
+                      if (fileRef.current) fileRef.current.value = "";
+                    }}
+                    className="text-[12px] font-bold text-ink-500 underline"
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
+            </>
+          )}
         </form>
       ) : (
         <p className="text-[12px] font-medium leading-[17px] text-ink-700">

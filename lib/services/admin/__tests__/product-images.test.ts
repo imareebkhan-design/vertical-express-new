@@ -7,6 +7,7 @@ import {
   bucketFromImageBase,
   removeProductImage,
   setPrimaryImage,
+  MAX_PHOTOS_PER_PRODUCT,
   sniffImage,
   uploadProductImage,
   type StoreObject,
@@ -146,4 +147,35 @@ test("a signed-out or non-admin upload is refused before the file is read or sto
   assert.equal(res.status, 403);
   assert.equal(formRead, false);
   assert.equal(m.objects.size, 0);
+});
+
+test("a photo from the operator's computer needs no source link, and a blank description takes the product's name", async () => {
+  const f = await fixture();
+  const m = memoryStore();
+  const r = await uploadProductImage(
+    { productSlug: f.product.slug, bytes: await png(500, 500, 33), alt: "  ", licence: "manufacturer-official-dealer-use", makePrimary: false, actor: ACTOR },
+    { store: m.store, imageBase: BASE }
+  );
+  assert.equal(r.ok, true, r.ok ? "" : `${r.code} ${r.detail ?? ""}`);
+  if (!r.ok || !r.imageId) return;
+  const row = await db.productImage.findUniqueOrThrow({ where: { id: r.imageId }, select: { sourceUrl: true, alt: true, licence: true } });
+  const title = (await db.product.findUniqueOrThrow({ where: { id: f.product.id }, select: { title: true } })).title;
+  assert.deepEqual(row, { sourceUrl: null, alt: title, licence: "manufacturer-official-dealer-use" });
+  const audit = await db.auditLog.findFirst({ where: { entityId: f.product.id, action: "product.images_attached" }, orderBy: { createdAt: "desc" }, select: { actorId: true } });
+  assert.ok(audit, "the upload left no audit row recording who made it");
+});
+
+test("a product holds at most 30 photos; the 31st is refused before storage", async () => {
+  const f = await fixture();
+  const count = await db.productImage.count({ where: { productId: f.product.id } });
+  await db.productImage.createMany({
+    data: Array.from({ length: MAX_PHOTOS_PER_PRODUCT - count }, (_, i) => ({ productId: f.product.id, url: `${BASE}/filler-${i}.png`, alt: "x", sortOrder: 100 + i })),
+  });
+  const m = memoryStore();
+  const r = await uploadProductImage(
+    { productSlug: f.product.slug, bytes: await png(500, 500, 44), alt: "x", licence: "manufacturer-official-dealer-use", makePrimary: false, actor: ACTOR },
+    { store: m.store, imageBase: BASE }
+  );
+  assert.equal(!r.ok && r.code, "TOO_MANY");
+  assert.equal(m.objects.size, 0, "a refused photo was stored");
 });

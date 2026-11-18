@@ -16,12 +16,17 @@ import { applyImageImport, itemProblem } from "@/lib/services/admin/product-imag
  *     is invisible to customers until approved in /admin/catalogue-approvals;
  *   - the file is stored under its SHA-256, so re-uploading the same picture is
  *     a no-op, and a stored object never changes under an approval;
- *   - the licence and source are required, exactly as for imported photos; in
- *     production only an attested licence is shown (lib/catalog-policy.ts).
+ *   - the licence is required, exactly as for imported photos; in production
+ *     only an attested licence is shown (lib/catalog-policy.ts). A source link
+ *     is optional: a photo from the operator's own computer has none, and the
+ *     audit row records who uploaded it;
+ *   - a product carries at most MAX_PHOTOS_PER_PRODUCT photos.
  */
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MIN_IMAGE_EDGE = 300;
+/** Photos one product may carry. Uploads past it are refused rather than silently dropped. */
+export const MAX_PHOTOS_PER_PRODUCT = 30;
 
 export type ImageKind = { ext: "jpg" | "png" | "webp"; contentType: "image/jpeg" | "image/png" | "image/webp" };
 
@@ -56,7 +61,7 @@ export type UploadResult =
   | { ok: true; imageId: string | null; alreadyAttached: boolean; isPrimary: boolean }
   | {
       ok: false;
-      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "INVALID" | "CONFLICT" | "STORE_FAILED";
+      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "INVALID" | "CONFLICT" | "STORE_FAILED" | "TOO_MANY";
       detail?: string;
     };
 
@@ -66,7 +71,8 @@ export async function uploadProductImage(
     bytes: Uint8Array;
     alt: string;
     licence: string;
-    sourceUrl: string;
+    /** Optional for a photo uploaded from the operator's own computer. */
+    sourceUrl?: string;
     makePrimary: boolean;
     actor: { id: string | null; email: string };
   },
@@ -74,7 +80,7 @@ export async function uploadProductImage(
 ): Promise<UploadResult> {
   const product = await db.product.findUnique({
     where: { slug: params.productSlug },
-    select: { id: true, slug: true, images: { select: { id: true, sha256: true, isPrimary: true, sortOrder: true } } },
+    select: { id: true, slug: true, title: true, images: { select: { id: true, sha256: true, isPrimary: true, sortOrder: true } } },
   });
   if (!product) return { ok: false, code: "NOT_FOUND" };
   if (params.bytes.length > MAX_IMAGE_BYTES) return { ok: false, code: "TOO_LARGE" };
@@ -96,6 +102,7 @@ export async function uploadProductImage(
   const sha256 = createHash("sha256").update(params.bytes).digest("hex");
   const existing = product.images.find((i) => i.sha256 === sha256);
   if (existing) return { ok: true, imageId: existing.id, alreadyAttached: true, isPrimary: existing.isPrimary };
+  if (product.images.length >= MAX_PHOTOS_PER_PRODUCT) return { ok: false, code: "TOO_MANY" };
 
   const base = deps.imageBase.replace(/\/$/, "");
   const path = `products/${product.slug}/upload-${sha256}.${kind.ext}`;
@@ -105,17 +112,17 @@ export async function uploadProductImage(
   const item = {
     slug: product.slug,
     url: `${base}/${path}`,
-    alt: params.alt.trim(),
+    alt: params.alt.trim() || product.title,
     sortOrder: Math.max(0, ...product.images.map((i) => i.sortOrder + 1)),
     isPrimary,
-    sourceUrl: params.sourceUrl.trim(),
+    sourceUrl: params.sourceUrl?.trim() ?? "",
     licence: params.licence.trim(),
     width,
     height,
     sha256,
   };
   // Validate everything the import service checks BEFORE writing to storage.
-  const problem = itemProblem(item, base);
+  const problem = itemProblem(item, base, { requireSource: false });
   if (problem) return { ok: false, code: "INVALID", detail: problem };
 
   try {
@@ -124,7 +131,7 @@ export async function uploadProductImage(
     return { ok: false, code: "STORE_FAILED", detail: e instanceof Error ? e.message.slice(0, 80) : "unknown" };
   }
 
-  const applied = await applyImageImport([item], base, { id: params.actor.id });
+  const applied = await applyImageImport([item], base, { id: params.actor.id }, { requireSource: false });
   if (!applied.ok) {
     const reason = applied.plan.conflicts[0]?.reason ?? applied.plan.invalid[0]?.reason ?? "conflict";
     return { ok: false, code: "CONFLICT", detail: reason };

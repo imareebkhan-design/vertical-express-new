@@ -54,6 +54,10 @@ test("field rules", () => {
   assert.match(itemProblem(item("x", { width: 0 }), BASE)!, /width/);
   assert.match(itemProblem(item("x", { sha256: "ABC" }), BASE)!, /sha256/);
   assert.match(itemProblem(item("x", { alt: "" }), BASE)!, /alt/);
+  /* An import must say where somebody else's picture came from; a dashboard upload need not. */
+  assert.match(itemProblem(item("x", { sourceUrl: "" }), BASE)!, /source/);
+  assert.equal(itemProblem(item("x", { sourceUrl: "" }), BASE, { requireSource: false }), null);
+  assert.match(itemProblem(item("x", { sourceUrl: "http://insecure" }), BASE, { requireSource: false })!, /https/, "a link, when given, must still be https");
 });
 
 test("attaches, audits, leaves the product a draft; a re-run attaches nothing", async () => {
