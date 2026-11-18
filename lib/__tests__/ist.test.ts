@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { addDays, formatIst, formatIstDate, istDateKey, istDayStart, isDateKey } from "@/lib/ist";
+import { addDays, formatIst, formatIstDate, istDateKey, istDayEnd, istDayStart, isDateKey } from "@/lib/ist";
 
 test("exact placement time in IST, whatever the server clock's zone", () => {
   assert.equal(formatIst(new Date("2026-10-15T09:05:00Z")), "15 Oct 2026 · 2:35 PM IST");
@@ -17,4 +17,12 @@ test("IST day boundaries are UTC+05:30", () => {
   assert.equal(addDays("2026-03-01", -1), "2026-02-28");
   assert.equal(isDateKey("2026-02-30"), false);
   assert.equal(isDateKey("2026-10-15"), true);
+});
+
+test("istDayEnd is the last millisecond of the IST day, so a report's end day is whole", () => {
+  const end = istDayEnd("2026-11-18");
+  assert.equal(end.toISOString(), "2026-11-18T18:29:59.999Z");
+  assert.equal(istDateKey(end), "2026-11-18");
+  assert.equal(istDateKey(new Date(end.getTime() + 1)), "2026-11-19");
+  assert.equal(istDayStart("2026-11-18").toISOString(), "2026-11-17T18:30:00.000Z");
 });

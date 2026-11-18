@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test, { after, before } from "node:test";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 
 import { db } from "@/lib/db";
 import { getBiData } from "../bi";
@@ -83,7 +83,7 @@ async function order(opts: {
 
 before(async () => {
   userId = (
-    await db.user.create({ data: { id: randomUUID(), phone: `+9194${String(Math.random()).slice(2, 10)}` }, select: { id: true } })
+    await db.user.create({ data: { id: randomUUID(), phone: `+9194${String(randomInt(0, 100_000_000)).padStart(8, "0")}` }, select: { id: true } })
   ).id;
   const variant = await db.productVariant.findFirst({ select: { id: true } });
   assert.ok(variant, "the seeded catalogue has no variant");
@@ -180,4 +180,22 @@ test("the order filters reach the ledger figures too", async () => {
   assert.equal(none.sales.netSalesPaise, 0);
   assert.equal(none.finance.refundsPaise, 0);
   assert.equal(none.finance.cashFlowPaise, 0);
+  assert.equal(none.sales.growthPct, 0, "the comparison period must apply the coupon filter too");
+});
+
+test("customer type filters both sales and ledger money", async () => {
+  // The fixture customer has multiple orders; none belongs to the new cohort.
+  const fresh = await getBiData({ startDate: START, endDate: END, customerType: "new" });
+  assert.equal(fresh.sales.netSalesPaise, 0);
+  assert.equal(fresh.finance.refundsPaise, 0);
+  assert.equal(fresh.finance.cashFlowPaise, 0);
+  assert.equal(fresh.sales.growthPct, 0);
+});
+
+test("product selector uses the product id, not a variant id", async () => {
+  const variant = await db.productVariant.findUniqueOrThrow({ where: { id: variantId }, select: { productId: true } });
+  const selected = await getBiData({ startDate: START, endDate: END, productId: variant.productId });
+  assert.equal(selected.sales.netSalesPaise, 220_000);
+  assert.equal(selected.finance.refundsPaise, 110_000);
+  assert.equal(selected.sales.growthPct, 100);
 });
