@@ -20,6 +20,17 @@ export function istDayStart(key: string): Date {
   return new Date(Date.parse(`${key}T00:00:00.000Z`) - OFFSET_MS);
 }
 
+/**
+ * The UTC instant at which the IST calendar day containing `now` began.
+ *
+ * "Today" on an operations screen means the operator's day. The server's own
+ * midnight is UTC on the host, which is 5:30 AM in Srinagar: a figure cut there
+ * drops everything sold before breakfast and keeps yesterday evening's.
+ */
+export function istTodayStart(now: Date = new Date()): Date {
+  return istDayStart(istDateKey(now));
+}
+
 /** `key` shifted by `days` calendar days. */
 export function addDays(key: string, days: number): string {
   const t = Date.parse(`${key}T00:00:00.000Z`) + days * 86_400_000;
