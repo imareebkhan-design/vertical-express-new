@@ -6,7 +6,7 @@ import { CatalogueImport } from "@/components/admin/catalogue-import";
 import { getAdminUser } from "@/lib/services/admin/authz";
 
 export const metadata: Metadata = {
-  title: "List a product | Operations",
+  title: "Add products | Operations",
   robots: { index: false },
 };
 
@@ -21,13 +21,27 @@ export default async function AdminListing() {
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h1 className="text-[22px] font-extrabold tracking-tight">List a product</h1>
-        <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          Put something new on the shelf.{" "}
-          <Link href="/admin/products" className="font-bold text-ink no-underline hover:underline">
-            All products
-          </Link>
+        <Link
+          href="/admin/products"
+          className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500 no-underline hover:underline"
+        >
+          ← Products
+        </Link>
+        <h1 className="mt-1 text-[22px] font-extrabold tracking-tight">Add products</h1>
+        <p className="mt-0.5 text-[12px] font-semibold text-ink-500">
+          Everything added here starts as a draft that customers cannot see. You decide when each one goes live, on its own page.
         </p>
+        <nav aria-label="Ways to add products" className="mt-3 flex flex-wrap gap-2">
+          <a href="#add" className="rounded-chip bg-ink px-3.5 py-1.5 text-[12px] font-bold text-white no-underline">
+            Add one product
+          </a>
+          <a href="#import" className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold text-ink no-underline hover:bg-hush">
+            Import a CSV file
+          </a>
+          <Link href="/admin/products?status=draft" className="rounded-chip bg-chip px-3.5 py-1.5 text-[12px] font-bold text-ink no-underline hover:bg-hush">
+            Review &amp; publish drafts
+          </Link>
+        </nav>
       </div>
 
       {options.brands.length === 0 ? (
@@ -43,11 +57,14 @@ export default async function AdminListing() {
         </p>
       ) : (
         <>
-          {/* Bulk first: entering a real catalogue is the job on the critical
-              path (ISS-007), and a form at a time is days of it. The single
-              product form stays below for the one-off. */}
+          {/* One product at a time comes first: the launch is a handful of
+              products the owner enters by hand. The file is for the larger
+              batches that follow, and sits below. */}
+          <div id="add" className="flex scroll-mt-4 flex-col gap-3">
+            <h2 className="text-[17px] font-extrabold tracking-tight">Add one product</h2>
+            <ListingForm options={options} />
+          </div>
           <CatalogueImport />
-          <ListingForm options={options} />
         </>
       )}
     </div>

@@ -36,9 +36,9 @@ import { JK_PINCODE } from "@/lib/pincode";
  *   slug 200 times, and a hand-typed SKU is a duplicate-key error waiting to
  *   happen.
  *
- *   images — there is no file store configured (see the note in
- *   components/admin/listing-form.tsx), and `npm run check:assets` fails CI on a
- *   product that references an image which is not on disk.
+ *   images — a photo carries a licence, a source and an approval decision,
+ *   none of which a spreadsheet cell can hold. It is uploaded on the product's
+ *   own page after the import.
  */
 
 /** The columns, in the order the file must present them. */
@@ -58,7 +58,21 @@ export const CATALOGUE_HEADER = [
   "description",
 ] as const;
 
-export type CatalogueColumn = (typeof CATALOGUE_HEADER)[number];
+/**
+ * One optional column, after the thirteen above.
+ *
+ * "Product type" is the first thing a category is browsed by — the grade of a
+ * cement, the type of a tile (lib/catalog-attributes.ts) — and it is stored as
+ * a specification, not a column of its own. A file may carry it or not: the
+ * thirteen-column header every existing spreadsheet uses still imports exactly
+ * as it did, and one with this fourteenth column also sets the type.
+ */
+export const CATALOGUE_OPTIONAL_COLUMN = "product_type" as const;
+
+/** The header the downloadable template uses: every supported column. */
+export const CATALOGUE_TEMPLATE_HEADER = [...CATALOGUE_HEADER, CATALOGUE_OPTIONAL_COLUMN] as const;
+
+export type CatalogueColumn = (typeof CATALOGUE_TEMPLATE_HEADER)[number];
 
 /** One product, validated as far as a file alone can validate it. */
 export interface CatalogueRow {
@@ -84,6 +98,8 @@ export interface CatalogueRow {
   expressPincodes: string[];
   status: "draft" | "published";
   description: string | null;
+  /** The optional `product_type` column. Null when the file has no such column or the cell is blank. */
+  productType: string | null;
 }
 
 export interface CsvIssue {
@@ -120,18 +136,24 @@ export type CatalogueParseResult =
  * carries no data row at all: uploading it unchanged is an honest "the file has
  * a header but no rows" rather than a product quietly listed at a made-up price.
  *
- * Everything else in the examples is real — UltraTech is a brand the owner has
- * an agreement for, `cement` is a category slug, `Srinagar Central` is the
- * warehouse, 190001 is serviceable — so the shape can be copied without
- * inventing anything.
+ * Both examples are labelled EXAMPLE and are drafts. A new product has no
+ * approved photo, so it can only start as a draft; it is published from its
+ * own page once the photo and the price review are done.
  */
 export const CATALOGUE_CSV_TEMPLATE = [
-  CATALOGUE_HEADER.join(","),
-  "# Delete these two example lines and add one row per product.",
-  "# Lines beginning with # are ignored. Prices INCLUDE GST.",
-  "# Leave mrp_rupees blank unless you want a struck-through price.",
-  '# "OPC 53 Grade Cement, 50 kg Bag",UltraTech,cement,50 kg bag,per bag,<price>,,500,Srinagar Central,no,,published,',
-  '# "Acrylic Wall Putty, 40 kg",<brand>,painting,40 kg bag,per bag,<price>,<mrp>,120,Srinagar Central,yes,190001 190002,published,<optional description>',
+  CATALOGUE_TEMPLATE_HEADER.join(","),
+  "# HOW TO USE THIS FILE",
+  "# 1. Add one row per product under these notes. Lines beginning with # are ignored.",
+  "# 2. Required: title, brand, category, pack, unit_label, price_rupees, express (yes or no).",
+  "# 3. Needed before a product can be published (may be added later on its page): mrp_rupees, stock and warehouse.",
+  "# 4. Prices INCLUDE GST. Tax comes from the category and is not a column.",
+  "# 5. status: leave blank or write draft. Every imported product starts as a draft.",
+  "# 6. product_type is optional: the grade of a cement, the type of a tile.",
+  "# 7. brand, category and warehouse must already exist in the dashboard, spelled the same way.",
+  "#",
+  "# EXAMPLE ROWS - not real products or prices. Replace <...> with your own values and remove the leading #.",
+  '# EXAMPLE: "OPC 53 Grade Cement, 50 kg Bag",<brand>,cement,50 kg bag,per bag,<price>,<mrp>,<stock>,<warehouse>,no,,draft,<optional description>,OPC 53',
+  '# EXAMPLE: "Acrylic Wall Putty, 40 kg",<brand>,painting,40 kg bag,per bag,<price>,<mrp>,<stock>,<warehouse>,yes,190001 190002,draft,,',
   "",
 ].join("\n");
 
@@ -332,6 +354,22 @@ export function skuForSlug(slug: string): string {
 /* The parser                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * The looked-up cells of every data row, as typed.
+ *
+ * For rows the parser rejects: their brand, category and warehouse are never
+ * resolved, so a wrong price on a row hid an unknown brand on the same row
+ * until the second upload. With these the caller can look them up anyway.
+ */
+export function lookupCells(text: string): { line: number; brand: string; category: string; warehouse: string }[] {
+  const records = readRecords(text);
+  return records.slice(1).flatMap((r) => {
+    if (r.fields.length < CATALOGUE_HEADER.length) return [];
+    const f = r.fields.map((x) => x.trim());
+    return [{ line: r.line, brand: f[1], category: f[2], warehouse: f[8] }];
+  });
+}
+
 const MAX_ROWS = 2000;
 
 export function parseCatalogueCsv(text: string): CatalogueParseResult {
@@ -343,10 +381,12 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
 
   const header = records[0];
   const got = header.fields.map((h) => h.trim().toLowerCase());
-  if (
-    got.length !== CATALOGUE_HEADER.length ||
-    CATALOGUE_HEADER.some((h, i) => got[i] !== h)
-  ) {
+  /* Thirteen columns, or the same thirteen followed by `product_type`. Nothing
+     else: a reordered or renamed column would put prices in the wrong field. */
+  const hasType =
+    got.length === CATALOGUE_TEMPLATE_HEADER.length && got[got.length - 1] === CATALOGUE_OPTIONAL_COLUMN;
+  const width = hasType ? CATALOGUE_TEMPLATE_HEADER.length : CATALOGUE_HEADER.length;
+  if (got.length !== width || CATALOGUE_HEADER.some((h, i) => got[i] !== h)) {
     return {
       ok: false,
       rows: [],
@@ -354,7 +394,9 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
         {
           line: header.line,
           column: "header",
-          message: `The header must be exactly: ${CATALOGUE_HEADER.join(",")}`,
+          message:
+            `The header must be exactly: ${CATALOGUE_HEADER.join(",")} ` +
+            `(optionally followed by ${CATALOGUE_OPTIONAL_COLUMN})`,
         },
       ],
     };
@@ -400,10 +442,10 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
       issues.push({ line, column, message });
     const before = issues.length;
 
-    if (rec.fields.length !== CATALOGUE_HEADER.length) {
+    if (rec.fields.length !== width) {
       bad(
         "file",
-        `Expected ${CATALOGUE_HEADER.length} columns, found ${rec.fields.length}. ` +
+        `Expected ${width} columns, found ${rec.fields.length}. ` +
           `If a value contains a comma, put it in "quotes"`
       );
       continue;
@@ -412,6 +454,7 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
     const [
       titleRaw, brandRaw, categoryRaw, packRaw, unitRaw, priceRaw, mrpRaw,
       stockRaw, warehouseRaw, expressRaw, pincodesRaw, statusRaw, descriptionRaw,
+      typeRaw = "",
     ] = rec.fields.map((f) => f.trim());
 
     /* --- title --- */
@@ -541,9 +584,11 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
     }
 
     /* --- status --- */
-    const status = statusRaw.toLowerCase();
+    /* Blank is draft: the safe reading of a cell nobody filled in, and what
+       every new product has to be anyway until its photo is approved. */
+    const status = statusRaw === "" ? "draft" : statusRaw.toLowerCase();
     if (status !== "draft" && status !== "published") {
-      bad("status", `"${statusRaw}" is not draft or published`);
+      bad("status", `"${statusRaw}" is not draft or published — leave it blank for a draft`);
     }
 
     /* --- description --- */
@@ -551,6 +596,13 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
       bad("description", "That description is longer than 2000 characters");
     } else if (descriptionRaw !== "" && FORMULA_START.test(descriptionRaw)) {
       bad("description", "That description starts with a character a spreadsheet treats as a formula");
+    }
+
+    /* --- product type, optional --- */
+    if (typeRaw.length > 200) {
+      bad("product_type", "That product type is longer than 200 characters");
+    } else if (typeRaw !== "" && FORMULA_START.test(typeRaw)) {
+      bad("product_type", `"${typeRaw}" starts with a character a spreadsheet treats as a formula`);
     }
 
     if (issues.length !== before) continue;
@@ -572,6 +624,7 @@ export function parseCatalogueCsv(text: string): CatalogueParseResult {
       expressPincodes: pincodes,
       status: status as "draft" | "published",
       description: descriptionRaw === "" ? null : descriptionRaw,
+      productType: typeRaw === "" ? null : typeRaw,
     });
   }
 
