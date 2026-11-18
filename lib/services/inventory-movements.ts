@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { log } from "@/lib/observability";
 import type { Prisma, StockMovementReason } from "@/prisma/generated/client/client";
 import { recordAudit } from "@/lib/services/audit";
+import { skuForDisplay } from "@/lib/retired-sku";
 
 /**
  * Changing stock, with a reason attached.
@@ -301,7 +302,7 @@ export async function listUnresolvedRestocks(take = 20): Promise<UnresolvedResto
   return parsed.map((p) => ({
     ...p,
     orderNo: orderNo.get(p.orderId) ?? null,
-    sku: variant.get(p.variantId)?.sku ?? null,
+    sku: variant.get(p.variantId)?.sku ? skuForDisplay(variant.get(p.variantId)!.sku) : null,
     productTitle: variant.get(p.variantId)?.product.title ?? null,
     productSlug: variant.get(p.variantId)?.product.slug ?? null,
   }));
@@ -389,7 +390,7 @@ export async function findLedgerDrift(limit = 100): Promise<{
     rows: rows.map((r) => ({
       variantId: r.variant_id,
       warehouseId: r.warehouse_id,
-      sku: r.sku,
+      sku: skuForDisplay(r.sku),
       productTitle: r.title,
       productSlug: r.slug,
       warehouseName: r.warehouse_name,

@@ -70,7 +70,7 @@ export function CommercialReviewPanel({
   };
 
   return (
-    <section className="rounded-panel bg-white p-4 shadow-card">
+    <section id="review" className="scroll-mt-4 rounded-panel bg-white p-4 shadow-card">
       <h2 className="text-[15px] font-bold tracking-tight text-ink">Price and tax review</h2>
       <p className="mt-1 text-[12px] font-semibold leading-relaxed text-ink-500">
         A product is sold only while a named person has checked its prices, pack sizes and tax as they stand. Changing a

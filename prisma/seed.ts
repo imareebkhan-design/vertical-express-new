@@ -197,7 +197,19 @@ async function main() {
     (await db.category.findMany()).map((c) => [c.slug, c.id])
   );
 
-  for (const p of PRODUCTS) {
+  /* After a catalogue reset (scripts/catalogue-reset.mts) the demo products'
+     web addresses are free again, and seeding would bring the whole demo
+     catalogue back under them. The latest reset record decides. */
+  const [inForce] = await db.$queryRaw<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM (
+      SELECT DISTINCT ON (entity_id) action FROM audit_logs
+      WHERE action IN ('catalogue.reset_applied', 'catalogue.reset_restored') AND entity_type = 'catalogue_reset'
+      ORDER BY entity_id, created_at DESC
+    ) last WHERE action = 'catalogue.reset_applied'`;
+  const resetInForce = inForce.n > 0;
+  if (resetInForce) console.log("A catalogue reset is in force on this database: demo products are not seeded.");
+
+  for (const p of resetInForce ? [] : PRODUCTS) {
     const product = await db.product.upsert({
       where: { slug: p.slug },
       update: { title: p.title, isDeal: !!p.isDeal },
@@ -301,7 +313,7 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${PRODUCTS.length} products, ${SYNONYMS.length} synonyms.`);
+  console.log(`Seeded ${CATEGORIES.length} categories, ${BRANDS.length} brands, ${resetInForce ? 0 : PRODUCTS.length} products, ${SYNONYMS.length} synonyms.`);
 }
 
 main()
