@@ -61,7 +61,7 @@ export const GROUPS: { heading: string; items: { href: string; label: string; ic
   {
     heading: "Catalog & stock",
     items: [
-      { href: "/admin/listing", label: "Listing", icon: PlusSquare },
+      { href: "/admin/listing", label: "Add products", icon: PlusSquare },
       { href: "/admin/launch-control", label: "Launch control", icon: Rocket },
       { href: "/admin/products", label: "Products", icon: Box },
       { href: "/admin/catalogue-update", label: "Prices & stock files", icon: FileSpreadsheet },

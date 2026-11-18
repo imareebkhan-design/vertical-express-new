@@ -1,7 +1,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
-import { NotSellableError, writeProduct, type NewProduct } from "@/lib/services/admin/product-create";
+import { NotSellableError, productTypeLabel, writeProduct, type NewProduct } from "@/lib/services/admin/product-create";
 import type { CatalogueRow, CsvIssue } from "@/lib/catalogue-csv";
 
 /**
@@ -60,6 +60,12 @@ export interface SkippedRow {
   title: string;
   slug: string;
   reason: "product_exists" | "sku_exists";
+  /** The product already holding the web address or item code, to open from the preview. */
+  existingSlug: string;
+  /** Its status, so "already listed" and "retired" do not read the same. */
+  existingStatus: string;
+  /** Why, in the operator's words. */
+  message: string;
 }
 
 export interface ImportPreview {
@@ -71,7 +77,16 @@ export interface ImportPreview {
 export interface ImportResult {
   created: number;
   skipped: number;
+  /** What was just written, so the screen can link straight to each one. */
+  products: { slug: string; title: string; status: string }[];
 }
+
+const STATUS_WORD: Record<string, string> = {
+  draft: "draft",
+  catalog_only: "catalogue-only",
+  published: "published",
+  archived: "archived",
+};
 
 /**
  * Everything the file refers to, read once.
@@ -94,10 +109,10 @@ async function resolveWorld() {
     brandBy.set(key(b.name), b.id);
     brandBy.set(key(b.slug), b.id);
   }
-  const categoryBy = new Map<string, string>();
+  const categoryBy = new Map<string, { id: string; slug: string }>();
   for (const c of categories) {
-    categoryBy.set(key(c.name), c.id);
-    categoryBy.set(key(c.slug), c.id);
+    categoryBy.set(key(c.name), c);
+    categoryBy.set(key(c.slug), c);
   }
   /* Warehouse names carry no unique constraint, so a duplicate name would make
      this map silently pick one. First wins, and the ops screen shows both. */
@@ -118,6 +133,31 @@ async function resolveWorld() {
 }
 
 /**
+ * Brand, category and warehouse problems for rows the parser already rejected.
+ * Blank cells are left to the parser, which has reported them.
+ */
+export async function lookupIssues(
+  cells: readonly { line: number; brand: string; category: string; warehouse: string }[]
+): Promise<CsvIssue[]> {
+  if (cells.length === 0) return [];
+  const world = await resolveWorld();
+  const key = (s: string) => s.trim().toLowerCase();
+  const issues: CsvIssue[] = [];
+  for (const c of cells) {
+    if (c.brand && !world.brandBy.has(key(c.brand))) {
+      issues.push({ line: c.line, column: "brand", message: `There is no brand called "${c.brand}". Known: ${world.brandNames.join(", ")}` });
+    }
+    if (c.category && !world.categoryBy.has(key(c.category))) {
+      issues.push({ line: c.line, column: "category", message: `There is no category called "${c.category}". Valid: ${world.categorySlugs.join(", ")}` });
+    }
+    if (c.warehouse && !world.warehouseBy.has(key(c.warehouse))) {
+      issues.push({ line: c.line, column: "warehouse", message: `There is no warehouse called "${c.warehouse}". Known: ${world.warehouseNames.join(", ")}` });
+    }
+  }
+  return issues;
+}
+
+/**
  * Resolve a parsed file against the catalogue. Writes nothing.
  *
  * Used by both the preview and the import, so the two can never disagree about
@@ -130,11 +170,14 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
   const slugs = rows.map((r) => r.slug);
   const skus = rows.map((r) => r.sku);
   const [existingProducts, existingVariants] = await Promise.all([
-    db.product.findMany({ where: { slug: { in: slugs } }, select: { slug: true } }),
-    db.productVariant.findMany({ where: { sku: { in: skus } }, select: { sku: true } }),
+    db.product.findMany({ where: { slug: { in: slugs } }, select: { slug: true, status: true } }),
+    db.productVariant.findMany({
+      where: { sku: { in: skus } },
+      select: { sku: true, product: { select: { slug: true, status: true, title: true } } },
+    }),
   ]);
-  const haveSlug = new Set(existingProducts.map((p) => p.slug));
-  const haveSku = new Set(existingVariants.map((v) => v.sku));
+  const haveSlug = new Map(existingProducts.map((p) => [p.slug, p.status]));
+  const haveSku = new Map(existingVariants.map((v) => [v.sku, v.product]));
 
   const toCreate: ResolvedRow[] = [];
   const skipped: SkippedRow[] = [];
@@ -153,7 +196,8 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
       bad("brand", `There is no brand called "${r.brand}". Known: ${world.brandNames.join(", ")}`);
     }
 
-    const categoryId = world.categoryBy.get(key(r.category));
+    const category = world.categoryBy.get(key(r.category));
+    const categoryId = category?.id;
     if (!categoryId) {
       bad(
         "category",
@@ -161,8 +205,12 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
       );
     }
 
+    /* A named warehouse gets a stock record even at zero. "Zero, at this
+       warehouse" is a statement the publish check accepts; no record at all is
+       "unknown", and it left every zero-stock import unpublishable until a
+       second file was uploaded. */
     let warehouseId: string | undefined;
-    if (r.stock > 0) {
+    if (r.stock > 0 || r.warehouse.trim() !== "") {
       warehouseId = world.warehouseBy.get(key(r.warehouse));
       if (!warehouseId) {
         bad(
@@ -184,17 +232,44 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
       }
     }
 
+    /* A row for a product that already exists is skipped whatever its status
+       says — re-uploading last week's file must not fail on its own rows. */
+    const existing = haveSlug.has(r.slug) || haveSku.has(r.sku);
+    if (r.status === "published" && !existing) {
+      /* Known before anything is written: the publish check needs an approved
+         lead photo, and a product that does not exist yet has none. Left to the
+         transaction this refused the whole file at confirm, with no line number. */
+      bad(
+        "status",
+        `"${r.title}" cannot start as published: a new product has no approved photo yet. ` +
+          `Write draft (or leave status blank) and publish it from its product page`
+      );
+    }
+
     if (issues.length !== before) continue;
 
-    if (haveSlug.has(r.slug)) {
-      skipped.push({ line: r.line, title: r.title, slug: r.slug, reason: "product_exists" });
+    const slugStatus = haveSlug.get(r.slug);
+    if (slugStatus !== undefined) {
+      skipped.push({
+        line: r.line, title: r.title, slug: r.slug, reason: "product_exists",
+        existingSlug: r.slug, existingStatus: slugStatus,
+        message:
+          slugStatus === "archived"
+            ? "An archived product still holds this web address. Open it to bring it back, or change this title."
+            : `Already in the dashboard as a ${STATUS_WORD[slugStatus] ?? slugStatus} product. Left exactly as it is.`,
+      });
       continue;
     }
-    if (haveSku.has(r.sku)) {
+    const skuOwner = haveSku.get(r.sku);
+    if (skuOwner) {
       /* A different product whose title happens to generate the same code.
          Reported rather than silently suffixed, because the two are probably
          the same thing typed twice. */
-      skipped.push({ line: r.line, title: r.title, slug: r.slug, reason: "sku_exists" });
+      skipped.push({
+        line: r.line, title: r.title, slug: r.slug, reason: "sku_exists",
+        existingSlug: skuOwner.slug, existingStatus: skuOwner.status,
+        message: `Its item code ${r.sku} already belongs to "${skuOwner.title}". Change this title if it is a different product.`,
+      });
       continue;
     }
 
@@ -230,6 +305,7 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
         },
         openingStock: warehouseId ? { warehouseId, qty: r.stock } : null,
         express: { eligible: r.express, pincodes: r.expressPincodes },
+        specs: r.productType ? [{ label: productTypeLabel(category!.slug), value: r.productType }] : [],
       },
     });
   }
@@ -257,7 +333,7 @@ export async function importCatalogue(
     return { ok: false, error: `Line ${first.line}: ${first.message}` };
   }
   if (preview.toCreate.length === 0) {
-    return { ok: true, result: { created: 0, skipped: preview.skipped.length } };
+    return { ok: true, result: { created: 0, skipped: preview.skipped.length, products: [] } };
   }
 
   try {
@@ -288,6 +364,10 @@ export async function importCatalogue(
 
   return {
     ok: true,
-    result: { created: preview.toCreate.length, skipped: preview.skipped.length },
+    result: {
+      created: preview.toCreate.length,
+      skipped: preview.skipped.length,
+      products: preview.toCreate.map((r) => ({ slug: r.slug, title: r.title, status: r.status })),
+    },
   };
 }

@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { CATALOGUE_HEADER, parseCatalogueCsv } from "@/lib/catalogue-csv";
-import { importCatalogue, previewCatalogue } from "@/lib/services/admin/catalogue-import";
+import { importCatalogue, lookupIssues, previewCatalogue } from "@/lib/services/admin/catalogue-import";
+import { lookupCells } from "@/lib/catalogue-csv";
 
 /**
  * Importing a catalogue file.
@@ -420,12 +421,160 @@ test("a formula in a looked-up column is refused by the lookup, and never stored
   assert.equal(written, 0, "a preview wrote a row");
 });
 
-test("a row imported straight into published is refused by the readiness gate, and nothing is written", async (t) => {
+test("a row imported straight into published is refused before anything is written, with its line", async (t) => {
   t.after(cleanup);
   await cleanup();
   const w = await world();
-  const res = await runImport(file(row(w.base, { status: "published", stock: "5", warehouse: w.warehouseName })));
+  const csv = file(row(w.base, { status: "published", stock: "5", warehouse: w.warehouseName }));
+
+  /* The preview says so, so the operator meets it with a line number rather
+     than as a failed confirmation. */
+  const preview = await runPreview(csv);
+  assert.equal(preview.toCreate.length, 0);
+  assert.equal(preview.issues.length, 1);
+  assert.equal(preview.issues[0].line, 2);
+  assert.equal(preview.issues[0].column, "status");
+
+  const res = await runImport(csv);
   assert.equal(res.ok, false);
-  assert.match(res.ok ? "" : res.error, /not sellable/);
+  assert.match(res.ok ? "" : res.error, /cannot start as published/);
   assert.equal(await db.product.count({ where: { title: w.base.title } }), 0, "the whole file rolled back");
+});
+
+test("a repeat upload of the same file creates nothing and says why each row was skipped", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  const csv = file(row(w.base), row(w.base, { title: uniq() }));
+
+  const first = await runImport(csv);
+  assert.equal(first.ok, true, first.ok ? "" : first.error);
+  if (!first.ok) return;
+  assert.equal(first.result.created, 2);
+  assert.deepEqual(first.result.products.map((p) => p.status), ["draft", "draft"]);
+  assert.equal(first.result.products[0].title, w.base.title, "the result does not name what it created");
+
+  const preview = await runPreview(csv);
+  assert.equal(preview.toCreate.length, 0);
+  assert.equal(preview.skipped.length, 2);
+  for (const s of preview.skipped) {
+    assert.match(s.message, /Already in the dashboard as a draft product/);
+    assert.equal(s.existingStatus, "draft");
+    assert.equal(s.existingSlug, s.slug, "the skipped row does not point at the product that holds its address");
+  }
+
+  const second = await runImport(csv);
+  assert.equal(second.ok, true);
+  if (second.ok) assert.deepEqual(second.result, { created: 0, skipped: 2, products: [] });
+  assert.equal(await db.product.count({ where: { title: { startsWith: "ZZZ Import " } } }), 2, "the repeat upload duplicated a product");
+});
+
+test("an archived product still holding the address is named as archived, not as listed", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  await runImport(file(row(w.base)));
+  await db.product.updateMany({ where: { title: w.base.title }, data: { status: "archived" } });
+
+  const preview = await runPreview(file(row(w.base)));
+  assert.equal(preview.skipped.length, 1);
+  assert.equal(preview.skipped[0].existingStatus, "archived");
+  assert.match(preview.skipped[0].message, /archived product still holds this web address/);
+});
+
+test("a named warehouse gets a stock record even at zero, so the product is not left unpublishable", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+
+  await runImport(file(row(w.base, { stock: "0", warehouse: w.warehouseName })));
+
+  const variant = await db.productVariant.findFirstOrThrow({
+    where: { product: { title: w.base.title } },
+    select: { id: true, inventory: { select: { qtyOnHand: true } } },
+  });
+  assert.deepEqual(variant.inventory, [{ qtyOnHand: 0 }], "zero at a named warehouse wrote no stock record");
+  assert.equal(await db.stockMovement.count({ where: { variantId: variant.id } }), 0, "a received-nothing movement was invented");
+});
+
+test("the product type is stored as the specification its category is browsed by", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  const cement = await db.category.findUnique({ where: { slug: "cement" }, select: { slug: true } });
+  assert.ok(cement, "the seed has no cement category");
+  const H14 = [...CATALOGUE_HEADER, "product_type"].join(",");
+  const parsed = parseCatalogueCsv([H14, `${row(w.base, { category: "cement" })},OPC 53`].join("\n"));
+  assert.equal(parsed.ok, true, parsed.ok ? "" : JSON.stringify(parsed.issues));
+  if (!parsed.ok) return;
+
+  const res = await importCatalogue(parsed.rows, ACTOR);
+  assert.equal(res.ok, true, res.ok ? "" : res.error);
+  const product = await db.product.findFirstOrThrow({ where: { title: w.base.title }, select: { specs: true } });
+  /* "Grade" is what lib/catalog-attributes.ts says cement is chosen by — the
+     label the storefront's rail and filters already read. */
+  assert.deepEqual(product.specs, [{ label: "Grade", value: "OPC 53" }]);
+});
+
+test("a confirmation that fails leaves nothing behind, and the same file then imports", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  const other = uniq();
+  const csv = file(row(w.base), row(w.base, { title: other }));
+  const parsed = parseCatalogueCsv(csv);
+  assert.equal(parsed.ok, true);
+  if (!parsed.ok) return;
+
+  /* Somebody lists the second product between the preview and the confirm:
+     the file's own row now collides inside the transaction. */
+  const preview = await previewCatalogue(parsed.rows);
+  assert.equal(preview.toCreate.length, 2);
+  const blocker = await db.product.create({
+    data: {
+      title: "ZZZ Import blocker", slug: `zzz-blocker-${Date.now()}`,
+      brandId: preview.toCreate[1].input.brandId, categoryId: preview.toCreate[1].input.categoryId,
+      variants: { create: { name: "x", sku: preview.toCreate[1].sku, pricePaise: 100, isDefault: true } },
+    },
+    select: { id: true },
+  });
+  /* importCatalogue re-reads, so it now skips that row rather than failing —
+     which is the recovery: the confirm is safe to press again. */
+  const res = await importCatalogue(parsed.rows, ACTOR);
+  assert.equal(res.ok, true, res.ok ? "" : res.error);
+  if (res.ok) assert.deepEqual([res.result.created, res.result.skipped], [1, 1]);
+  await db.product.delete({ where: { id: blocker.id } });
+
+  const again = await importCatalogue(parsed.rows, ACTOR);
+  assert.equal(again.ok, true);
+  if (again.ok) assert.deepEqual([again.result.created, again.result.skipped], [1, 1], "the row that was blocked did not import on the retry");
+  assert.equal(await db.product.count({ where: { title: { in: [w.base.title, other] } } }), 2);
+});
+
+test("a row the parser rejects still has its brand, category and warehouse looked up", async (t) => {
+  t.after(cleanup);
+  const w = await world();
+  const csv = file(row(w.base, { price_rupees: "abc", brand: "NoSuchBrand", category: "no-such-category", warehouse: "Nowhere", stock: "1" }));
+  const parsed = parseCatalogueCsv(csv);
+  assert.equal(parsed.ok, false, "the price should have been refused by the parser");
+  const issues = await lookupIssues(lookupCells(csv));
+  assert.deepEqual(issues.map((i) => [i.line, i.column]), [[2, "brand"], [2, "category"], [2, "warehouse"]]);
+  /* A row whose cells all exist adds nothing. */
+  assert.deepEqual(await lookupIssues(lookupCells(file(row(w.base)))), []);
+});
+
+test("a re-uploaded file whose existing rows say published skips them and still creates the new ones", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  await runImport(file(row(w.base)));
+  const fresh = uniq();
+  /* The existing product's row says published; the new product's row says draft. */
+  const preview = await runPreview(file(row(w.base, { status: "published" }), row(w.base, { title: fresh })));
+  assert.deepEqual(preview.issues, [], "an existing product's published row blocked the file");
+  assert.deepEqual(preview.skipped.map((x) => x.line), [2]);
+  assert.deepEqual(preview.toCreate.map((x) => x.title), [fresh]);
+  /* A new product's published row is still refused. */
+  const refused = await runPreview(file(row(w.base, { status: "published" }), row(w.base, { title: uniq(), status: "published" })));
+  assert.deepEqual(refused.issues.map((i) => [i.line, i.column]), [[3, "status"]]);
 });

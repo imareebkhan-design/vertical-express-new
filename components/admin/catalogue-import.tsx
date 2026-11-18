@@ -1,25 +1,38 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { adminImportCatalogue, adminPreviewCatalogue } from "@/actions/catalogue";
 import { CATALOGUE_CSV_TEMPLATE, type CsvIssue } from "@/lib/catalogue-csv";
-import type { ImportPreview } from "@/lib/services/admin/catalogue-import";
+import type { ImportPreview, ImportResult } from "@/lib/services/admin/catalogue-import";
 import { formatPaise } from "@/lib/money";
 
 /**
  * Listing the catalogue from a spreadsheet.
  *
- * Two steps, unlike the serviceability import, which writes as soon as a file
- * is chosen. Forty pincodes are a change somebody can read back afterwards; two
- * hundred products at two hundred prices are not, so the file is checked and
- * shown before anything is written and the write needs a second click.
+ * Five steps, in the order the screen shows them: download the template, choose
+ * the file, read the preview, confirm, then open what was created. Two of them
+ * are separate clicks on purpose — forty pincodes are a change somebody can
+ * read back afterwards; two hundred products at two hundred prices are not, so
+ * the file is checked and shown before anything is written.
  *
  * The file is read here, in the browser, and only its text crosses to the
  * server — the same shape as `serviceability-editor.tsx`. No upload endpoint,
  * no multipart, nothing to leave lying in a temp directory.
+ *
+ * The actions are props so the screen can be tested without a server.
  */
-export function CatalogueImport() {
+type PreviewAction = typeof adminPreviewCatalogue;
+type ImportAction = typeof adminImportCatalogue;
+
+export function CatalogueImport({
+  preview: previewAction = adminPreviewCatalogue,
+  confirm: importAction = adminImportCatalogue,
+}: {
+  preview?: PreviewAction;
+  confirm?: ImportAction;
+} = {}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [reading, setReading] = useState(false);
@@ -28,8 +41,9 @@ export function CatalogueImport() {
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [issues, setIssues] = useState<CsvIssue[]>([]);
+  const [done, setDone] = useState<ImportResult | null>(null);
 
-  /** Drop the file, its preview and its errors. The message is separate — after
+  /** Drop the file, its preview and its errors. The result is separate — after
       a successful import it is the only thing left saying what happened. */
   const clearFile = () => {
     setCsv(null);
@@ -39,41 +53,43 @@ export function CatalogueImport() {
   };
 
   /**
-   * The full error list, not the sentence.
+   * The full error list, not the sentence, and the rows that were fine.
    *
    * The action puts every issue in `metadata` and also builds a message capped
    * at twelve for callers that can only show a string. This screen can show all
    * of them, and must: a 45-row file with twenty mistakes is twenty things to
    * fix, and hiding eight of them behind "…and 8 more" means a second upload to
-   * discover what they were — which is the round-trip this whole feature exists
-   * to remove.
+   * discover what they were.
    */
-  const readIssues = (metadata: unknown): CsvIssue[] => {
-    if (metadata && typeof metadata === "object" && "issues" in metadata) {
-      const raw = (metadata as { issues: unknown }).issues;
-      if (Array.isArray(raw)) return raw as CsvIssue[];
-    }
-    return [];
+  const readFailure = (metadata: unknown): { issues: CsvIssue[]; preview: ImportPreview | null } => {
+    if (!metadata || typeof metadata !== "object") return { issues: [], preview: null };
+    const m = metadata as { issues?: unknown; preview?: unknown };
+    return {
+      issues: Array.isArray(m.issues) ? (m.issues as CsvIssue[]) : [],
+      preview: m.preview && typeof m.preview === "object" ? (m.preview as ImportPreview) : null,
+    };
   };
 
   const onFile = async (file: File) => {
     clearFile();
     setMessage(null);
+    setDone(null);
     setReading(true);
     const text = await file.text();
     setCsv(text);
     setFileName(file.name);
     start(async () => {
-      const res = await adminPreviewCatalogue(text);
+      const res = await previewAction(text);
       setReading(false);
       if (res.ok) {
         setPreview(res.data);
       } else {
-        const list = readIssues(res.error.metadata);
-        setIssues(list);
+        const failure = readFailure(res.error.metadata);
+        setIssues(failure.issues);
+        setPreview(failure.preview);
         /* Only fall back to the sentence when there is no structured list —
            an auth or size refusal, which is one line and has no row. */
-        if (list.length === 0) setMessage({ ok: false, text: res.error.message });
+        if (failure.issues.length === 0) setMessage({ ok: false, text: res.error.message });
       }
     });
   };
@@ -82,21 +98,23 @@ export function CatalogueImport() {
     if (!csv) return;
     setMessage(null);
     start(async () => {
-      const res = await adminImportCatalogue(csv);
+      const res = await importAction(csv);
       if (res.ok) {
-        const { created, skipped } = res.data;
-        setMessage({
-          ok: true,
-          text:
-            `${created} ${created === 1 ? "product" : "products"} listed` +
-            (skipped > 0 ? `, ${skipped} already on the shelf and left alone.` : "."),
-        });
+        setDone(res.data);
         clearFile();
         router.refresh();
       } else {
-        const list = readIssues(res.error.metadata);
-        setIssues(list);
-        if (list.length === 0) setMessage({ ok: false, text: res.error.message });
+        /* The file and its preview stay. Nothing was written, so the same file
+           can be confirmed again, or a corrected one chosen. */
+        const failure = readFailure(res.error.metadata);
+        setIssues(failure.issues);
+        setMessage({
+          ok: false,
+          text:
+            failure.issues.length > 0
+              ? "The file no longer passes the check. Nothing was written."
+              : `${res.error.message}\nNothing was written. Press confirm to try the same file again, or choose a corrected file.`,
+        });
       }
     });
   };
@@ -105,32 +123,44 @@ export function CatalogueImport() {
     "data:text/csv;charset=utf-8," + encodeURIComponent(CATALOGUE_CSV_TEMPLATE);
 
   const busy = pending || reading;
-  const ready = preview !== null && preview.toCreate.length > 0;
+  const rejectedLines = new Set(issues.map((i) => i.line)).size;
+  const blocked = issues.length > 0;
+  const ready = preview !== null && preview.toCreate.length > 0 && !blocked;
 
   return (
-    <section className="rounded-panel bg-white p-4 shadow-card">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-[15px] font-bold tracking-tight text-ink">Import a spreadsheet</h2>
+    <section id="import" className="scroll-mt-4 rounded-panel bg-white p-4 shadow-card">
+      <h2 className="text-[15px] font-bold tracking-tight text-ink">Import products from a CSV file</h2>
+      <p className="mt-1 text-[12px] font-medium leading-[17px] text-ink-700">
+        For adding many products at once. Every imported product starts as a draft, and nothing is
+        written until you have seen the preview and confirmed. An import only adds products: it
+        never changes the price or stock of one that already exists.
+      </p>
+
+      <ol className="mt-3 grid gap-2 text-[12px] font-semibold text-ink-700 sm:grid-cols-5">
+        {["Download the template", "Choose your file", "Read the preview", "Confirm", "Review the new drafts"].map(
+          (label, i) => (
+            <li key={label} className="rounded-field bg-chip-soft px-3 py-2">
+              <span className="mr-1.5 font-extrabold text-ink">{i + 1}</span>
+              {label}
+            </li>
+          )
+        )}
+      </ol>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
         <a
           href={templateHref}
           download="vertical-express-catalogue-template.csv"
-          className="text-[12px] font-bold text-ink no-underline hover:underline"
+          className="h-10 rounded-panel bg-chip px-4 text-[13px] font-bold leading-10 text-ink no-underline"
         >
-          Download the template
+          Download template
         </a>
-      </div>
-
-      <p className="mt-1 text-[12px] font-medium leading-[17px] text-ink-700">
-        One row per product. Prices include GST — type what the customer pays. Nothing is
-        written until the file has been checked and you confirm.
-      </p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <label className="h-10 cursor-pointer rounded-panel bg-chip px-4 text-[13px] font-bold leading-10 text-ink">
-          {reading ? "Reading…" : fileName ? "Choose another file" : "Choose a file"}
+        <label className="h-10 cursor-pointer rounded-panel bg-ink px-4 text-[13px] font-bold leading-10 text-white">
+          {reading ? "Reading…" : fileName ? "Choose another file" : "Choose CSV file"}
           <input
             type="file"
             accept=".csv,text/csv"
+            aria-label="CSV file"
             className="hidden"
             disabled={busy}
             onChange={(e) => {
@@ -146,10 +176,47 @@ export function CatalogueImport() {
           <span className="text-[12px] font-semibold text-ink-500">{fileName}</span>
         )}
       </div>
+      <p className="mt-2 text-[11.5px] font-medium leading-[16px] text-ink-500">
+        The template&rsquo;s first line is the header and must stay as it is. Its example lines begin
+        with # and are ignored. Brand, category and warehouse must already exist here, spelled the
+        same way. Prices include GST.
+      </p>
+
+      {done && (
+        <div role="status" className="mt-3 rounded-panel bg-ops-ok-tint p-3.5">
+          <p className="text-[12.5px] font-bold text-ops-ok">
+            {done.created} {done.created === 1 ? "product" : "products"} created as{" "}
+            {done.created === 1 ? "a draft" : "drafts"}
+            {done.skipped > 0 ? `; ${done.skipped} already existed and ${done.skipped === 1 ? "was" : "were"} left alone.` : "."}
+          </p>
+          {done.products.length > 0 && (
+            <>
+              <p className="mt-1 text-[11.5px] font-medium leading-[16px] text-ink-700">
+                Customers cannot see a draft. Open each one to add its photo and publish it.
+              </p>
+              <ul className="mt-2 flex flex-col gap-0.5">
+                {done.products.map((p) => (
+                  <li key={p.slug} className="text-[12px] font-semibold">
+                    <Link href={`/admin/products/${p.slug}`} className="font-bold text-ink underline">
+                      {p.title}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/admin/products?status=draft"
+                className="mt-2.5 inline-block text-[12px] font-bold text-ink underline"
+              >
+                See all drafts, most recently changed first
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
       {message && (
         <p
-          role="status"
+          role={message.ok ? "status" : "alert"}
           className={
             "mt-3 whitespace-pre-line rounded-panel p-3.5 text-[12.5px] font-semibold leading-relaxed " +
             (message.ok ? "bg-chip-soft text-ink" : "bg-ops-bad-tint text-ops-bad")
@@ -159,19 +226,23 @@ export function CatalogueImport() {
         </p>
       )}
 
+      {(preview || issues.length > 0) && (
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Preview summary">
+          <Count n={preview?.toCreate.length ?? 0} label="will be created" tone="ok" />
+          <Count n={preview?.skipped.length ?? 0} label="skipped" tone="mute" />
+          <Count n={rejectedLines} label="rejected" tone={rejectedLines > 0 ? "bad" : "mute"} />
+        </div>
+      )}
+
       {issues.length > 0 && <IssueList issues={issues} />}
 
       {preview && (
         <div className="mt-4 flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            <Count n={preview.toCreate.length} label="ready to list" tone="ok" />
-            {preview.skipped.length > 0 && (
-              <Count n={preview.skipped.length} label="already listed" tone="mute" />
-            )}
-          </div>
-
           {preview.toCreate.length > 0 && (
             <div className="overflow-x-auto">
+              <p className="mb-2 text-[12px] font-bold text-ink">
+                {blocked ? "These rows are fine, and will be created once the rejected rows are fixed" : "Will be created"}
+              </p>
               <table className="w-full min-w-[620px] border-collapse text-left">
                 <thead>
                   <tr className="text-[9.5px] font-extrabold uppercase tracking-[0.09em] text-ink-500">
@@ -181,7 +252,7 @@ export function CatalogueImport() {
                     <th className="px-3 pb-2.5">Price</th>
                     <th className="px-3 pb-2.5">Stock</th>
                     <th className="px-3 pb-2.5">60-min</th>
-                    <th className="px-3 pb-2.5">Status</th>
+                    <th className="px-3 pb-2.5">Starts as</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -211,7 +282,7 @@ export function CatalogueImport() {
                         {r.express ? `${r.expressPincodes.length} pincodes` : "—"}
                       </td>
                       <td className="px-3 py-2 text-[12px] font-semibold text-ink-700">
-                        {r.status}
+                        Draft
                       </td>
                     </tr>
                   ))}
@@ -223,16 +294,19 @@ export function CatalogueImport() {
           {preview.skipped.length > 0 && (
             <div className="rounded-panel bg-chip-soft p-3.5">
               <p className="text-[12px] font-bold text-ink">
-                Already on the shelf — left exactly as they are
+                Skipped — these already exist and are left exactly as they are
               </p>
               <p className="mt-1 text-[11.5px] font-medium leading-[16px] text-ink-500">
-                An import never changes an existing product&rsquo;s price or stock. Edit those in
-                the product screen, deliberately.
+                An import never changes an existing product&rsquo;s price or stock. Edit those on the
+                product&rsquo;s own page, deliberately.
               </p>
-              <ul className="mt-2 flex flex-col gap-0.5">
+              <ul className="mt-2 flex flex-col gap-1">
                 {preview.skipped.map((s) => (
-                  <li key={s.slug} className="text-[11.5px] font-semibold text-ink-700">
-                    Line {s.line}: {s.title}
+                  <li key={`${s.line}-${s.slug}`} className="text-[11.5px] font-semibold leading-[16px] text-ink-700">
+                    <span className="font-extrabold text-ink">Line {s.line}</span> · {s.title} — {s.message}{" "}
+                    <Link href={`/admin/products/${s.existingSlug}`} className="font-bold text-ink underline">
+                      Open it
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -247,8 +321,8 @@ export function CatalogueImport() {
               className="h-11 rounded-panel bg-ink px-6 text-[13px] font-bold text-white disabled:opacity-50"
             >
               {pending
-                ? "Listing…"
-                : `List ${preview.toCreate.length} ${preview.toCreate.length === 1 ? "product" : "products"}`}
+                ? "Creating…"
+                : `Confirm: create ${preview.toCreate.length} ${preview.toCreate.length === 1 ? "draft" : "drafts"}`}
             </button>
             <button
               type="button"
@@ -261,10 +335,16 @@ export function CatalogueImport() {
             >
               Cancel
             </button>
-            {!ready && (
-              <span className="text-[12px] font-semibold text-ink-500">
-                Every product in this file is already listed.
+            {blocked ? (
+              <span className="text-[12px] font-semibold text-ops-bad">
+                Fix the rejected rows in your file and choose it again. A file is created all together or not at all.
               </span>
+            ) : (
+              !ready && (
+                <span className="text-[12px] font-semibold text-ink-500">
+                  Every product in this file already exists, so there is nothing to create.
+                </span>
+              )
             )}
           </div>
         </div>
@@ -292,9 +372,9 @@ function IssueList({ issues }: { issues: CsvIssue[] }) {
   const rowWord = lines.length === 1 ? "row" : "rows";
 
   return (
-    <div role="status" className="mt-3 rounded-panel bg-ops-bad-tint p-3.5">
+    <div role="alert" className="mt-3 rounded-panel bg-ops-bad-tint p-3.5">
       <p className="text-[12.5px] font-bold text-ops-bad">
-        {issues.length} {issues.length === 1 ? "problem" : "problems"} in {lines.length}{" "}
+        Rejected: {issues.length} {issues.length === 1 ? "problem" : "problems"} in {lines.length}{" "}
         {rowWord}. Nothing has been written.
       </p>
       <p className="mt-1 text-[11.5px] font-medium leading-[16px] text-ops-bad">
@@ -327,12 +407,12 @@ function IssueList({ issues }: { issues: CsvIssue[] }) {
   );
 }
 
-function Count({ n, label, tone }: { n: number; label: string; tone: "ok" | "mute" }) {
+function Count({ n, label, tone }: { n: number; label: string; tone: "ok" | "mute" | "bad" }) {
   return (
     <span
       className={
         "inline-flex items-baseline gap-1.5 rounded-chip px-3 py-1.5 " +
-        (tone === "ok" ? "bg-ops-ok-tint text-ops-ok" : "bg-chip text-ink-700")
+        (tone === "ok" ? "bg-ops-ok-tint text-ops-ok" : tone === "bad" ? "bg-ops-bad-tint text-ops-bad" : "bg-chip text-ink-700")
       }
     >
       <span className="text-[15px] font-extrabold tabular-nums">{n}</span>

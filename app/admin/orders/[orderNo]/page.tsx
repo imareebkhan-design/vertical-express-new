@@ -19,6 +19,7 @@ import { pinPincodeCheck } from "@/lib/location/address-pin";
 import { CheckPaymentButton } from "@/components/admin/check-payment-button";
 import { canCheckPayment } from "@/lib/admin-payment-check";
 import { adminCheckOrderPayment } from "@/actions/admin";
+import { purchasedSku } from "@/lib/retired-sku";
 
 export const dynamic = "force-dynamic";
 
@@ -157,7 +158,9 @@ export default async function AdminOrderDetail({
                       <td className="px-2 py-2.5">
                         <p className="text-[12.5px] font-bold">{i.title}</p>
                         <p className="text-[11px] font-semibold text-ink-500">
-                          {i.variantName}{i.variant?.sku ? ` · SKU ${i.variant.sku}` : ""}
+                          {i.variantName}
+                          {i.variant?.sku ? ` · SKU ${purchasedSku(i.variant.sku).code}` : ""}
+                          {i.variant?.sku && purchasedSku(i.variant.sku).retiredOn ? " · listing since retired" : ""}
                         </p>
                       </td>
                       <td className="px-2 py-2.5 text-[11px] font-semibold tabular-nums text-ink-500">
