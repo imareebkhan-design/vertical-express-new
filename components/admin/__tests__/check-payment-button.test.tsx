@@ -32,7 +32,7 @@ async function press(check: CheckOrderPayment) {
   });
 }
 
-test("one press asks once, for this order, and a confirmed payment refreshes the page", async () => {
+void test("one press asks once, for this order, and a confirmed payment refreshes the page", async () => {
   const calls: { orderId: string }[] = [];
   await press(async (input) => {
     calls.push(input);
@@ -43,24 +43,24 @@ test("one press asks once, for this order, and a confirmed payment refreshes the
   assert.equal(refreshed, 1);
 });
 
-test("nothing captured: the answer is shown and the page is not reloaded", async () => {
+void test("nothing captured: the answer is shown and the page is not reloaded", async () => {
   await press(answer("not_captured"));
   assert.match(RTL.screen.getByRole("status").textContent ?? "", /Nothing was changed/);
   assert.equal(refreshed, 0);
 });
 
-test("an unclear answer from Razorpay is shown as an alert", async () => {
+void test("an unclear answer from Razorpay is shown as an alert", async () => {
   await press(answer("unknown"));
   assert.match(RTL.screen.getByRole("alert").textContent ?? "", /did not give a clear answer/);
   assert.equal(refreshed, 0);
 });
 
-test("a refusal from the server is shown in its own words", async () => {
+void test("a refusal from the server is shown in its own words", async () => {
   await press(async () => ({ ok: false, error: { code: "FORBIDDEN", message: "Admin access required" } }));
   assert.equal(RTL.screen.getByRole("alert").textContent, "Admin access required");
 });
 
-test("a lost connection does not pretend to know the answer", async () => {
+void test("a lost connection does not pretend to know the answer", async () => {
   await press(async () => {
     throw new Error("network");
   });
