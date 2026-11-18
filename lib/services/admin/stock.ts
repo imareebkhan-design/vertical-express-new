@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { istTodayStart } from "@/lib/ist";
 import { isPaidOrder } from "@/lib/services/admin/paid-orders";
+import { skuForDisplay } from "@/lib/retired-sku";
 
 /**
  * Inventory view for the operations console.
@@ -76,7 +77,7 @@ export async function adminListStock(filter: StockFilter = "all", page = 1, perP
       (r): StockRow => ({
         variantId: r.variantId,
         warehouseId: r.warehouseId,
-        sku: r.variant.sku,
+        sku: skuForDisplay(r.variant.sku),
         productTitle: r.variant.product.title,
         productSlug: r.variant.product.slug,
         variantName: r.variant.name,

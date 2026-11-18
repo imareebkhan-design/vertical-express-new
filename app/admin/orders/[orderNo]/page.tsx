@@ -16,6 +16,7 @@ import { ExpressRunBadge, OrderExpressSelection } from "@/components/orders/expr
 import { ReturnIntake } from "@/components/admin/returns/return-intake";
 import { RETURN_STATUS_LABEL } from "@/lib/return-flow";
 import { pinPincodeCheck } from "@/lib/location/address-pin";
+import { purchasedSku } from "@/lib/retired-sku";
 
 export const dynamic = "force-dynamic";
 
@@ -154,7 +155,9 @@ export default async function AdminOrderDetail({
                       <td className="px-2 py-2.5">
                         <p className="text-[12.5px] font-bold">{i.title}</p>
                         <p className="text-[11px] font-semibold text-ink-500">
-                          {i.variantName}{i.variant?.sku ? ` · SKU ${i.variant.sku}` : ""}
+                          {i.variantName}
+                          {i.variant?.sku ? ` · SKU ${purchasedSku(i.variant.sku).code}` : ""}
+                          {i.variant?.sku && purchasedSku(i.variant.sku).retiredOn ? " · listing since retired" : ""}
                         </p>
                       </td>
                       <td className="px-2 py-2.5 text-[11px] font-semibold tabular-nums text-ink-500">

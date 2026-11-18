@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { adminSaveProduct, adminSetVariantPrice } from "@/actions/products";
 import { OpsTable } from "@/components/admin/ops-table";
 import { VariantPriceRow } from "@/components/admin/variant-price-row";
@@ -65,6 +66,13 @@ export function ProductEditor({
     status: product.status,
     deliverySpeed: product.deliverySpeed,
   });
+  const router = useRouter();
+  /* Publish, take off and archive on the panel above change the status
+     without this form. Follow the server's status so a later Save cannot put
+     the old one back; every other field keeps whatever was typed. */
+  useEffect(() => {
+    setForm((f) => (f.status === product.status ? f : { ...f, status: product.status }));
+  }, [product.status]);
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -74,9 +82,21 @@ export function ProductEditor({
     setMessage(null);
     start(async () => {
       const res = await adminSaveProduct({ id: product.id, ...form });
+      /* The checklist at the top of the page reads what this just saved. A
+         changed slug is a changed address for this page too. */
+      if (res.ok) {
+        if (form.slug !== product.slug) router.replace(`/admin/products/${form.slug}`);
+        else router.refresh();
+      }
       setMessage(
         res.ok
-          ? { ok: true, text: "Product details saved. Live on the storefront now." }
+          ? {
+              ok: true,
+              text:
+                form.status === "published" || form.status === "catalog_only"
+                  ? "Saved. Customers see the change now."
+                  : "Saved. Customers cannot see this product in its current status.",
+            }
           : { ok: false, text: res.error.message }
       );
     });
@@ -112,7 +132,7 @@ export function ProductEditor({
         )}
       </div>
 
-      <Section title="Basics">
+      <Section title="Basics" id="basics">
         <Field label="Product name">
           <input value={form.title} onChange={(e) => set("title")(e.target.value)} className={field} />
         </Field>
@@ -130,10 +150,10 @@ export function ProductEditor({
         </Field>
         <Field label="Status">
           <select value={form.status} onChange={(e) => set("status")(e.target.value)} className={field}>
-            <option value="draft">Draft</option>
+            <option value="draft">Draft — only the dashboard sees it</option>
             <option value="catalog_only">Catalogue only — shown, not for sale</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
+            <option value="published">Published — on the storefront</option>
+            <option value="archived">Archived — retired, kept for old orders</option>
           </select>
         </Field>
         <Field label="Category">
@@ -239,7 +259,7 @@ export function ProductEditor({
         </p>
       </Section>
 
-      <Section title="Variants and pricing">
+      <Section title="Variants and pricing" id="pricing">
         {product.variants.length === 0 ? (
           <OpsTable
             columns={["Variant", "SKU", "MRP", "Selling", "On hand"]}
@@ -265,9 +285,9 @@ export function ProductEditor({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-panel bg-white p-4 shadow-card">
+    <section id={id} className="scroll-mt-4 rounded-panel bg-white p-4 shadow-card">
       <h2 className="text-[15px] font-bold tracking-tight text-ink">{title}</h2>
       <div className="mt-3 flex flex-col gap-3">{children}</div>
     </section>

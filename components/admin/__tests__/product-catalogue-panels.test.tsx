@@ -1,16 +1,25 @@
-import test, { afterEach } from "node:test";
+import test, { afterEach, before, mock } from "node:test";
 import assert from "node:assert/strict";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import {
-  DetailsPanel,
-  PhotosPanel,
-  VariantsPanel,
-  type AddVariant,
-  type SaveDetails,
-  type UploadPhoto,
-} from "../product-catalogue-panels";
+import type { AddVariant, SaveDetails, UploadPhoto } from "../product-catalogue-panels";
 
-afterEach(cleanup);
+/* The photos panel refreshes the page after a change; the router is not under test. */
+const refreshed: number[] = [];
+mock.module("next/navigation", { namedExports: { useRouter: () => ({ refresh: () => refreshed.push(1) }) } });
+
+let act: typeof import("@testing-library/react").act;
+let cleanup: typeof import("@testing-library/react").cleanup;
+let fireEvent: typeof import("@testing-library/react").fireEvent;
+let render: typeof import("@testing-library/react").render;
+let screen: typeof import("@testing-library/react").screen;
+let DetailsPanel: typeof import("../product-catalogue-panels").DetailsPanel;
+let PhotosPanel: typeof import("../product-catalogue-panels").PhotosPanel;
+let VariantsPanel: typeof import("../product-catalogue-panels").VariantsPanel;
+before(async () => {
+  ({ act, cleanup, fireEvent, render, screen } = await import("@testing-library/react"));
+  ({ DetailsPanel, PhotosPanel, VariantsPanel } = await import("../product-catalogue-panels"));
+});
+
+afterEach(() => cleanup());
 
 /**
  * The panels must say what an edit costs before it is made, send exactly what
@@ -92,6 +101,8 @@ test("an uploaded photo is reported as awaiting approval, and removal needs a se
   assert.equal(sent[0].get("licence"), "manufacturer-official-dealer-use");
   assert.equal(sent[0].get("makePrimary"), "0");
   assert.match(screen.getByRole("status").textContent ?? "", /will not see it until it is approved/);
+  /* The approval form and checklist on the same page read the new photo. */
+  assert.equal(refreshed.length, 1, "the page was not refreshed after the upload");
 
   fireEvent.click(screen.getByRole("button", { name: "Remove" }));
   assert.deepEqual(removed, [], "one click does not remove");

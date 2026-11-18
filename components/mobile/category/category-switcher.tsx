@@ -104,25 +104,10 @@ export function CategorySwitcher(props: CategorySwitcherProps) {
     );
   }
 
-  const breadcrumbJsonLd = {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: [
-      { "@type": "ListItem", position: 1, name: "Home", item: "/" },
-      { "@type": "ListItem", position: 2, name: "Categories", item: "/categories" },
-      { "@type": "ListItem", position: 3, name: category.name },
-    ],
-  };
-
   return (
     <>
       <Navbar />
       <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-        />
-
         <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-xs font-bold text-ink-500">
           <Link href="/" className="hover:text-ink">Home</Link>
           <ChevronRight className="size-3" aria-hidden />

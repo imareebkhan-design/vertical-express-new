@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   CATALOGUE_CSV_TEMPLATE,
   CATALOGUE_HEADER,
+  CATALOGUE_TEMPLATE_HEADER,
   parseCatalogueCsv,
   skuForSlug,
   slugifyTitle,
@@ -129,7 +130,10 @@ test("the template parses, and contains no product", () => {
   const res = parseCatalogueCsv(CATALOGUE_CSV_TEMPLATE);
   assert.equal(res.ok, false, "the template contains a real data row");
   if (!res.ok) assert.match(res.issues[0].message, /no rows/i);
-  assert.ok(CATALOGUE_CSV_TEMPLATE.startsWith(H), "the template header drifted from the parser");
+  assert.ok(
+    CATALOGUE_CSV_TEMPLATE.startsWith(`${CATALOGUE_TEMPLATE_HEADER.join(",")}\n`),
+    "the template header drifted from the parser"
+  );
 });
 
 test("a short row says how to write a comma", () => {
@@ -263,7 +267,7 @@ test("a title a spreadsheet would execute is refused", () => {
 });
 
 test("status is draft or published, and nothing else", () => {
-  for (const s of ["archived", "live", ""]) {
+  for (const s of ["archived", "live"]) {
     const res = parseCatalogueCsv(file(row({ status: s })));
     assert.equal(res.ok, false, `a status of "${s}" was accepted`);
   }
@@ -427,4 +431,62 @@ test("an accent is folded, not dropped", () => {
      that differ only by an accent would collide. */
   assert.equal(slugifyTitle("Café Tiles 600mm"), "cafe-tiles-600mm");
   assert.equal(slugifyTitle("Ångström Wire"), "angstrom-wire");
+});
+
+test("a blank status is a draft, never published", () => {
+  /* The cell nobody filled in must take the safe reading. Refusing it made a
+     person type "draft" two hundred times; reading it as published would put
+     a half-entered product in front of customers. */
+  const res = parseCatalogueCsv(file(row({ status: "" })));
+  assert.equal(res.ok, true, res.ok ? "" : JSON.stringify(res.issues));
+  if (res.ok) assert.equal(res.rows[0].status, "draft");
+});
+
+test("the thirteen-column file every existing spreadsheet uses still imports", () => {
+  const res = parseCatalogueCsv(file(row()));
+  assert.equal(res.ok, true, res.ok ? "" : JSON.stringify(res.issues));
+  if (res.ok) assert.equal(res.rows[0].productType, null);
+});
+
+test("a fourteenth product_type column is read, and may be blank", () => {
+  const H14 = CATALOGUE_TEMPLATE_HEADER.join(",");
+  const res = parseCatalogueCsv([H14, `${row({ title: "Cement Bag A" })},OPC 53`, `${row({ title: "Cement Bag B" })},`].join("\n"));
+  assert.equal(res.ok, true, res.ok ? "" : JSON.stringify(res.issues));
+  if (!res.ok) return;
+  assert.equal(res.rows[0].productType, "OPC 53");
+  assert.equal(res.rows[1].productType, null);
+  /* And the thirteen before it did not shift. */
+  assert.equal(res.rows[0].pricePaise, 38500);
+});
+
+test("with the fourteenth column, a row one cell short says so with its line", () => {
+  const H14 = CATALOGUE_TEMPLATE_HEADER.join(",");
+  const res = parseCatalogueCsv([H14, row()].join("\n"));
+  assert.equal(res.ok, false);
+  if (!res.ok) {
+    assert.equal(res.issues[0].line, 2);
+    assert.match(res.issues[0].message, /Expected 14 columns, found 13/);
+  }
+});
+
+test("any other fourteenth column is refused, so a price never lands in the wrong field", () => {
+  const res = parseCatalogueCsv([`${H},gst_rate`, `${row()},18`].join("\n"));
+  assert.equal(res.ok, false);
+  if (!res.ok) assert.equal(res.issues[0].column, "header");
+});
+
+test("a product type a spreadsheet would execute is refused", () => {
+  const H14 = CATALOGUE_TEMPLATE_HEADER.join(",");
+  const res = parseCatalogueCsv([H14, `${row()},=1+1`].join("\n"));
+  assert.equal(on(res, "product_type").length, 1);
+});
+
+test("the template's examples are labelled, are drafts, and are not data", () => {
+  const examples = CATALOGUE_CSV_TEMPLATE.split("\n").filter((l) => l.includes("EXAMPLE:"));
+  assert.equal(examples.length, 2);
+  for (const l of examples) {
+    assert.ok(l.startsWith("#"), "an example row would be imported as a product");
+    assert.match(l, /,draft,/, "an example row is not a draft");
+    assert.doesNotMatch(l, /,\d+(\.\d+)?,/, "an example row carries a number somebody might take for a real price or stock");
+  }
 });
