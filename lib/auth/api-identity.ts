@@ -30,9 +30,8 @@ import { resolveUserFromToken } from "@/lib/auth/current-user";
  *     app holding one would gain nothing.
  *   - It does not accept a session cookie as a fallback. A route that takes
  *     either is a route where a cross-site request can act as the customer;
- *     `app/api/auth/session/route.ts` explains that the current CSRF protection
- *     is structural — SameSite=Lax and no CORS — and a bearer-only API keeps it
- *     that way by having nothing ambient to abuse.
+ *     The browser session route explicitly checks Origin and JSON content type.
+ *     A bearer-only API has no ambient browser credential to abuse.
  *   - It does not replace `getAuthUserId()` anywhere. The web is untouched.
  *
  * ON SECRETS. Nothing here is readable by the app. The device sends a token it

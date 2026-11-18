@@ -122,7 +122,7 @@ approver for refunds above an owner-set amount.
 
 ## ISS-110 — Public booking form can be flooded by rotating phone numbers
 
-**Status:** OPEN. **Severity:** Medium (spam rows and ops noise; no money or SMS spent). **Found:** security recheck,
+**Status:** FIXED on `codex/production-readiness-2026-11-17`; rollout pending. **Severity:** Medium (spam rows and ops noise; no money or SMS spent). **Found:** security recheck,
 16 Nov 2026.
 
 `submitBooking` (`actions/booking.ts:30`) limits 5 per hour **per submitted phone number**, a value the caller
@@ -130,9 +130,11 @@ chooses. Changing the number each time bypasses it, and there is no per-IP bucke
 anyone exhaust a real customer's quota by submitting with their number. Fix: add a per-IP bucket
 (`getClientIp`, as `actions/location.ts` does) alongside the phone bucket, and a global daily ceiling.
 
+Implemented: trusted-address bucket (5/hour), existing phone bucket (5/hour), shared ceiling (1,000/day), all fail closed. The address guard runs first. These are abuse budgets, not commercial limits. Rotating-phone, rotating-address, outage and action-wiring regressions pass. The booking UI is currently unreachable from app routes; this hardens its retained action without reviving the retired flow. Phone-quota exhaustion across distributed addresses is not eliminated.
+
 ## ISS-109 — Login CSRF: `/api/auth/session` accepts a cross-site form post
 
-**Status:** OPEN. **Severity:** Medium. **Found:** security recheck, 16 Nov 2026.
+**Status:** FIXED on `codex/production-readiness-2026-11-17`; rollout pending. **Severity:** Medium. **Found:** security recheck, 16 Nov 2026.
 
 The route's comment says a cross-origin POST "of `application/json` fails its preflight". It does, but the handler
 never requires that content type: `request.json()` parses a `text/plain` body just as happily (checked with Node's
@@ -145,6 +147,8 @@ The admin image upload route already has the right guard (`sameOrigin` in
 `lib/services/admin/image-upload-handler.ts`). Fix: apply the same Origin check to both methods and refuse any
 `Content-Type` other than `application/json` with `415`. `scripts/staging-security-smoke.mjs` check A2 reports this
 as OPEN until fixed.
+
+Implemented: POST and DELETE compare the explicit Origin with the ingress host and protocol; missing/foreign/ambiguous origins are refused before any session work. POST additionally requires application/json. Regression tests execute actual handlers and verify no cookie is set on rejected requests; same-origin logout still works. Staging smoke now supplies Origin for its legitimate token probe and fails if CSRF remains open. Ingress-header and real-login acceptance remain staging gates.
 
 ## ISS-108 — Codacy scan (16 Nov 2026): vulnerable dependencies and three unescaped JSON-LD tags
 

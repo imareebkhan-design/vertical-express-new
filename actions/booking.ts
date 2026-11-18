@@ -3,7 +3,9 @@
 import { z } from "zod";
 import { getAuthUser } from "@/lib/auth/current-user";
 import { createBooking, getServiceBySlug } from "@/lib/services/bookings";
-import { rateLimit } from "@/lib/services/rate-limit";
+import { headers } from "next/headers";
+import { getClientIp } from "@/lib/services/rate-limit";
+import { bookingBudget } from "@/lib/services/booking-budget";
 import { sendBookingConfirmationEmail } from "@/lib/services/email";
 import { phoneSchema, type ActionResult, fail, succeed } from "@/lib/validators";
 
@@ -26,9 +28,8 @@ export async function submitBooking(input: unknown): Promise<ActionResult<{ book
     return fail("VALIDATION", issue?.message ?? "Invalid details", issue?.path[0]?.toString());
   }
 
-  // P1-4: throttle public booking submissions per phone (spam protection).
-  const limit = await rateLimit(`booking:${parsed.data.phone}`, 5, 60 * 60 * 1000); // 5 per hour
-  if (!limit.allowed) {
+  const ip = getClientIp(new Request("http://local", { headers: await headers() }));
+  if (!(await bookingBudget(ip, parsed.data.phone))) {
     return fail("RATE_LIMITED", "Too many requests. Please try again later.");
   }
 
