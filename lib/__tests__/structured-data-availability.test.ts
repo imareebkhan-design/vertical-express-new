@@ -28,7 +28,10 @@ import { fileURLToPath } from "node:url";
  */
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
-const PDP = "components/mobile/product/product-switcher.tsx";
+/* Was components/mobile/product/product-switcher.tsx. The block moved to the
+   server-rendered builder (ISS-108): inside the switcher it never reached the
+   server HTML. lib/__tests__/structured-data.test.ts tests its output directly. */
+const PDP = "lib/seo/structured-data.ts";
 const CATALOG = "lib/services/catalog.ts";
 
 /** Rendered code only: the comment above the offer block quotes the old literal

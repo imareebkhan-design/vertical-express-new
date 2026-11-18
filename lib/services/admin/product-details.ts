@@ -195,3 +195,51 @@ export async function setDefaultVariant(variantId: string, actor: { id: string |
     return { ok: true as const, variantId };
   });
 }
+
+export type StockRecordResult =
+  | { ok: true; created: number }
+  | { ok: false; code: "NOT_FOUND" | "INVALID"; detail?: string };
+
+/**
+ * Give a variant a stock record at a warehouse, at zero.
+ *
+ * A product listed with no warehouse has no inventory row, and the publish
+ * check refuses "unknown" stock: zero has to be said, not assumed. The only
+ * console route to a first row was the stock-count file. This writes the row
+ * and nothing else — no movement, because nothing arrived; stock is then
+ * counted in on the Inventory screen, with a reason, like any other. A record
+ * that already exists is left alone. Stock does not clear the price review
+ * (migration `20261009100000`).
+ */
+export async function createStockRecords(
+  variantIds: readonly string[],
+  warehouseId: string,
+  actor: { id: string | null; email: string }
+): Promise<StockRecordResult> {
+  /* All or none: a refusal on the third pack leaves the first two without records too. */
+  return db.$transaction(async (tx) => {
+    const wh = await tx.warehouse.findFirst({ where: { id: warehouseId, isActive: true }, select: { id: true, name: true } });
+    if (!wh) return { ok: false as const, code: "INVALID" as const, detail: "That warehouse is not active" };
+    const variants = await tx.productVariant.findMany({ where: { id: { in: [...variantIds] } }, select: { id: true, sku: true, productId: true } });
+    if (variants.length !== new Set(variantIds).size) return { ok: false as const, code: "NOT_FOUND" as const };
+    let created = 0;
+    for (const variant of variants) {
+      const existing = await tx.inventory.findUnique({
+        where: { variantId_warehouseId: { variantId: variant.id, warehouseId } },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await tx.inventory.create({ data: { variantId: variant.id, warehouseId, qtyOnHand: 0 } });
+      await recordAudit(tx, {
+        actorType: "admin",
+        actorId: actor.id,
+        action: "catalogue.stock_record_created",
+        entityType: "product",
+        entityId: variant.productId,
+        after: { variantId: variant.id, sku: variant.sku, warehouseId, warehouse: wh.name, qtyOnHand: 0, by: actor.email },
+      });
+      created += 1;
+    }
+    return { ok: true as const, created };
+  });
+}

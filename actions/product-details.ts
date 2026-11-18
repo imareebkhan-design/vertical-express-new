@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { addVariant, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
+import { addVariant, createStockRecords, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
+import { setProductStatus } from "@/lib/services/admin/product-status";
 import { removeProductImage, setPrimaryImage } from "@/lib/services/admin/product-images";
 import { MIN_REVIEW_REASON, recordCommercialReview } from "@/lib/services/admin/commercial-review";
 import { parseRupeeInput } from "@/lib/money";
@@ -164,4 +165,45 @@ export async function adminRecordCommercialReview(input: unknown): Promise<Actio
   }
   await revalidateProduct(parsed.data.productId);
   return succeed({ remaining: r.remaining });
+}
+
+const stockRecordSchema = z.object({ variantIds: z.array(z.uuid()).min(1).max(50), warehouseId: z.guid() });
+
+/** Give packs their first stock record, at zero, together (lib/services/admin/product-details.ts). */
+export async function adminCreateStockRecord(input: unknown): Promise<ActionResult<{ created: number }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = stockRecordSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Choose a warehouse");
+  const r = await createStockRecords(parsed.data.variantIds, parsed.data.warehouseId, { id: admin.id, email: admin.email });
+  if (!r.ok) return fail(r.code === "NOT_FOUND" ? "NOT_FOUND" : "VALIDATION", r.detail ?? "Variant not found");
+  const v = await db.productVariant.findUnique({ where: { id: parsed.data.variantIds[0] }, select: { productId: true } });
+  if (v) await revalidateProduct(v.productId);
+  revalidatePath("/admin/inventory");
+  return succeed({ created: r.created });
+}
+
+const statusSchema = z.object({
+  productId: z.uuid(),
+  to: z.enum(["draft", "catalog_only", "published", "archived"]),
+});
+
+/**
+ * Change only a product's status — publish, take off sale, archive, bring back.
+ * The gate and the audit row are `setProductStatus` (product-status.ts), the
+ * same ones the editor's Save runs; a refusal comes back as the list of what
+ * is still missing, so the screen can put each next to the step that fixes it.
+ */
+export async function adminSetProductStatus(input: unknown): Promise<ActionResult<{ changed: boolean }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = statusSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Those details are not valid");
+  const r = await setProductStatus(parsed.data.productId, parsed.data.to, { id: admin.id, email: admin.email });
+  if (!r.ok) {
+    if (r.code === "NOT_FOUND") return fail("NOT_FOUND", "Product not found");
+    return fail("VALIDATION", r.reasons.join("; "), undefined, { reasons: r.reasons });
+  }
+  await revalidateProduct(parsed.data.productId);
+  return succeed({ changed: r.changed });
 }

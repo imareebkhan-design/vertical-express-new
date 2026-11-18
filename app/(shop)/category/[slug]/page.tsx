@@ -11,6 +11,8 @@ import {
 } from "@/lib/services/catalog";
 import { categoryQueryFromParams } from "@/lib/category-query";
 import { CategorySwitcher } from "@/components/mobile/category/category-switcher";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { categoryBreadcrumbJsonLd } from "@/lib/seo/structured-data";
 import { comingSoonNextSteps } from "@/lib/category-directory";
 
 export const dynamic = "force-dynamic";
@@ -98,13 +100,17 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
     brandSlugs.length + Object.keys(attrs).length + (minPrice ? 1 : 0) + (maxPrice ? 1 : 0);
 
   return (
-    <CategorySwitcher
-      category={category}
-      slug={slug}
-      result={result}
-      mostOrdered={mostOrdered}
-      brands={brands}
-      activeFilterCount={activeFilterCount}
-    />
+    <>
+      {/* Server-rendered: the switcher shows only a loader until hydration. */}
+      <JsonLdScript data={categoryBreadcrumbJsonLd(category.name)} />
+      <CategorySwitcher
+        category={category}
+        slug={slug}
+        result={result}
+        mostOrdered={mostOrdered}
+        brands={brands}
+        activeFilterCount={activeFilterCount}
+      />
+    </>
   );
 }

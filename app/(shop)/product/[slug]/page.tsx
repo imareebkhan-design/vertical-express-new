@@ -7,6 +7,8 @@ import {
   listProductSlugs,
 } from "@/lib/services/catalog";
 import { ProductSwitcher } from "@/components/mobile/product/product-switcher";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
+import { productJsonLd } from "@/lib/seo/structured-data";
 
 export const dynamic = "force-dynamic";
 
@@ -60,10 +62,15 @@ export default async function ProductPage({ params }: PageProps) {
   ]);
 
   return (
-    <ProductSwitcher
-      product={product}
-      related={related}
-      boughtWith={boughtWith}
-    />
+    <>
+      {/* Server-rendered so crawlers see it on every surface; the switcher
+          renders only a loader until the client knows its screen size. */}
+      <JsonLdScript data={productJsonLd(product)} />
+      <ProductSwitcher
+        product={product}
+        related={related}
+        boughtWith={boughtWith}
+      />
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import "server-only";
+import { JsonLdScript } from "@/components/seo/json-ld-script";
 
 /**
  * Site-level structured data: Organization and WebSite.
@@ -42,11 +43,6 @@ export function SiteJsonLd({ siteUrl }: { siteUrl: string }) {
   ];
 
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{
-        __html: JSON.stringify({ "@context": "https://schema.org", "@graph": graph }),
-      }}
-    />
+    <JsonLdScript data={{ "@context": "https://schema.org", "@graph": graph }} />
   );
 }

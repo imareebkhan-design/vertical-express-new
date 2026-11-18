@@ -1,6 +1,6 @@
 # Known Issues — Vertical Express
 
-## ISS-109 — Reports summed cancelled and unpaid orders, always showed ₹0 refunded, and invented a settlement figure
+## ISS-116 — Reports summed cancelled and unpaid orders, always showed ₹0 refunded, and invented a settlement figure
 
 **Status:** FIXED on `claude/reports-paid-figures` (roadmap C-8, money figures; 16 Nov 2026); review pending.
 **Severity:** P2 (figures an owner or accountant would quote). **Found:** 14 Nov 2026 audit (RPT-02, PAY-14, console finding U-7).
@@ -32,7 +32,7 @@ refund-after-delivery (roadmap B-5). "Most returned" is still fed by an order st
 nothing sets. Coupon usage on the Marketing tab still counts unpaid orders. Cash on
 delivery is not in any money figure, as on Today.
 
-## ISS-108 — Today counted unpaid orders as revenue, started the day at the server's midnight, and said nothing about money owed back
+## ISS-115 — Today counted unpaid orders as revenue, started the day at the server's midnight, and said nothing about money owed back
 
 **Status:** FIXED on `claude/today-paid-revenue` (roadmap B-2, 16 Nov 2026); review pending.
 **Severity:** Launch blocker (the first screen an operator opens stated money wrongly). **Found:** 14 Nov 2026 audit (RPT-01, RPT-03, CUS-02).
@@ -69,6 +69,107 @@ collection record is needed before COD can appear in revenue.
 
 **Still open.** A late capture is not listed separately from other
 captures on cancelled orders: both are the same state and the same remedy.
+
+## ISS-114 — A product added from the dashboard could never be approved, so never published
+
+**Status:** FIXED (catalogue admin workflow, 17 Nov 2026). **Severity:** High for launch.
+
+`/admin/catalogue-approvals` lists only the batches named in `lib/catalog/approval-batches.json`. A product created by
+the listing form or a CSV was in none of them, so its identity and photo could not be approved from any screen, and the
+publish gate refuses a product without that approval. The same approval form, on the same service
+(`recordCatalogueApproval`), now sits on the product's own page. The product page also opens with the publish checklist
+(`lib/product-live.ts`), each open step beside the panel that fixes it, and a Publish button on the existing gated,
+audited status change.
+
+Related gaps fixed in the same change: a pack with no stock record had no console route to one (only the stock-count
+file) — the product page creates it at zero; a CSV row with stock 0 and a named warehouse wrote no stock record, leaving
+the product unpublishable; a `published` CSV row was refused only at confirm, with no line number — now at preview; a
+row with a bad price did not have its brand looked up until the next upload; the photo panel did not refresh the page
+after an upload.
+
+**Correction to the 14 Nov audit (G-40 / CAT-02):** catalogue import already writes one `catalog.product_listed` audit
+row per created product (`writeProduct`), in the import's transaction. No new audit was added.
+
+## ISS-113 — Archived products keep their web address and item code
+
+**Status:** MITIGATED. Listing a product whose web address or SKU belongs to an archived product failed with "already in
+use", and the archived holder does not appear in the default product view. The listing form and the CSV preview now name
+the archived holder and how to bring it back. The one-time reset (ISS-112) frees the names by suffixing them. Archiving
+a single product later still keeps its names, deliberately: unarchiving it must not collide.
+
+## ISS-112 — The previous catalogue was still in the database
+
+**Status:** READY, awaiting owner approval for each environment. `scripts/catalogue-reset.mts`, runbook
+`docs/runbooks/CATALOGUE_RESET.md`. Rehearsed twice on local copies of staging, including restore. Read-only
+manifests produced for production and staging on 18 Nov. Not applied to either.
+
+Historical records: a retired pack's code is suffixed; screens that show a code read the sold code back
+(`lib/retired-sku.ts`). Orders, invoices, exports, refunds and returns never print it.
+
+## ISS-111 — Every operator holds every admin power
+
+**Status:** OPEN, by design pending owner decision. **Severity:** Low (insider / stolen-account blast radius).
+**Found:** security recheck, 16 Nov 2026.
+
+`getAdminUser()` (`lib/services/admin/authz.ts`) is a single tier: a verified email on `ADMIN_EMAILS` can change
+prices, issue refunds, edit roster and settings. Refunds are well guarded otherwise — amount computed and capped
+server-side under a row lock, reason required, audit row written (`lib/services/refunds.ts`) — but one operator can
+issue one alone. Options: permission tiers on the `admin_users` table the comment already anticipates, or a second
+approver for refunds above an owner-set amount.
+
+## ISS-110 — Public booking form can be flooded by rotating phone numbers
+
+**Status:** OPEN. **Severity:** Medium (spam rows and ops noise; no money or SMS spent). **Found:** security recheck,
+16 Nov 2026.
+
+`submitBooking` (`actions/booking.ts:30`) limits 5 per hour **per submitted phone number**, a value the caller
+chooses. Changing the number each time bypasses it, and there is no per-IP bucket or bot check. The same key lets
+anyone exhaust a real customer's quota by submitting with their number. Fix: add a per-IP bucket
+(`getClientIp`, as `actions/location.ts` does) alongside the phone bucket, and a global daily ceiling.
+
+## ISS-109 — Login CSRF: `/api/auth/session` accepts a cross-site form post
+
+**Status:** OPEN. **Severity:** Medium. **Found:** security recheck, 16 Nov 2026.
+
+The route's comment says a cross-origin POST "of `application/json` fails its preflight". It does, but the handler
+never requires that content type: `request.json()` parses a `text/plain` body just as happily (checked with Node's
+`Request`), and nothing compares `Origin`. A page on another site can auto-submit a `<form enctype="text/plain">`
+whose body is `{"idToken":"<attacker's own valid token>","x":"="}` — a top-level navigation, so the `Set-Cookie`
+lands — and the victim is signed in to the attacker's account, where anything they enter (addresses, orders) is
+visible to the attacker. `DELETE` (sign-out) has the same gap, with lower impact.
+
+The admin image upload route already has the right guard (`sameOrigin` in
+`lib/services/admin/image-upload-handler.ts`). Fix: apply the same Origin check to both methods and refuse any
+`Content-Type` other than `application/json` with `415`. `scripts/staging-security-smoke.mjs` check A2 reports this
+as OPEN until fixed.
+
+## ISS-108 — Codacy scan (16 Nov 2026): vulnerable dependencies and three unescaped JSON-LD tags
+
+**Status:** PARTLY FIXED on `claude/security-codacy-fixes`; review pending.
+**Severity:** High (dependency advisories); Low (code findings). **Found:** Codacy export, 16 Nov 2026.
+
+Fixed on the branch:
+- Capacitor iOS/Android 8.5.0 (remote content at the app origin, critical) → 8.6.2; Prisma 7.10.1,
+  `firebase-admin`, `posthog-js` (DOMPurify) and transitive packages updated by name. `npm audit --omit=dev`
+  went from 31 advisories (2 critical) to 10 (none critical). Next.js, Sentry and zod were already patched on
+  the release line.
+- Product, category and site JSON-LD now go through `serializeJsonLd` (`lib/json-ld.ts`), which escapes `<`
+  so a value containing `</script>` cannot close the tag.
+- Order-number suffix uses `crypto.randomInt`; the checkout idempotency key falls back to
+  `crypto.getRandomValues` instead of `Math.random`.
+
+Still open (each needs a major upgrade):
+- `firebase` client → `@firebase/firestore` / `@grpc/grpc-js` advisories. The web app does not import Firestore.
+- `@sentry/nextjs` 10 → 11 for its bundler-plugin chain (build-time only).
+- The Expo app's own lockfile (`mobile/`, workspace repo) was not audited or updated.
+
+Do not run a bare `npm audit fix` here: it downgrades `@typescript-eslint/eslint-plugin` under
+`eslint-config-next` to 6.x and lint crashes. Update packages by name.
+
+Most other Codacy findings are false positives or sit in local scripts (`docs/catalog/`, `.agents/`,
+`outputs/`, `mobile/scripts/`) that never run in production.
+
+**Rollback:** revert the commit; no schema or data change.
 
 ## ISS-107 — A signed capture that could not settle left no record an operator could see
 

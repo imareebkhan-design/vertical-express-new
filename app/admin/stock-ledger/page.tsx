@@ -5,6 +5,7 @@ import { OpsTable } from "@/components/admin/ops-table";
 import { StatusChip, type StatusTone } from "@/components/admin/status-chip";
 import { findLedgerDrift, listStockMovements, listUnresolvedRestocks } from "@/lib/services/inventory-movements";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { skuForDisplay } from "@/lib/retired-sku";
 
 export const metadata: Metadata = {
   title: "Stock ledger | Operations",
@@ -184,7 +185,7 @@ export default async function AdminStockLedger({
                 {m.variant.product.title}
               </Link>
               <span className="block text-[11px] font-semibold text-ink-500">
-                {m.variant.sku}
+                {skuForDisplay(m.variant.sku)}
                 {m.note ? ` · ${m.note}` : ""}
               </span>
             </span>,

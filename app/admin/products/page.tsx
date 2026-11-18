@@ -12,6 +12,7 @@ import {
   PRODUCTS_PER_PAGE,
   MAX_SEARCH_LENGTH,
 } from "@/lib/admin-products-query";
+import { STATUS_MEANING } from "@/lib/product-live";
 
 export const dynamic = "force-dynamic";
 
@@ -50,11 +51,29 @@ export default async function AdminProducts({
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h1 className="text-[22px] font-extrabold tracking-tight">Products</h1>
-        <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          {filtered ? `${total} of ${unfilteredTotal} products match` : `${unfilteredTotal} products`}
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-[22px] font-extrabold tracking-tight">Products</h1>
+          <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
+            {filtered ? `${total} of ${unfilteredTotal} products match` : `${unfilteredTotal} products`}
+          </p>
+        </div>
+        {/* The three things an operator comes here to do. Each opens a screen
+            that already exists; none is a new workflow. */}
+        <nav aria-label="Product actions" className="flex flex-wrap gap-2">
+          <Link href="/admin/listing#add" className="h-10 rounded-panel bg-ink px-4 text-[13px] font-bold leading-10 text-white no-underline">
+            Add product
+          </Link>
+          <Link href="/admin/listing#import" className="h-10 rounded-panel bg-chip px-4 text-[13px] font-bold leading-10 text-ink no-underline">
+            Import CSV
+          </Link>
+          <Link
+            href="/admin/products?status=draft"
+            className="h-10 rounded-panel bg-chip px-4 text-[13px] font-bold leading-10 text-ink no-underline"
+          >
+            Review &amp; publish{statusCounts.draft > 0 ? ` (${statusCounts.draft} ${statusCounts.draft === 1 ? "draft" : "drafts"})` : ""}
+          </Link>
+        </nav>
       </div>
 
       {/* A plain GET form: works without JavaScript, and the result is a URL
@@ -110,6 +129,13 @@ export default async function AdminProducts({
           );
         })}
       </nav>
+
+      {query.status && (
+        <p className="text-[12px] font-semibold leading-relaxed text-ink-700">
+          <strong>{STATUS_MEANING[query.status].label}:</strong> {STATUS_MEANING[query.status].meaning}
+          {query.status === "draft" && " Open a draft to see what it still needs, then publish it from its own page."}
+        </p>
+      )}
 
       <div className="overflow-x-auto rounded-panel bg-white p-4 shadow-card">
         <table className="w-full min-w-[820px]">
@@ -175,7 +201,12 @@ export default async function AdminProducts({
         </table>
         {products.length === 0 && (
           <p className="px-3 py-8 text-center text-[12.5px] font-semibold text-ink-500">
-            {filtered ? "No product matches. Try fewer words, or clear the filters." : "No products yet."}
+            {filtered ? "No product matches. Try fewer words, or clear the filters." : "No products yet. "}
+            {!filtered && (
+              <Link href="/admin/listing#add" className="font-bold text-ink underline">
+                Add your first product
+              </Link>
+            )}
           </p>
         )}
       </div>
@@ -208,20 +239,23 @@ export default async function AdminProducts({
           not this text, is what stops an incomplete product going on sale. */}
       <div className="rounded-panel bg-ops-info-tint p-4 text-[12px] font-semibold leading-relaxed text-ops-info">
         <p>
-          Open a product to edit it. Drafts can be saved incomplete; a product goes on sale only when
-          its editor shows nothing missing:
+          Open a product to edit it. Its page starts with a checklist of what it still needs and a Publish button
+          that unlocks when the list is done:
         </p>
         <ul className="mt-1.5 list-disc pl-5">
-          <li>an active default variant with a selling price above zero, and no MRP below its price</li>
-          <li>a stock record for the default variant (opening stock can be 0)</li>
+          <li>a lead photo, and a recorded approval of the product and that photo</li>
+          <li>a selling price and an MRP on every pack, the MRP never below the price</li>
+          <li>a stock record for every pack (the quantity can be 0)</li>
+          <li>delivery chosen for the product: fast or heavy</li>
           <li>a confirmed HSN and GST rate for its category</li>
-          <li>an approved exact product photo as the main image</li>
-          <li>an active brand and category</li>
           <li>
-            the owner&apos;s commercial review — changing a price or a variant clears it, and the product
-            needs reviewing again, under &ldquo;Price and tax review&rdquo; on the product&apos;s own page
+            the price and tax review — changing a price or a pack clears it, and it is recorded again on the
+            product&apos;s page
           </li>
         </ul>
+        <p className="mt-1.5">
+          A published product is shown only while its brand and category are switched on in Launch control.
+        </p>
       </div>
     </div>
   );

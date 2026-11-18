@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { parseCatalogueCsv, type CsvIssue } from "@/lib/catalogue-csv";
+import { lookupCells, parseCatalogueCsv, type CsvIssue } from "@/lib/catalogue-csv";
 import {
   importCatalogue,
+  lookupIssues,
   previewCatalogue,
   type ImportPreview,
   type ImportResult,
@@ -49,7 +50,7 @@ import {
 const MAX_CHARS = 2_000_000;
 
 /** Line-numbered, capped, and the whole list in metadata for the UI to group. */
-function issuesToFailure<T>(issues: CsvIssue[]): ActionResult<T> {
+function issuesToFailure<T>(issues: CsvIssue[], preview?: ImportPreview): ActionResult<T> {
   /* Every problem at once. Reporting only the first means a person fixes one
      row, re-uploads, and finds the next — for as many rounds as there are
      mistakes. The cap is on what goes in the sentence, not on what is sent. */
@@ -59,7 +60,9 @@ function issuesToFailure<T>(issues: CsvIssue[]): ActionResult<T> {
     "VALIDATION",
     shown.join("\n") + (more > 0 ? `\n…and ${more} more` : ""),
     undefined,
-    { issues }
+    /* The rows that are fine travel with the ones that are not, so the screen
+       can say what would be created, skipped and rejected in one look. */
+    preview ? { issues, preview: { ...preview, issues: [] } } : { issues }
   );
 }
 
@@ -87,7 +90,13 @@ async function collect(text: string): Promise<{ preview: ImportPreview; issues: 
       ? await previewCatalogue(parsed.rows)
       : { toCreate: [], skipped: [], issues: [] };
 
-  const issues = [...(parsed.ok ? [] : parsed.issues), ...preview.issues].sort(
+  /* Rows the parser rejected are still looked up, so an unknown brand on a row
+     with a bad price is reported now rather than on the next upload. */
+  const parserIssues = parsed.ok ? [] : parsed.issues;
+  const rejected = new Set(parserIssues.map((i) => i.line));
+  const lookups = await lookupIssues(lookupCells(text).filter((c) => rejected.has(c.line)));
+  const seen = new Set(parserIssues.map((i) => `${i.line}:${i.column}`));
+  const issues = [...parserIssues, ...lookups.filter((i) => !seen.has(`${i.line}:${i.column}`)), ...preview.issues].sort(
     (a, b) => a.line - b.line
   );
   return { preview, issues };
@@ -102,7 +111,7 @@ export async function adminPreviewCatalogue(csv: unknown): Promise<ActionResult<
   if (!payload.ok) return fail("VALIDATION", payload.message);
 
   const { preview, issues } = await collect(payload.text);
-  if (issues.length > 0) return issuesToFailure(issues);
+  if (issues.length > 0) return issuesToFailure(issues, preview);
 
   return succeed(preview);
 }

@@ -4,6 +4,7 @@ import { INACTIVE_ORDER_STATES } from "@/lib/shipment-flow";
 import { istTodayStart } from "@/lib/ist";
 import { PAID_ORDER_WHERE } from "@/lib/services/admin/paid-orders";
 import type { OrderStatus } from "@/prisma/generated/client/client";
+import { skuForDisplay } from "@/lib/retired-sku";
 
 /**
  * The dispatcher's screen.
@@ -182,7 +183,7 @@ export async function getOpsToday(now: Date = new Date()): Promise<OpsToday> {
     queueCounts,
     lowStock: lowStock.map((i) => ({
       variantId: i.variantId,
-      sku: i.variant.sku,
+      sku: skuForDisplay(i.variant.sku),
       productTitle: i.variant.product.title,
       warehouseName: i.warehouse.name,
       qtyOnHand: i.qtyOnHand,

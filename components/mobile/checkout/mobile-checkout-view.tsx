@@ -1,5 +1,6 @@
 "use client";
 
+import { generateIdempotencyKey } from "@/lib/idempotency-key";
 import { UnpinnedAddressNotice, hasMapPin } from "@/components/location/unpinned-address-notice";
 import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/payment-window";
 import React, { useState, useEffect, useRef, useTransition } from "react";
@@ -54,13 +55,6 @@ const LABEL_DISPLAY: Record<string, string> = {
   office: "Work",
   home: "Home",
   other: "Other",
-};
-
-const generateUUID = () => {
-  if (typeof window !== "undefined" && window.crypto && window.crypto.randomUUID) {
-    return window.crypto.randomUUID();
-  }
-  return Math.random().toString(36).substring(2) + Date.now().toString(36);
 };
 
 export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutViewProps) {
@@ -126,7 +120,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
   const [wantsExpress, setWantsExpress] = useState(false);
 
   // Idempotency key stable for retry
-  const idempotencyKey = useRef<string>(generateUUID());
+  const idempotencyKey = useRef<string>(generateIdempotencyKey());
 
   const selected = addresses.find((a) => a.id === selectedAddressId);
   const { pincode: chosenPincode, city: chosenCity, place: chosenPlace } = useDeliveryPincode();
