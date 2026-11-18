@@ -6,6 +6,7 @@ import { getClientIp, rateLimit } from "@/lib/services/rate-limit";
 import { completeSignInCart, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
 import { cookies } from "next/headers";
 import { log } from "@/lib/observability";
+import { sessionRequestRefusal } from "@/lib/auth/session-request";
 
 /**
  * Exchanges a Firebase ID token for an httpOnly session cookie, and clears it
@@ -19,16 +20,15 @@ import { log } from "@/lib/observability";
  * The cookie is httpOnly so client script cannot read it, which is what stops a
  * cross-site script from lifting a two-week session.
  *
- * ON CSRF. There is no CSRF token, and it would add nothing. The cookie is
- * SameSite=Lax, and this route sends no CORS headers — so a cross-origin POST
- * of `application/json` fails its preflight and never reaches the handler. The
- * protection is structural rather than a shared secret, which is worth knowing
- * if anyone ever adds permissive CORS here: that single change would open
- * login-CSRF, where an attacker signs a victim into the attacker's account.
+ * ON CSRF. Both mutations require a matching Origin. POST also requires JSON:
+ * request.json() alone accepts text/plain form bodies and does not prevent
+ * login CSRF. Refuse before token verification, cart writes or cookie changes.
  */
 const bodySchema = z.object({ idToken: z.string().min(1).max(4096) });
 
 export async function POST(request: Request) {
+  const refusal = sessionRequestRefusal(request);
+  if (refusal) return NextResponse.json({ ok: false }, { status: refusal });
   /**
    * Token verification is cheap but not free, and this route is unauthenticated
    * by definition — anyone can call it. The bucket is per-IP because there is
@@ -101,6 +101,8 @@ export async function POST(request: Request) {
  * whether a session existed.
  */
 export async function DELETE(request: Request) {
+  const refusal = sessionRequestRefusal(request);
+  if (refusal) return NextResponse.json({ ok: false }, { status: refusal });
   const scope = new URL(request.url).searchParams.get("scope");
 
   if (scope === "all") {
