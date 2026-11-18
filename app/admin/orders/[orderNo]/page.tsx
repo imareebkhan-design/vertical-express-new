@@ -16,6 +16,9 @@ import { ExpressRunBadge, OrderExpressSelection } from "@/components/orders/expr
 import { ReturnIntake } from "@/components/admin/returns/return-intake";
 import { RETURN_STATUS_LABEL } from "@/lib/return-flow";
 import { pinPincodeCheck } from "@/lib/location/address-pin";
+import { CheckPaymentButton } from "@/components/admin/check-payment-button";
+import { canCheckPayment } from "@/lib/admin-payment-check";
+import { adminCheckOrderPayment } from "@/actions/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -229,6 +232,9 @@ export default async function AdminOrderDetail({
             <p className="mt-2 text-[11px] font-semibold text-ink-500">
               Payment status is set only by Razorpay (verified signature or webhook) — never by hand.
             </p>
+            {/* B-4: a paid order whose callback and webhook never arrived can be
+                confirmed by asking Razorpay, instead of waiting for the expiry job. */}
+            {canCheckPayment(order) && <CheckPaymentButton orderId={order.id} check={adminCheckOrderPayment} />}
           </Panel>
 
           <Panel title={`Shipments${liveShipments.length > 1 ? ` · ${liveShipments.length}` : ""}`} right={<StatusChip tone={FULFILMENT_TONE[ful]}>{FUL_LABEL[ful]}</StatusChip>}>
