@@ -101,3 +101,21 @@ test("a product that already has a primary picture from elsewhere is not overrid
   assert.equal(imgs.length, 1);
   assert.equal(imgs[0].url, "/placeholder-product.webp");
 });
+
+test("concurrent imports cannot both claim the last photo slot", async () => {
+  const slug = `${P}-b`;
+  const fillers = Array.from({ length: 29 }, (_, i) => item(slug, {
+    isPrimary: false,
+    sha256: i.toString(16).padStart(64, "0"),
+    url: `${BASE}/products/${slug}/filler-${i}.webp`,
+  }));
+  assert.equal((await applyImageImport(fillers, BASE, { id: null })).ok, true);
+  const results = await Promise.all(["a", "b"].map((hash) => applyImageImport(
+    [item(slug, { isPrimary: false, sha256: sha(hash), url: `${BASE}/products/${slug}/${hash}.webp` })],
+    BASE,
+    { id: null },
+  )));
+  assert.deepEqual(results.map((result) => result.ok).sort(), [false, true]);
+  assert.match(results.find((result) => !result.ok)!.plan.conflicts[0].reason, /would exceed 30 photos/);
+  assert.equal((await images(slug)).length, 30);
+});

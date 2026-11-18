@@ -2,6 +2,8 @@ import "server-only";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
 
+export const MAX_PHOTOS_PER_PRODUCT = 30;
+
 /**
  * Attaching prepared product photographs (Task 6).
  *
@@ -68,7 +70,12 @@ export function itemProblem(item: ImagePlanItem, imageBase: string, opts: { requ
   return null;
 }
 
-export async function planImageImport(items: ImagePlanItem[], imageBase: string, opts: { requireSource?: boolean } = {}): Promise<ImageImportPlan> {
+export async function planImageImport(
+  items: ImagePlanItem[],
+  imageBase: string,
+  opts: { requireSource?: boolean } = {},
+  client: Pick<typeof db, "product"> = db,
+): Promise<ImageImportPlan> {
   const plan: ImageImportPlan = { attach: [], already: [], missingProducts: [], invalid: [], conflicts: [] };
   if (!/^https:\/\//.test(imageBase)) throw new Error("imageBase must be an https URL");
 
@@ -79,7 +86,7 @@ export async function planImageImport(items: ImagePlanItem[], imageBase: string,
     else bySlug.set(it.slug, [...(bySlug.get(it.slug) ?? []), it]);
   }
 
-  const products = await db.product.findMany({
+  const products = await client.product.findMany({
     where: { slug: { in: [...bySlug.keys()] } },
     select: { id: true, slug: true, images: { select: { sha256: true, isPrimary: true } } },
   });
@@ -102,6 +109,10 @@ export async function planImageImport(items: ImagePlanItem[], imageBase: string,
     const existing = new Set(product.images.map((i) => i.sha256).filter((s): s is string => !!s));
     const foreignPrimary = product.images.some((i) => i.isPrimary && (!i.sha256 || !its.some((x) => x.sha256 === i.sha256)));
     const fresh = its.filter((i) => !existing.has(i.sha256));
+    if (fresh.length && product.images.length + fresh.length > MAX_PHOTOS_PER_PRODUCT) {
+      plan.conflicts.push({ slug, reason: `Product already has or would exceed ${MAX_PHOTOS_PER_PRODUCT} photos` });
+      continue;
+    }
     if (fresh.some((i) => i.isPrimary) && foreignPrimary) {
       plan.conflicts.push({ slug, reason: "product already has a primary image from elsewhere" });
       continue;
@@ -116,14 +127,16 @@ export async function planImageImport(items: ImagePlanItem[], imageBase: string,
 
 /** Applies a plan only if it is free of invalid items, missing products and conflicts. */
 export async function applyImageImport(items: ImagePlanItem[], imageBase: string, actor: { id: string | null }, opts: { requireSource?: boolean } = {}) {
-  const plan = await planImageImport(items, imageBase, opts);
-  if (plan.invalid.length || plan.missingProducts.length || plan.conflicts.length) {
-    return { ok: false as const, plan };
-  }
-  const byProduct = new Map<string, typeof plan.attach>();
-  for (const a of plan.attach) byProduct.set(a.productId, [...(byProduct.get(a.productId) ?? []), a]);
+  return db.$transaction(async (tx) => {
+    const slugs = [...new Set(items.map((item) => item.slug))];
+    await tx.$queryRaw`SELECT id FROM products WHERE slug = ANY(${slugs}::text[]) ORDER BY id FOR UPDATE`;
+    const plan = await planImageImport(items, imageBase, opts, tx);
+    if (plan.invalid.length || plan.missingProducts.length || plan.conflicts.length) {
+      return { ok: false as const, plan };
+    }
+    const byProduct = new Map<string, typeof plan.attach>();
+    for (const a of plan.attach) byProduct.set(a.productId, [...(byProduct.get(a.productId) ?? []), a]);
 
-  await db.$transaction(async (tx) => {
     for (const [productId, imgs] of byProduct) {
       await tx.productImage.createMany({
         data: imgs.map((i) => ({
@@ -148,6 +161,6 @@ export async function applyImageImport(items: ImagePlanItem[], imageBase: string
         after: { images: imgs.map((i) => ({ sha256: i.sha256, isPrimary: i.isPrimary, licence: i.licence })) },
       });
     }
-  }, { timeout: 120_000 });
-  return { ok: true as const, plan, attached: plan.attach.length, products: byProduct.size };
+    return { ok: true as const, plan, attached: plan.attach.length, products: byProduct.size };
+  }, { timeout: 120_000, isolationLevel: "ReadCommitted" });
 }

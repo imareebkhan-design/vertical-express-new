@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
-import { applyImageImport, itemProblem } from "@/lib/services/admin/product-image-import";
+import { applyImageImport, itemProblem, MAX_PHOTOS_PER_PRODUCT } from "@/lib/services/admin/product-image-import";
+export { MAX_PHOTOS_PER_PRODUCT } from "@/lib/services/admin/product-image-import";
 
 /**
  * Product photos from the console (handover, 19 Oct 2026).
@@ -25,8 +26,6 @@ import { applyImageImport, itemProblem } from "@/lib/services/admin/product-imag
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export const MIN_IMAGE_EDGE = 300;
-/** Photos one product may carry. Uploads past it are refused rather than silently dropped. */
-export const MAX_PHOTOS_PER_PRODUCT = 30;
 
 export type ImageKind = { ext: "jpg" | "png" | "webp"; contentType: "image/jpeg" | "image/png" | "image/webp" };
 
@@ -136,8 +135,8 @@ export async function uploadProductImage(
     const reason = applied.plan.conflicts[0]?.reason ?? applied.plan.invalid[0]?.reason ?? "conflict";
     return { ok: false, code: "CONFLICT", detail: reason };
   }
-  const row = await db.productImage.findFirst({ where: { productId: product.id, sha256 }, select: { id: true } });
-  return { ok: true, imageId: row?.id ?? null, alreadyAttached: false, isPrimary };
+  const row = await db.productImage.findFirst({ where: { productId: product.id, sha256 }, select: { id: true, isPrimary: true } });
+  return { ok: true, imageId: row?.id ?? null, alreadyAttached: applied.attached === 0, isPrimary: row?.isPrimary ?? false };
 }
 
 /** Make one of a product's photos the one that leads. Audited. */

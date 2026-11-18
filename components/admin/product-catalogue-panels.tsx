@@ -452,6 +452,7 @@ export function PhotosPanel({
       let already = 0;
       let leadSet = false;
       const failed: string[] = [];
+      const completed: string[] = [];
       /* One at a time: each photo is checked and stored on its own, and the
          first one becomes the lead only if the product has none. */
       for (const [n, file] of files.entries()) {
@@ -471,6 +472,7 @@ export function PhotosPanel({
           if (r.isPrimary) leadSet = true;
           if (r.alreadyAttached) already += 1;
           else uploaded += 1;
+          completed.push(`${file.name}: ${r.alreadyAttached ? "already attached" : "uploaded"}`);
         }
       }
       setProgress(null);
@@ -478,6 +480,7 @@ export function PhotosPanel({
         uploaded ? `${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded. Customers see a photo only once it is approved: the lead photo under “Identity and photo approval” below, the others with Approve on each photo here.` : null,
         makePrimary && !leadSet && !hasLead ? "No lead photo was set. Choose Make lead on one of the photos." : null,
         already ? `${already} ${already === 1 ? "was" : "were"} already on this product.` : null,
+        completed.length ? `${completed.join(". ")}.` : null,
         failed.length ? `Not uploaded — ${failed.join("; ")}.` : null,
       ].filter(Boolean);
       setMessage({ ok: failed.length === 0, text: parts.join(" ") });

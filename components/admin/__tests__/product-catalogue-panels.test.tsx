@@ -109,6 +109,7 @@ test("an uploaded photo is reported as awaiting approval, and removal needs a se
   /* The product already has a lead photo, so no upload asks to become one. */
   assert.deepEqual(sent.map((f) => f.get("makePrimary")), ["0", "0"]);
   assert.match(screen.getByRole("status").textContent ?? "", /2 photos uploaded\. Customers see a photo only once it is approved/);
+  assert.match(screen.getByRole("status").textContent ?? "", /front\.jpg: uploaded\. back\.jpg: uploaded\./);
   /* The approval form and checklist on the same page read the new photo. */
   assert.equal(refreshed.length, 1, "the page was not refreshed after the upload");
 
