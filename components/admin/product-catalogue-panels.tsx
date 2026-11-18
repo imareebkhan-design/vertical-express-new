@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ActionResult } from "@/lib/validators";
 
@@ -355,7 +355,8 @@ export interface PhotoRow {
 
 export type SetPrimaryPhoto = (input: { imageId: string }) => Promise<ActionResult<null>>;
 export type RemovePhoto = (input: { imageId: string }) => Promise<ActionResult<{ wasPrimary: boolean }>>;
-export type UploadPhoto = (form: FormData) => Promise<{ ok: boolean; error?: string; alreadyAttached?: boolean }>;
+export type UploadPhoto = (form: FormData) => Promise<{ ok: boolean; error?: string; alreadyAttached?: boolean; isPrimary?: boolean }>;
+export type ApproveExtraPhotos = (input: { productId: string; imageIds: string[] }) => Promise<ActionResult<{ approved: number }>>;
 
 /** Photos one product may carry — the server's MAX_PHOTOS_PER_PRODUCT. */
 export const MAX_PHOTOS = 30;
@@ -364,7 +365,7 @@ export const MAX_PHOTOS = 30;
 export const uploadViaRoute: UploadPhoto = async (form) => {
   try {
     const res = await fetch("/api/admin/product-images", { method: "POST", body: form });
-    return (await res.json()) as { ok: boolean; error?: string; alreadyAttached?: boolean };
+    return (await res.json()) as { ok: boolean; error?: string; alreadyAttached?: boolean; isPrimary?: boolean };
   } catch {
     return { ok: false, error: "The upload did not reach the server" };
   }
@@ -378,6 +379,9 @@ export function PhotosPanel({
   setPrimary,
   remove,
   upload = uploadViaRoute,
+  productId,
+  leadApproved = false,
+  approveExtra,
 }: {
   slug: string;
   photos: PhotoRow[];
@@ -388,6 +392,10 @@ export function PhotosPanel({
   setPrimary: SetPrimaryPhoto;
   remove: RemovePhoto;
   upload?: UploadPhoto;
+  productId?: string;
+  /** The product's identity and lead photo are approved; extra photos may then be approved. */
+  leadApproved?: boolean;
+  approveExtra?: ApproveExtraPhotos;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -397,7 +405,11 @@ export function PhotosPanel({
   const [licence, setLicence] = useState(licences[0] ?? "");
   /* The first photo leads when the product has none yet; that is the usual
      case for a new product, so it starts ticked. */
-  const [makePrimary, setMakePrimary] = useState(!photos.some((p) => p.isPrimary));
+  const hasLead = photos.some((p) => p.isPrimary);
+  const [makePrimary, setMakePrimary] = useState(!hasLead);
+  /* Follow the product: once it has a lead the box no longer applies, and if
+     the lead is removed it applies again. */
+  useEffect(() => setMakePrimary(!hasLead), [hasLead]);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
   const [progress, setProgress] = useState<string | null>(null);
@@ -417,6 +429,7 @@ export function PhotosPanel({
   /** Keep image files only, and no more than the product has room for. */
   const pick = (list: FileList | null) => {
     setMessage(null);
+    if (pending) return;
     const chosen = [...(list ?? [])].filter((f) => /^image\/(jpeg|png|webp)$/.test(f.type));
     const skipped = (list?.length ?? 0) - chosen.length;
     const kept = chosen.slice(0, room);
@@ -437,6 +450,7 @@ export function PhotosPanel({
     start(async () => {
       let uploaded = 0;
       let already = 0;
+      let leadSet = false;
       const failed: string[] = [];
       /* One at a time: each photo is checked and stored on its own, and the
          first one becomes the lead only if the product has none. */
@@ -447,15 +461,22 @@ export function PhotosPanel({
         form.set("slug", slug);
         form.set("alt", alt.trim() ? (files.length > 1 ? `${alt.trim()} (${n + 1})` : alt.trim()) : "");
         form.set("licence", licence);
-        form.set("makePrimary", makePrimary && n === 0 ? "1" : "0");
+        /* Asked of every photo until one becomes the lead: the server makes a
+           photo the lead only while the product has none, so a first photo
+           that fails or was already attached does not leave it without one. */
+        form.set("makePrimary", makePrimary && !leadSet ? "1" : "0");
         const r = await upload(form);
         if (!r.ok) failed.push(`${file.name}: ${r.error ?? "upload failed"}`);
-        else if (r.alreadyAttached) already += 1;
-        else uploaded += 1;
+        else {
+          if (r.isPrimary) leadSet = true;
+          if (r.alreadyAttached) already += 1;
+          else uploaded += 1;
+        }
       }
       setProgress(null);
       const parts = [
-        uploaded ? `${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded. Customers will not see ${uploaded === 1 ? "it" : "them"} until the lead photo is approved under “Identity and photo approval” on this page.` : null,
+        uploaded ? `${uploaded} photo${uploaded === 1 ? "" : "s"} uploaded. Customers see a photo only once it is approved: the lead photo under “Identity and photo approval” below, the others with Approve on each photo here.` : null,
+        makePrimary && !leadSet && !hasLead ? "No lead photo was set. Choose Make lead on one of the photos." : null,
         already ? `${already} ${already === 1 ? "was" : "were"} already on this product.` : null,
         failed.length ? `Not uploaded — ${failed.join("; ")}.` : null,
       ].filter(Boolean);
@@ -487,7 +508,19 @@ export function PhotosPanel({
                 <span className="truncate" title={p.licence ?? undefined}>
                   {p.licence ?? "No licence recorded"}
                 </span>
-                <span className="flex gap-2">
+                <span className="flex flex-wrap gap-x-2">
+                  {!p.isPrimary && !p.approved && leadApproved && approveExtra && productId && (
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => {
+                        run(() => approveExtra({ productId, imageIds: [p.id] }), "Photo approved. Customers see it in the gallery.");
+                      }}
+                      className="font-bold text-ink underline"
+                    >
+                      Approve
+                    </button>
+                  )}
                   {!p.isPrimary && (
                     <button
                       type="button"
@@ -521,6 +554,36 @@ export function PhotosPanel({
           ))}
         </div>
       )}
+      {(() => {
+        const waiting = photos.filter((p) => !p.isPrimary && !p.approved);
+        if (waiting.length === 0) return null;
+        if (!leadApproved || !approveExtra || !productId) {
+          return (
+            <p className="text-[12px] font-medium leading-[17px] text-ink-700">
+              {waiting.length} extra photo{waiting.length === 1 ? " is" : "s are"} waiting. Approve the product and its lead photo
+              under &ldquo;Identity and photo approval&rdquo; first; the extra photos can then be approved here.
+            </p>
+          );
+        }
+        return (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => {
+                run(
+                  () => approveExtra({ productId, imageIds: waiting.map((p) => p.id) }),
+                  `${waiting.length} photo${waiting.length === 1 ? "" : "s"} approved. Customers see ${waiting.length === 1 ? "it" : "them"} in the gallery.`
+                );
+              }}
+              className={primaryButton}
+            >
+              Approve {waiting.length === 1 ? "the extra photo" : `all ${waiting.length} extra photos`}
+            </button>
+            <span className="text-[12px] font-medium text-ink-700">Check each one shows this product before approving.</span>
+          </div>
+        );
+      })()}
       {photos.some((p) => !p.approved) && (
         <p className="text-[12px] font-medium leading-[17px] text-ink-700">
           Making an unapproved photo the lead takes the product out of the shop until that photo is approved.
@@ -547,7 +610,9 @@ export function PhotosPanel({
                   e.preventDefault();
                   setDragging(true);
                 }}
-                onDragLeave={() => setDragging(false)}
+                onDragLeave={() => {
+                  setDragging(false);
+                }}
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
@@ -572,7 +637,10 @@ export function PhotosPanel({
                   accept="image/jpeg,image/png,image/webp"
                   aria-label="Photos from your computer"
                   className="sr-only"
-                  onChange={(e) => pick(e.target.files)}
+                  disabled={pending}
+                  onChange={(e) => {
+                    pick(e.target.files);
+                  }}
                 />
               </label>
               {files.length > 0 && (
