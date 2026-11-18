@@ -1,6 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { INACTIVE_ORDER_STATES } from "@/lib/shipment-flow";
+import { istTodayStart } from "@/lib/ist";
+import { PAID_ORDER_WHERE } from "@/lib/services/admin/paid-orders";
 import type { OrderStatus } from "@/prisma/generated/client/client";
 import { skuForDisplay } from "@/lib/retired-sku";
 
@@ -51,7 +53,15 @@ export interface LowStockItem {
 }
 
 export interface OpsToday {
+  /** Orders placed since the start of the IST day, paid or not. */
   ordersToday: number;
+  /** How many of those are paid and still live. */
+  paidOrdersToday: number;
+  /**
+   * The order totals of `paidOrdersToday`: money that has actually been
+   * captured for orders that still stand. An order awaiting payment, a
+   * cancelled order and a cash-on-delivery order are not in it.
+   */
   revenueTodayPaise: number;
   /** Shipments packed or pending that have not left the warehouse. */
   shipmentsToDispatch: number;
@@ -75,10 +85,10 @@ const KIND_BY_STATUS: Partial<Record<OrderStatus, QueueKind>> = {
   refund_initiated: "refund_pending",
 };
 
-export async function getOpsToday(): Promise<OpsToday> {
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const staleBefore = new Date(Date.now() - STALE_PAYMENT_MINUTES * 60_000);
+/** `now` is injected in tests; the page passes nothing. */
+export async function getOpsToday(now: Date = new Date()): Promise<OpsToday> {
+  const startOfToday = istTodayStart(now);
+  const staleBefore = new Date(now.getTime() - STALE_PAYMENT_MINUTES * 60_000);
 
   const [
     ordersToday,
@@ -90,9 +100,12 @@ export async function getOpsToday(): Promise<OpsToday> {
     codToCollect,
   ] = await Promise.all([
     db.order.count({ where: { placedAt: { gte: startOfToday } } }),
+    /* Paid only (RPT-01). This used to sum every order that was not cancelled,
+       so an order nobody paid for read as revenue. */
     db.order.aggregate({
-      where: { placedAt: { gte: startOfToday }, status: { notIn: ["cancelled", "refunded"] } },
+      where: { placedAt: { gte: startOfToday }, ...PAID_ORDER_WHERE },
       _sum: { totalPaise: true },
+      _count: true,
     }),
     db.order.findMany({
       where: {
@@ -164,6 +177,7 @@ export async function getOpsToday(): Promise<OpsToday> {
     ordersToday,
     shipmentsToDispatch,
     codToCollectPaise: codToCollect._sum.totalPaise ?? 0,
+    paidOrdersToday: revenueToday._count,
     revenueTodayPaise: revenueToday._sum.totalPaise ?? 0,
     queue,
     queueCounts,

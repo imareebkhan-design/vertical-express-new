@@ -1,5 +1,78 @@
 # Known Issues — Vertical Express
 
+## ISS-116 — Reports summed cancelled and unpaid orders, always showed ₹0 refunded, and invented a settlement figure
+
+**Status:** FIXED on `claude/reports-paid-figures` (roadmap C-8, money figures; 16 Nov 2026); review pending.
+**Severity:** P2 (figures an owner or accountant would quote). **Found:** 14 Nov 2026 audit (RPT-02, PAY-14, console finding U-7).
+
+`/admin/bi` computed gross sales, GST collected, delivery income, discounts, product and
+customer revenue over every order in the period, so cancelled orders and orders nobody
+paid for were in all of them. Refunds were read from the order statuses `refunded` and
+`refund_initiated`, which nothing sets, so they were always zero and "Cash Flow" was net
+sales less zero. `gatewaySettlementPaise` was net sales × 0.98, a fee nobody agreed with
+Razorpay. "Export CSV" handed over the sales file on the Marketing and Operations tabs.
+The payment filter offered "Dummy".
+
+**Fix.** Money is summed over paid orders, by the rule Today uses
+(`lib/services/admin/paid-orders.ts`): sales, GST, delivery, discounts, the daily series,
+products sold, customer spend, warehouse value and the growth comparison. Net sales is the
+total the paid orders were charged. Order counts, status counts, timings and activity
+charts still describe every order placed. Refunds are processed `payment_refunds` rows in
+the period. Cash flow is payments captured in the period less refunds processed in it,
+both dated by row creation like the Payments ledger export (neither table records a separate
+capture or processing time), and both honouring every order filter, customer type included:
+the new/returning cohort is resolved to user ids in the order query, not filtered in memory
+after it. The date range is whole IST days: "to 18 Nov" runs to 23:59:59.999 IST
+(`istDayEnd`), where it used to stop at 5:30 AM. The settlement figure is `null`. The daily series is keyed by IST day. The export
+button names the file it gives and is absent on tabs with no export; "Dummy" is gone from
+the filter; the Sales tab shows net sales and refunds processed.
+Tests: `lib/services/admin/__tests__/bi-money.test.ts`; the net-sales identity in
+`bi.test.ts` is rewritten deliberately.
+
+**Still open.** An order whose payment was refunded still reads "Cancelled" as its status
+(the payment badge does say refunded); a "Refunded" order state is owner policy with
+refund-after-delivery (roadmap B-5). "Most returned" is still fed by an order status
+nothing sets. Coupon usage on the Marketing tab still counts unpaid orders. Cash on
+delivery is not in any money figure, as on Today.
+
+## ISS-115 — Today counted unpaid orders as revenue, started the day at the server's midnight, and said nothing about money owed back
+
+**Status:** FIXED on `claude/today-paid-revenue` (roadmap B-2, 16 Nov 2026); review pending.
+**Severity:** Launch blocker (the first screen an operator opens stated money wrongly). **Found:** 14 Nov 2026 audit (RPT-01, RPT-03, CUS-02).
+
+Three defects on figures an operator reads without checking:
+
+1. **Unpaid orders were revenue.** "Orders today" showed the sum of every order placed
+   today that was not cancelled, so an order waiting for payment, or abandoned at the
+   gateway, was in the figure. Customer "lifetime value" on `/admin/customers` and the
+   customer page was summed the same way.
+2. **"Today" was the server's day.** The boundary was `setHours(0,0,0,0)` on the host
+   clock. On a UTC host that is 5:30 AM in Srinagar, so the figure dropped everything sold
+   before 5:30 AM and kept the previous evening. "Captured today" on Payments had the same
+   boundary.
+3. **Money owed back was only on Payments.** A capture on a cancelled order (including one
+   that arrived after the order expired), a second capture on a paid order, and a refund
+   that failed were not in the Today exceptions list.
+
+**Fix.** One rule for "paid", in `lib/services/admin/paid-orders.ts`: a payment on the
+order is captured and the order is not cancelled, refund-initiated or refunded. Today's
+figure and customer value sum only those orders, each once at its own total (a second
+capture is a refund owed, not revenue). The card now reads "₹X paid on N of them". The
+day boundary is the IST day (`istTodayStart` in `lib/ist.ts`) on Today and on Payments,
+the same boundary the ledger export uses. The exceptions list gains three entries, read
+through the functions the Payments screen uses (`listCapturedPaymentsOnDeadOrders`,
+`listDuplicateCaptures`) so the two screens cannot disagree, plus a count of payments
+whose refund failed with nothing newer in flight. The customer order count and
+last-order date are unchanged: they describe orders placed.
+Tests: `lib/services/__tests__/today-money.test.ts`.
+
+**Not counted, deliberately.** A cash-on-delivery order is never "paid" here, because no
+row records cash being handed over. COD is switched off; if the owner turns it on, a
+collection record is needed before COD can appear in revenue.
+
+**Still open.** A late capture is not listed separately from other
+captures on cancelled orders: both are the same state and the same remedy.
+
 ## ISS-114 — A product added from the dashboard could never be approved, so never published
 
 **Status:** FIXED (catalogue admin workflow, 17 Nov 2026). **Severity:** High for launch.

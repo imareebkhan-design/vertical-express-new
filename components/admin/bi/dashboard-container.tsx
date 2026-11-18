@@ -114,16 +114,20 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
           >
             PDF / Print
           </button>
-          <button
-            onClick={() => {
-              if (activeTab === "inventory") handleExportInventory();
-              else if (activeTab === "customers") handleExportCustomers();
-              else handleExportSales();
-            }}
-            className="inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
-          >
-            Export CSV
-          </button>
+          {/* Marketing and Operations have no export of their own. The button
+              used to hand over the sales file on those tabs, under their name. */}
+          {activeTab !== "marketing" && activeTab !== "operations" && (
+            <button
+              onClick={() => {
+                if (activeTab === "inventory") handleExportInventory();
+                else if (activeTab === "customers") handleExportCustomers();
+                else handleExportSales();
+              }}
+              className="inline-flex items-center rounded-full bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-700 transition-colors"
+            >
+              {activeTab === "inventory" ? "Export stock CSV" : activeTab === "customers" ? "Export customers CSV" : "Export sales CSV"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -215,7 +219,6 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               <option value="">All Methods</option>
               <option value="razorpay">Razorpay</option>
               <option value="cod">COD</option>
-              <option value="dummy">Dummy</option>
             </select>
           </div>
 
@@ -321,7 +324,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               <KpiCard
                 label="Orders count"
                 value={initialData.sales.ordersCount}
-                subValue={`AOV: ${formatPaise(initialData.sales.aovPaise)}`}
+                subValue={`${initialData.sales.paidOrdersCount} paid · average ${formatPaise(initialData.sales.aovPaise)}`}
                 color="emerald"
               />
               <KpiCard
@@ -426,11 +429,18 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
         {/* --- SALES & FINANCE TAB --- */}
         {activeTab === "sales" && (
           <>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+              <KpiCard label="Net Sales (paid orders)" value={formatPaise(initialData.sales.netSalesPaise)} color="blue" />
               <KpiCard label="GST Collected" value={formatPaise(initialData.sales.gstPaise)} color="amber" />
               <KpiCard label="Discounts Given" value={formatPaise(initialData.sales.discountsPaise)} color="rose" />
+              <KpiCard label="Refunds Processed" value={formatPaise(initialData.finance.refundsPaise)} color="rose" />
               <KpiCard label="Wallet Liability" value={formatPaise(initialData.finance.walletLiabilityPaise)} color="violet" />
-              <KpiCard label="Cash Flow" value={formatPaise(initialData.finance.cashFlowPaise)} color="emerald" />
+              <KpiCard
+                label="Cash Flow"
+                value={formatPaise(initialData.finance.cashFlowPaise)}
+                subValue="captured less refunded"
+                color="emerald"
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -541,7 +551,7 @@ export function DashboardContainer({ initialData }: { initialData: BiDashboardDa
               <KpiCard label="LTV Average" value={formatPaise(initialData.customers.ltvAvgPaise)} color="blue" />
               <KpiCard label="New Signups" value={initialData.customers.newCount} color="emerald" />
               <KpiCard label="Returning Customers" value={initialData.customers.returningCount} color="violet" />
-              <KpiCard label="Wallet Transactions Value" value={formatPaise(initialData.customers.walletUsagePaise)} color="amber" />
+              <KpiCard label="Paid Order Value" value={formatPaise(initialData.customers.walletUsagePaise)} color="amber" />
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

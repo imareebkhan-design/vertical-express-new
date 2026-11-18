@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
 import { SETTING_KEYS, parseFlag, readSettings } from "@/lib/services/settings";
 import { countPaymentExceptions } from "@/lib/services/payment-exceptions";
+import { listCapturedPaymentsOnDeadOrders, listDuplicateCaptures } from "@/lib/services/checkout";
 
 /**
  * What is wrong right now — the "Exceptions" panel of artboard 1.
@@ -34,7 +35,17 @@ export interface OpsExceptions {
 }
 
 export async function getOpsExceptions(): Promise<OpsExceptions> {
-  const [settings, outOfStock, lowStock, staleOrders, pincodeCount, paymentExceptions] = await Promise.all([
+  const [
+    settings,
+    outOfStock,
+    lowStock,
+    staleOrders,
+    pincodeCount,
+    paymentExceptions,
+    onDeadOrders,
+    secondCaptures,
+    failedRefunds,
+  ] = await Promise.all([
     readSettings(),
     db.inventory.count({ where: { qtyOnHand: { lte: 0 } } }),
     /* At or below the reorder point but not yet empty — the window in which
@@ -50,6 +61,18 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
     }),
     db.serviceablePincode.count({ where: SERVICEABLE_WHERE }),
     countPaymentExceptions(),
+    /* The two halves of "Refund required" on Payments, read through the same
+       functions that screen uses so the two cannot show different numbers. */
+    listCapturedPaymentsOnDeadOrders(),
+    listDuplicateCaptures(),
+    /* Money still held after a refund attempt failed and nothing newer is in
+       flight. A payment whose retry went through is `refunded` and drops out. */
+    db.payment.count({
+      where: {
+        status: "captured",
+        refunds: { some: { status: "failed" }, none: { status: { in: ["requested", "pending"] } } },
+      },
+    }),
   ]);
 
   const found: OpsException[] = [];
@@ -82,6 +105,42 @@ export async function getOpsExceptions(): Promise<OpsExceptions> {
         "Razorpay captured money that matches no order here, or in a different amount " +
         "from what the order expects. Nothing settles or refunds these automatically.",
       href: "/admin/payments#needs-investigation",
+    });
+  }
+
+  /* Money that has to go back (RPT-03). These lived only on the Payments
+     screen, so an operator who opened the console on Today was not told. */
+  if (onDeadOrders.length > 0) {
+    const n = onDeadOrders.length;
+    found.push({
+      severity: "bad",
+      title: `${n} ${n === 1 ? "payment was" : "payments were"} captured on a cancelled order`,
+      detail:
+        "The customer's money was taken and the order is not going ahead. That includes " +
+        "a payment that arrived after its order had expired. Each one is owed back and " +
+        "stays on Payments under Refund required until its refund is processed.",
+      href: "/admin/payments#refund-required",
+    });
+  }
+  if (secondCaptures.length > 0) {
+    const n = secondCaptures.length;
+    found.push({
+      severity: "bad",
+      title: `${n} ${n === 1 ? "order was" : "orders were"} paid for more than once`,
+      detail:
+        "A second payment was captured for an order that was already paid. The order " +
+        "stands; the extra payment is owed back and is on Payments under Refund required.",
+      href: "/admin/payments#refund-required",
+    });
+  }
+  if (failedRefunds > 0) {
+    found.push({
+      severity: "bad",
+      title: `${failedRefunds} ${failedRefunds === 1 ? "refund has" : "refunds have"} failed`,
+      detail:
+        "The refund did not go through and the customer's money is still held. " +
+        "The reason is on Payments under Refunds; the payment can be refunded again from there.",
+      href: "/admin/payments#refunds",
     });
   }
 
