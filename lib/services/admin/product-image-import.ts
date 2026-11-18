@@ -41,7 +41,13 @@ export interface ImageImportPlan {
 
 const SHA = /^[0-9a-f]{64}$/;
 
-export function itemProblem(item: ImagePlanItem, imageBase: string): string | null {
+/**
+ * `requireSource`: an imported image is somebody else's picture, so where it
+ * came from must be recorded. A photo the operator uploads from their own
+ * computer has no such link — the upload is its provenance, and the audit row
+ * records who made it — so the dashboard passes false.
+ */
+export function itemProblem(item: ImagePlanItem, imageBase: string, opts: { requireSource?: boolean } = {}): string | null {
   if (!item.slug) return "missing slug";
   let url: URL;
   try {
@@ -53,7 +59,8 @@ export function itemProblem(item: ImagePlanItem, imageBase: string): string | nu
   if (!item.url.startsWith(imageBase.replace(/\/?$/, "/"))) return "url is not under the configured image host";
   if (!item.alt?.trim()) return "missing alt text";
   if (!item.licence?.trim()) return "missing licence";
-  if (!item.sourceUrl?.startsWith("https://")) return "missing https source URL";
+  if (opts.requireSource !== false && !item.sourceUrl?.startsWith("https://")) return "missing https source URL";
+  if (item.sourceUrl && !item.sourceUrl.startsWith("https://")) return "source URL must be https";
   for (const [k, v] of [["width", item.width], ["height", item.height], ["sortOrder", item.sortOrder]] as const) {
     if (!Number.isInteger(v) || v < (k === "sortOrder" ? 0 : 1)) return `bad ${k}`;
   }
@@ -61,13 +68,13 @@ export function itemProblem(item: ImagePlanItem, imageBase: string): string | nu
   return null;
 }
 
-export async function planImageImport(items: ImagePlanItem[], imageBase: string): Promise<ImageImportPlan> {
+export async function planImageImport(items: ImagePlanItem[], imageBase: string, opts: { requireSource?: boolean } = {}): Promise<ImageImportPlan> {
   const plan: ImageImportPlan = { attach: [], already: [], missingProducts: [], invalid: [], conflicts: [] };
   if (!/^https:\/\//.test(imageBase)) throw new Error("imageBase must be an https URL");
 
   const bySlug = new Map<string, ImagePlanItem[]>();
   for (const it of items) {
-    const problem = itemProblem(it, imageBase);
+    const problem = itemProblem(it, imageBase, opts);
     if (problem) plan.invalid.push({ slug: it.slug, reason: problem });
     else bySlug.set(it.slug, [...(bySlug.get(it.slug) ?? []), it]);
   }
@@ -108,8 +115,8 @@ export async function planImageImport(items: ImagePlanItem[], imageBase: string)
 }
 
 /** Applies a plan only if it is free of invalid items, missing products and conflicts. */
-export async function applyImageImport(items: ImagePlanItem[], imageBase: string, actor: { id: string | null }) {
-  const plan = await planImageImport(items, imageBase);
+export async function applyImageImport(items: ImagePlanItem[], imageBase: string, actor: { id: string | null }, opts: { requireSource?: boolean } = {}) {
+  const plan = await planImageImport(items, imageBase, opts);
   if (plan.invalid.length || plan.missingProducts.length || plan.conflicts.length) {
     return { ok: false as const, plan };
   }
@@ -125,7 +132,7 @@ export async function applyImageImport(items: ImagePlanItem[], imageBase: string
           alt: i.alt,
           sortOrder: i.sortOrder,
           isPrimary: i.isPrimary,
-          sourceUrl: i.sourceUrl,
+          sourceUrl: i.sourceUrl || null,
           licence: i.licence,
           width: i.width,
           height: i.height,
