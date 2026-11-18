@@ -197,3 +197,65 @@ export async function removeProductImage(
     return { ok: true as const, wasPrimary: image.isPrimary };
   });
 }
+
+export type ApproveExtraResult =
+  | { ok: true; approved: number }
+  | { ok: false; code: "NOT_FOUND" | "LEAD_NOT_APPROVED" | "INVALID"; detail?: string };
+
+/**
+ * Approve photos other than the lead, so customers see them in the gallery.
+ *
+ * The storefront shows each photo only once it is approved
+ * (`approvedImageWhere`), and the identity decision — is this exactly the
+ * product its name says — is recorded on the lead photo. An extra photo is
+ * approved only after that decision, by a named operator, one audit row per
+ * call listing every photo approved. Changing a photo's file, source or
+ * licence later clears its approval (trigger `invalidate_catalogue_image_review`).
+ */
+export async function approveExtraPhotos(
+  productId: string,
+  imageIds: readonly string[],
+  actor: { id: string; email: string }
+): Promise<ApproveExtraResult> {
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: {
+        identityConfirmed: true,
+        identityApprovedAt: true,
+        images: { select: { id: true, isPrimary: true, sha256: true, identityApproved: true, approvalStatus: true } },
+      },
+    });
+    if (!product) return { ok: false as const, code: "NOT_FOUND" as const };
+    const lead = product.images.find((i) => i.isPrimary);
+    if (!product.identityConfirmed || !product.identityApprovedAt || !lead?.identityApproved) {
+      return { ok: false as const, code: "LEAD_NOT_APPROVED" as const };
+    }
+    const wanted = new Set(imageIds);
+    const targets = product.images.filter((i) => wanted.has(i.id));
+    if (targets.length !== wanted.size) return { ok: false as const, code: "NOT_FOUND" as const };
+    if (targets.some((i) => i.isPrimary)) return { ok: false as const, code: "INVALID" as const, detail: "The lead photo is approved with the product's identity, above" };
+    if (targets.some((i) => !i.sha256)) return { ok: false as const, code: "INVALID" as const, detail: "A photo without a checksum cannot be approved; upload it again" };
+    const fresh = targets.filter((i) => !(i.identityApproved && i.approvalStatus === "APPROVED_EXACT"));
+    if (fresh.length === 0) return { ok: true as const, approved: 0 };
+    const now = new Date();
+    const reason = `Extra photo approved on the product page by ${actor.email}`;
+    await tx.productImage.updateMany({
+      where: { id: { in: fresh.map((i) => i.id) }, productId, isPrimary: false },
+      data: {
+        sourceVerified: true, identityApproved: true, approvalStatus: "APPROVED_EXACT", severity: null,
+        approvedAt: now, approvedBy: actor.id, approvalReason: reason,
+      },
+    });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "catalogue.extra_photos_approved",
+      entityType: "product",
+      entityId: productId,
+      after: { imageIds: fresh.map((i) => i.id), by: actor.email },
+    });
+    return { ok: true as const, approved: fresh.length };
+  });
+}

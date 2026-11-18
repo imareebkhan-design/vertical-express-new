@@ -8,6 +8,7 @@ import {
   removeProductImage,
   setPrimaryImage,
   MAX_PHOTOS_PER_PRODUCT,
+  approveExtraPhotos,
   sniffImage,
   uploadProductImage,
   type StoreObject,
@@ -15,6 +16,7 @@ import {
 import { NextRequest } from "next/server";
 import { handleImageUpload, sameOrigin } from "@/lib/services/admin/image-upload-handler";
 import { createApprovedCatalogueFixture } from "@/test-support/catalogue-fixtures";
+import { getProductBySlug } from "@/lib/services/catalog";
 
 /**
  * Photos from the console. An uploaded photo must never be visible before it
@@ -178,4 +180,34 @@ test("a product holds at most 30 photos; the 31st is refused before storage", as
   );
   assert.equal(!r.ok && r.code, "TOO_MANY");
   assert.equal(m.objects.size, 0, "a refused photo was stored");
+});
+
+test("an extra photo reaches the customer gallery only once a named operator approves it, after the lead", async () => {
+  const f = await fixture();
+  const user = await db.user.create({ data: { id: crypto.randomUUID() }, select: { id: true } });
+  cleanups.push(async () => { await db.user.deleteMany({ where: { id: user.id } }); });
+  const actor = { id: user.id, email: "owner@example.test" };
+  const m = memoryStore();
+  const up = await upload(f.product.slug, await png(500, 500, 77), m.store, false);
+  assert.ok(up.ok && up.imageId);
+  if (!up.ok || !up.imageId) return;
+  const gallery = async () => (await getProductBySlug(f.product.slug))?.images.length ?? 0;
+  const before = await gallery();
+
+  /* The lead cannot be approved this way: its approval is the identity decision. */
+  const lead = await db.productImage.findFirstOrThrow({ where: { productId: f.product.id, isPrimary: true }, select: { id: true } });
+  assert.equal((await approveExtraPhotos(f.product.id, [lead.id], actor)).ok, false);
+
+  assert.deepEqual(await approveExtraPhotos(f.product.id, [up.imageId], actor), { ok: true, approved: 1 });
+  assert.equal(await gallery(), before + 1, "the approved extra photo is not in the customer gallery");
+  assert.deepEqual(await approveExtraPhotos(f.product.id, [up.imageId], actor), { ok: true, approved: 0 }, "approving twice wrote twice");
+  const audit = await db.auditLog.findFirst({ where: { entityId: f.product.id, action: "catalogue.extra_photos_approved" }, select: { actorId: true } });
+  assert.equal(audit?.actorId, user.id);
+
+  /* Without the identity decision nothing extra can be approved. */
+  await db.product.update({ where: { id: f.product.id }, data: { identityConfirmed: false, identityApprovedAt: null, identityApprovedBy: null, identityApprovalReason: null } });
+  const up2 = await upload(f.product.slug, await png(500, 500, 88), m.store, false);
+  assert.ok(up2.ok && up2.imageId);
+  if (!up2.ok || !up2.imageId) return;
+  assert.deepEqual(await approveExtraPhotos(f.product.id, [up2.imageId], actor), { ok: false, code: "LEAD_NOT_APPROVED" });
 });

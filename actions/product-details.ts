@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { addVariant, createStockRecords, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
 import { setProductStatus } from "@/lib/services/admin/product-status";
-import { removeProductImage, setPrimaryImage } from "@/lib/services/admin/product-images";
+import { approveExtraPhotos, removeProductImage, setPrimaryImage } from "@/lib/services/admin/product-images";
 import { MIN_REVIEW_REASON, recordCommercialReview } from "@/lib/services/admin/commercial-review";
 import { parseRupeeInput } from "@/lib/money";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
@@ -206,4 +206,22 @@ export async function adminSetProductStatus(input: unknown): Promise<ActionResul
   }
   await revalidateProduct(parsed.data.productId);
   return succeed({ changed: r.changed });
+}
+
+const extraSchema = z.object({ productId: z.uuid(), imageIds: z.array(z.uuid()).min(1).max(30) });
+
+/** Approve non-lead photos for the customer gallery (lib/services/admin/product-images.ts). */
+export async function adminApproveExtraPhotos(input: unknown): Promise<ActionResult<{ approved: number }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = extraSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", "Those details are not valid");
+  const r = await approveExtraPhotos(parsed.data.productId, parsed.data.imageIds, { id: admin.id, email: admin.email });
+  if (!r.ok) {
+    if (r.code === "LEAD_NOT_APPROVED") return fail("CONFLICT", "Approve the product and its lead photo first, under “Identity and photo approval”.");
+    if (r.code === "NOT_FOUND") return fail("NOT_FOUND", "Photo not found on this product");
+    return fail("VALIDATION", r.detail ?? "That photo cannot be approved");
+  }
+  await revalidateProduct(parsed.data.productId);
+  return succeed({ approved: r.approved });
 }
