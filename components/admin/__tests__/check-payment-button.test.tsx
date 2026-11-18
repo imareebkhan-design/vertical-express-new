@@ -73,7 +73,7 @@ void test("the answer stays on screen when the refreshed page no longer offers t
 
 void test("not available and nothing said yet: nothing is rendered", () => {
   const { container } = RTL.render(<CheckPaymentButton orderId={ORDER} check={answer("paid")} available={false} />);
-  assert.equal(container.innerHTML, "");
+  assert.equal(container.firstChild, null, "the component renders nothing");
 });
 
 void test("a lost connection does not pretend to know the answer", async () => {
