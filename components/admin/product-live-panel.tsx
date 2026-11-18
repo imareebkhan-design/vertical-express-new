@@ -204,7 +204,7 @@ export function ProductLivePanel({
 
 /* ------------------------------------------------------------ stock record */
 
-export type CreateStockRecord = (input: { variantId: string; warehouseId: string }) => Promise<ActionResult<{ created: boolean }>>;
+export type CreateStockRecord = (input: { variantIds: string[]; warehouseId: string }) => Promise<ActionResult<{ created: number }>>;
 
 /** A first stock record, at zero, for packs that have none. Quantities are counted in on Inventory. */
 export function StockRecordPanel({
@@ -254,12 +254,11 @@ export function StockRecordPanel({
             onClick={() => {
               setMessage(null);
               start(async () => {
-                for (const v of variants) {
-                  const r = await create({ variantId: v.id, warehouseId });
-                  if (!r.ok) {
-                    setMessage({ ok: false, text: r.error.message });
-                    return;
-                  }
+                /* All packs in one transaction: either every record is made or none. */
+                const r = await create({ variantIds: variants.map((v) => v.id), warehouseId });
+                if (!r.ok) {
+                  setMessage({ ok: false, text: r.error.message });
+                  return;
                 }
                 setMessage({ ok: true, text: "Stock record created at zero." });
                 router.refresh();
@@ -353,6 +352,9 @@ export function ProductApprovalPanel({
               </p>
             )}
             <ApprovalForm
+              /* A different photo is a different decision: nothing chosen
+                 for the old photo carries over to the new one. */
+              key={`${photo.id}:${photo.sha256}`}
               productId={productId}
               imageId={photo.id}
               sha256={photo.sha256}

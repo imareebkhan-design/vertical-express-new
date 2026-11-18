@@ -4,6 +4,8 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import type { DbClient } from "@/lib/services/audit";
 import { QA_FIXTURE_PREFIX } from "@/lib/catalog/qa-fixture-ids";
+import { publicProductWhere } from "@/lib/catalog-policy";
+import { retiredSku } from "@/lib/retired-sku";
 
 /**
  * A one-time reset of the previous catalogue — planned, applied, and undone.
@@ -88,6 +90,12 @@ export interface ResetEntry {
   references: ResetReferences;
   action: ResetAction;
   reason: string;
+  /**
+   * md5 of the product row, its packs, photos, stock records and express
+   * pincodes as read. Part of the digest, so any edit to the product between
+   * the manifest and the apply — a price, a photo, a status — refuses the apply.
+   */
+  state: string;
   /** Retire only: what the web address and item codes become. */
   retiredSlug?: string;
   retiredSkus?: Record<string, string>;
@@ -97,12 +105,31 @@ export interface PreservedCounts {
   [table: string]: number;
 }
 
+/** Content hash of each table the reset must not change (the audit log excluded: it may only grow). */
+export interface PreservedContent {
+  [table: string]: string;
+}
+
+/**
+ * Which database this is, as precisely as the connection can say: the host and
+ * port it answers on, the database name it reports, and its Supabase project
+ * ref when it has one. Two local clones differ by name; two projects by ref.
+ */
+export interface DatabaseIdentity {
+  id: string;
+  ref: string;
+  database: string;
+}
+
 export interface ResetPlan {
   cutoff: string;
   tag: string;
   entries: ResetEntry[];
   summary: Record<ResetAction, number>;
   preserved: PreservedCounts;
+  preservedContent: PreservedContent;
+  /** Products that customers will still see once the reset is applied — should be only the launch catalogue. */
+  remainingVisible: { id: string; slug: string; title: string; status: string; why: string }[];
   /** sha256 over the entries. The apply step needs exactly this value. */
   digest: string;
 }
@@ -145,6 +172,7 @@ interface Row {
   audit_rows: number;
   range_imported: boolean;
   listed_from_console: boolean;
+  state: string;
 }
 
 async function readRows(client: DbClient, cutoff: Date): Promise<{ rows: Row[]; after: number }> {
@@ -173,7 +201,14 @@ async function readRows(client: DbClient, cutoff: Date): Promise<{ rows: Row[]; 
       (SELECT count(*)::int FROM wishlist_items w WHERE w.product_id = p.id) AS wishlist,
       (SELECT count(*)::int FROM audit_logs a WHERE a.entity_id = p.id::text) AS audit_rows,
       EXISTS (SELECT 1 FROM audit_logs a WHERE a.entity_id = p.id::text AND a.action = 'catalogue.range_imported') AS range_imported,
-      EXISTS (SELECT 1 FROM audit_logs a WHERE a.entity_id = p.id::text AND a.action = 'catalog.product_listed') AS listed_from_console
+      EXISTS (SELECT 1 FROM audit_logs a WHERE a.entity_id = p.id::text AND a.action = 'catalog.product_listed') AS listed_from_console,
+      md5(concat_ws('|',
+        (SELECT row_to_json(x)::text FROM products x WHERE x.id = p.id),
+        (SELECT string_agg(row_to_json(v)::text, ',' ORDER BY v.id) FROM product_variants v WHERE v.product_id = p.id),
+        (SELECT string_agg(row_to_json(i)::text, ',' ORDER BY i.id) FROM product_images i WHERE i.product_id = p.id),
+        (SELECT string_agg(row_to_json(n)::text, ',' ORDER BY n.id) FROM inventory n JOIN product_variants v ON v.id = n.variant_id WHERE v.product_id = p.id),
+        (SELECT string_agg(row_to_json(e)::text, ',' ORDER BY e.id) FROM product_express_pincodes e WHERE e.product_id = p.id)
+      )) AS state
     FROM products p
     WHERE p.created_at < ${cutoff}
     ORDER BY p.created_at, p.slug`;
@@ -181,7 +216,7 @@ async function readRows(client: DbClient, cutoff: Date): Promise<{ rows: Row[]; 
   return { rows, after: n };
 }
 
-function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string): ResetEntry {
+function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string, cutoff: Date): ResetEntry {
   const references: ResetReferences = {
     orderLines: r.order_lines, openOrderLines: r.open_order_lines, refundsOnTheseOrders: r.refunds,
     returnLines: r.return_lines, shipmentLines: r.shipment_lines, stockMovements: r.movements,
@@ -201,7 +236,7 @@ function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string): ResetEnt
           : ["unknown", "no import record; created before the cutoff"];
   const base = {
     id: r.id, slug: r.slug, title: r.title, status: r.status, createdAt: r.created_at.toISOString(),
-    skus: r.skus, source, identifiedBy, references,
+    skus: r.skus, source, identifiedBy, references, state: r.state,
   };
 
   if (r.status === "archived" && r.slug.includes("--legacy-")) {
@@ -231,7 +266,7 @@ function classify(r: Row, seedSlugs: ReadonlySet<string>, tag: string): ResetEnt
       ...base, action: "retire",
       reason: `Kept and archived because history refers to it: ${why.join("; ")}.`,
       retiredSlug: `${r.slug}--${tag}`,
-      retiredSkus: Object.fromEntries(r.skus.map((s) => [s, `${s}--${tag.toUpperCase()}`])),
+      retiredSkus: Object.fromEntries(r.skus.map((s) => [s, retiredSku(s, cutoff)])),
     };
   }
   return {
@@ -249,21 +284,70 @@ async function preservedCounts(client: DbClient): Promise<PreservedCounts> {
   return out;
 }
 
+async function preservedContent(client: DbClient): Promise<PreservedContent> {
+  const out: PreservedContent = {};
+  for (const t of PRESERVED_TABLES) {
+    if (t === "audit_logs") continue;
+    const [{ h }] = await client.$queryRawUnsafe<{ h: string | null }[]>(
+      `SELECT md5(string_agg(md5(row_to_json(t)::text), '' ORDER BY md5(row_to_json(t)::text))) AS h FROM "${t}" t`
+    );
+    out[t] = h ?? "empty";
+  }
+  return out;
+}
+
+/** What customers see now that the reset would not touch: excluded products and products made after the cutoff. */
+async function remainingVisible(client: DbClient, entries: readonly ResetEntry[]) {
+  const touched = entries.filter((e) => e.action !== "exclude").map((e) => e.id);
+  const visible = await client.product.findMany({
+    where: { AND: [publicProductWhere(), { id: { notIn: touched } }] },
+    select: { id: true, slug: true, title: true, status: true },
+    orderBy: { slug: "asc" },
+  });
+  const why = new Map(entries.map((e) => [e.id, e.reason]));
+  return visible.map((p) => ({ ...p, why: why.get(p.id) ?? "Made after the cutoff, so treated as the new catalogue." }));
+}
+
+export async function databaseIdentity(client: DbClient, url: string | undefined = process.env.DATABASE_URL): Promise<DatabaseIdentity> {
+  const [{ name, port }] = await client.$queryRaw<{ name: string; port: number | null }[]>`
+    SELECT current_database() AS name, inet_server_port() AS port`;
+  let host = "unknown";
+  let ref = "unknown";
+  try {
+    const u = new URL(url ?? "");
+    host = u.hostname;
+    const supa = /^db\.([a-z0-9]{20})\.supabase\.co$/.exec(u.hostname)?.[1] ?? /^postgres\.([a-z0-9]{20})$/.exec(decodeURIComponent(u.username))?.[1];
+    ref = supa ?? (["localhost", "127.0.0.1", "::1", "[::1]"].includes(u.hostname) ? "localhost" : "unknown-remote");
+  } catch {
+    /* identity stays partly unknown, and so matches nothing else */
+  }
+  /* The pooler hides the server port; the project ref and database name identify a Supabase database. */
+  const id = ref !== "localhost" && ref !== "unknown-remote" ? `supabase:${ref}/${name}` : `${ref}:${host}:${port ?? "?"}/${name}`;
+  return { id, ref, database: name };
+}
+
 export function planDigest(entries: readonly ResetEntry[]): string {
   /* Over what the reset would do and why, not when it was read. */
   const stable = [...entries]
     .sort((a, b) => a.id.localeCompare(b.id))
-    .map((e) => [e.id, e.slug, e.status, e.skus, e.action, e.references, e.retiredSlug ?? null, e.retiredSkus ?? null]);
+    .map((e) => [e.id, e.slug, e.status, e.skus, e.action, e.references, e.state, e.retiredSlug ?? null, e.retiredSkus ?? null]);
   return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
 }
 
 async function buildPlan(client: DbClient, cutoff: Date, seedSlugs: ReadonlySet<string>): Promise<ResetPlan & { createdAfterCutoff: number }> {
   const tag = resetTag(cutoff);
   const { rows, after } = await readRows(client, cutoff);
-  const entries = rows.map((r) => classify(r, seedSlugs, tag));
+  const entries = rows.map((r) => classify(r, seedSlugs, tag, cutoff));
   const summary = { retire: 0, remove: 0, exclude: 0 } as Record<ResetAction, number>;
   for (const e of entries) summary[e.action] += 1;
-  return { cutoff: cutoff.toISOString(), tag, entries, summary, preserved: await preservedCounts(client), digest: planDigest(entries), createdAfterCutoff: after };
+  return {
+    cutoff: cutoff.toISOString(), tag, entries, summary,
+    preserved: await preservedCounts(client),
+    preservedContent: await preservedContent(client),
+    remainingVisible: await remainingVisible(client, entries),
+    digest: planDigest(entries),
+    createdAfterCutoff: after,
+  };
 }
 
 /** The read-only plan. Nothing can be written: the transaction is declared READ ONLY. */
@@ -281,9 +365,12 @@ export async function planCatalogueReset(cutoff: Date, seedSlugs: ReadonlySet<st
 /** Every row the apply step changes or deletes, exactly as it was. */
 export interface ResetRecovery {
   digest: string;
+  /** The database this was captured from. Restore refuses any other. */
+  database: DatabaseIdentity;
   cutoff: string;
   capturedAt: string;
-  retired: { product: Record<string, unknown>; variants: Record<string, unknown>[] }[];
+  /** Each retired product as it was, and the web address and codes the apply gave it. */
+  retired: { product: Record<string, unknown>; variants: Record<string, unknown>[]; retiredSlug: string; retiredSkus: Record<string, string> }[];
   removed: {
     products: Record<string, unknown>[];
     product_variants: Record<string, unknown>[];
@@ -302,18 +389,25 @@ async function rowsOf(client: DbClient, sql: string, ids: string[]): Promise<Rec
   return r.map((x) => x.j);
 }
 
-async function captureRecovery(client: DbClient, plan: ResetPlan): Promise<ResetRecovery> {
+async function captureRecovery(client: DbClient, plan: ResetPlan, database: DatabaseIdentity): Promise<ResetRecovery> {
   const retireIds = plan.entries.filter((e) => e.action === "retire").map((e) => e.id);
   const removeIds = plan.entries.filter((e) => e.action === "remove").map((e) => e.id);
   const products = await rowsOf(client, `SELECT row_to_json(p) AS j FROM products p WHERE p.id = ANY($1::uuid[])`, retireIds);
   const variants = await rowsOf(client, `SELECT row_to_json(v) AS j FROM product_variants v WHERE v.product_id = ANY($1::uuid[])`, retireIds);
   const byVariant = (table: string) =>
     rowsOf(client, `SELECT row_to_json(t) AS j FROM ${table} t WHERE t.variant_id IN (SELECT id FROM product_variants WHERE product_id = ANY($1::uuid[]))`, removeIds);
+  const planned = new Map(plan.entries.map((e) => [e.id, e]));
   return {
     digest: plan.digest,
+    database,
     cutoff: plan.cutoff,
     capturedAt: new Date().toISOString(),
-    retired: products.map((p) => ({ product: p, variants: variants.filter((v) => v.product_id === p.id) })),
+    retired: products.map((p) => ({
+      product: p,
+      variants: variants.filter((v) => v.product_id === p.id),
+      retiredSlug: planned.get(String(p.id))!.retiredSlug!,
+      retiredSkus: planned.get(String(p.id))!.retiredSkus!,
+    })),
     removed: {
       products: await rowsOf(client, `SELECT row_to_json(p) AS j FROM products p WHERE p.id = ANY($1::uuid[])`, removeIds),
       product_variants: await rowsOf(client, `SELECT row_to_json(v) AS j FROM product_variants v WHERE v.product_id = ANY($1::uuid[])`, removeIds),
@@ -350,19 +444,26 @@ export async function applyCatalogueReset(params: {
   cutoff: Date;
   seedSlugs: ReadonlySet<string>;
   approvedDigest: string;
+  /** The identity recorded in the approved manifest. Apply refuses any other database. */
+  approvedDatabaseId: string;
+  databaseUrl?: string;
   onRecovery: (r: ResetRecovery) => void | Promise<void>;
   client?: typeof db;
 }): Promise<ApplyResult> {
   const client = params.client ?? db;
   return client.$transaction(
     async (tx) => {
+      const database = await databaseIdentity(tx, params.databaseUrl);
+      if (database.id !== params.approvedDatabaseId) {
+        throw new ResetRefused(`The manifest was approved for ${params.approvedDatabaseId}, but this is ${database.id}. Nothing was written.`);
+      }
       const plan = await buildPlan(tx, params.cutoff, params.seedSlugs);
       if (plan.digest !== params.approvedDigest) {
         throw new ResetRefused(
           `The approved digest ${params.approvedDigest.slice(0, 12)}… does not match this database, whose plan is now ${plan.digest.slice(0, 12)}…. Either the digest was mistyped or the catalogue changed since the manifest was produced. Nothing was written. Produce a new manifest and review it.`
         );
       }
-      await params.onRecovery(await captureRecovery(tx, plan));
+      await params.onRecovery(await captureRecovery(tx, plan, database));
 
       for (const e of plan.entries) {
         if (e.action === "retire") {
@@ -390,10 +491,15 @@ export async function applyCatalogueReset(params: {
         }
       }
 
+      /* Same snapshot, so only this transaction's own writes could differ:
+         the row count of the audit log may grow, and every other preserved
+         table — categories, brands, Launch Control settings, orders, the
+         stock ledger — must be byte-for-byte what it was. */
       const after = await preservedCounts(tx);
-      for (const t of PRESERVED_TABLES) {
-        const ok = t === "audit_logs" ? after[t] >= plan.preserved[t] : after[t] === plan.preserved[t];
-        if (!ok) throw new ResetRefused(`${t} changed from ${plan.preserved[t]} to ${after[t]} rows. Rolled back; nothing was written.`);
+      if (after.audit_logs < plan.preserved.audit_logs) throw new ResetRefused("audit_logs shrank. Rolled back; nothing was written.");
+      const content = await preservedContent(tx);
+      for (const [t, h] of Object.entries(plan.preservedContent)) {
+        if (content[t] !== h) throw new ResetRefused(`${t} changed. Rolled back; nothing was written.`);
       }
       await tx.auditLog.create({
         data: {
@@ -417,23 +523,45 @@ export interface RestoreResult {
   alreadyInPlace: number;
 }
 
-async function insertMissing(client: DbClient, table: string, rows: Record<string, unknown>[]): Promise<number> {
-  if (rows.length === 0) return 0;
-  return client.$executeRawUnsafe(
-    `INSERT INTO ${table} SELECT r.* FROM json_populate_recordset(NULL::${table}, $1::json) r
-     WHERE NOT EXISTS (SELECT 1 FROM ${table} t WHERE t.id = r.id)`,
+/** The tables restore may insert into. Table names are never taken from the recovery file. */
+const RESTORE_TABLES = new Set([
+  "products", "product_variants", "product_images", "product_express_pincodes",
+  "inventory", "bulk_price_tiers", "cart_items", "wishlist_items",
+]);
+
+/** Insert the rows that are not there; return the ids inserted. */
+async function insertMissing(client: DbClient, table: string, rows: Record<string, unknown>[]): Promise<string[]> {
+  if (!RESTORE_TABLES.has(table)) throw new Error(`restore does not write ${table}`);
+  if (rows.length === 0) return [];
+  const out = await client.$queryRawUnsafe<{ id: string }[]>(
+    `INSERT INTO "${table}" SELECT r.* FROM json_populate_recordset(NULL::"${table}", $1::json) r
+     WHERE NOT EXISTS (SELECT 1 FROM "${table}" t WHERE t.id = r.id) RETURNING id::text`,
     JSON.stringify(rows)
   );
+  return out.map((x) => x.id);
 }
 
 /** Undo an apply from its recovery record. One transaction; safe to run twice. */
-export async function restoreCatalogueReset(recovery: ResetRecovery, client = db): Promise<RestoreResult> {
+export async function restoreCatalogueReset(recovery: ResetRecovery, client = db, databaseUrl?: string): Promise<RestoreResult> {
   return client.$transaction(
     async (tx) => {
+      const database = await databaseIdentity(tx, databaseUrl);
+      if (recovery.database?.id !== database.id) {
+        throw new ResetRefused(`This recovery file belongs to ${recovery.database?.id ?? "an unknown database"}, not ${database.id}. Nothing was restored.`);
+      }
       /* A product listed again since the reset may now hold an old web address
          or item code. Restoring over it would fail on the unique index half-way,
          so every clash is named first and nothing is written. */
       const clashes: string[] = [];
+      /* A retired product is put back only from exactly the state this apply
+         left it in. Anything else — another reset's names, a later edit — is
+         named and nothing is written. */
+      for (const { product, retiredSlug } of recovery.retired) {
+        const [now] = await tx.$queryRaw<{ slug: string }[]>`SELECT slug FROM products WHERE id = ${String(product.id)}::uuid`;
+        if (now && now.slug !== retiredSlug && now.slug !== product.slug) {
+          clashes.push(`${String(product.slug)} is now ${now.slug}, which this reset did not write`);
+        }
+      }
       for (const { product, variants } of recovery.retired) {
         const [taken] = await tx.$queryRaw<{ title: string }[]>`
           SELECT title FROM products WHERE slug = ${String(product.slug)} AND id <> ${String(product.id)}::uuid`;
@@ -463,9 +591,9 @@ export async function restoreCatalogueReset(recovery: ResetRecovery, client = db
 
       let retiredRestored = 0;
       let alreadyInPlace = 0;
-      for (const { product, variants } of recovery.retired) {
+      for (const { product, variants, retiredSlug } of recovery.retired) {
         const [now] = await tx.$queryRaw<{ slug: string }[]>`SELECT slug FROM products WHERE id = ${String(product.id)}::uuid`;
-        if (!now || now.slug === product.slug) {
+        if (!now || now.slug !== retiredSlug) {
           alreadyInPlace += 1;
           continue;
         }
@@ -485,7 +613,8 @@ export async function restoreCatalogueReset(recovery: ResetRecovery, client = db
       }
 
       const r = recovery.removed;
-      const removedRestored = await insertMissing(tx, "products", r.products);
+      const inserted = await insertMissing(tx, "products", r.products);
+      const removedRestored = inserted.length;
       alreadyInPlace += r.products.length - removedRestored;
       await insertMissing(tx, "product_variants", r.product_variants);
       await insertMissing(tx, "product_images", r.product_images);
@@ -494,12 +623,16 @@ export async function restoreCatalogueReset(recovery: ResetRecovery, client = db
       await insertMissing(tx, "bulk_price_tiers", r.bulk_price_tiers);
       await insertMissing(tx, "cart_items", r.cart_items);
       await insertMissing(tx, "wishlist_items", r.wishlist_items);
-      /* Inserting a pack clears the product's price review by trigger; put it back. */
-      if (r.products.length > 0) {
+      /* Inserting a pack clears the product's price review by trigger; put it
+         back — only on products this run inserted, so a second restore leaves
+         earlier-restored products and any later edits to them alone. */
+      const mine = new Set(inserted);
+      const ours = r.products.filter((p) => mine.has(String(p.id)));
+      if (ours.length > 0) {
         await tx.$executeRawUnsafe(
           `UPDATE products p SET commercial_review = r.commercial_review, updated_at = r.updated_at
            FROM json_populate_recordset(NULL::products, $1::json) r WHERE p.id = r.id`,
-          JSON.stringify(r.products)
+          JSON.stringify(ours)
         );
       }
       await tx.auditLog.create({
@@ -520,12 +653,15 @@ export async function restoreCatalogueReset(recovery: ResetRecovery, client = db
  * would bring the old products back under their freed web addresses.
  */
 export async function catalogueResetInForce(client: DbClient = db): Promise<boolean> {
-  const last = await client.auditLog.findFirst({
-    where: { action: { in: [RESET_APPLIED, RESET_RESTORED] } },
-    orderBy: { createdAt: "desc" },
-    select: { action: true },
-  });
-  return last?.action === RESET_APPLIED;
+  /* Per reset (keyed by its digest): in force while its latest event is the
+     apply. Restoring one reset never clears another. */
+  const [row] = await client.$queryRaw<{ n: number }[]>`
+    SELECT count(*)::int AS n FROM (
+      SELECT DISTINCT ON (entity_id) action FROM audit_logs
+      WHERE action IN (${RESET_APPLIED}, ${RESET_RESTORED}) AND entity_type = 'catalogue_reset'
+      ORDER BY entity_id, created_at DESC
+    ) last WHERE action = ${RESET_APPLIED}`;
+  return row.n > 0;
 }
 
 /** A per-table fingerprint, to show that a restore put everything back. Excludes the audit log, which only grows. */

@@ -197,7 +197,7 @@ export async function setDefaultVariant(variantId: string, actor: { id: string |
 }
 
 export type StockRecordResult =
-  | { ok: true; created: boolean }
+  | { ok: true; created: number }
   | { ok: false; code: "NOT_FOUND" | "INVALID"; detail?: string };
 
 /**
@@ -211,27 +211,35 @@ export type StockRecordResult =
  * that already exists is left alone. Stock does not clear the price review
  * (migration `20261009100000`).
  */
-export async function createStockRecord(
-  variantId: string,
+export async function createStockRecords(
+  variantIds: readonly string[],
   warehouseId: string,
   actor: { id: string | null; email: string }
 ): Promise<StockRecordResult> {
+  /* All or none: a refusal on the third pack leaves the first two without records too. */
   return db.$transaction(async (tx) => {
-    const variant = await tx.productVariant.findUnique({ where: { id: variantId }, select: { id: true, sku: true, productId: true } });
-    if (!variant) return { ok: false as const, code: "NOT_FOUND" as const };
     const wh = await tx.warehouse.findFirst({ where: { id: warehouseId, isActive: true }, select: { id: true, name: true } });
     if (!wh) return { ok: false as const, code: "INVALID" as const, detail: "That warehouse is not active" };
-    const existing = await tx.inventory.findUnique({ where: { variantId_warehouseId: { variantId, warehouseId } }, select: { id: true } });
-    if (existing) return { ok: true as const, created: false };
-    await tx.inventory.create({ data: { variantId, warehouseId, qtyOnHand: 0 } });
-    await recordAudit(tx, {
-      actorType: "admin",
-      actorId: actor.id,
-      action: "catalogue.stock_record_created",
-      entityType: "product",
-      entityId: variant.productId,
-      after: { variantId, sku: variant.sku, warehouseId, warehouse: wh.name, qtyOnHand: 0, by: actor.email },
-    });
-    return { ok: true as const, created: true };
+    const variants = await tx.productVariant.findMany({ where: { id: { in: [...variantIds] } }, select: { id: true, sku: true, productId: true } });
+    if (variants.length !== new Set(variantIds).size) return { ok: false as const, code: "NOT_FOUND" as const };
+    let created = 0;
+    for (const variant of variants) {
+      const existing = await tx.inventory.findUnique({
+        where: { variantId_warehouseId: { variantId: variant.id, warehouseId } },
+        select: { id: true },
+      });
+      if (existing) continue;
+      await tx.inventory.create({ data: { variantId: variant.id, warehouseId, qtyOnHand: 0 } });
+      await recordAudit(tx, {
+        actorType: "admin",
+        actorId: actor.id,
+        action: "catalogue.stock_record_created",
+        entityType: "product",
+        entityId: variant.productId,
+        after: { variantId: variant.id, sku: variant.sku, warehouseId, warehouse: wh.name, qtyOnHand: 0, by: actor.email },
+      });
+      created += 1;
+    }
+    return { ok: true as const, created };
   });
 }

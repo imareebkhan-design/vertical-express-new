@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { adminSaveProduct, adminSetVariantPrice } from "@/actions/products";
@@ -67,6 +67,12 @@ export function ProductEditor({
     deliverySpeed: product.deliverySpeed,
   });
   const router = useRouter();
+  /* Publish, take off and archive on the panel above change the status
+     without this form. Follow the server's status so a later Save cannot put
+     the old one back; every other field keeps whatever was typed. */
+  useEffect(() => {
+    setForm((f) => (f.status === product.status ? f : { ...f, status: product.status }));
+  }, [product.status]);
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 

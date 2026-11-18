@@ -178,7 +178,12 @@ export function ListingForm({ options }: { options: ListingOptions }) {
           <Field label="Category" need="required" hint="Decides the tax rate and how it travels.">
             <select
               value={form.categoryId}
-              onChange={(e) => set("categoryId", e.target.value)}
+              onChange={(e) => {
+                const next = e.target.value;
+                /* A grade typed for cement is not a type of tile: the value is
+                   stored under the category's own label, so it goes with it. */
+                setForm((f) => ({ ...f, categoryId: next, productType: next === f.categoryId ? f.productType : "" }));
+              }}
               aria-label="Category"
               className={field}
             >

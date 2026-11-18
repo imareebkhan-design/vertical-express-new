@@ -25,6 +25,7 @@ import type { OrderAddressSnapshot } from "@/lib/services/orders";
 export { planShipments } from "@/lib/shipment-plan";
 export type { PlannableLine, PlannedShipment } from "@/lib/shipment-plan";
 import type { PlannedShipment } from "@/lib/shipment-plan";
+import { purchasedSku } from "@/lib/retired-sku";
 
 /**
  * Persists the planned shipments for an order.
@@ -360,7 +361,7 @@ export async function getPickList() {
     } else {
       byVariant.set(key, {
         variantId: v.id,
-        sku: v.sku,
+        sku: purchasedSku(v.sku).code,
         title: item.orderItem.title,
         variantName: v.name,
         totalQty: item.qty,
@@ -453,7 +454,7 @@ export async function getPackingSlip(shipmentId: string) {
     lines: shipment.items.map((i) => ({
       title: i.orderItem.title,
       variantName: i.orderItem.variantName,
-      sku: i.orderItem.variant?.sku ?? null,
+      sku: i.orderItem.variant?.sku ? purchasedSku(i.orderItem.variant.sku).code : null,
       qty: i.qty,
     })),
     totalUnits: shipment.items.reduce((n, i) => n + i.qty, 0),

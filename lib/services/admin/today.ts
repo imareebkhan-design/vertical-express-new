@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { INACTIVE_ORDER_STATES } from "@/lib/shipment-flow";
 import type { OrderStatus } from "@/prisma/generated/client/client";
+import { skuForDisplay } from "@/lib/retired-sku";
 
 /**
  * The dispatcher's screen.
@@ -168,7 +169,7 @@ export async function getOpsToday(): Promise<OpsToday> {
     queueCounts,
     lowStock: lowStock.map((i) => ({
       variantId: i.variantId,
-      sku: i.variant.sku,
+      sku: skuForDisplay(i.variant.sku),
       productTitle: i.variant.product.title,
       warehouseName: i.warehouse.name,
       qtyOnHand: i.qtyOnHand,

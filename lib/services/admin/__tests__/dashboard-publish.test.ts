@@ -7,7 +7,7 @@ import { catalogListingWhere } from "@/lib/catalog-policy";
 import { createProduct } from "@/lib/services/admin/product-create";
 import { uploadProductImage, type StoreObject } from "@/lib/services/admin/product-images";
 import { recordCatalogueApproval } from "@/lib/services/admin/catalogue-approval";
-import { createStockRecord } from "@/lib/services/admin/product-details";
+import { createStockRecords } from "@/lib/services/admin/product-details";
 import { currentOffer, recordCommercialReview } from "@/lib/services/admin/commercial-review";
 import { setProductStatus } from "@/lib/services/admin/product-status";
 import { sellableReasons } from "@/lib/services/admin/publish-guard";
@@ -122,8 +122,11 @@ test("a product added from the dashboard reaches the storefront through dashboar
   assert.deepEqual(await todo(), ["stock", "delivery", "review"]);
 
   /* 4. A stock record at zero. */
-  assert.deepEqual(await createStockRecord(product.variants[0].id, warehouse.id, actor), { ok: true, created: true });
-  assert.deepEqual(await createStockRecord(product.variants[0].id, warehouse.id, actor), { ok: true, created: false }, "a second click wrote a second record");
+  /* All or none: an unknown pack alongside a real one writes nothing. */
+  assert.deepEqual(await createStockRecords([product.variants[0].id, randomUUID()], warehouse.id, actor), { ok: false, code: "NOT_FOUND" });
+  assert.equal(await db.inventory.count({ where: { variantId: product.variants[0].id } }), 0, "a refused batch left a stock record behind");
+  assert.deepEqual(await createStockRecords([product.variants[0].id], warehouse.id, actor), { ok: true, created: 1 });
+  assert.deepEqual(await createStockRecords([product.variants[0].id], warehouse.id, actor), { ok: true, created: 0 }, "a second click wrote a second record");
   assert.equal(await db.stockMovement.count({ where: { variantId: product.variants[0].id } }), 0, "a zero record invented a movement");
   assert.deepEqual(await todo(), ["delivery", "review"]);
 

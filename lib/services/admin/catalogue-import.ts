@@ -232,7 +232,10 @@ export async function previewCatalogue(rows: CatalogueRow[]): Promise<ImportPrev
       }
     }
 
-    if (r.status === "published") {
+    /* A row for a product that already exists is skipped whatever its status
+       says — re-uploading last week's file must not fail on its own rows. */
+    const existing = haveSlug.has(r.slug) || haveSku.has(r.sku);
+    if (r.status === "published" && !existing) {
       /* Known before anything is written: the publish check needs an approved
          lead photo, and a product that does not exist yet has none. Left to the
          transaction this refused the whole file at confirm, with no line number. */

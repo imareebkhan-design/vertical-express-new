@@ -562,3 +562,19 @@ test("a row the parser rejects still has its brand, category and warehouse looke
   /* A row whose cells all exist adds nothing. */
   assert.deepEqual(await lookupIssues(lookupCells(file(row(w.base)))), []);
 });
+
+test("a re-uploaded file whose existing rows say published skips them and still creates the new ones", async (t) => {
+  t.after(cleanup);
+  await cleanup();
+  const w = await world();
+  await runImport(file(row(w.base)));
+  const fresh = uniq();
+  /* The existing product's row says published; the new product's row says draft. */
+  const preview = await runPreview(file(row(w.base, { status: "published" }), row(w.base, { title: fresh })));
+  assert.deepEqual(preview.issues, [], "an existing product's published row blocked the file");
+  assert.deepEqual(preview.skipped.map((x) => x.line), [2]);
+  assert.deepEqual(preview.toCreate.map((x) => x.title), [fresh]);
+  /* A new product's published row is still refused. */
+  const refused = await runPreview(file(row(w.base, { status: "published" }), row(w.base, { title: uniq(), status: "published" })));
+  assert.deepEqual(refused.issues.map((i) => [i.line, i.column]), [[3, "status"]]);
+});

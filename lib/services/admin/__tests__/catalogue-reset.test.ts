@@ -4,8 +4,15 @@ import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
 import { catalogListingWhere } from "@/lib/catalog-policy";
 import { createProduct } from "@/lib/services/admin/product-create";
+import { getPackingSlip } from "@/lib/services/shipments";
+import { listStockMovements } from "@/lib/services/inventory-movements";
+import { adminListStock } from "@/lib/services/admin/stock";
+import { listAdminOrders } from "@/lib/services/admin/orders-list";
+import { parseOrdersQuery } from "@/lib/admin-orders-query";
+import { purchasedSku, skuForDisplay } from "@/lib/retired-sku";
 import {
   applyCatalogueReset,
+  databaseIdentity,
   catalogueFingerprint,
   catalogueResetInForce,
   planCatalogueReset,
@@ -42,6 +49,7 @@ async function cleanup() {
   });
   const pids = products.map((p) => p.id);
   const vids = products.flatMap((p) => p.variants.map((v) => v.id));
+  await db.shipment.deleteMany({ where: { order: { orderNo: { startsWith: "ZZZRESET" } } } });
   await db.order.deleteMany({ where: { orderNo: { startsWith: "ZZZRESET" } } });
   await db.productEnquiry.deleteMany({ where: { productId: { in: pids } } });
   await db.stockMovement.deleteMany({ where: { variantId: { in: vids } } });
@@ -77,8 +85,9 @@ async function product(key: string, slug: string, opts: { stock?: number; create
   variantIds[key] = p.variants[0].id;
 }
 
+let shipmentId = "";
 async function order(key: string, status: "cancelled" | "confirmed") {
-  await db.order.create({
+  return db.order.create({
     data: {
       orderNo: `ZZZRESET${randomUUID().slice(0, 8)}`, userId, address: {}, status, paymentMethod: "dummy",
       subtotalPaise: 40_000, totalPaise: 40_000,
@@ -91,7 +100,12 @@ before(async () => {
   await cleanup();
   userId = (await db.user.create({ data: { id: randomUUID() }, select: { id: true } })).id;
   await product("ordered", `${P}-ordered`);
-  await order("ordered", "cancelled");
+  const o = await order("ordered", "cancelled");
+  const line = await db.orderItem.findFirstOrThrow({ where: { orderId: o.id }, select: { id: true } });
+  shipmentId = (await db.shipment.create({
+    data: { orderId: o.id, sequence: 1, speedClass: "scheduled", items: { create: [{ orderItemId: line.id, qty: 1 }] } },
+    select: { id: true },
+  })).id;
   await product("stocked", `${P}-stocked`, { stock: 12 });
   await product("plain", `${P}-plain`);
   const wishlist = await db.wishlist.create({ data: { userId }, select: { id: true } });
@@ -147,7 +161,7 @@ test("apply refuses a database that no longer matches the approved manifest, and
   const before = await catalogueFingerprint();
   let captured = false;
   await assert.rejects(
-    applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, onRecovery: () => { captured = true; } }),
+    applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, approvedDatabaseId: (await databaseIdentity(db)).id, onRecovery: () => { captured = true; } }),
     (e: unknown) => e instanceof ResetRefused && /does not match this database/.test(e.message)
   );
   assert.equal(captured, false, "a recovery file was produced for a refused apply");
@@ -158,7 +172,7 @@ test("apply refuses a database that no longer matches the approved manifest, and
 test("apply archives what history refers to, removes the rest, and keeps everything else", async () => {
   fingerprintBefore = await catalogueFingerprint();
   const plan = await planCatalogueReset(CUTOFF, NONE);
-  const res = await applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, onRecovery: (r) => { recovery = r; } });
+  const res = await applyCatalogueReset({ cutoff: CUTOFF, seedSlugs: NONE, approvedDigest: plan.digest, approvedDatabaseId: (await databaseIdentity(db)).id, onRecovery: (r) => { recovery = r; } });
   assert.deepEqual(res, { digest: plan.digest, retired: 2, removed: 1, excluded: 2 });
   assert.ok(recovery);
 
@@ -176,6 +190,21 @@ test("apply archives what history refers to, removes the rest, and keeps everyth
   assert.deepEqual(line, { title: "Zzz Reset ordered", unitPricePaise: 40_000, variant: { product: { status: "archived" } } });
   /* The stock ledger still adds up for the archived product. */
   assert.equal(await db.stockMovement.count({ where: { variantId: variantIds.stocked } }), 1);
+
+  /* Historical records show the code that was sold, not the retired one. */
+  const slip = await getPackingSlip(shipmentId);
+  assert.equal(slip?.lines[0].sku, "ZZZ-RESET-ORDERED", "the packing slip printed the retired code");
+  const detailSku = (await db.orderItem.findFirstOrThrow({ where: { variantId: variantIds.ordered }, select: { variant: { select: { sku: true } } } })).variant.sku;
+  assert.deepEqual(purchasedSku(detailSku), { code: "ZZZ-RESET-ORDERED", retiredOn: "2001-06-01" });
+  const ledger = await listStockMovements(1, 500);
+  const moved = ledger.rows.find((m) => m.variant.sku === "ZZZ-RESET-STOCKED--LEGACY-20010601");
+  assert.ok(moved, "the archived product's movement left the ledger");
+  assert.equal(skuForDisplay(moved.variant.sku), "ZZZ-RESET-STOCKED (retired listing)");
+  const stock = await adminListStock("all", 1, 1000);
+  assert.equal(stock.rows.find((r) => r.variantId === variantIds.stocked)?.sku, "ZZZ-RESET-STOCKED (retired listing)");
+  /* An operator searching orders by the code on the bag still finds the order. */
+  const found = await listAdminOrders(parseOrdersQuery({ q: "ZZZ-RESET-ORDERED", tab: "all" }));
+  assert.ok(found.rows.some((x) => x.orderNo.startsWith("ZZZRESET")), "searching by the sold code no longer finds the order");
 
   assert.equal(await catalogueResetInForce(), true);
   assert.equal(await db.auditLog.count({ where: { action: "catalogue.reset_retired", entityId: { in: [ids.ordered, ids.stocked] } } }), 2);
@@ -218,4 +247,65 @@ test("restore puts back exactly what was there, and a second restore changes not
   const again = await restoreCatalogueReset(recovery);
   assert.deepEqual(again, { retiredRestored: 0, removedRestored: 0, alreadyInPlace: 3 });
   assert.deepEqual(await catalogueFingerprint(), fingerprintBefore);
+});
+
+const thisDb = async () => (await databaseIdentity(db)).id;
+const apply = async (onRecovery: (r: ResetRecovery) => void, digest?: string, dbId?: string) =>
+  applyCatalogueReset({
+    cutoff: CUTOFF, seedSlugs: NONE,
+    approvedDigest: digest ?? (await planCatalogueReset(CUTOFF, NONE)).digest,
+    approvedDatabaseId: dbId ?? (await thisDb()), onRecovery,
+  });
+
+test("an edit to a product after the manifest refuses the apply, even one that changes no classification", async () => {
+  const plan = await planCatalogueReset(CUTOFF, NONE);
+  await db.productVariant.update({ where: { id: variantIds.plain }, data: { pricePaise: 40_100 } });
+  await assert.rejects(apply(() => {}, plan.digest), (e: unknown) => e instanceof ResetRefused && /does not match this database/.test(e.message));
+  assert.equal((await db.product.findUniqueOrThrow({ where: { id: ids.ordered }, select: { status: true } })).status, "published");
+});
+
+test("a manifest approved for another database is refused, though its digest matches", async () => {
+  const plan = await planCatalogueReset(CUTOFF, NONE);
+  await assert.rejects(
+    apply(() => {}, plan.digest, "localhost:localhost:5432/some_other_copy"),
+    (e: unknown) => e instanceof ResetRefused && /approved for localhost:localhost:5432\/some_other_copy/.test(e.message)
+  );
+});
+
+test("restore checks the database, the names it wrote, and leaves later edits alone on a second run", async () => {
+  let rec: ResetRecovery | null = null;
+  await apply((r) => { rec = r; });
+  assert.ok(rec);
+  const recovery = rec as ResetRecovery;
+  assert.equal(await catalogueResetInForce(), true);
+
+  /* Another database's file is refused. */
+  await assert.rejects(
+    restoreCatalogueReset({ ...recovery, database: { ...recovery.database, id: "supabase:aaaaaaaaaaaaaaaaaaaa/postgres" } }),
+    (e: unknown) => e instanceof ResetRefused && /belongs to supabase:/.test(e.message)
+  );
+
+  /* A name this reset did not write is refused, and nothing is restored. */
+  await db.product.update({ where: { id: ids.ordered }, data: { slug: `${P}-ordered-renamed-by-hand` } });
+  await assert.rejects(restoreCatalogueReset(recovery), (e: unknown) => e instanceof ResetRefused && /which this reset did not write/.test(e.message));
+  assert.equal(await db.product.count({ where: { id: ids.plain } }), 0, "a refused restore inserted a removed product");
+  await db.product.update({ where: { id: ids.ordered }, data: { slug: `${P}-ordered--legacy-20010601` } });
+
+  assert.deepEqual(await restoreCatalogueReset(recovery), { retiredRestored: 2, removedRestored: 1, alreadyInPlace: 0 });
+  assert.equal(await catalogueResetInForce(), false);
+
+  /* A later edit to a restored product survives a second restore. */
+  await db.product.update({ where: { id: ids.plain }, data: { description: "edited after the restore" } });
+  const before = await db.product.findUniqueOrThrow({ where: { id: ids.plain }, select: { updatedAt: true, commercialReview: true, description: true } });
+  assert.deepEqual(await restoreCatalogueReset(recovery), { retiredRestored: 0, removedRestored: 0, alreadyInPlace: 3 });
+  assert.deepEqual(await db.product.findUniqueOrThrow({ where: { id: ids.plain }, select: { updatedAt: true, commercialReview: true, description: true } }), before);
+});
+
+test("the plan says what customers will still see after the reset", async () => {
+  const plan = await planCatalogueReset(CUTOFF, NONE);
+  const slugs = plan.remainingVisible.map((p) => p.slug);
+  /* Excluded products still visible are listed with the reason they were kept. */
+  for (const p of plan.remainingVisible) assert.ok(p.why.length > 0);
+  assert.ok(!slugs.includes(`${P}-ordered`) && !slugs.includes(`${P}-plain`), "a product the reset retires or removes is reported as remaining");
+  assert.ok(Object.keys(plan.preservedContent).includes("categories") && Object.keys(plan.preservedContent).includes("settings"));
 });

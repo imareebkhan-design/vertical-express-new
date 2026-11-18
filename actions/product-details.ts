@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { getAdminUser } from "@/lib/services/admin/authz";
-import { addVariant, createStockRecord, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
+import { addVariant, createStockRecords, saveProductDetails, setDefaultVariant, setVariantActive } from "@/lib/services/admin/product-details";
 import { setProductStatus } from "@/lib/services/admin/product-status";
 import { removeProductImage, setPrimaryImage } from "@/lib/services/admin/product-images";
 import { MIN_REVIEW_REASON, recordCommercialReview } from "@/lib/services/admin/commercial-review";
@@ -167,17 +167,17 @@ export async function adminRecordCommercialReview(input: unknown): Promise<Actio
   return succeed({ remaining: r.remaining });
 }
 
-const stockRecordSchema = z.object({ variantId: z.uuid(), warehouseId: z.guid() });
+const stockRecordSchema = z.object({ variantIds: z.array(z.uuid()).min(1).max(50), warehouseId: z.guid() });
 
-/** Give a variant its first stock record, at zero (lib/services/admin/product-details.ts). */
-export async function adminCreateStockRecord(input: unknown): Promise<ActionResult<{ created: boolean }>> {
+/** Give packs their first stock record, at zero, together (lib/services/admin/product-details.ts). */
+export async function adminCreateStockRecord(input: unknown): Promise<ActionResult<{ created: number }>> {
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
   const parsed = stockRecordSchema.safeParse(input);
   if (!parsed.success) return fail("VALIDATION", "Choose a warehouse");
-  const r = await createStockRecord(parsed.data.variantId, parsed.data.warehouseId, { id: admin.id, email: admin.email });
+  const r = await createStockRecords(parsed.data.variantIds, parsed.data.warehouseId, { id: admin.id, email: admin.email });
   if (!r.ok) return fail(r.code === "NOT_FOUND" ? "NOT_FOUND" : "VALIDATION", r.detail ?? "Variant not found");
-  const v = await db.productVariant.findUnique({ where: { id: parsed.data.variantId }, select: { productId: true } });
+  const v = await db.productVariant.findUnique({ where: { id: parsed.data.variantIds[0] }, select: { productId: true } });
   if (v) await revalidateProduct(v.productId);
   revalidatePath("/admin/inventory");
   return succeed({ created: r.created });

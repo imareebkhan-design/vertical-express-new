@@ -6,7 +6,7 @@
  *       scripts/catalogue-reset.mts plan --cutoff=2026-11-17T00:00:00Z --out=<dir outside the repo>
  *
  *   Apply exactly the reviewed manifest:
- *     … scripts/catalogue-reset.mts apply --cutoff=<same> --expect-ref=<ref|localhost> \
+ *     … scripts/catalogue-reset.mts apply --manifest=<the .json plan wrote> --expect-ref=<ref|localhost> \
  *       --approve=<digest from the manifest> --recovery-out=<file outside the repo> [--production]
  *
  *   Undo it:
@@ -19,9 +19,9 @@
  * project unless --production is also given. Never prints the connection string.
  * There is deliberately no dashboard button for any of this.
  */
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, writeFileSync, writeSync } from "node:fs";
+import { closeSync, existsSync, fsyncSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, writeFileSync, writeSync } from "node:fs";
 import { execSync } from "node:child_process";
-import { join } from "node:path";
+import { dirname, isAbsolute, join, sep } from "node:path";
 import { PRODUCTION_DB_REFS, supabaseRef, isLocalHost } from "./prisma-db-guard.mjs";
 
 const [mode] = process.argv.slice(2);
@@ -51,6 +51,34 @@ function guardWrite(t: ReturnType<typeof target>) {
   if (t.production && !flag("production")) refuse(`${t.ref} is the production project. Add --production only once the owner has approved this manifest for production.`);
 }
 
+const REPO = realpathSync(process.cwd());
+
+/**
+ * A path the script may write or read: absolute, outside the repository (a
+ * manifest or recovery file must never be committed), and not a symlink.
+ */
+function safePath(p: string | undefined, what: string): string {
+  if (!p) refuse(`pass ${what}`);
+  if (!isAbsolute(p)) refuse(`${what} must be an absolute path`);
+  let probe = p;
+  while (!existsSync(probe)) probe = dirname(probe);
+  const real = realpathSync(probe);
+  if (real === REPO || real.startsWith(REPO + sep)) refuse(`${what} must be outside the repository`);
+  if (existsSync(p) && lstatSync(p).isSymbolicLink()) refuse(`${what} is a symbolic link`);
+  return p;
+}
+
+/** Read a JSON file that must be a regular file at a safe path. */
+function readJson(p: string | undefined, what: string): Record<string, unknown> {
+  const path = safePath(p, what);
+  if (!existsSync(path) || !lstatSync(path).isFile()) refuse(`${what} is not a file`);
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
+  } catch {
+    refuse(`${what} is not valid JSON`);
+  }
+}
+
 function cutoff(): Date {
   const raw = arg("cutoff");
   if (!raw) refuse("pass --cutoff=<ISO time>. Products created before it are the previous catalogue.");
@@ -67,6 +95,7 @@ function seedSlugs(): Set<string> {
 }
 
 function durableWrite(path: string, text: string) {
+  safePath(path, "--recovery-out");
   const fd = openSync(path, "wx"); // never overwrite an earlier recovery file
   writeSync(fd, text);
   fsyncSync(fd);
@@ -115,6 +144,10 @@ function manifestMarkdown(m: Record<string, unknown> & { plan: Awaited<ReturnTyp
   };
   const bySource = Object.entries(p.entries.reduce<Record<string, number>>((a, e) => ((a[e.source] = (a[e.source] ?? 0) + 1), a), {}))
     .map(([s, n]) => `| ${s} | ${n} |`).join("\n");
+  const visible = p.remainingVisible.length === 0
+    ? "_None. After the reset customers see no product until new ones are published._\n"
+    : ["| Slug | Status | Title | Why it stays |", "|---|---|---|---|",
+       ...p.remainingVisible.map((v) => `| ${v.slug} | ${v.status} | ${v.title} | ${v.why} |`)].join("\n") + "\n";
   return `# Catalogue reset manifest
 
 Read-only. Nothing was written to the database to produce this.
@@ -122,6 +155,7 @@ Read-only. Nothing was written to the database to produce this.
 | | |
 |---|---|
 | Environment | ${env.ref}${env.production ? " (PRODUCTION)" : ""}, database \`${env.database}\` |
+| Database identity | \`${(m.database as { id: string }).id}\` |
 | Produced | ${m.generatedAt} from commit ${m.commit} |
 | Cutoff | products created before ${p.cutoff} |
 | Products created after the cutoff (untouched) | ${p.createdAfterCutoff} |
@@ -141,9 +175,12 @@ How the products were identified:
 |---|---|
 ${bySource}
 
-## Never changed — counted before and after, inside the transaction
+## Still visible to customers after the reset
 
-${Object.entries(p.preserved).map(([t, n]) => `- ${t}: ${n}${t === "audit_logs" ? " (may only grow)" : ""}`).join("\n")}
+${visible}
+## Never changed — checked byte for byte before commit (the audit log may only grow)
+
+${Object.entries(p.preserved).map(([t, n]) => `- ${t}: ${n} rows${t === "audit_logs" ? " (may only grow)" : `, content ${p.preservedContent[t]?.slice(0, 12)}…`}`).join("\n")}
 
 ## Could anything bring them back?
 
@@ -168,37 +205,48 @@ const t = target();
 
 try {
   if (mode === "plan") {
-    const out = arg("out");
-    if (!out) refuse("pass --out=<directory outside the repository>");
+    const out = safePath(arg("out"), "--out=<directory outside the repository>");
     const plan = await svc.planCatalogueReset(cutoff(), seedSlugs());
-    const manifest = { kind: "catalogue-reset-manifest", version: 1, generatedAt: new Date().toISOString(), commit, environment: t, recreationRisks: RECREATION_RISKS, plan };
+    const database = await svc.databaseIdentity(db);
+    const manifest = { kind: "catalogue-reset-manifest", version: 2, generatedAt: new Date().toISOString(), commit, environment: t, database, recreationRisks: RECREATION_RISKS, plan };
     mkdirSync(out, { recursive: true });
     const stem = `catalogue-reset-manifest-${t.ref}-${plan.digest.slice(0, 12)}`;
     writeFileSync(join(out, `${stem}.json`), JSON.stringify(manifest, null, 1));
     writeFileSync(join(out, `${stem}.md`), manifestMarkdown(manifest));
-    console.log(JSON.stringify({ environment: t, cutoff: plan.cutoff, digest: plan.digest, summary: plan.summary, createdAfterCutoff: plan.createdAfterCutoff, files: [`${stem}.json`, `${stem}.md`] }, null, 1));
+    console.log(JSON.stringify({ environment: t, database: database.id, cutoff: plan.cutoff, digest: plan.digest, summary: plan.summary, createdAfterCutoff: plan.createdAfterCutoff, stillVisible: plan.remainingVisible.length, files: [`${stem}.json`, `${stem}.md`] }, null, 1));
   } else if (mode === "apply") {
     guardWrite(t);
+    const manifest = readJson(arg("manifest"), "--manifest=<the .json file plan wrote>");
+    const plan = manifest.plan as { digest?: string; cutoff?: string } | undefined;
+    const approvedDb = (manifest.database as { id?: string } | undefined)?.id;
+    if (manifest.kind !== "catalogue-reset-manifest" || manifest.version !== 2 || !plan?.digest || !plan.cutoff || !approvedDb) {
+      refuse("--manifest is not a catalogue reset manifest from this version of the script");
+    }
     const approve = arg("approve");
-    const recoveryOut = arg("recovery-out");
-    if (!approve || !/^[a-f0-9]{64}$/.test(approve)) refuse("pass --approve=<the 64-character digest printed in the manifest>");
-    if (!recoveryOut) refuse("pass --recovery-out=<file outside the repository>");
+    if (!approve || approve !== plan.digest) refuse("--approve must be the digest printed in that manifest, typed out by the person approving it");
+    const recoveryOut = safePath(arg("recovery-out"), "--recovery-out=<file outside the repository>");
     if (existsSync(recoveryOut)) refuse(`${recoveryOut} already exists; recovery files are never overwritten`);
     const res = await svc.applyCatalogueReset({
-      cutoff: cutoff(),
+      cutoff: new Date(plan.cutoff),
       seedSlugs: seedSlugs(),
       approvedDigest: approve,
+      approvedDatabaseId: approvedDb,
       onRecovery: (r) => durableWrite(recoveryOut, JSON.stringify({ kind: "catalogue-reset-recovery", environment: t, commit, ...r })),
     });
     console.log(JSON.stringify({ environment: t, applied: res, recovery: recoveryOut }, null, 1));
   } else if (mode === "restore") {
     guardWrite(t);
-    const file = arg("recovery");
-    if (!file) refuse("pass --recovery=<the file apply wrote>");
-    const rec = JSON.parse(readFileSync(file, "utf8"));
-    if (rec.kind !== "catalogue-reset-recovery") refuse(`${file} is not a catalogue reset recovery file`);
-    if (rec.environment?.ref !== t.ref) refuse(`${file} was written for ${rec.environment?.ref}, not ${t.ref}`);
-    console.log(JSON.stringify({ environment: t, restored: await svc.restoreCatalogueReset(rec) }, null, 1));
+    const rec = readJson(arg("recovery"), "--recovery=<the file apply wrote>");
+    const removed = rec.removed as Record<string, unknown> | undefined;
+    if (rec.kind !== "catalogue-reset-recovery" || typeof rec.digest !== "string" || !/^[a-f0-9]{64}$/.test(rec.digest)
+      || !Array.isArray(rec.retired) || !removed || !Array.isArray(removed.products)) {
+      refuse("--recovery is not a catalogue reset recovery file");
+    }
+    const here = await svc.databaseIdentity(db);
+    if ((rec.database as { id?: string } | undefined)?.id !== here.id) {
+      refuse(`that recovery file belongs to ${(rec.database as { id?: string } | undefined)?.id ?? "an unknown database"}, not ${here.id}`);
+    }
+    console.log(JSON.stringify({ environment: t, restored: await svc.restoreCatalogueReset(rec as unknown as import("@/lib/services/admin/catalogue-reset").ResetRecovery) }, null, 1));
   } else if (mode === "fingerprint") {
     console.log(JSON.stringify({ environment: t, inForce: await svc.catalogueResetInForce(), tables: await svc.catalogueFingerprint() }, null, 1));
   } else {
