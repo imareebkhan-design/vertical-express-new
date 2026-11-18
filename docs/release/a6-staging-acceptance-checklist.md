@@ -119,8 +119,9 @@ command below reads it without printing it. Run it only from the operator's mach
 STAGING=https://ve-staging--vertical-express.asia-southeast1.hosted.app
 RZP_ORDER=order_xxxxxxxxxxxx
 AMOUNT=100
-PAY_ID=pay_A6MISMATCH$(date +%s)
-EVT_ID=evt_A6MISMATCH$(date +%s)
+RUN=$(date +%s)$(openssl rand -hex 4)   # unique per run, even within the same second
+PAY_ID=pay_A6MISMATCH$RUN
+EVT_ID=evt_A6MISMATCH$RUN
 
 node --env-file=.env.local.secrets -e '
 const crypto = require("crypto");
@@ -139,7 +140,7 @@ fetch(url + "/api/webhooks/razorpay", { method: "POST", body,
 | # | Step | Expected | Result |
 |---|---|---|---|
 | 5.1 | Run the command once | `200 {"status":"amount_mismatch_recorded"}` | |
-| 5.2 | `/admin/payments` → *Needs investigation* | Row: *Amount mismatch*, ₹1 · expected <order total>, the order number linked, its status `pending_payment` | |
+| 5.2 | `/admin/payments` → *Needs investigation* | Row: *Amount mismatch*, AMOUNT in rupees (₹1 for the default `AMOUNT=100`) · expected <total_paise in rupees>, the order number linked, its status `pending_payment` | |
 | 5.3 | The order itself | Still `pending_payment`; its payment still `created` (nothing settled) | |
 | 5.4 | Rerun **only the `node …` line** in the same shell (rerunning the whole block makes new `PAY_ID` / `EVT_ID` values) | `200 {"status":"already_recorded"}`; no new row; no second alert | |
 | 5.5 | Bad signature: rerun the whole block (fresh ids) with the `node` line prefixed by `SIGN_WITH=not-the-secret`, i.e. `SIGN_WITH=not-the-secret node --env-file=.env.local.secrets -e '…'` | `400 {"error":"Invalid webhook signature"}`; no row for that `PAY_ID` | |
