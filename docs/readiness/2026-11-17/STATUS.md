@@ -6,9 +6,9 @@ Paid ordering remains NO-GO. This is an engineering candidate, not a production 
 
 ## Candidate
 
-Base release 9e36fa7 (includes security PR #75, unmatched capture #72, alerting code #71 and delivery threshold #70). This branch adds ISS-109 session CSRF and ISS-110 booking budgets, integrates existing PR #73 and #74, resolves their documentation conflicts without losing security issues, and corrects report-filter inconsistencies found in review. Original branches remain untouched.
+Release base for PR #76 is `e128241`. The PR changes session request validation (ISS-109), booking budgets (ISS-110) and the staging security smoke exit criteria.
 
-Reporting follow-up: current/previous-period sales and cash-flow/refund aggregates now share customer and dimension filters; product selection uses product IDs. Today uses one timestamp for both the query and heading across IST midnight. Financial figures still use ledger-row creation dates, not provider event timestamps; this limitation predates integration and must not be described as settlement accounting.
+Reporting is tracked under merged PRs #73 (Today) and #74 (Reports). PR #79 added Check payment. Validate the three admin surfaces on the release candidate using the staging payment and refund ledger as the reference.
 
 ## Validation
 
