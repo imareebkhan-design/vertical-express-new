@@ -63,7 +63,8 @@ export default async function AdminToday() {
   /* Backstop for the layout gate: a request that renders only this page
      segment never ran app/admin/layout.tsx, so the page checks too. */
   if (!(await getAdminUser())) return null;
-  const [t, exceptions] = await Promise.all([getOpsToday(), getOpsExceptions()]);
+  const now = new Date();
+  const [t, exceptions] = await Promise.all([getOpsToday(now), getOpsExceptions()]);
   const needsAction =
     (t.queueCounts.payment_stalled ?? 0) +
     (t.queueCounts.awaiting_pack ?? 0) +
@@ -79,7 +80,7 @@ export default async function AdminToday() {
       <div>
         <h1 className="text-[22px] font-extrabold tracking-tight">Today</h1>
         <p className="mt-0.5 text-[11px] font-semibold text-ink-500">
-          {new Date().toLocaleDateString("en-IN", { timeZone: IST_ZONE, weekday: "short", day: "numeric", month: "short" })}
+          {now.toLocaleDateString("en-IN", { timeZone: IST_ZONE, weekday: "short", day: "numeric", month: "short" })}
           {" · "}
           {needsAction} {needsAction === 1 ? "order needs" : "orders need"} action
         </p>
