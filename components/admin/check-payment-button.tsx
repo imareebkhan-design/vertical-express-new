@@ -25,37 +25,51 @@ const TONE_TEXT: Record<AdminPaymentCheckMessage["tone"], string> = {
  * server's own words, which always say whether anything changed, and the page
  * is re-read when it did.
  */
-export function CheckPaymentButton({ orderId, check }: { orderId: string; check: CheckOrderPayment }) {
+export function CheckPaymentButton({
+  orderId,
+  check,
+  available = true,
+}: {
+  orderId: string;
+  check: CheckOrderPayment;
+  /** Whether a check can be made now. The page keeps this component mounted after
+      a check confirms the order, so the answer stays on screen when the button goes. */
+  available?: boolean;
+}) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [told, setTold] = useState<{ tone: AdminPaymentCheckMessage["tone"]; text: string } | null>(null);
 
+  if (!available && !told) return null;
+
   return (
     <div className="mt-3 flex flex-col gap-1.5">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() => {
-          setTold(null);
-          start(async () => {
-            try {
-              const r = await check({ orderId });
-              if (r.ok) {
-                setTold({ tone: r.data.tone, text: r.data.message });
-                if (r.data.changed) router.refresh();
-              } else {
-                setTold({ tone: "bad", text: r.error.message });
+      {available && (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            setTold(null);
+            start(async () => {
+              try {
+                const r = await check({ orderId });
+                if (r.ok) {
+                  setTold({ tone: r.data.tone, text: r.data.message });
+                  if (r.data.changed) router.refresh();
+                } else {
+                  setTold({ tone: "bad", text: r.error.message });
+                }
+              } catch {
+                setTold({ tone: "bad", text: "The check could not be completed. Reload the page to see the order's current state." });
               }
-            } catch {
-              setTold({ tone: "bad", text: "The check could not be completed. Reload the page to see the order's current state." });
-            }
-          });
-        }}
-        className="inline-flex h-9 w-fit items-center gap-2 rounded-panel bg-ink px-4 text-[12.5px] font-bold text-white disabled:opacity-60"
-      >
-        {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
-        {pending ? "Asking Razorpay…" : "Check payment with Razorpay"}
-      </button>
+            });
+          }}
+          className="inline-flex h-9 w-fit items-center gap-2 rounded-panel bg-ink px-4 text-[12.5px] font-bold text-white disabled:opacity-60"
+        >
+          {pending && <Loader2 className="size-3.5 animate-spin" aria-hidden />}
+          {pending ? "Asking Razorpay…" : "Check payment with Razorpay"}
+        </button>
+      )}
       {told && (
         <p
           role={told.tone === "bad" ? "alert" : "status"}

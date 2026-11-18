@@ -69,6 +69,10 @@ export async function adminCheckOrderPayment(
   } catch (e) {
     if (e instanceof Error && e.message === "NOT_FOUND") return fail("NOT_FOUND", "That order no longer exists");
     captureException(e, { action: "adminCheckOrderPayment", orderId: parsed.data.orderId });
-    return fail("UNAVAILABLE", "The payment could not be checked. Nothing was changed; try again in a few minutes.");
+    /* Not "nothing changed": the failure may have come after Razorpay's answer
+       was recorded. Re-read the screens and say only what is known. */
+    revalidatePath("/admin/orders");
+    revalidatePath("/admin/payments");
+    return fail("UNAVAILABLE", "The check could not be completed. Reload the order to see its current state before trying again.");
   }
 }

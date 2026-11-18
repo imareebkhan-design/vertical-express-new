@@ -60,6 +60,22 @@ void test("a refusal from the server is shown in its own words", async () => {
   assert.equal(RTL.screen.getByRole("alert").textContent, "Admin access required");
 });
 
+void test("the answer stays on screen when the refreshed page no longer offers the button", async () => {
+  const check = answer("late");
+  const view = RTL.render(<CheckPaymentButton orderId={ORDER} check={check} available />);
+  await RTL.act(async () => {
+    RTL.fireEvent.click(RTL.screen.getByRole("button", { name: "Check payment with Razorpay" }));
+  });
+  view.rerender(<CheckPaymentButton orderId={ORDER} check={check} available={false} />);
+  assert.equal(RTL.screen.queryByRole("button"), null, "the button goes once the order is no longer pending");
+  assert.match(RTL.screen.getByRole("status").textContent ?? "", /refund review/, "the late-payment instruction stays");
+});
+
+void test("not available and nothing said yet: nothing is rendered", () => {
+  const { container } = RTL.render(<CheckPaymentButton orderId={ORDER} check={answer("paid")} available={false} />);
+  assert.equal(container.innerHTML, "");
+});
+
 void test("a lost connection does not pretend to know the answer", async () => {
   await press(async () => {
     throw new Error("network");

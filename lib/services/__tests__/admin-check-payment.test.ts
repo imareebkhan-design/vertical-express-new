@@ -194,6 +194,22 @@ test("approved but not captured, Razorpay unreachable, or a different amount: no
   }
 });
 
+test("a webhook confirms the order while the check is running: reported as moved, not as 'no payment'", async () => {
+  const o = await order();
+  /* The webhook lands between the check's read and Razorpay's answer: the
+     payment is captured and the order confirmed by the time the lookup returns. */
+  const r = await adminCheckPayment(ADMIN, o.id, {
+    findCaptured: async () => {
+      await db.payment.updateMany({ where: { orderId: o.id }, data: { status: "captured" } });
+      await db.order.update({ where: { id: o.id }, data: { status: "confirmed" } });
+      return null;
+    },
+  });
+  assert.equal(r.result, "not_pending", "a confirmed order was reported as having no payment");
+  assert.equal(await status(o.id), "confirmed");
+  assert.equal((await audits(o.id)).length, 0, "nothing the operator's press decided is recorded as its result");
+});
+
 test("cash on delivery has no Razorpay order: Razorpay is not asked, and no audit row is written", async () => {
   const o = await order({ method: "cod" });
   const l = lookup(captured());

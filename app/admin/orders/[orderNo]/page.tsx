@@ -234,7 +234,11 @@ export default async function AdminOrderDetail({
             </p>
             {/* B-4: a paid order whose callback and webhook never arrived can be
                 confirmed by asking Razorpay, instead of waiting for the expiry job. */}
-            {canCheckPayment(order) && <CheckPaymentButton orderId={order.id} check={adminCheckOrderPayment} />}
+            {/* Mounted for any order with a Razorpay order, so that after a check
+                confirms it the answer stays on screen when the button goes. */}
+            {order.payments.some((p) => p.gateway === "razorpay" && p.gatewayOrderId) && (
+              <CheckPaymentButton orderId={order.id} check={adminCheckOrderPayment} available={canCheckPayment(order)} />
+            )}
           </Panel>
 
           <Panel title={`Shipments${liveShipments.length > 1 ? ` · ${liveShipments.length}` : ""}`} right={<StatusChip tone={FULFILMENT_TONE[ful]}>{FUL_LABEL[ful]}</StatusChip>}>

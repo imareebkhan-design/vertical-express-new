@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { reconcileWithGateway } from "@/lib/services/orders";
 import type { CapturedLookup } from "@/lib/services/payments";
 import { recordAudit } from "@/lib/services/audit";
+import { captureException } from "@/lib/observability";
 import { canCheckPayment, type AdminPaymentCheckResult } from "@/lib/admin-payment-check";
 
 /**
@@ -49,6 +50,15 @@ export async function adminCheckPayment(
       : check === "late" ? "late"
       : check === "authorized" ? "in_progress"
       : check;
+    /* The lookup only asks about payments not yet captured. A webhook or the
+       customer's callback can confirm the order between the read above and
+       that query, which leaves nothing to ask and reads as "not captured".
+       Re-read before saying so: an order that moved is reported as moved, so
+       the page refreshes instead of showing a wrong "no payment". */
+    if (result !== "paid" && result !== "late") {
+      const now = await db.order.findUnique({ where: { id: order.id }, select: { status: true } });
+      if (now && now.status !== "pending_payment") result = "not_pending";
+    }
   }
 
   /* Who asked, and what Razorpay said. Only when Razorpay was actually asked:
@@ -57,17 +67,24 @@ export async function adminCheckPayment(
      transaction, as an order status event; this row is the operator's act,
      which has already happened and cannot roll back, so it gets its own. */
   if (result !== "not_pending" && result !== "no_gateway_order") {
-    await db.$transaction((tx) =>
-      recordAudit(tx, {
-        actorType: "admin",
-        actorId: actorUserId,
-        action: "order.payment_checked",
-        entityType: "order",
-        entityId: order.id,
-        before: { status: order.status },
-        after: { result },
-      })
-    );
+    /* A failed audit write must not hide what Razorpay said: the order may
+       already be confirmed, and reporting a failure here would tell the
+       operator nothing changed. The failure is reported to monitoring. */
+    try {
+      await db.$transaction((tx) =>
+        recordAudit(tx, {
+          actorType: "admin",
+          actorId: actorUserId,
+          action: "order.payment_checked",
+          entityType: "order",
+          entityId: order.id,
+          before: { status: order.status },
+          after: { result },
+        })
+      );
+    } catch (e) {
+      captureException(e, { stage: "admin_check_payment_audit", orderNo: order.orderNo, result });
+    }
   }
 
   return { result, orderNo: order.orderNo };
