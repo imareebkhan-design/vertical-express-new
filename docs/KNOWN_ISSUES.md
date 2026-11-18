@@ -19,8 +19,11 @@ products sold, customer spend, warehouse value and the growth comparison. Net sa
 total the paid orders were charged. Order counts, status counts, timings and activity
 charts still describe every order placed. Refunds are processed `payment_refunds` rows in
 the period. Cash flow is payments captured in the period less refunds processed in it,
-both dated by row creation like the Payments ledger export, and both honouring the order
-filters. The settlement figure is `null`. The daily series is keyed by IST day. The export
+both dated by row creation like the Payments ledger export (neither table records a separate
+capture or processing time), and both honouring every order filter, customer type included:
+the new/returning cohort is resolved to user ids in the order query, not filtered in memory
+after it. The date range is whole IST days: "to 18 Nov" runs to 23:59:59.999 IST
+(`istDayEnd`), where it used to stop at 5:30 AM. The settlement figure is `null`. The daily series is keyed by IST day. The export
 button names the file it gives and is absent on tabs with no export; "Dummy" is gone from
 the filter; the Sales tab shows net sales and refunds processed.
 Tests: `lib/services/admin/__tests__/bi-money.test.ts`; the net-sales identity in
