@@ -659,7 +659,15 @@ export function PhotosPanel({
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <label className="block">
                   <span className={label}>Describe the photos (optional)</span>
-                  <input value={alt} onChange={(e) => setAlt(e.target.value)} maxLength={200} placeholder="Front of the 50 kg bag" className={field} />
+                  <input
+                    value={alt}
+                    onChange={(e) => {
+                      setAlt(e.target.value);
+                    }}
+                    maxLength={200}
+                    placeholder="Front of the 50 kg bag"
+                    className={field}
+                  />
                   <span className="mt-1 block text-[11.5px] font-medium text-ink-500">Left blank, the product&rsquo;s name is used.</span>
                 </label>
                 <label className="block">
