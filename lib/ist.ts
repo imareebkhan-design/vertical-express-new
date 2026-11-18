@@ -31,6 +31,14 @@ export function istTodayStart(now: Date = new Date()): Date {
   return istDayStart(istDateKey(now));
 }
 
+/**
+ * The last millisecond of IST calendar day `key`. A report's "to" date is the
+ * whole of that day in Srinagar, not UTC midnight (5:30 AM IST) at its start.
+ */
+export function istDayEnd(key: string): Date {
+  return new Date(istDayStart(addDays(key, 1)).getTime() - 1);
+}
+
 /** `key` shifted by `days` calendar days. */
 export function addDays(key: string, days: number): string {
   const t = Date.parse(`${key}T00:00:00.000Z`) + days * 86_400_000;
