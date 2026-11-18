@@ -23,10 +23,13 @@ test("Business Intelligence: returns expected metrics and filters successfully",
   assert.ok(Array.isArray(biData.filters.categories));
   assert.ok(Array.isArray(biData.filters.products));
 
-  // 3. Verify sales math holds up: netSalesPaise = grossSalesPaise - discountsPaise + gstPaise + shippingPaise - refundsPaise
+  /* 3. Net sales is what the paid orders were charged, and the daily series
+     adds up to it. It used to be re-derived as gross - discounts + GST +
+     delivery - refunds over every order, cancelled and unpaid included
+     (RPT-02); the exact figures are asserted in bi-money.test.ts. */
   const s = biData.sales;
-  const computedNet = s.grossSalesPaise - s.discountsPaise + s.gstPaise + s.shippingPaise - s.refundsPaise;
-  assert.equal(s.netSalesPaise, Math.max(0, computedNet));
+  assert.equal(s.netSalesPaise, s.dailySales.reduce((n, d) => n + d.net, 0));
+  assert.ok(s.paidOrdersCount <= s.ordersCount);
 
   // 4. Verify orders count aligns with statuses sum
   const o = biData.orders;
