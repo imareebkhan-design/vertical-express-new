@@ -63,15 +63,18 @@ had, which was confirmed by hash, and the copy was rebuilt anyway.)
 Run from the repository root. `DATABASE_URL` comes from the env file; the script never prints it.
 
 ```bash
-R="NODE_PATH=./test-support/stubs node --conditions=react-server --env-file=<.env for production | .env.staging> --import tsx scripts/catalogue-reset.mts"
+# ENV_FILE is .env for production or .env.staging for staging (absolute path, outside the repo is fine).
+R() { NODE_PATH=./test-support/stubs node --conditions=react-server --env-file="$ENV_FILE" --import tsx scripts/catalogue-reset.mts "$@"; }
 ```
 
+A function, not a variable: a shell does not read `NODE_PATH=…` inside an expanded variable as an assignment.
+
 1. **Back up** the whole database (`pg_dump -Fc`) and check it restores into a scratch database.
-2. **Manifest (read-only):** `$R plan --cutoff=<ISO time before the first new product> --out=<absolute dir outside the repo>`
+2. **Manifest (read-only):** `R plan --cutoff=<ISO time before the first new product> --out=<absolute dir outside the repo>`
    — add `--archive-qa-fixtures` on staging. Writes `catalogue-reset-manifest-<ref>-<digest>.{json,md}` with the
    database identity, every candidate, what stays visible afterwards, and the preserved-table hashes.
 3. **Owner approves** the exact database identity and digest.
-4. **Apply:** `$R apply --manifest=<that .json> --expect-ref=<ref> --approve=<digest> --recovery-out=<absolute file outside the repo>`
+4. **Apply:** `R apply --manifest=<that .json> --expect-ref=<ref> --approve=<digest> --recovery-out=<absolute file outside the repo>`
    — add `--production` for `gsfslnxvwmrgulzqypdp`. Refuses a different database, a mistyped digest, or any change
    to any candidate product since the manifest (re-run step 2). The recovery file is written and fsynced before any change.
 5. **Check:** old web addresses and `/api/v1/products/<slug>` return 404; search and categories list none of them;
@@ -79,7 +82,7 @@ R="NODE_PATH=./test-support/stubs node --conditions=react-server --env-file=<.en
 
 ## Recovery
 
-- **Undo the reset:** `$R restore --recovery=<file> --expect-ref=<ref>` (`--production` on production). One
+- **Undo the reset:** `R restore --recovery=<file> --expect-ref=<ref>` (`--production` on production). One
   transaction; safe to run twice — a second run touches nothing it did not insert. It refuses a recovery file from
   another database, and refuses, naming each one, if a product listed since has taken an old web address or item
   code, or if a name was changed by anything other than this reset.
