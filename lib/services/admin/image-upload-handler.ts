@@ -32,6 +32,7 @@ const MESSAGES: Record<string, string> = {
   INVALID: "Some details are missing",
   CONFLICT: "The photo could not be attached",
   STORE_FAILED: "The photo could not be stored. Nothing was attached",
+  TOO_MANY: "This product already has 30 photos. Remove one to add another",
 };
 
 export async function handleImageUpload(
