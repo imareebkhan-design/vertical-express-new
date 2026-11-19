@@ -409,7 +409,9 @@ export function PhotosPanel({
   const [makePrimary, setMakePrimary] = useState(!hasLead);
   /* Follow the product: once it has a lead the box no longer applies, and if
      the lead is removed it applies again. */
-  useEffect(() => setMakePrimary(!hasLead), [hasLead]);
+  useEffect(() => {
+    setMakePrimary(!hasLead);
+  }, [hasLead]);
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
   const [progress, setProgress] = useState<string | null>(null);

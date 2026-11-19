@@ -125,7 +125,7 @@ test("with no image store configured, no upload form is offered", () => {
   assert.ok(screen.getByText(/no image store configured/));
 });
 
-test("a product with no lead photo: the first chosen photo leads; at 30 photos nothing more can be added", async () => {
+void test("a product with no lead photo: the first chosen photo leads; at 30 photos nothing more can be added", async () => {
   const sent: FormData[] = [];
   /* The first upload fails, so the lead request moves on to the next photo, which becomes the lead. */
   const upload: UploadPhoto = async (f) => {
@@ -138,7 +138,8 @@ test("a product with no lead photo: the first chosen photo leads; at 30 photos n
   const a = new File([new Uint8Array([1])], "a.png", { type: "image/png" });
   const b = new File([new Uint8Array([1])], "b.png", { type: "image/png" });
   fireEvent.change(screen.getByLabelText("Photos from your computer"), { target: { files: [a, b] } });
-  assert.equal((screen.getByLabelText("Make the first photo the lead photo") as HTMLInputElement).checked, true);
+  const leadChoice = screen.getByRole<HTMLInputElement>("checkbox", { name: "Make the first photo the lead photo" });
+  assert.ok(leadChoice.checked);
   await act(async () => fireEvent.click(screen.getByRole("button", { name: "Upload 2 photos" })));
   assert.deepEqual(sent.map((f) => f.get("makePrimary")), ["1", "1"], "a failed first photo left the product without a lead");
   assert.deepEqual(sent.map((f) => f.get("alt")), ["", ""], "a blank description is left for the server to fill with the product name");
@@ -151,7 +152,7 @@ test("a product with no lead photo: the first chosen photo leads; at 30 photos n
   assert.match(screen.getByText(/has 30 photos, the most it can hold/).textContent ?? "", /Remove one/);
 });
 
-test("choosing more photos than the product has room for keeps only what fits, and says so", () => {
+void test("choosing more photos than the product has room for keeps only what fits, and says so", () => {
   const upload: UploadPhoto = async () => ({ ok: true });
   const photos = Array.from({ length: 28 }, (_, i) => ({ id: `i${i}`, url: "https://x.test/a.png", alt: "x", isPrimary: i === 0, approved: true, licence: "l" }));
   render(<PhotosPanel slug="s" photos={photos} licences={["l"]} uploadEnabled setPrimary={async () => ok(null)} remove={async () => ok({ wasPrimary: false })} upload={upload} />);
@@ -161,7 +162,7 @@ test("choosing more photos than the product has room for keeps only what fits, a
   assert.ok(screen.getByRole("button", { name: "Upload 2 photos" }));
 });
 
-test("extra photos get Approve buttons only once the lead is approved; Approve all sends every waiting photo", async () => {
+void test("extra photos get Approve buttons only once the lead is approved; Approve all sends every waiting photo", async () => {
   const calls: unknown[] = [];
   const photos = [
     { id: "lead", url: "https://x.test/a.png", alt: "x", isPrimary: true, approved: true, licence: "l" },
