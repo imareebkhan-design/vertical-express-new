@@ -131,6 +131,27 @@ test("delivered once; a second scheduler run sends nothing more", async () => {
   assert.ok(r.sentAt);
 });
 
+test("the sandbox worker sends only to the allowed recipient", async () => {
+  const blocked = await pendingOrder({ email: "customer@example.test" });
+  const allowed = await pendingOrder({ email: "sandbox@example.test" });
+  await settleCapturedPayment({ ...blocked.capture, source: "client" });
+  await settleCapturedPayment({ ...allowed.capture, source: "client" });
+  const sender = fakeSender();
+  const previous = process.env.ORDER_EMAIL_ALLOWED_RECIPIENT;
+  process.env.ORDER_EMAIL_ALLOWED_RECIPIENT = "sandbox@example.test";
+  try {
+    await deliverMine(blocked.order.id, sender.send);
+    await deliverMine(allowed.order.id, sender.send);
+    assert.deepEqual(sender.calls.map((call) => call.to), ["sandbox@example.test"]);
+    const [unsent] = await rows(blocked.order.id);
+    assert.equal(unsent.state, "queued");
+    assert.equal(unsent.attempts, 0);
+  } finally {
+    if (previous === undefined) delete process.env.ORDER_EMAIL_ALLOWED_RECIPIENT;
+    else process.env.ORDER_EMAIL_ALLOWED_RECIPIENT = previous;
+  }
+});
+
 test("two scheduler runs at once send it once (row lease)", async () => {
   const { order, capture } = await pendingOrder({ email: "lease@example.test" });
   await settleCapturedPayment({ ...capture, source: "client" });

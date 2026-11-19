@@ -65,6 +65,10 @@ env:
     secret: resend-api-key-staging
     availability:
       - RUNTIME
+  - variable: ORDER_EMAIL_ALLOWED_RECIPIENT
+    value: "verticalexpress01@gmail.com"
+    availability:
+      - RUNTIME
   - variable: DATABASE_URL
     secret: database-url
   - variable: CRON_SECRET
