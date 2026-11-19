@@ -201,6 +201,8 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/v1/orders/[orderNo]/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/confirm-payment/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/reorder/route.ts": "lib/api/authed.ts",
+    /* The order's owner only — cancelOrder looks the order up by orderNo AND userId. */
+    "app/api/v1/orders/[orderNo]/cancel/route.ts": "lib/api/authed.ts",
     "app/api/v1/addresses/[id]/route.ts": "lib/api/authed.ts",
     "app/api/v1/me/route.ts": "lib/api/authed.ts",
     /* Authenticated because every call spends money on Google's side. */
