@@ -155,9 +155,24 @@ retired product; old addresses 404; the photo URLs 404.
 directly. `scripts/verify-image-delivery.mts` was a rehearsal for the original 260-image cutover and no longer
 applies.
 
-Restore: the bucket's soft delete (7 days, to 26 Nov) restores each object with its original generation —
-`gcloud storage restore gs://ve-production-product-images/<object>#<generation>` — after which the mapping's previous
-version (the commit before it was emptied, `git log -- lib/catalog/production-image-delivery.json`) maps them again. Later: re-upload from the
-local copy and regenerate the mapping (`scripts/apply-image-rehome.mts`). Rows: `pg_restore -a -t product_images`
-from `outputs/production-db-backups/production-pre-legacy-photo-cleanup-20261119T073648Z.dump` (workspace). The
-object list with generations and the file copies are in `outputs/production-image-backups/legacy-catalogue-2026-11-19/`.
+Restore: within the bucket's soft-delete window (7 days, to 26 Nov), run
+`gcloud storage restore 'gs://ve-production-product-images/<object>#<deleted-generation>'` for each object.
+Cloud Storage assigns a **new generation** to each restored object. Regenerate
+`lib/catalog/production-image-delivery.json` using those new generations, verify the pinned URLs serve the backed-up
+bytes, and deploy the updated mapping. The previous mapping (find it with
+`git log -- lib/catalog/production-image-delivery.json`) is a reference for entries only; its old generation pins
+will not serve the restored objects. After the soft-delete window, re-upload from the local copies and likewise
+regenerate and verify the mapping with the new generations. `scripts/apply-image-rehome.mts` updates database URLs;
+it does not generate this delivery mapping.
+
+Rows: explicitly set `RESTORE_DATABASE_URL` to the owner-approved target database and `WORKSPACE_ROOT` to the
+absolute workspace path, then run:
+
+```bash
+pg_restore --dbname="${RESTORE_DATABASE_URL:?Set the approved restore target}" --exit-on-error --single-transaction -a -t product_images \
+  "${WORKSPACE_ROOT:?Set the absolute workspace path}/outputs/production-db-backups/production-pre-legacy-photo-cleanup-20261119T073648Z.dump"
+```
+
+Rehearse against a scratch database first: this restores all `product_images` rows in the backup, so reconcile
+any rows already present before restoring to production. The object list with deleted generations and the file
+copies are in `outputs/production-image-backups/legacy-catalogue-2026-11-19/` (workspace).
