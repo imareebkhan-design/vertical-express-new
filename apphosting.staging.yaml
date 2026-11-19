@@ -56,6 +56,19 @@ env:
     secret: razorpay-key-secret
   - variable: RAZORPAY_WEBHOOK_SECRET
     secret: razorpay-webhook-secret
+  # Resend's sandbox sender delivers only to the Resend account inbox.
+  - variable: EMAIL_FROM
+    value: "Vertical Express Staging <onboarding@resend.dev>"
+    availability:
+      - RUNTIME
+  - variable: RESEND_API_KEY
+    secret: resend-api-key-staging
+    availability:
+      - RUNTIME
+  - variable: ORDER_EMAIL_ALLOWED_RECIPIENT
+    value: "verticalexpress01@gmail.com"
+    availability:
+      - RUNTIME
   - variable: DATABASE_URL
     secret: database-url
   - variable: CRON_SECRET
