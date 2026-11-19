@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { deliveryUrlResolver, productionImageDeliveries, productImageDeliveryUrl } from "../catalog/image-delivery";
+import { deliveryUrlResolver, productionImageDeliveries } from "../catalog/image-delivery";
+import retired from "./fixtures/retired-image-delivery-ids.json";
 
 // The production list is empty since the retired catalogue's photos were deleted (19 Nov 2026);
 // the resolution rules are exercised with a fixture in the same shape.
@@ -63,7 +64,15 @@ test("wrong id, changed URL, missing or different hash never inherit a mapping",
   });
 });
 
-test("the shipped resolver maps nothing: retired-catalogue photos were deleted", () => {
-  assert.equal(productionImageDeliveries.length, 0);
-  withMode("production", "1", () => assert.equal(productImageDeliveryUrl({ id: fixture.id, url: fixture.from, sha256: fixture.sha256 }), fixture.from));
+test("mappings for the deleted retired-catalogue images stay removed", () => {
+  const deleted = new Set(retired.ids);
+  assert.equal(deleted.size, 260);
+  const returned = productionImageDeliveries.filter((image) => deleted.has(image.id));
+  assert.deepEqual(returned.map((image) => image.id), []);
+});
+
+test("a valid new mapping alongside the retired ids still resolves", () => {
+  assert.ok(!retired.ids.includes(fixture.id));
+  const withNew = deliveryUrlResolver([...productionImageDeliveries, fixture]);
+  withMode("production", "1", () => assert.equal(withNew({ id: fixture.id, url: fixture.from, sha256: fixture.sha256 }), fixture.to));
 });
