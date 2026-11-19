@@ -49,7 +49,14 @@ put razorpay-key-secret     "$(get "$LOCAL" RAZORPAY_KEY_SECRET)"
 put razorpay-webhook-secret "$(gen RAZORPAY_WEBHOOK_SECRET)"
 put cron-secret             "$(gen CRON_SECRET)"
 
+RESEND_STAGING_KEY="$(get "$LOCAL" RESEND_API_KEY_STAGING || true)"
+if [ -n "$RESEND_STAGING_KEY" ]; then
+  put resend-api-key-staging "$RESEND_STAGING_KEY"
+fi
+
 echo
 echo "Next: after the backend exists, grant it access to each secret:"
 echo "  for s in database-url firebase-client-email firebase-private-key razorpay-key-secret razorpay-webhook-secret cron-secret; do"
 echo "    npx -y firebase-tools@latest apphosting:secrets:grantaccess \$s --backend ve-staging --project $PROJECT; done"
+echo "Create resend-api-key-staging in Secret Manager using a Resend sending-access key, then grant staging access:"
+echo "    npx -y firebase-tools@latest apphosting:secrets:grantaccess resend-api-key-staging --backend ve-staging --location asia-southeast1 --project $PROJECT"
