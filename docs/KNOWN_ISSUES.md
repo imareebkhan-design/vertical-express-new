@@ -102,9 +102,14 @@ a single product later still keeps its names, deliberately: unarchiving it must 
 
 ## ISS-112 — The previous catalogue was still in the database
 
-**Status:** READY, awaiting owner approval for each environment. `scripts/catalogue-reset.mts`, runbook
-`docs/runbooks/CATALOGUE_RESET.md`. Rehearsed twice on local copies of staging, including restore. Read-only
-manifests produced for production and staging on 18 Nov. Not applied to either.
+**Status:** FIXED in production (18 Nov 2026, digest `d2138b9f…6e9a14`: 319 retired, 3 removed) and applied on
+staging. `scripts/catalogue-reset.mts`, runbook `docs/runbooks/CATALOGUE_RESET.md`.
+
+Photos: on 19 Nov the 321 gallery rows of the retired production products and all 260 files in
+`ve-production-product-images` (every one used only by those rows) were deleted with the owner's approval, after a
+`pg_dump` and a local copy of the files. `lib/catalog/production-image-delivery.json` is empty as a result. The
+staging bucket's copies are still used by staging's retired products and were kept. Details and restore path:
+runbook → "Photos removed".
 
 Historical records: a retired pack's code is suffixed; screens that show a code read the sold code back
 (`lib/retired-sku.ts`). Orders, invoices, exports, refunds and returns never print it.
