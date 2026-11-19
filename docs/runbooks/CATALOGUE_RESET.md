@@ -9,7 +9,7 @@ button for this and there should never be one. Code:
 | Action | When | Effect |
 |---|---|---|
 | **retire** | Anything history refers to: an order line, a stock movement, stock on hand, an enquiry, a recorded identity or photo approval, or a photo URL another product also uses | Status `archived`. Web address and every item code get `--legacy-YYYYMMDD`, so the same real product can be listed again under its own name and code. Old orders keep resolving: an order line points at the pack by id and carries its own title, pack and price snapshot. |
-| **remove** | Nothing refers to it except the audit log (no foreign key, never deleted) | Row deleted, with its packs, photo rows, zero-stock records, express pincodes, price tiers, cart lines and wishlist entries. Stored image files are not touched (the bucket is create-only). |
+| **remove** | Nothing refers to it except the audit log (no foreign key, never deleted) | Row deleted, with its packs, photo rows, zero-stock records, express pincodes, price tiers, cart lines and wishlist entries. Stored image files are not touched (the app's storage account is create-only); see "Photos removed" below for the one production clean-up. |
 | **exclude** | Made at or after the cutoff · a `qa-staging-*` fixture · in an order that is still open · already retired | Left exactly as it is; the manifest says why. |
 
 Never written: categories, brands, warehouses, service areas and cities,
@@ -135,3 +135,44 @@ Production has none, and never shows them (`QA_FIXTURE_PREFIX`). Archiving them 
 
 Plan with `--archive-qa-fixtures`: retire 333, remove 695, exclude 0, still visible 0. A mistyped digest, a relative
 path and a path inside the repository were refused. Apply, then restore: every fingerprinted table identical to before.
+
+## Photos removed, production, 19 Nov 2026
+
+The reset leaves photo rows and files alone. With the owner's approval they were removed afterwards for production:
+
+| | Count | Notes |
+|---|---|---|
+| `product_images` rows of the 319 retired products | 321 | One guarded transaction; audit row `catalogue.legacy_images_removed` |
+| Files in `gs://ve-production-product-images` | 260 (12.6 MB) | Every file, each used by exactly one of those rows. Deleted by pinned generation: the bucket keeps versions, so deleting only the live object would have left the pinned URL serving |
+| Kept: staging bucket copies and originals | ~527 | Still used by staging's retired products |
+| Kept: `/placeholder-product.webp`, `/products/ss-kitchen-sink.webp` | 2 | Files shipped with the app |
+
+Checked before: no order, refund, return, enquiry, category, brand, profile, the product listed after the reset, or
+the mobile app used any of the files. Checked after: storefront, `/api/v1/products`, search and sitemap list no
+retired product; old addresses 404; the photo URLs 404.
+
+`lib/catalog/production-image-delivery.json` is now empty; photos uploaded since go to the production bucket
+directly. `scripts/verify-image-delivery.mts` was a rehearsal for the original 260-image cutover and no longer
+applies.
+
+Restore: within the bucket's soft-delete window (7 days, to 26 Nov), run
+`gcloud storage restore 'gs://ve-production-product-images/<object>#<deleted-generation>'` for each object.
+Cloud Storage assigns a **new generation** to each restored object. Regenerate
+`lib/catalog/production-image-delivery.json` using those new generations, verify the pinned URLs serve the backed-up
+bytes, and deploy the updated mapping. The previous mapping (find it with
+`git log -- lib/catalog/production-image-delivery.json`) is a reference for entries only; its old generation pins
+will not serve the restored objects. After the soft-delete window, re-upload from the local copies and likewise
+regenerate and verify the mapping with the new generations. `scripts/apply-image-rehome.mts` updates database URLs;
+it does not generate this delivery mapping.
+
+Rows: explicitly set `RESTORE_DATABASE_URL` to the owner-approved target database and `WORKSPACE_ROOT` to the
+absolute workspace path, then run:
+
+```bash
+pg_restore --dbname="${RESTORE_DATABASE_URL:?Set the approved restore target}" --exit-on-error --single-transaction -a -t product_images \
+  "${WORKSPACE_ROOT:?Set the absolute workspace path}/outputs/production-db-backups/production-pre-legacy-photo-cleanup-20261119T073648Z.dump"
+```
+
+Rehearse against a scratch database first: this restores all `product_images` rows in the backup, so reconcile
+any rows already present before restoring to production. The object list with deleted generations and the file
+copies are in `outputs/production-image-backups/legacy-catalogue-2026-11-19/` (workspace).
