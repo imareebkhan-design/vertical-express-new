@@ -21,7 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     # The service suite alone takes ~11 minutes locally (755 tests, 26 Sep 2026);
     # 15 left no room for the component tests and the production build.
-    timeout-minutes: 30
+    # 30 stopped being enough by 19 Nov 2026: the test step alone took 25-26
+    # minutes and the release-head push run was cancelled at the limit twice
+    # during the production build (run 44388941929).
+    timeout-minutes: 45
 
     services:
       postgres:
