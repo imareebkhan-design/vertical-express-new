@@ -54,6 +54,10 @@ test("field rules", () => {
   assert.match(itemProblem(item("x", { width: 0 }), BASE)!, /width/);
   assert.match(itemProblem(item("x", { sha256: "ABC" }), BASE)!, /sha256/);
   assert.match(itemProblem(item("x", { alt: "" }), BASE)!, /alt/);
+  /* An import must say where somebody else's picture came from; a dashboard upload need not. */
+  assert.match(itemProblem(item("x", { sourceUrl: "" }), BASE)!, /source/);
+  assert.equal(itemProblem(item("x", { sourceUrl: "" }), BASE, { requireSource: false }), null);
+  assert.match(itemProblem(item("x", { sourceUrl: "http://insecure" }), BASE, { requireSource: false })!, /https/, "a link, when given, must still be https");
 });
 
 test("attaches, audits, leaves the product a draft; a re-run attaches nothing", async () => {
@@ -96,4 +100,22 @@ test("a product that already has a primary picture from elsewhere is not overrid
   const imgs = await images(`${P}-c`);
   assert.equal(imgs.length, 1);
   assert.equal(imgs[0].url, "/placeholder-product.webp");
+});
+
+test("concurrent imports cannot both claim the last photo slot", async () => {
+  const slug = `${P}-b`;
+  const fillers = Array.from({ length: 29 }, (_, i) => item(slug, {
+    isPrimary: false,
+    sha256: i.toString(16).padStart(64, "0"),
+    url: `${BASE}/products/${slug}/filler-${i}.webp`,
+  }));
+  assert.equal((await applyImageImport(fillers, BASE, { id: null })).ok, true);
+  const results = await Promise.all(["a", "b"].map((hash) => applyImageImport(
+    [item(slug, { isPrimary: false, sha256: sha(hash), url: `${BASE}/products/${slug}/${hash}.webp` })],
+    BASE,
+    { id: null },
+  )));
+  assert.deepEqual(results.map((result) => result.ok).sort(), [false, true]);
+  assert.match(results.find((result) => !result.ok)!.plan.conflicts[0].reason, /would exceed 30 photos/);
+  assert.equal((await images(slug)).length, 30);
 });

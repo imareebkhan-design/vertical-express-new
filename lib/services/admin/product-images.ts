@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/services/audit";
-import { applyImageImport, itemProblem } from "@/lib/services/admin/product-image-import";
+import { applyImageImport, itemProblem, MAX_PHOTOS_PER_PRODUCT } from "@/lib/services/admin/product-image-import";
+export { MAX_PHOTOS_PER_PRODUCT } from "@/lib/services/admin/product-image-import";
 
 /**
  * Product photos from the console (handover, 19 Oct 2026).
@@ -16,8 +17,11 @@ import { applyImageImport, itemProblem } from "@/lib/services/admin/product-imag
  *     is invisible to customers until approved in /admin/catalogue-approvals;
  *   - the file is stored under its SHA-256, so re-uploading the same picture is
  *     a no-op, and a stored object never changes under an approval;
- *   - the licence and source are required, exactly as for imported photos; in
- *     production only an attested licence is shown (lib/catalog-policy.ts).
+ *   - the licence is required, exactly as for imported photos; in production
+ *     only an attested licence is shown (lib/catalog-policy.ts). A source link
+ *     is optional: a photo from the operator's own computer has none, and the
+ *     audit row records who uploaded it;
+ *   - a product carries at most MAX_PHOTOS_PER_PRODUCT photos.
  */
 
 export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -56,7 +60,7 @@ export type UploadResult =
   | { ok: true; imageId: string | null; alreadyAttached: boolean; isPrimary: boolean }
   | {
       ok: false;
-      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "INVALID" | "CONFLICT" | "STORE_FAILED";
+      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "INVALID" | "CONFLICT" | "STORE_FAILED" | "TOO_MANY";
       detail?: string;
     };
 
@@ -66,7 +70,8 @@ export async function uploadProductImage(
     bytes: Uint8Array;
     alt: string;
     licence: string;
-    sourceUrl: string;
+    /** Optional for a photo uploaded from the operator's own computer. */
+    sourceUrl?: string;
     makePrimary: boolean;
     actor: { id: string | null; email: string };
   },
@@ -74,7 +79,7 @@ export async function uploadProductImage(
 ): Promise<UploadResult> {
   const product = await db.product.findUnique({
     where: { slug: params.productSlug },
-    select: { id: true, slug: true, images: { select: { id: true, sha256: true, isPrimary: true, sortOrder: true } } },
+    select: { id: true, slug: true, title: true, images: { select: { id: true, sha256: true, isPrimary: true, sortOrder: true } } },
   });
   if (!product) return { ok: false, code: "NOT_FOUND" };
   if (params.bytes.length > MAX_IMAGE_BYTES) return { ok: false, code: "TOO_LARGE" };
@@ -96,6 +101,7 @@ export async function uploadProductImage(
   const sha256 = createHash("sha256").update(params.bytes).digest("hex");
   const existing = product.images.find((i) => i.sha256 === sha256);
   if (existing) return { ok: true, imageId: existing.id, alreadyAttached: true, isPrimary: existing.isPrimary };
+  if (product.images.length >= MAX_PHOTOS_PER_PRODUCT) return { ok: false, code: "TOO_MANY" };
 
   const base = deps.imageBase.replace(/\/$/, "");
   const path = `products/${product.slug}/upload-${sha256}.${kind.ext}`;
@@ -105,17 +111,17 @@ export async function uploadProductImage(
   const item = {
     slug: product.slug,
     url: `${base}/${path}`,
-    alt: params.alt.trim(),
+    alt: params.alt.trim() || product.title,
     sortOrder: Math.max(0, ...product.images.map((i) => i.sortOrder + 1)),
     isPrimary,
-    sourceUrl: params.sourceUrl.trim(),
+    sourceUrl: params.sourceUrl?.trim() ?? "",
     licence: params.licence.trim(),
     width,
     height,
     sha256,
   };
   // Validate everything the import service checks BEFORE writing to storage.
-  const problem = itemProblem(item, base);
+  const problem = itemProblem(item, base, { requireSource: false });
   if (problem) return { ok: false, code: "INVALID", detail: problem };
 
   try {
@@ -124,13 +130,13 @@ export async function uploadProductImage(
     return { ok: false, code: "STORE_FAILED", detail: e instanceof Error ? e.message.slice(0, 80) : "unknown" };
   }
 
-  const applied = await applyImageImport([item], base, { id: params.actor.id });
+  const applied = await applyImageImport([item], base, { id: params.actor.id }, { requireSource: false });
   if (!applied.ok) {
     const reason = applied.plan.conflicts[0]?.reason ?? applied.plan.invalid[0]?.reason ?? "conflict";
     return { ok: false, code: "CONFLICT", detail: reason };
   }
-  const row = await db.productImage.findFirst({ where: { productId: product.id, sha256 }, select: { id: true } });
-  return { ok: true, imageId: row?.id ?? null, alreadyAttached: false, isPrimary };
+  const row = await db.productImage.findFirst({ where: { productId: product.id, sha256 }, select: { id: true, isPrimary: true } });
+  return { ok: true, imageId: row?.id ?? null, alreadyAttached: applied.attached === 0, isPrimary: row?.isPrimary ?? false };
 }
 
 /** Make one of a product's photos the one that leads. Audited. */
@@ -188,5 +194,67 @@ export async function removeProductImage(
       after: { by: actor.email },
     });
     return { ok: true as const, wasPrimary: image.isPrimary };
+  });
+}
+
+export type ApproveExtraResult =
+  | { ok: true; approved: number }
+  | { ok: false; code: "NOT_FOUND" | "LEAD_NOT_APPROVED" | "INVALID"; detail?: string };
+
+/**
+ * Approve photos other than the lead, so customers see them in the gallery.
+ *
+ * The storefront shows each photo only once it is approved
+ * (`approvedImageWhere`), and the identity decision — is this exactly the
+ * product its name says — is recorded on the lead photo. An extra photo is
+ * approved only after that decision, by a named operator, one audit row per
+ * call listing every photo approved. Changing a photo's file, source or
+ * licence later clears its approval (trigger `invalidate_catalogue_image_review`).
+ */
+export async function approveExtraPhotos(
+  productId: string,
+  imageIds: readonly string[],
+  actor: { id: string; email: string }
+): Promise<ApproveExtraResult> {
+  return db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM products WHERE id = ${productId}::uuid FOR UPDATE`;
+    const product = await tx.product.findUnique({
+      where: { id: productId },
+      select: {
+        identityConfirmed: true,
+        identityApprovedAt: true,
+        images: { select: { id: true, isPrimary: true, sha256: true, identityApproved: true, approvalStatus: true } },
+      },
+    });
+    if (!product) return { ok: false as const, code: "NOT_FOUND" as const };
+    const lead = product.images.find((i) => i.isPrimary);
+    if (!product.identityConfirmed || !product.identityApprovedAt || !lead?.identityApproved) {
+      return { ok: false as const, code: "LEAD_NOT_APPROVED" as const };
+    }
+    const wanted = new Set(imageIds);
+    const targets = product.images.filter((i) => wanted.has(i.id));
+    if (targets.length !== wanted.size) return { ok: false as const, code: "NOT_FOUND" as const };
+    if (targets.some((i) => i.isPrimary)) return { ok: false as const, code: "INVALID" as const, detail: "The lead photo is approved with the product's identity, above" };
+    if (targets.some((i) => !i.sha256)) return { ok: false as const, code: "INVALID" as const, detail: "A photo without a checksum cannot be approved; upload it again" };
+    const fresh = targets.filter((i) => !(i.identityApproved && i.approvalStatus === "APPROVED_EXACT"));
+    if (fresh.length === 0) return { ok: true as const, approved: 0 };
+    const now = new Date();
+    const reason = `Extra photo approved on the product page by ${actor.email}`;
+    await tx.productImage.updateMany({
+      where: { id: { in: fresh.map((i) => i.id) }, productId, isPrimary: false },
+      data: {
+        sourceVerified: true, identityApproved: true, approvalStatus: "APPROVED_EXACT", severity: null,
+        approvedAt: now, approvedBy: actor.id, approvalReason: reason,
+      },
+    });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "catalogue.extra_photos_approved",
+      entityType: "product",
+      entityId: productId,
+      after: { imageIds: fresh.map((i) => i.id), by: actor.email },
+    });
+    return { ok: true as const, approved: fresh.length };
   });
 }

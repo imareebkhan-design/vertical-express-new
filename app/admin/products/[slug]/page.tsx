@@ -27,6 +27,7 @@ import {
   adminRemoveImage,
   adminSaveProductDetails,
   adminSetDefaultVariant,
+  adminApproveExtraPhotos,
   adminSetPrimaryImage,
   adminSetProductStatus,
   adminSetVariantActive,
@@ -261,6 +262,9 @@ export default async function AdminProductPage({
         uploadEnabled={Boolean(process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE)}
         setPrimary={adminSetPrimaryImage}
         remove={adminRemoveImage}
+        productId={product.id}
+        leadApproved={identityOk && leadApproved}
+        approveExtra={adminApproveExtraPhotos}
       />
       <StockRecordPanel
         variants={activeVariants
