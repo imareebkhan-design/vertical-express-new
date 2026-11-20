@@ -19,7 +19,7 @@ before(async () => {
   ({ OrderActions: Desktop } = await import("../order-actions"));
   ({ MobileOrderDetailView: Mobile } = await import("@/components/mobile/account/mobile-order-detail-view"));
 });
-afterEach(() => rtl.cleanup());
+afterEach(() => { rtl.cleanup(); });
 
 const order = {
   orderNo: "F1-FIXTURE", status: "pending_payment", paymentMethod: "razorpay", payments: [{ status: "authorized" }],
@@ -28,7 +28,7 @@ const order = {
 };
 
 for (const surface of ["desktop", "mobile"]) {
-  test(`${surface} order detail offers a status check until the server establishes a failed attempt`, async () => {
+  void test(`${surface} order detail offers a status check until the server establishes a failed attempt`, async () => {
     state = "pending";
     rtl.render(surface === "desktop"
       ? <Desktop orderNo={order.orderNo} status={order.status} cancelState={{ kind: "paid-online" }} />

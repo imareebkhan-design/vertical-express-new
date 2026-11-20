@@ -28,6 +28,11 @@ export interface VerifyPaymentParams {
   signature?: string;
 }
 
+interface CaptureQuery {
+  paymentId?: string;
+  callbackPaymentIds?: string[];
+}
+
 interface RazorpayAttempt {
   id?: string;
   order_id?: string;
@@ -84,7 +89,7 @@ export interface PaymentProvider {
    * Throws when the gateway cannot be asked or its answer cannot be read — a
    * caller must never treat "could not find out" as "not paid" (ISS-074).
    */
-  findCapturedPayment(gatewayOrderId: string, expectedPaymentId?: string): Promise<CapturedLookup | null>;
+  findCapturedPayment(gatewayOrderId: string, query?: CaptureQuery): Promise<CapturedLookup | null>;
   /**
    * The status of every payment attempt on a gateway order ("created" = in
    * flight, e.g. a UPI request awaiting approval; "authorized"; "captured";
@@ -400,12 +405,20 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
    * Any failure throws — the caller must treat "could not find out" as "do not
    * cancel yet", never as "not paid". The status is carried; the body is not.
    */
-  async findCapturedPayment(gatewayOrderId: string, expectedPaymentId?: string): Promise<CapturedLookup | null> {
+  async findCapturedPayment(gatewayOrderId: string, query: CaptureQuery = {}): Promise<CapturedLookup | null> {
     const attempts = await this.orderPayments(gatewayOrderId);
-    const items = expectedPaymentId === undefined ? attempts : attempts.filter((p) => p.id === expectedPaymentId);
+    const items = query.paymentId === undefined ? attempts : attempts.filter((p) => p.id === query.paymentId);
     const found =
       items.find((p) => p.status === "captured") ?? items.find((p) => p.status === "authorized");
-    if (!found) return null;
+    if (!found) {
+      // A signed Checkout attempt can disappear briefly from this eventually consistent list.
+      // It takes an explicit failure for that ID before an unpaid decision is safe.
+      if (query.callbackPaymentIds?.some((id) => !items.some((p) =>
+        p.id === id && p.order_id === gatewayOrderId && p.status === "failed"))) {
+        throw new Error("RAZORPAY_LOOKUP_INCOMPLETE");
+      }
+      return null;
+    }
     if (typeof found.id !== "string" || !found.id || found.order_id !== gatewayOrderId || found.currency !== "INR" || !Number.isSafeInteger(found.amount)) {
       throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
     }

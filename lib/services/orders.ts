@@ -390,20 +390,20 @@ export async function reconcileWithGateway(
   order: { id: string; orderNo: string },
   opts: {
     context: "expiry" | "retry" | "cancel" | "admin_cancel" | "admin_check" | "status" | "sweep";
-    findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
+    findCaptured?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<CapturedLookup | null>;
   }
 ): Promise<GatewayCheck> {
   let unconfigured = false;
   const findCaptured =
-    opts.findCaptured ?? ((gw: string) => getPaymentProvider("razorpay").findCapturedPayment(gw));
+    opts.findCaptured ?? ((gw, callbackPaymentIds) => getPaymentProvider("razorpay").findCapturedPayment(gw, { callbackPaymentIds }));
   const gatewayPayments = await db.payment.findMany({
     where: { orderId: order.id, gateway: "razorpay", gatewayOrderId: { not: null }, status: { not: "captured" } },
-    select: { id: true, gatewayOrderId: true, amountPaise: true },
+    select: { id: true, gatewayOrderId: true, amountPaise: true, callbackPaymentIds: true },
   });
   for (const p of gatewayPayments) {
     let found: CapturedLookup | null;
     try {
-      found = await findCaptured(p.gatewayOrderId!);
+      found = await findCaptured(p.gatewayOrderId!, p.callbackPaymentIds);
     } catch (e) {
       if (e instanceof PaymentConfigError) {
         /* This process cannot ask Razorpay: the order may be paid, and we
@@ -428,7 +428,14 @@ export async function reconcileWithGateway(
       );
       return "unknown";
     }
-    if (!found) continue;
+    if (!found) {
+      // A callback can arrive during the network round trip. The lookup did not account for that ID.
+      const unchanged = await db.payment.count({
+        where: { id: p.id, callbackPaymentIds: { equals: p.callbackPaymentIds }, status: { notIn: ["captured", "refunded"] } },
+      });
+      if (!unchanged) return "unknown";
+      continue;
+    }
     if (found.status === "authorized") return "authorized";
     if (found.status !== "captured" || !found.gatewayPaymentId) return "unknown";
     if (found.amountPaise !== p.amountPaise) {
@@ -555,8 +562,7 @@ export async function cleanupExpiredPendingOrders(
   const runBudgetMs = deps.runBudgetMs ?? EXPIRY_RUN_BUDGET_MS;
   const startedAt = now();
   const cutoff = new Date(startedAt - maxAgeMinutes * 60 * 1000);
-  const findCaptured =
-    deps.findCaptured ?? ((gw: string) => getPaymentProvider("razorpay").findCapturedPayment(gw));
+  const findCaptured = deps.findCaptured;
 
   const claimable = (at: number) => ({
     status: "pending_payment" as const,

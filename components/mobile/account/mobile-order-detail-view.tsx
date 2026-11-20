@@ -231,7 +231,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
             key={`${order.orderNo}-${checkRevision}`}
             orderNo={order.orderNo}
             check={checkPaymentStatus}
-            onPaid={() => router.refresh()}
+            onPaid={() => { router.refresh(); }}
             onPay={orderingOpen && !pending ? handleRetryPayment : undefined}
             orderHref={`/account/orders/${order.orderNo}`}
           />

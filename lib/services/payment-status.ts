@@ -49,7 +49,7 @@ const view = (order: { orderNo: string }, orderStatus: string, state: PaymentSta
   canPay: state === "failed" || state === "unpaid",
 });
 
-function fromClosedOrder(order: OrderWithDetails): PaymentStatusView {
+function fromClosedOrder(order: { orderNo: string; status: string; payments: { status: string }[] }): PaymentStatusView {
   const captured = order.payments.some((p) => p.status === "captured" || p.status === "refunded");
   if (PAID.has(order.status)) return view(order, order.status, "paid");
   if (order.status === "refund_initiated" || order.status === "refunded" || captured) {
@@ -74,19 +74,31 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
     const status = now?.status ?? order.status;
     return view(order, status, check === "late" || !PAID.has(status) ? "late" : "paid");
   }
-  if (check !== "not_captured") return view(order, order.status, "pending"); // authorized | unknown | unconfigured
-
-  let attempts: string[];
-  try {
-    attempts = await (deps.listAttempts ?? ((gw, ids) => getPaymentProvider("razorpay").listPaymentAttempts(gw, ids)))(
-      payment.gatewayOrderId, payment.callbackPaymentIds
-    );
-  } catch {
-    return view(order, order.status, "pending");
+  let state: PaymentState = "pending";
+  if (check === "not_captured") {
+    const listAttempts = deps.listAttempts ?? ((gw, ids) => getPaymentProvider("razorpay").listPaymentAttempts(gw, ids));
+    try {
+      const attempts = await listAttempts(payment.gatewayOrderId, payment.callbackPaymentIds);
+      if (attempts.every((attempt) => attempt === "failed")) {
+        if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") state = "expired";
+        else state = attempts.length ? "failed" : "unpaid";
+      }
+    } catch {
+      // An incomplete or unavailable list leaves the payment pending.
+    }
   }
-  if (attempts.some((a) => a !== "failed")) return view(order, order.status, "pending");
-  if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") return view(order, order.status, "expired");
-  return view(order, order.status, attempts.some((a) => a === "failed") ? "failed" : "unpaid");
+
+  // A webhook or a new signed attempt may have committed during either network call.
+  const latest = await db.payment.findUniqueOrThrow({
+    where: { id: payment.id },
+    select: {
+      callbackPaymentIds: true,
+      order: { select: { orderNo: true, status: true, payments: { select: { status: true } } } },
+    },
+  });
+  if (latest.order.status !== "pending_payment") return fromClosedOrder(latest.order);
+  if (latest.callbackPaymentIds.length !== payment.callbackPaymentIds.length) return view(order, order.status, "pending");
+  return view(order, order.status, state);
 }
 
 /**

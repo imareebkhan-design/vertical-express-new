@@ -690,7 +690,7 @@ export async function confirmOnlinePayment(params: {
   razorpayOrderId: string;
   razorpayPaymentId: string;
   signature: string;
-}, findCaptured: CallbackCaptureLookup = (orderId, paymentId) => getPaymentProvider("razorpay").findCapturedPayment(orderId, paymentId)
+}, findCaptured: CallbackCaptureLookup = (orderId, paymentId) => getPaymentProvider("razorpay").findCapturedPayment(orderId, { paymentId })
 ): Promise<{ ok: boolean; reason?: "late_payment" | "checking" }> {
   const { userId, orderNo, razorpayOrderId, razorpayPaymentId, signature } = params;
 

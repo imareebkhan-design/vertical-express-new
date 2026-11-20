@@ -260,6 +260,8 @@ test("the Razorpay lookup returns the captured payment of the order, and throws 
 
     globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_x", status: "failed", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
     assert.equal(await provider.findCapturedPayment("order_abc"), null, "a failed attempt is not a capture");
+    assert.equal(await provider.findCapturedPayment("order_abc", { callbackPaymentIds: ["pay_x"] }), null);
+    await assert.rejects(provider.findCapturedPayment("order_abc", { callbackPaymentIds: ["pay_x", "missing"] }), /RAZORPAY_LOOKUP_INCOMPLETE/);
 
     /* E5: held money is reported as held, never as "nothing" — and a capture wins. */
     globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
@@ -268,14 +270,14 @@ test("the Razorpay lookup returns the captured payment of the order, and throws 
       new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT, order_id: "order_abc", currency: "INR" }, { id: "pay_cap", status: "captured", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
     assert.equal((await provider.findCapturedPayment("order_abc"))?.gatewayPaymentId, "pay_cap");
 
-    assert.equal((await provider.findCapturedPayment("order_abc", "pay_auth"))?.status, "authorized");
-    assert.equal(await provider.findCapturedPayment("order_abc", "other_payment"), null);
+    assert.equal((await provider.findCapturedPayment("order_abc", { paymentId: "pay_auth" }))?.status, "authorized");
+    assert.equal(await provider.findCapturedPayment("order_abc", { paymentId: "other_payment" }), null);
     await assert.rejects(provider.listPaymentAttempts("order_abc", ["missing_callback_attempt"]), /RAZORPAY_LOOKUP_INCOMPLETE/);
     assert.deepEqual(await provider.listPaymentAttempts("order_abc", ["pay_auth"]), ["authorized", "captured"]);
     for (const overrides of [{ order_id: "another_order" }, { currency: "USD" }, { currency: undefined }]) {
       const entity = { id: "pay_cap", status: "captured", amount: AMOUNT, order_id: "order_abc", currency: "INR", ...overrides };
       globalThis.fetch = async () => Response.json({ items: [entity] });
-      await assert.rejects(provider.findCapturedPayment("order_abc", "pay_cap"), /RAZORPAY_LOOKUP_UNREADABLE/);
+      await assert.rejects(provider.findCapturedPayment("order_abc", { paymentId: "pay_cap" }), /RAZORPAY_LOOKUP_UNREADABLE/);
     }
 
     globalThis.fetch = (async () => new Response("nope", { status: 503 })) as typeof fetch;

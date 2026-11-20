@@ -371,4 +371,4 @@ change; no product row is written.
 
 ## Pending Razorpay Checkout attempts
 
-Migration `20261120090000_pending_checkout_attempts` adds `payments.callback_payment_ids`, a text array with an empty default. When a signed Checkout callback has no matching capture yet, the backend remembers its payment ID once. Before offering another payment, it checks that Razorpay accounts for every remembered attempt and reports each as failed. A matching capture settles through the existing order transaction. Apply the migration before starting the new application version.
+Migration `20261120090000_pending_checkout_attempts` adds `payments.callback_payment_ids`, a text array with an empty default. For an unsettled payment, the backend remembers each signed Checkout payment ID before it asks Razorpay about capture. Before offering another payment, it checks that Razorpay accounts for every remembered attempt and reports each as failed. A matching capture settles through the existing order transaction. Apply the migration before starting the new application version.

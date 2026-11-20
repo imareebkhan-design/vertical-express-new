@@ -7,9 +7,10 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { POST as webhook } from "@/app/api/webhooks/razorpay/route";
 import { handleConfirmPayment, handleGetOrder } from "@/lib/api/v1";
+import { paymentStatusFor } from "@/lib/services/payment-status";
 import { advanceShipment } from "@/lib/services/admin/shipments-write";
 import { listCapturedPaymentsOnDeadOrders, type CallbackCaptureLookup } from "@/lib/services/checkout";
-import { cleanupExpiredPendingOrders } from "@/lib/services/orders";
+import { cancelOrder, cleanupExpiredPendingOrders, getOrderByNo } from "@/lib/services/orders";
 
 /**
  * The payment state machine under duplicates, delays and races.
@@ -407,10 +408,43 @@ test("the mobile contract withholds checkout when the gateway temporarily omits 
   const missing = await detail();
   assert.equal(missing.paymentState, "pending");
   assert.equal(missing.razorpay, null);
+  await assert.rejects(cancelOrder(userA, o.orderNo, "fixture"), /PAYMENT_STATUS_UNKNOWN/);
+  await db.order.update({ where: { id: o.id }, data: { placedAt: new Date(Date.now() - 60 * 60_000) } });
+  await cleanupExpiredPendingOrders(15);
+  assert.equal((await state(o)).status, "pending_payment");
 
   attempts.push({ id: paymentId, order_id: o.gw, status: "authorized", amount: o.amount, currency: "INR" });
   assert.equal((await detail()).paymentState, "pending");
   attempts[1].status = "captured";
   assert.equal((await detail()).paymentState, "paid");
   assert.equal((await confirm(TOKEN_A, o.orderNo, o.gw, paymentId, async () => null)).status, 200);
+});
+
+test("a check in flight notices a newly signed attempt before offering another checkout or cancelling", async () => {
+  const o = await makeOrder();
+  const stale = await getOrderByNo(userA, o.orderNo);
+  assert.ok(stale);
+  const anotherCallback = async () => {
+    const res = await confirm(TOKEN_A, o.orderNo, o.gw, pid(), async () => null);
+    assert.equal(res.status, 503);
+  };
+  const checked = await paymentStatusFor(stale, {
+    findCaptured: async () => null,
+    listAttempts: async () => { await anotherCallback(); return ["failed"]; },
+  });
+  assert.equal(checked.state, "pending");
+  assert.equal(checked.canPay, false);
+  await assert.rejects(cancelOrder(userA, o.orderNo, "fixture", {
+    findCaptured: async () => { await anotherCallback(); return null; },
+  }), /PAYMENT_STATUS_UNKNOWN/);
+  assert.equal((await state(o)).status, "pending_payment");
+
+  const captured = await paymentStatusFor(stale, {
+    findCaptured: async () => {
+      assert.equal((await webhook(hook("payment.captured", o.gw, pid(), o.amount))).status, 200);
+      throw new Error("fixture timeout");
+    },
+  });
+  assert.equal(captured.state, "paid");
+  assert.equal(captured.canPay, false);
 });
