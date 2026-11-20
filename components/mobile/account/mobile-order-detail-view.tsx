@@ -49,7 +49,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const [checkRevision, setCheckRevision] = useState(0);
+  const [paymentCheckRevision, setPaymentCheckRevision] = useState(0);
   const rzOpen = useRef(false); // one Razorpay window at a time
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
@@ -126,7 +126,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
 
           rzOpen.current = false;
           if (!confirm?.ok) {
-            setCheckRevision((revision) => revision + 1); // unverified is not unpaid
+            setPaymentCheckRevision((revision) => revision + 1); // unverified is not unpaid
             return;
           }
           triggerHaptic("heavy");
@@ -135,7 +135,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         modal: {
           ondismiss: () => {
             rzOpen.current = false;
-            setCheckRevision((revision) => revision + 1);
+            setPaymentCheckRevision((revision) => revision + 1);
           },
         },
       };
@@ -155,7 +155,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
     startTransition(async () => {
       const res = await retryOrderPayment(order.orderNo);
       if (!res.ok) {
-        if (res.error.code === "UNAVAILABLE") setCheckRevision((revision) => revision + 1);
+        if (res.error.code === "UNAVAILABLE") setPaymentCheckRevision((revision) => revision + 1);
         else setError(res.error.message);
         return;
       }
@@ -228,7 +228,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         {/* Error Banner */}
         {isPendingPayment && (
           <PaymentStatusNotice
-            key={`${order.orderNo}-${checkRevision}`}
+            key={`${order.orderNo}-${paymentCheckRevision}`}
             orderNo={order.orderNo}
             check={checkPaymentStatus}
             onPaid={() => { router.refresh(); }}

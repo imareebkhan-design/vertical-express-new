@@ -70,7 +70,7 @@ export function OrderActions({
   };
 
   const rzOpen = useRef(false);
-  const [checkRevision, setCheckRevision] = useState(0);
+  const [paymentCheckRevision, setPaymentCheckRevision] = useState(0);
 
   const doRetryPayment = () => {
     if (rzOpen.current) return; // one Razorpay window at a time
@@ -80,7 +80,7 @@ export function OrderActions({
       if (!res.ok) {
         /* "Pending" (approved / in flight / unverifiable) is not an error to
            retry past: show the server's status with Check payment status. */
-        if (res.error.code === "UNAVAILABLE") setCheckRevision((revision) => revision + 1);
+        if (res.error.code === "UNAVAILABLE") setPaymentCheckRevision((revision) => revision + 1);
         else setError(res.error.message);
         return;
       }
@@ -133,7 +133,7 @@ export function OrderActions({
           signature: r.razorpay_signature,
         }).catch(() => null);
         if (!confirm?.ok) {
-          setCheckRevision((revision) => revision + 1); // unverified is not unpaid: ask the server
+          setPaymentCheckRevision((revision) => revision + 1); // unverified is not unpaid: ask the server
           return;
         }
         await refresh();
@@ -142,7 +142,7 @@ export function OrderActions({
       modal: {
         ondismiss: () => {
           rzOpen.current = false;
-          setCheckRevision((revision) => revision + 1);
+          setPaymentCheckRevision((revision) => revision + 1);
         },
       },
     });
@@ -154,7 +154,7 @@ export function OrderActions({
     <div className="flex flex-col gap-3">
       {isPendingPayment && (
         <PaymentStatusNotice
-          key={`${orderNo}-${checkRevision}`}
+          key={`${orderNo}-${paymentCheckRevision}`}
           orderNo={orderNo}
           check={checkPaymentStatus}
           onPaid={() => {

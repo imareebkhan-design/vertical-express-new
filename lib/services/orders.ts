@@ -431,7 +431,7 @@ export async function reconcileWithGateway(
     if (!found) {
       // A callback can arrive during the network round trip. The lookup did not account for that ID.
       const unchanged = await db.payment.count({
-        where: { id: p.id, callbackPaymentIds: { equals: p.callbackPaymentIds }, status: { notIn: ["captured", "refunded"] } },
+        where: { id: p.id, callbackPaymentIds: { equals: p.callbackPaymentIds } },
       });
       if (!unchanged) return "unknown";
       continue;
