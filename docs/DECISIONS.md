@@ -6,6 +6,113 @@ revisited, do not delete the entry — append a superseding decision and mark th
 
 **Status values:** `ACCEPTED` · `PROPOSED` · `SUPERSEDED` · `REVISIT AT <trigger>`
 
+## DEC-021 — Web addresses carry the map pin; Places autocomplete stays server-proxied
+
+**Status:** ACCEPTED · **Date:** 8 October 2026
+
+**Decision.** Every web address form (desktop account, phone account, phone
+checkout) starts from the same location picker as the "Where should we
+deliver?" sheet, and saves the confirmed pin's coordinates. Google decides the
+area line, pincode, city, state and coordinates; the customer types house /
+flat / floor, landmark and gate instructions. Typing an address without the map
+remains possible and saves no coordinates.
+
+**Why.** Web addresses had no coordinates at all, so a web order carried no
+destination and live tracking could never draw a route or give an ETA (the
+8 Oct staging TEST order showed `latitude: null`). The app has saved pins since
+DEC-020; the web now matches it.
+
+**Places stays behind our server**, not `PlaceAutocompleteElement`: the
+existing proxy (`lib/services/places.ts`) already uses Places API (New) with
+session tokens, keeps the Places key off the browser, sits under the guest and
+per-account rate limits, and serves the app and the web from one code path.
+The widget would need a browser Places key and a second, unthrottled path.
+
+**Billed flow, per search.** One session token per search: suggest calls
+(debounced 250 ms, 3+ characters, field mask: place id, text, structured
+format) and the one Place Details call that ends it (field mask: `location`,
+`addressComponents`) share the token, so Google prices them as one session.
+A locality with no postal code costs one reverse geocode more. The pin preview
+loads Maps JavaScript once, only on the confirmation step. "Use my location" is
+one reverse geocode; the coordinates come from the device, never from Places.
+Abandoned searches are billed per suggest request, which the debounce and the
+rate limits bound.
+
+**Place id.** Stored on `Address` (`place_id`, migration
+`20261008150000_address_place_id`) only together with the pin's coordinates,
+and copied into the order's address snapshot.
+
+**Not done.** Address Validation API not used — India coverage is pre-GA;
+revisit if it proves reliable for Srinagar.
+
+## DEC-020 — Expand location beyond pincode entry; design (not build) live driver tracking
+
+**Status:** ACCEPTED for the location/map/serviceability work; the driver-telemetry
+half is **DESIGN ONLY — awaiting owner decisions** · **Date:** 22 September 2026 ·
+**Authority:** explicit owner instruction.
+
+**Decision.** Build the full customer-side location experience — device GPS,
+map confirmation, Google Places search, `ServiceablePincode` handoff, saved
+addresses — inside the existing GCP project `vertical-express`
+(202621320146), with no second Google/Firebase project. Separately, **partially
+supersede** `CLAUDE.md`'s "Do Not Build Yet" entry for "Live GPS driver
+tracking, route optimisation": designing the architecture is now in scope;
+**building it is not**, until the owner decisions below are made.
+
+**What shipped in this batch.** `Address.latitude`/`longitude` (additive,
+nullable, migrated to staging); Maps SDK Android/iOS + Places API (New) enabled
+and restricted per-use-case keys created (`ve-android-maps`, `ve-ios-maps`,
+`ve-server-places`, alongside the existing `ve-server-geocoding`); the
+GPS → map → search → confirm → serviceability → save-address flow in
+`mobile/src/screens/serviceability`; a truthful order-tracking card
+(`TrackingCard` in `mobile/src/screens/order`) showing the customer's own
+confirmed delivery pin and the real shipment state, with no driver marker, no
+route and no computed ETA, because none of those have a real data source yet.
+
+**What did not ship, and why.** A moving driver marker, a route line and a
+live ETA all require driver-location telemetry, which does not exist —
+`Driver` is a dispatch contact with no authenticated account, and no table
+anywhere carries a coordinate. `docs/DRIVER_TRACKING_ARCHITECTURE.md` records
+what would have to be built (driver auth, a driver-facing surface, a
+`driver_pings` table, the Routes API) without building any of it.
+
+**Rationale.** The location brief separated four problems — customer position,
+address resolution, Vertical Express serviceability, live delivery tracking —
+and required an audit before any code. The audit found the first three
+buildable safely inside the existing architecture and the fourth genuinely
+blocked on decisions only the owner can make: which driver operating model
+(a role inside the existing app vs. a dedicated driver application), whether
+and when background location is ever justified for a driver, and the
+recurring Google Maps cost of enabling the Routes API. Building a fake driver
+marker to look finished would violate the same principle `CLAUDE.md` already
+states for business rules: a system that looks finished and is wrong is worse
+than one that is visibly incomplete.
+
+**Consequences.** The order-tracking screen will read as "less impressive"
+than a competitor's live-moving map until Phase F is authorized and built. This
+is intentional. `docs/UI_PARITY_MATRIX.md` records the tracking rows as
+BLOCKED on those owner decisions, not as unbuilt oversight.
+
+**Reopening.** Building any part of `DRIVER_TRACKING_ARCHITECTURE.md` needs the
+owner to pick a driver operating model first; everything else in that document
+follows from that one choice.
+
+---
+
+## DEC-019 — Owner approves Option A after the Shopify feasibility audit
+
+**Status:** ACCEPTED · **Date:** 21 September 2026 · **Authority:** explicit owner instruction.
+
+**Decision.** Continue Expo / React Native → Firebase Auth → Next.js `/api/v1` → Vertical Express commerce services → Prisma → PostgreSQL / Supabase, with Razorpay, Firebase App Hosting and EAS. Shopify is not being introduced. This is the current architecture authority; older entries describing different auth, mobile or hosting choices are historical.
+
+**Rationale.** Catalogue, inventory, serviceability, cart, checkout, coupons, orders, Razorpay settlement, idempotency, late-capture handling and core fulfilment already have executable implementations. Introducing Shopify would create migration and/or synchronization work. The owner chooses to preserve the current architecture and checkout direction. Preserve the completed [Shopify audit](../../SHOPIFY_ARCHITECTURE_AUDIT_2026-09-21.md) as decision evidence, not implementation authorization.
+
+**Limits.** This does not establish production readiness. Refunds/returns, GST-compliant invoicing, COD reconciliation, operational hardening, real production data and device validation remain unfinished or policy-dependent. No new business policy is implied.
+
+**Execution.** Resume staging credential recovery, TEST webhook, expiry scheduler, EAS staging configuration, validation, development builds and device E2E. Preserve payment controls and WIP. No production changes, live payments, store submission, commit or push without the required owner authorization.
+
+**Reopening.** Only an explicit new owner architecture decision changes this choice. Report a genuine newly discovered blocker to the owner; do not silently introduce Shopify or routinely reopen A/B/C.
+
 ---
 
 ## DEC-001 — Preserve the existing repository
@@ -321,7 +428,7 @@ to extend. Product photography must be brand-supplied with permission, or shot i
 
 ## DEC-014 — Keep Supabase for auth, database and storage
 
-**Status:** ACCEPTED
+**Status:** SUPERSEDED BY DEC-019 for authentication: Firebase Auth is the approved identity provider. Supabase PostgreSQL remains in use; DEC-019 does not change storage policy. The text below is historical.
 
 **Decision.** Remain on Supabase — Postgres, Auth and Storage — in `ap-south-1`.
 

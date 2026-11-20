@@ -1,13 +1,50 @@
+import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
 import { db } from "@/lib/db";
+import { SERVICEABLE_WHERE } from "@/lib/serviceable-where";
+import { isPurchasableStatus } from "@/lib/catalog-visibility";
+import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
+import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
+import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
+import { SETTING_KEYS, parseFreeDeliveryThresholdPaise, readSetting } from "@/lib/services/settings";
 
-const FREE_DELIVERY_THRESHOLD_PAISE = 50000; // ₹500
+/**
+ * The free-delivery offer for a basket, given the owner's threshold.
+ *
+ * `thresholdPaise` null means no threshold has been set, so there is no offer:
+ * the three fields read 0, 0 and false. They stay numbers because the phone
+ * app's cart contract types them as numbers; a threshold of 0 is how "no
+ * offer" is said on that contract.
+ *
+ * Pure, so the rule can be tested without a database.
+ */
+export function freeDeliveryFor(subtotalPaise: number, thresholdPaise: number | null) {
+  if (thresholdPaise === null || thresholdPaise <= 0) {
+    return { freeDeliveryThresholdPaise: 0, freeDeliveryRemainingPaise: 0, qualifiesFreeDelivery: false };
+  }
+  return {
+    freeDeliveryThresholdPaise: thresholdPaise,
+    freeDeliveryRemainingPaise: Math.max(0, thresholdPaise - subtotalPaise),
+    qualifiesFreeDelivery: subtotalPaise >= thresholdPaise && subtotalPaise > 0,
+  };
+}
+
+/** The owner's free-delivery threshold in paise, or null when none is set. */
+export async function readFreeDeliveryThresholdPaise(): Promise<number | null> {
+  return parseFreeDeliveryThresholdPaise(await readSetting(SETTING_KEYS.freeDeliveryThresholdPaise));
+}
 
 export interface CartLine {
   itemId: string;
   variantId: string;
   productSlug: string;
+  /** The product, not the variant. Express eligibility is set per product. */
+  productId: string;
   categorySlug: string;
+  /** Heavy material — decides which shipment the line travels in. */
+  categoryIsBulk: boolean;
+  /** `Product.deliverySpeed`: overrides the category when set. Null = use the category. */
+  deliverySpeed: "express" | "scheduled" | null;
   title: string;
   variantName: string;
   brandName: string;
@@ -50,10 +87,16 @@ const EMPTY: CartSummary = {
   lines: [],
   count: 0,
   subtotalPaise: 0,
-  freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  freeDeliveryRemainingPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-  qualifiesFreeDelivery: false,
+  ...freeDeliveryFor(0, null),
 };
+
+/**
+ * The summary for somebody with no cart row yet. It still carries the owner's
+ * threshold, so "no cart" and "an empty cart" describe the same offer.
+ */
+async function emptySummary(): Promise<CartSummary> {
+  return { ...EMPTY, ...freeDeliveryFor(0, await readFreeDeliveryThresholdPaise()) };
+}
 
 /** Resolve active warehouse scoped to user address pincode or fallback. */
 export async function resolveWarehouseId(userId: string | null): Promise<string> {
@@ -65,7 +108,7 @@ export async function resolveWarehouseId(userId: string | null): Promise<string>
     });
     if (addr) {
       const sp = await db.serviceablePincode.findFirst({
-        where: { pincode: addr.pincode, isActive: true },
+        where: { pincode: addr.pincode, ...SERVICEABLE_WHERE },
         select: { warehouseId: true },
       });
       if (sp) return sp.warehouseId;
@@ -120,10 +163,10 @@ export async function getCartSummary(
   anonId: string | null
 ): Promise<CartSummary> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return EMPTY;
+  if (!cart) return emptySummary();
 
   const items = await db.cartItem.findMany({
-    where: { cartId: cart.id },
+    where: { cartId: cart.id, variant: { isActive: true, product: { status: "published", AND: [catalogListingWhere()] } } },
     orderBy: { createdAt: "asc" },
     include: {
       variant: {
@@ -133,8 +176,8 @@ export async function getCartSummary(
           product: {
             include: {
               brand: { select: { name: true } },
-              images: { where: { isPrimary: true }, take: 1 },
-              category: { select: { slug: true } },
+              images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
+              category: { select: { slug: true, isBulk: true } },
             },
           },
         },
@@ -145,9 +188,16 @@ export async function getCartSummary(
   const warehouseId = await resolveWarehouseId(userId);
 
   const lines: CartLine[] = [];
+  const readiness = new Map<string, boolean>();
   for (const item of items) {
     const v = item.variant;
-    
+    /* A line whose product is not for sale (catalog-only, draft, archived) is
+       left out. Checkout builds the order from this summary, so this is what
+       keeps such a line from ever being ordered or priced. */
+    if (!isPurchasableStatus(v.product.status)) continue;
+    if (!readiness.has(v.productId)) readiness.set(v.productId, (await validateCommercialReadiness(db, v.productId)).length === 0);
+    if (!readiness.get(v.productId)) continue;
+
     // Look up warehouse-scoped inventory
     const inv = v.inventory.find((i) => i.warehouseId === warehouseId);
     const available = inv ? Math.max(0, inv.qtyOnHand - inv.qtyReserved) : 0;
@@ -180,11 +230,14 @@ export async function getCartSummary(
       itemId: item.id,
       variantId: v.id,
       productSlug: v.product.slug,
+      productId: v.product.id,
       categorySlug: v.product.category.slug,
+      categoryIsBulk: v.product.category.isBulk,
+      deliverySpeed: v.product.deliverySpeed,
       title: v.product.title,
       variantName: v.name,
       brandName: v.product.brand.name,
-      imageUrl: v.product.images[0]?.url ?? null,
+      imageUrl: productImageDeliveryUrl(v.product.images[0]),
       unitLabel: v.product.unitLabel,
       qty: lineQty,
       basePricePaise: v.pricePaise,
@@ -201,16 +254,13 @@ export async function getCartSummary(
 
   const subtotalPaise = lines.reduce((sum, l) => sum + (l.inStock ? l.lineTotalPaise : 0), 0);
   const count = lines.reduce((sum, l) => sum + (l.inStock ? l.qty : 0), 0);
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD_PAISE - subtotalPaise);
 
   return {
     cartId: cart.id,
     lines,
     count,
     subtotalPaise,
-    freeDeliveryThresholdPaise: FREE_DELIVERY_THRESHOLD_PAISE,
-    freeDeliveryRemainingPaise: remaining,
-    qualifiesFreeDelivery: subtotalPaise >= FREE_DELIVERY_THRESHOLD_PAISE && subtotalPaise > 0,
+    ...freeDeliveryFor(subtotalPaise, await readFreeDeliveryThresholdPaise()),
   };
 }
 
@@ -220,15 +270,26 @@ export async function addItem(
   variantId: string,
   qty: number
 ) {
+  /* COMMERCE_MODE=catalogue: nothing can be checked out, so nothing new goes
+     in a cart. The web hides the controls; this answers a cached page or an
+     older app that still shows them. Before the cart is created, so a refused
+     guest gets no cart row. Classified by lib/cart-errors.ts. */
+  if (!orderingOpen()) throw new Error(ORDERING_CLOSED);
   const cart = await getOrCreateCart(userId, anonId);
   if (!cart) throw new Error("No cart context");
 
   // Guard: variant must exist and be active.
   const variant = await db.productVariant.findFirst({
-    where: { id: variantId, isActive: true },
-    select: { id: true },
+    where: { id: variantId, isActive: true, product: { status: "published", AND: [catalogListingWhere()] } },
+    select: { id: true, productId: true, product: { select: { status: true } } },
   });
   if (!variant) throw new Error("Variant not found");
+  /* Only a published product is for sale. Catalog-only products are shown
+     without a price, and drafts not at all; neither may enter a cart, however
+     the variant id was obtained (lib/catalog-visibility.ts). Classified as
+     NOT_FOUND by lib/cart-errors.ts on the web and /api/v1 alike. */
+  if (!isPurchasableStatus(variant.product.status)) throw new Error("Product not for sale");
+  if ((await validateCommercialReadiness(db, variant.productId)).length) throw new Error("Product not for sale");
 
   const warehouseId = await resolveWarehouseId(userId);
   const inv = await db.inventory.findUnique({
@@ -265,7 +326,7 @@ export async function updateItemQty(
   qty: number
 ): Promise<UpdateCartQtyResult> {
   const cart = await findCart(userId, anonId);
-  if (!cart) return { summary: EMPTY };
+  if (!cart) return { summary: await emptySummary() };
 
   const item = await db.cartItem.findFirst({
     where: { id: itemId, cartId: cart.id },

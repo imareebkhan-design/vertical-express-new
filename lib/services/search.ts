@@ -1,8 +1,11 @@
+import { productImageDeliveryUrl } from "@/lib/catalog/image-delivery";
 import "server-only";
 import { db } from "@/lib/db";
+import { expandedSearchTerms, matchesSearchName } from "@/lib/search-terms";
+import { catalogListingWhere, approvedImageWhere } from "@/lib/catalog-policy";
 
 export interface SearchSuggestions {
-  products: { slug: string; title: string; brandName: string; imageUrl: string | null; pricePaise: number }[];
+  products: { slug: string; title: string; brandName: string; imageUrl: string | null; /** Null when the product has no price to show (catalog-only). Never 0. */ pricePaise: number | null }[];
   categories: { slug: string; name: string }[];
   brands: { slug: string; name: string }[];
 }
@@ -27,38 +30,34 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
     },
   });
 
-  const expandedTerms = [primaryTerm];
-  for (const rec of synonymRecords) {
-    if (tokens.includes(rec.word)) {
-      expandedTerms.push(...rec.synonyms.split(",").map(s => s.trim().toLowerCase()));
-    }
-    const list = rec.synonyms.split(",").map(s => s.trim().toLowerCase());
-    for (const token of tokens) {
-      if (list.includes(token)) {
-        expandedTerms.push(rec.word);
-        expandedTerms.push(...list);
-      }
-    }
-  }
+  const deduplicatedTerms = expandedSearchTerms(primaryTerm, synonymRecords);
 
-  const deduplicatedTerms = Array.from(new Set(expandedTerms))
-    .filter(Boolean);
-
-  // 2. Fetch products matching any of the terms
+  // Filter short terms at the database before LIMIT: post-filtering a capped
+  // result could let unrelated "Accessories" rows crowd out the actual ACC.
+  const eligible = await db.product.findMany({ where: catalogListingWhere(), select: { id: true } });
+  const matchingIds = await db.$queryRaw<{ id: string }[]>`
+    SELECT p.id FROM products p
+    JOIN brands b ON b.id = p.brand_id JOIN categories c ON c.id = p.category_id
+    WHERE p.id = ANY(${eligible.map((p) => p.id)}::uuid[]) AND EXISTS (
+      SELECT 1 FROM unnest(${deduplicatedTerms}::text[]) term
+      WHERE CASE WHEN char_length(term) <= 3 THEN
+        term = ANY(regexp_split_to_array(lower(p.title || ' ' || b.name || ' ' || c.name), '[^a-z0-9]+'))
+      ELSE lower(p.title) LIKE '%' || term || '%'
+        OR lower(b.name) LIKE '%' || term || '%'
+        OR lower(c.name) LIKE '%' || term || '%' END
+    )`;
   const products = await db.product.findMany({
     where: {
-      status: "published",
-      OR: deduplicatedTerms.flatMap((term) => [
-        { title: { contains: term, mode: "insensitive" } },
-        { brand: { name: { contains: term, mode: "insensitive" } } },
-        { category: { name: { contains: term, mode: "insensitive" } } },
-      ]),
+      AND: [catalogListingWhere()],
+      id: { in: matchingIds.map(p => p.id) },
     },
-    orderBy: [{ isDeal: "desc" }, { ratingCount: "desc" }],
+    /* `ratingCount` is always zero (ISS-034), so this ranked nothing. Deals
+       first, then newest — the order it actually produced. */
+    orderBy: [{ isDeal: "desc" }, { createdAt: "desc" }],
     take: 12, // Take extra to allow for deduplication
     include: {
       brand: { select: { name: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+      images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: { where: { isDefault: true }, take: 1, select: { pricePaise: true } },
     },
   });
@@ -67,11 +66,11 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
   const categories = await db.category.findMany({
     where: {
       isActive: true,
+      products: { some: catalogListingWhere() },
       OR: deduplicatedTerms.map((term) => ({
         name: { contains: term, mode: "insensitive" },
       })),
     },
-    take: 3,
     select: { slug: true, name: true },
   });
 
@@ -79,11 +78,11 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
   const brands = await db.brand.findMany({
     where: {
       isActive: true,
+      products: { some: catalogListingWhere() },
       OR: deduplicatedTerms.map((term) => ({
         name: { contains: term, mode: "insensitive" },
       })),
     },
-    take: 3,
     select: { slug: true, name: true },
   });
 
@@ -100,13 +99,14 @@ export async function getSuggestions(query: string): Promise<SearchSuggestions> 
       slug: p.slug,
       title: p.title,
       brandName: p.brand.name,
-      imageUrl: p.images[0]?.url ?? null,
-      pricePaise: p.variants[0]?.pricePaise ?? 0,
+      imageUrl: productImageDeliveryUrl(p.images[0]),
+      // A missing price is null, not ₹0; catalog-only never exposes one.
+      pricePaise: p.status === "published" ? (p.variants[0]?.pricePaise ?? null) : null,
     }));
 
   return {
     products: uniqueProducts,
-    categories: categories.slice(0, 3),
-    brands: brands.slice(0, 3),
+    categories: categories.filter(c => deduplicatedTerms.some(t => matchesSearchName(c.name, t))).slice(0, 3),
+    brands: brands.filter(b => deduplicatedTerms.some(t => matchesSearchName(b.name, t))).slice(0, 3),
   };
 }

@@ -3,6 +3,11 @@
  * page and admin can read them dynamically. Idempotent (upsert by slug).
  */
 import "dotenv/config";
+import { assertPrismaTargetAllowed } from "../scripts/prisma-db-guard.mjs";
+
+/* Seeds fictional demo data. Refuse a remote database (`.env` is production)
+   unless VE_ALLOW_REMOTE_DB=1 is set on purpose. */
+assertPrismaTargetAllowed(process.env.DATABASE_URL ?? "", ["seed"], process.env);
 import { PrismaClient } from "../prisma/generated/client/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { SERVICE_CATEGORIES } from "../lib/services";

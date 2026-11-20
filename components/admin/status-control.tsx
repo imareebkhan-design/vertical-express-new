@@ -18,34 +18,57 @@ export function StatusControl({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (options.length === 0) {
     return <span className="text-xs font-semibold text-neutral-400">No actions</span>;
   }
 
-  const onChange = (value: string) => {
+  const onChange = (value: string, select: HTMLSelectElement) => {
     if (!value) return;
-    setError(false);
+    /* A cancellation cannot be undone, and on a paid order it leaves a refund to
+       issue. A mis-picked option used to cancel at once (staging UAT, 8 Nov 2026). */
+    if (value === "cancelled" && !window.confirm(
+      `Cancel this ${kind}? This cannot be undone.${kind === "order" ? " If it was paid, it moves to Payments → Refund required." : ""}`,
+    )) {
+      select.value = "";
+      return;
+    }
+    setError(null);
     startTransition(async () => {
-      const res =
-        kind === "order"
-          ? await adminAdvanceOrder(id, value as OrderStatus)
-          : await adminAdvanceBooking(id, value as BookingStatus);
-      if (res.ok) router.refresh();
-      else setError(true);
+      /* The server's own sentence is shown. This control used to show a bare
+         "!" and throw the reason away, so an operator refused a cancel because
+         Razorpay showed the order paid, or told to use the dispatch board, could
+         not tell which had happened. */
+      try {
+        const res =
+          kind === "order"
+            ? await adminAdvanceOrder(id, value as OrderStatus)
+            : await adminAdvanceBooking(id, value as BookingStatus);
+        if (res.ok) {
+          router.refresh();
+          return;
+        }
+        setError(res.error.message);
+        /* Some refusals change what is on the server (a payment found while
+           cancelling confirms the order), so the screen is re-read either way. */
+        router.refresh();
+      } catch {
+        setError(`The change could not be confirmed. Reload to see the current status of this ${kind}.`);
+      }
     });
   };
 
   return (
-    <span className="inline-flex items-center gap-1.5">
+    <span className="inline-flex max-w-[22rem] flex-col items-start gap-1">
       {pending ? (
         <Loader2 className="size-4 animate-spin text-neutral-400" />
       ) : (
         <select
           defaultValue=""
-          onChange={(e) => onChange(e.target.value)}
-          className="cursor-pointer rounded-lg border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
+          aria-label={`Change ${kind} status`}
+          onChange={(e) => onChange(e.target.value, e.currentTarget)}
+          className="cursor-pointer rounded-field border border-neutral-200 bg-white px-2 py-1 text-xs font-bold transition-colors hover:border-ink focus:border-ink focus:outline-none"
         >
           <option value="">Advance…</option>
           {options.map((o) => (
@@ -55,7 +78,11 @@ export function StatusControl({
           ))}
         </select>
       )}
-      {error && <span className="text-xs font-bold text-danger">!</span>}
+      {error && (
+        <span role="alert" className="text-xs font-bold leading-snug text-danger">
+          {error}
+        </span>
+      )}
     </span>
   );
 }

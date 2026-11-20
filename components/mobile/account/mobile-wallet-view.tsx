@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Wallet, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
+import { ArrowLeft, TrendingUp, TrendingDown, RefreshCw } from "lucide-react";
 import { formatPaise } from "@/lib/money";
 import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
+import { isWalletCredit } from "@/lib/wallet-tx";
 
 interface MobileWalletViewProps {
   balancePaise: number;
@@ -44,7 +45,8 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
               triggerHaptic("light");
               router.back();
             }}
-            className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
+            aria-label="Back"
+          className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
           </button>
@@ -63,21 +65,53 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Wallet Balance Card */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-deep via-brand to-brand-light p-6 text-white shadow-md">
-          <div className="absolute -right-6 -top-6 opacity-10">
-            <Wallet className="size-36 text-white" />
-          </div>
+        {/* Vertical Credit (artboard 17) is not shown. There is no credit model,
+            limit or terms, and it is an open owner decision — a card announcing
+            "a trade credit line is planned" was a commitment nobody has made.
+            It comes back if and when the product exists. */}
+        {/*
+          Wallet balance.
 
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-white/70 block leading-none">
-            Cashback Balance
+          This replaced a card that read "5% cashback credited on every delivered
+          order". No cashback policy exists — that was a standing commitment about
+          money, invented in a component, and a customer who read it and did not
+          receive it would have been right to complain. The balance is real; the
+          promise about how it grows was not.
+        */}
+        <div className="rounded-[22px] bg-paper p-5 shadow-card">
+          <span className="block text-[11px] font-bold uppercase tracking-[0.09em] text-ink-500">
+            Wallet balance
           </span>
-          <span className="text-2xl font-extrabold mt-3.5 block leading-none">
+          <span className="mt-2 block text-[28px] font-extrabold leading-8 tracking-[-0.025em] text-ink">
             {formatPaise(balancePaise)}
           </span>
-          <span className="text-[9px] font-bold text-white/80 mt-2 block">
-            5% cashback credited on every delivered order
-          </span>
+          {/*
+            "Add money" stays disabled, and this says why rather than leaving a
+            dead button on the screen.
+
+            Three things have to be true before a customer can put money in, and
+            none of them is: there is no top-up transaction type (the wallet
+            records cashback, order spend, refunds and expiry — nothing for
+            money paid in), the wallet is not wired into checkout so a balance
+            could not be spent once it existed, and the live gateway is the
+            dummy one, which would take no money while reporting that it had.
+
+            That last is ISS-002 and it is why this is not a button waiting on a
+            afternoon's work. Crediting a wallet against a payment that never
+            happened is the same defect as confirming an order against one.
+          */}
+          <button
+            type="button"
+            disabled
+            aria-describedby="topup-blocked"
+            className="mt-4 h-11 w-full rounded-full bg-chip text-[14px] font-bold text-ink-500"
+          >
+            Add money
+          </button>
+          <p id="topup-blocked" className="mt-2 text-[11px] font-medium leading-[15px] text-ink-500">
+            Not available yet. Money added here could not be spent — the wallet is not
+            connected to checkout — and no live payment gateway is configured to take it.
+          </p>
         </div>
 
         {/* History section */}
@@ -93,21 +127,26 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
           ) : (
             <ul className="divide-y divide-mist/10">
               {transactions.map((t) => {
-                const isCredit = t.type === "credit";
+                const isCredit = isWalletCredit(t.type);
                 return (
                   <li key={t.id} className="py-3.5 flex items-center justify-between gap-3 first:pt-0 last:pb-0">
                     <div className="flex items-center gap-3">
                       <div
                         className={cn(
                           "flex size-8.5 shrink-0 items-center justify-center rounded-lg",
-                          isCredit ? "bg-emerald-50 text-emerald-600" : "bg-brand-deep/10 text-brand-deep"
+                          isCredit ? "bg-amber-soft text-ink" : "bg-chip text-ink-700"
                         )}
                       >
                         {isCredit ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
                       </div>
                       <div className="min-w-0">
                         <p className="text-xs font-bold text-ink truncate leading-tight">
-                          {t.description || (isCredit ? "Order Cashback Credited" : "Cashback Discount Applied")}
+                          {/* The artboard's row label is "Money added to wallet".
+                              No transaction can carry it: there is no top-up
+                              type, so every credit here is cashback or a refund.
+                              Saying "credited" describes what actually
+                              happened. */}
+                          {t.description || (isCredit ? "Credited to wallet" : "Used on an order")}
                         </p>
                         <span className="text-[8px] text-ink/35 font-semibold mt-1 block">
                           {new Date(t.createdAt).toLocaleDateString("en-IN", {
@@ -119,9 +158,9 @@ export function MobileWalletView({ balancePaise, transactions }: MobileWalletVie
                       </div>
                     </div>
 
-                    <span className={cn("text-xs font-extrabold", isCredit ? "text-emerald-600" : "text-brand-deep")}>
-                      {isCredit ? "+" : "-"}
-                      {formatPaise(t.amountPaise)}
+                    <span className={cn("text-xs font-extrabold", isCredit ? "text-ink" : "text-ink-700")}>
+                      {isCredit ? "+" : "\u2212"}
+                      {formatPaise(Math.abs(t.amountPaise))}
                     </span>
                   </li>
                 );

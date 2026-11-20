@@ -1,6 +1,19 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma, PaymentMethod, OrderStatus } from "@/prisma/generated/client/client";
+import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/settings";
+import { orderNeedsTruck } from "@/lib/speed";
+import { addDays, istDateKey } from "@/lib/ist";
+import { PAID_ORDER_WHERE, isPaidOrder } from "@/lib/services/admin/paid-orders";
+
+/** ISO week label, e.g. "W31". The artboard's x-axis. */
+function isoWeek(d: Date): string {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  /* Thursday of this week decides the year's week number (ISO 8601). */
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  const jan1 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `W${String(Math.ceil(((t.getTime() - jan1.getTime()) / 86400000 + 1) / 7)).padStart(2, "0")}`;
+}
 
 export interface BiFilters {
   startDate?: Date;
@@ -28,9 +41,14 @@ export interface BiDashboardData {
     discountsPaise: number;
     gstPaise: number;
     shippingPaise: number;
+    /** Net sales per paid order. */
     aovPaise: number;
+    /** Every order placed in the period, whatever became of it. */
     ordersCount: number;
+    /** The orders the money figures are summed over; see paid-orders.ts. */
+    paidOrdersCount: number;
     growthPct: number;
+    /** Refund rows the gateway processed in the period, from `payment_refunds`. */
     refundsPaise: number;
     cashbackIssuedPaise: number;
     dailySales: { label: string; gross: number; net: number }[];
@@ -58,12 +76,32 @@ export interface BiDashboardData {
     neverSold: { title: string; sku: string }[];
   };
   inventory: {
-    totalValuePaise: number;
+    /**
+     * Null, always, until a cost basis exists — ISS-062.
+     *
+     * This was `qtyOnHand * pricePaise`, the SELLING price, which overstates
+     * stock by the entire margin. It is labelled "Current Stock Value" on the
+     * dashboard, which is exactly the figure somebody quotes to a bank, an
+     * accountant or an insurer in good faith. /admin/inventory already says
+     * stock value is a sentence rather than a number; this said otherwise, two
+     * screens apart.
+     */
+    totalValuePaise: number | null;
     outOfStockCount: number;
     lowStockCount: number;
     deadStockCount: number;
-    utilizationPct: number;
-    turnoverRate: number;
+    /**
+     * Null: `Warehouse` has no capacity column. The denominator was
+     * `warehouseCount * 10000` — an invented ten thousand units per warehouse,
+     * producing a percentage that looks measured and is not.
+     */
+    utilizationPct: number | null;
+    /**
+     * Null: turnover is cost of goods sold over average inventory at cost. The
+     * comment beside the old code said exactly that while the code divided net
+     * sales by inventory at selling price — neither input was the right one.
+     */
+    turnoverRate: number | null;
     aging: { label: string; value: number }[]; // [0-30 days, 31-90 days, 90+ days]
     fastMoving: { title: string; qtyOnHand: number; soldQty: number }[];
     slowMoving: { title: string; qtyOnHand: number; soldQty: number }[];
@@ -80,8 +118,10 @@ export interface BiDashboardData {
   };
   marketing: {
     coupons: { code: string; count: number; discountPaise: number }[];
-    conversionRate: number;
-    checkoutDropoffCount: number;
+    /** Null: nothing records a checkout start, so this cannot be computed. */
+    conversionRate: number | null;
+    checkoutDropoffCount: number | null;
+    /** Items currently sitting in carts. Not abandonment — some are in use. */
     cartAbandonmentCount: number;
     topSearches: { term: string; count: number }[];
     noResultSearches: { term: string; count: number }[];
@@ -91,15 +131,38 @@ export interface BiDashboardData {
     taxesPaise: number;
     walletLiabilityPaise: number;
     refundsPaise: number;
+    /** Captured in the period less refunds processed in it. Both from the ledger. */
     cashFlowPaise: number;
-    gatewaySettlementPaise: number;
+    /**
+     * Null: what Razorpay settles is the capture less its fee and tax on the
+     * fee, and neither is recorded here. This was `netSales * 0.98`, a two per
+     * cent fee nobody agreed with Razorpay, shown as a settlement figure.
+     */
+    gatewaySettlementPaise: number | null;
     outstandingPaise: number;
   };
   operations: {
     warehousePerf: { name: string; count: number; valuePaise: number }[];
+    /**
+     * Orders per week split by how they travel. The artboard's third chart —
+     * the one that shows the heavy share rising as winter lead times start.
+     *
+     * There is no `seasonal` series because no seasonal rule is stored or
+     * applied anywhere (see Serviceability). A band drawn for it would be a
+     * band for a rule that is not in force.
+     */
+    ordersBySpeed: { week: string; express: number; heavy: number }[];
     avgFulfillmentMinutes: number;
-    packingSlaPct: number;
-    deliverySlaPct: number;
+    /**
+     * Null when the SLA cannot be computed — either nobody has set the target
+     * (Settings → Operations), or no order in the period reached that stage.
+     * Never a number that means "we do not know".
+     */
+    packingSlaPct: number | null;
+    deliverySlaPct: number | null;
+    /** The targets these were measured against, for the screen to show. */
+    packSlaMinutes: number | null;
+    deliverySlaMinutes: number | null;
     hourlyActivity: { day: string; hour: number; value: number }[];
   };
 }
@@ -115,12 +178,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   const prevStartDate = new Date(startDate.getTime() - durationMs);
   const prevEndDate = new Date(startDate.getTime() - 1);
 
-  // 2. Fetch dimension filters
-  const [warehouses, brands, categories, products] = await Promise.all([
+  // 2. Fetch dimension filters, and the targets performance is measured against
+  const [warehouses, brands, categories, products, settings] = await Promise.all([
     db.warehouse.findMany({ select: { id: true, name: true } }),
     db.brand.findMany({ select: { id: true, name: true } }),
     db.category.findMany({ select: { id: true, slug: true } }),
     db.product.findMany({ select: { id: true, title: true }, take: 100 }),
+    readSettings(),
   ]);
 
   // 3. Build main order query where condition
@@ -143,8 +207,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   if (filters.productId || filters.brandId || filters.categoryId) {
     orderWhere.items = {
       some: {
-        ...(filters.productId ? { variantId: filters.productId } : {}),
         variant: {
+          ...(filters.productId ? { productId: filters.productId } : {}),
           product: {
             ...(filters.brandId ? { brandId: filters.brandId } : {}),
             ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
@@ -152,6 +216,17 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
         },
       },
     };
+  }
+
+  // Apply the same customer scope to orders, comparison periods and ledger
+  // aggregates. Filtering only the loaded sales rows left cash flow unfiltered.
+  if (filters.customerType) {
+    const returning = await db.order.groupBy({
+      by: ["userId"],
+      having: { userId: { _count: { gt: 1 } } },
+    });
+    const ids = returning.map((o) => o.userId);
+    orderWhere.userId = filters.customerType === "new" ? { notIn: ids } : { in: ids };
   }
 
   // 4. Query matching orders
@@ -192,10 +267,26 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     });
   }
 
+  /**
+   * The orders money is summed over (RPT-02).
+   *
+   * Every sales figure below used to run over all orders in the period, so a
+   * cancelled order and an order nobody paid for were in gross sales, GST and
+   * delivery income. They now run over paid orders only, by the rule Today
+   * uses. `filteredOrders` is still what the status counts, timings and
+   * activity charts read: those describe orders placed, not money.
+   */
+  const paidOrders = filteredOrders.filter((o) =>
+    isPaidOrder({ status: o.status, payments: o.payments.filter((p) => p.status === "captured") })
+  );
+
+  const paidOrderIds = new Set(paidOrders.map((o) => o.id));
+
   // 5. Query previous period orders for revenue growth comparison
   const prevOrderWhere: Prisma.OrderWhereInput = {
+    ...orderWhere,
     placedAt: { gte: prevStartDate, lte: prevEndDate },
-    status: { notIn: ["cancelled", "refunded"] },
+    AND: [PAID_ORDER_WHERE],
   };
   const prevPeriodOrders = await db.order.findMany({
     where: prevOrderWhere,
@@ -208,45 +299,63 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   let discounts = 0;
   let gstCollected = 0;
   let shippingRevenue = 0;
-  let refunds = 0;
+  let netSales = 0;
   const orderCount = filteredOrders.length;
 
   const dailyMap = new Map<string, { gross: number; net: number }>();
-  
-  // Seed dates in daily map
-  for (let d = new Date(startDate.getTime()); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const key = d.toISOString().split("T")[0];
+
+  /* One row per IST calendar day, so a sale at 1 AM in Srinagar is on that
+     day's row and not the previous one. */
+  const lastDay = istDateKey(endDate);
+  for (let key = istDateKey(startDate); key <= lastDay; key = addDays(key, 1)) {
     dailyMap.set(key, { gross: 0, net: 0 });
   }
 
-  for (const o of filteredOrders) {
-    const isCancelled = o.status === "cancelled";
-    const isRefunded = o.status === "refunded" || o.status === "refund_initiated";
-
+  for (const o of paidOrders) {
     const oGross = o.items.reduce((sum, item) => sum + (item.lineTotalPaise ?? 0), 0);
-    const oDiscount = o.discountPaise;
-    const oTax = o.taxPaise;
-    const oShipping = o.deliveryFeePaise;
-    const oNet = o.totalPaise;
 
     grossSales += oGross;
-    discounts += oDiscount;
-    gstCollected += oTax;
-    shippingRevenue += oShipping;
+    discounts += o.discountPaise;
+    gstCollected += o.taxPaise;
+    shippingRevenue += o.deliveryFeePaise;
+    /* What the customer was charged, as stored on the order. Not re-derived
+       from the parts: the order total is the figure the payment was taken for. */
+    netSales += o.totalPaise;
 
-    if (isRefunded) {
-      refunds += oNet;
-    }
-
-    const dayKey = o.placedAt.toISOString().split("T")[0];
+    const dayKey = istDateKey(o.placedAt);
     const dayData = dailyMap.get(dayKey) || { gross: 0, net: 0 };
     dayData.gross += oGross;
-    dayData.net += isCancelled ? 0 : oNet;
+    dayData.net += o.totalPaise;
     dailyMap.set(dayKey, dayData);
   }
 
-  const netSales = Math.max(0, grossSales - discounts + gstCollected + shippingRevenue - refunds);
   const growthPct = prevPeriodNet > 0 ? Math.round(((netSales - prevPeriodNet) / prevPeriodNet) * 100) : 0;
+
+  /**
+   * Money in and money back, from the payment and refund rows themselves.
+   *
+   * Refunds were read from the order status `refunded` / `refund_initiated`,
+   * which nothing sets, so the figure was always zero (PAY-14). A refund is a
+   * `payment_refunds` row the gateway has processed. A payment whose status is
+   * now `refunded` was still money in when it was captured. Both are dated by
+   * the row's creation, the same basis as the Payments ledger export, and both
+   * honour the order filters above.
+   */
+  const { placedAt: _placedAt, ...orderScope } = orderWhere;
+  void _placedAt;
+  const ledgerRange = { gte: startDate, lte: endDate };
+  const [capturedIn, refundedOut] = await Promise.all([
+    db.payment.aggregate({
+      where: { status: { in: ["captured", "refunded"] }, createdAt: ledgerRange, order: orderScope },
+      _sum: { amountPaise: true },
+    }),
+    db.paymentRefund.aggregate({
+      where: { status: "processed", createdAt: ledgerRange, order: orderScope },
+      _sum: { amountPaise: true },
+    }),
+  ]);
+  const capturedPaise = capturedIn._sum.amountPaise ?? 0;
+  const refunds = refundedOut._sum.amountPaise ?? 0;
   
   // Cashback Issued during the range
   const cashbackTx = await db.walletTransaction.aggregate({
@@ -318,16 +427,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   const catSalesMap = new Map<string, number>();
   const brandSalesMap = new Map<string, number>();
 
-  for (const o of filteredOrders) {
-    const isRefunded = o.status === "refunded" || o.status === "refund_initiated";
+  /* Sold means paid for: an item on a cancelled or unpaid order was not sold. */
+  for (const o of paidOrders) {
     for (const item of o.items) {
       const title = item.title;
       const data = prodSalesMap.get(title) || { qty: 0, rev: 0, returns: 0 };
       data.qty += item.qty;
       data.rev += item.totalPaise ?? 0;
-      if (isRefunded) {
-        data.returns += item.qty;
-      }
       prodSalesMap.set(title, data);
 
       const cat = item.variant.product.category.slug;
@@ -363,7 +469,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   // Never Sold Products
   const soldProductIds = new Set<string>();
-  for (const o of filteredOrders) {
+  for (const o of paidOrders) {
     for (const item of o.items) {
       soldProductIds.add(item.variant.productId);
     }
@@ -388,21 +494,19 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     },
   });
 
-  let totalInventoryValue = 0;
+  /* No cost price exists anywhere in the schema (ISS-062), so stock cannot be
+     valued. Kept as a running total of nothing rather than deleted, because the
+     aging and movement figures below are computed in the same pass and are
+     real. */
   let outOfStockCount = 0;
   let lowStockCount = 0;
-  let activeInvCount = 0;
   let age0_30 = 0, age31_90 = 0, age91_plus = 0;
 
   const invList = variants.map((v) => {
     const qty = v.inventory.reduce((sum, i) => sum + i.qtyOnHand, 0);
-    const value = qty * v.pricePaise;
-    totalInventoryValue += value;
 
     if (qty === 0) outOfStockCount++;
     else if (qty <= 10) lowStockCount++;
-    
-    activeInvCount += qty;
 
     const daysOld = (now.getTime() - v.product.createdAt.getTime()) / (1000 * 60 * 60 * 24);
     if (daysOld <= 30) age0_30 += qty;
@@ -420,13 +524,15 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
 
   const deadStockCount = invList.filter(i => i.qtyOnHand > 0 && i.soldQty === 0).length;
   
-  // Utilization: total stock divided by warehouse capacity limit
-  const warehouseCount = warehouses.length || 1;
-  const capacityLimit = warehouseCount * 10000;
-  const utilizationPct = Math.round(Math.min(100, (activeInvCount / capacityLimit) * 100));
+  /* Utilisation needs a capacity to divide by, and `Warehouse` has no capacity
+     column. It was `warehouseCount * 10000` — a number nobody set, dressed as a
+     measurement. Null until the warehouse carries its real capacity. */
+  const utilizationPct = null;
 
-  // Turnover rate: Cost of goods sold / average inventory value
-  const turnoverRate = totalInventoryValue > 0 ? Number((netSales / totalInventoryValue).toFixed(2)) : 0;
+  /* Turnover is cost of goods sold over average inventory at cost. Both inputs
+     need a cost price, so it is not computable either (ISS-062). It was
+     `netSales / (qty * sellingPrice)`, which is neither term of that ratio. */
+  const turnoverRate = null;
 
   const aging = [
     { label: "0-30 Days", value: age0_30 },
@@ -440,7 +546,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   // 10. Customer Growth & Retention
   const totalCustomers = await db.user.count({ where: { role: "customer" } });
   
-  const customerOrdersAgg = filteredOrders.reduce((map, o) => {
+  /* Spend and repeat purchase are about paid orders. */
+  const customerOrdersAgg = paidOrders.reduce((map, o) => {
     const data = map.get(o.userId) || { count: 0, spent: 0, email: o.user.email || "unknown", name: o.user.phone || "User" };
     data.count++;
     data.spent += o.totalPaise;
@@ -497,26 +604,28 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     discountPaise: val.discount,
   })).sort((a, b) => b.count - a.count);
 
-  // Mock marketing metrics for checkout funnel & search analytics
-  const checkoutDropoffCount = Math.round(orderCount * 0.15);
+  /**
+   * Checkout funnel and search demand — ISS-065.
+   *
+   * These were invented. `checkoutDropoffCount` was `orderCount * 0.15`, so
+   * the conversion rate on the Marketing tab was always about 87% no matter
+   * what happened, computed from a constant somebody typed. The nine search
+   * terms below it were a hardcoded list: "solar tiles, 18" read as demand for
+   * a product we do not stock, and a purchasing decision made on it would have
+   * been made on nothing.
+   *
+   * There is no analytics event for a checkout start and no search log, so
+   * neither can be computed. Null and empty, and the screen says why.
+   *
+   * Cart items are real, and are the one honest figure here — but they are
+   * every item in every cart, including carts somebody is filling right now.
+   * Not abandonment.
+   */
+  const checkoutDropoffCount = null;
   const cartAbandonmentCount = await db.cartItem.count();
-  const checkoutStarted = orderCount + checkoutDropoffCount;
-  const conversionRate = checkoutStarted > 0 ? Math.round((orderCount / checkoutStarted) * 100) : 100;
-
-  // Mock popular searches
-  const topSearches = [
-    { term: "cement", count: 320 },
-    { term: "paint", count: 245 },
-    { term: "tmt bars", count: 180 },
-    { term: "bricks", count: 140 },
-    { term: "sealant", count: 95 },
-  ];
-  const noResultSearches = [
-    { term: "drill machine", count: 35 },
-    { term: "solar tiles", count: 18 },
-    { term: "wooden logs", count: 12 },
-    { term: "excavator lease", count: 5 },
-  ];
+  const conversionRate = null;
+  const topSearches: { term: string; count: number }[] = [];
+  const noResultSearches: { term: string; count: number }[] = [];
 
   // 12. Operations Performance
   const warehousePerfMap = new Map<string, { count: number; value: number }>();
@@ -525,7 +634,8 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       const name = warehouses.find(w => w.id === o.warehouseId)?.name || "Default Warehouse";
       const data = warehousePerfMap.get(name) || { count: 0, value: 0 };
       data.count++;
-      data.value += o.totalPaise;
+      /* Orders handled is every order; value is the paid ones. */
+      if (paidOrderIds.has(o.id)) data.value += o.totalPaise;
       warehousePerfMap.set(name, data);
     }
   }
@@ -536,9 +646,20 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     valuePaise: val.value,
   }));
 
-  // Fulfillment SLA percentage (packed under 120 minutes / 2 hours)
-  const packingSlaLimit = 120;
-  const deliverySlaLimit = 240; // 4 hours
+  /**
+   * On-time performance, measured against targets the owner sets.
+   *
+   * These were `120` and `240` — two minute-counts written into this file that
+   * nobody agreed to, reported on the console as compliance percentages. A
+   * dispatcher reading "89% on time" was reading performance against a number
+   * an engineer invented (ISS-064). Worse, an empty period returned 100: zero
+   * deliveries is not perfect delivery, and that is the reading a quiet week
+   * would have produced.
+   *
+   * Unset now means not computable. The screen says so.
+   */
+  const packingSlaLimit = parseMinutes(settings[SETTING_KEYS.packSlaMinutes]);
+  const deliverySlaLimit = parseMinutes(settings[SETTING_KEYS.deliverySlaMinutes]);
 
   let packingSlaCount = 0;
   let deliverySlaCount = 0;
@@ -548,15 +669,42 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     const packedEv = events.find(e => e.toStatus === "packed");
     const deliveredEv = events.find(e => e.toStatus === "delivered");
 
-    if (packedEv) {
+    if (packedEv && packingSlaLimit !== null) {
       const elapsed = (packedEv.createdAt.getTime() - o.placedAt.getTime()) / (1000 * 60);
       if (elapsed <= packingSlaLimit) packingSlaCount++;
     }
-    if (packedEv && deliveredEv) {
+    if (packedEv && deliveredEv && deliverySlaLimit !== null) {
       const elapsed = (deliveredEv.createdAt.getTime() - packedEv.createdAt.getTime()) / (1000 * 60);
       if (elapsed <= deliverySlaLimit) deliverySlaCount++;
     }
   }
+
+  /**
+   * How each order travelled, by week.
+   *
+   * An order that mixes a bag of cement with a box of screws goes on the
+   * truck, so a mixed order counts as heavy: the vehicle is decided by the
+   * heaviest thing in it, not by the majority of lines. Counting it as express
+   * would understate the truck load, which is the number this chart exists to
+   * show rising.
+   */
+  const speedByWeek = new Map<string, { express: number; heavy: number }>();
+  for (const o of filteredOrders) {
+    const heavy = orderNeedsTruck(
+      o.items.map((i) => ({
+        isBulk: i.variant.product.category.isBulk,
+        override: i.variant.product.deliverySpeed,
+      }))
+    );
+    const week = isoWeek(o.placedAt);
+    const row = speedByWeek.get(week) ?? { express: 0, heavy: 0 };
+    if (heavy) row.heavy++;
+    else row.express++;
+    speedByWeek.set(week, row);
+  }
+  const ordersBySpeed = [...speedByWeek.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([week, v]) => ({ week, ...v }));
 
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const hours = [9, 12, 15, 18, 21];
@@ -579,13 +727,20 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
     if (cell) cell.value++;
   }
 
-  const packingSlaPct = fulfillCount > 0 ? Math.round((packingSlaCount / fulfillCount) * 100) : 100;
-  const deliverySlaPct = deliveryCount > 0 ? Math.round((deliverySlaCount / deliveryCount) * 100) : 100;
+  const packingSlaPct =
+    packingSlaLimit !== null && fulfillCount > 0
+      ? Math.round((packingSlaCount / fulfillCount) * 100)
+      : null;
+  const deliverySlaPct =
+    deliverySlaLimit !== null && deliveryCount > 0
+      ? Math.round((deliverySlaCount / deliveryCount) * 100)
+      : null;
 
   // 13. Finance Cash Flows
-  const walletUsagePaise = filteredOrders.reduce((sum, o) => {
-    return sum + (o.paymentMethod === "cod" ? 0 : o.totalPaise); // non-cod is wallet or gateway payments
-  }, 0);
+  /* Kept under its old name for the screen: the total of paid orders. It was
+     every non-COD order's total, paid or not, labelled as wallet value; the
+     wallet cannot be spent at checkout. */
+  const walletUsagePaise = netSales;
   const outstandingPaise = filteredOrders.filter(o => o.status === "pending_payment").reduce((sum, o) => sum + o.totalPaise, 0);
 
   return {
@@ -601,8 +756,9 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       discountsPaise: discounts,
       gstPaise: gstCollected,
       shippingPaise: shippingRevenue,
-      aovPaise: orderCount > 0 ? Math.round(netSales / orderCount) : 0,
+      aovPaise: paidOrders.length > 0 ? Math.round(netSales / paidOrders.length) : 0,
       ordersCount: orderCount,
+      paidOrdersCount: paidOrders.length,
       growthPct,
       refundsPaise: refunds,
       cashbackIssuedPaise: cashbackIssued,
@@ -631,7 +787,7 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       neverSold,
     },
     inventory: {
-      totalValuePaise: totalInventoryValue,
+      totalValuePaise: null,
       outOfStockCount,
       lowStockCount,
       deadStockCount,
@@ -664,15 +820,18 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
       taxesPaise: gstCollected,
       walletLiabilityPaise: walletLiability,
       refundsPaise: refunds,
-      cashFlowPaise: netSales - refunds,
-      gatewaySettlementPaise: Math.round(netSales * 0.98), // 2% gateway fee assumption
+      cashFlowPaise: capturedPaise - refunds,
+      gatewaySettlementPaise: null,
       outstandingPaise,
     },
     operations: {
       warehousePerf,
+      ordersBySpeed,
       avgFulfillmentMinutes: fulfillCount > 0 ? Math.round(totalFulfillMin / fulfillCount) : 0,
       packingSlaPct,
       deliverySlaPct,
+      packSlaMinutes: packingSlaLimit,
+      deliverySlaMinutes: deliverySlaLimit,
       hourlyActivity,
     },
   };

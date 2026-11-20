@@ -31,12 +31,12 @@ export function PageLoader() {
             <motion.span
               animate={{ rotate: [0, -8, 8, 0] }}
               transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-              className="grid size-16 place-items-center rounded-2xl bg-brand-deep p-2.5 shadow-card"
+              className="grid size-16 place-items-center rounded-panel bg-brand-deep p-2.5 shadow-card"
             >
               <VerticalExpressIcon className="size-10" light />
             </motion.span>
-            <span className="text-3xl font-black italic tracking-tight text-brand-deep">
-              VERTICAL<span className="text-white ml-1">EXPRESS</span>
+            <span className="text-3xl font-black italic tracking-tight text-ink-700">
+              VERTICAL<span className="text-ink ml-1">EXPRESS</span>
             </span>
           </motion.div>
         </motion.div>

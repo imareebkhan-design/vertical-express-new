@@ -1,0 +1,296 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import {
+  adminAdvanceShipment,
+  adminAssignShipment,
+  adminConfirmDelivery,
+  adminDeliverWithoutCode,
+  adminReceiveShipmentBack,
+} from "@/actions/dispatch";
+import type { DispatchShipment, DispatchRoster } from "@/lib/services/shipments";
+
+/**
+ * The controls that move one shipment.
+ *
+ * `Shipment` was write-once for its whole life (ISS-009) — this is the first
+ * place a dispatcher can act on one. Every rule about what may move where lives
+ * in the service; this component only offers the moves and reports what came
+ * back.
+ *
+ * The handover code is shown once, right after dispatch, and never again. It is
+ * read to the driver and belongs to the customer's gate — it is deliberately
+ * not stored on this screen, not in the audit trail, and not re-fetchable. A
+ * dispatcher who misses it has to look at the shipment record, which is the
+ * correct amount of friction for a credential.
+ */
+export function DispatchControls({
+  shipment,
+  roster,
+}: {
+  shipment: DispatchShipment;
+  roster: DispatchRoster;
+}) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+  const [code, setCode] = useState<string | null>(null);
+  const [driverId, setDriverId] = useState(shipment.driver?.id ?? "");
+  const [vehicleId, setVehicleId] = useState(shipment.vehicle?.id ?? "");
+  const [handover, setHandover] = useState("");
+
+  const field =
+    "h-9 w-full rounded-field border border-line bg-white px-2.5 text-[12.5px] font-semibold text-ink";
+  const button =
+    "h-9 rounded-full px-3.5 text-[12px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-50";
+
+  const run = (fn: () => Promise<{ ok: boolean; error?: { message: string } }>) => {
+    setError(null);
+    start(async () => {
+      const res = await fn();
+      if (!res.ok) setError(res.error?.message ?? "That did not work");
+      else router.refresh();
+    });
+  };
+
+  const assign = () =>
+    run(async () => {
+      const res = await adminAssignShipment({ shipmentId: shipment.id, driverId, vehicleId });
+      return res;
+    });
+
+  const advance = (to: "packed" | "out_for_delivery" | "cancelled") =>
+    run(async () => {
+      const res = await adminAdvanceShipment({ shipmentId: shipment.id, to });
+      if (res.ok && res.data.deliveryCode) setCode(res.data.deliveryCode);
+      return res;
+    });
+
+  /* The exception: no code to read back. Asks why, and the reason goes into
+     the audit trail as an override (proof: "override"). */
+  const deliverWithoutCode = () => {
+    const reason = window.prompt(
+      "Exception — mark delivered WITHOUT the customer's code?\n\nThis is recorded against your name with the reason. Use it only when the customer could not give the code. What happened?"
+    );
+    if (reason === null) return;
+    run(() => adminDeliverWithoutCode({ shipmentId: shipment.id, reason }));
+  };
+
+  /* A failed delivery: the goods came back and nobody took them. Two questions,
+     both recorded — what happened, and whether the goods are really back. The
+     shipment returns to packed with its code revoked; nothing is restocked,
+     because the goods are still this order's. */
+  const receiveBack = () => {
+    const reason = window.prompt(
+      "Delivery failed — receive this shipment back at the warehouse?\n\nIts handover code is cancelled. Afterwards you can dispatch it again, or cancel the order on its own page and refund the payment.\n\nWhat happened? (recorded against your name)"
+    );
+    if (reason === null) return;
+    if (!window.confirm("Confirm: the goods are physically back in the warehouse.")) return;
+    run(() => adminReceiveShipmentBack({ shipmentId: shipment.id, reason, goodsReceivedBack: true }));
+  };
+
+  /* Cancelling returns the goods to stock and cannot be undone. One stray click
+     used to do it, from any state. */
+  const cancel = () => {
+    if (!window.confirm(
+      `Cancel shipment ${shipment.ref}? Its goods go back into stock and this cannot be undone. The order itself is not cancelled or refunded — do that on the order's page.`
+    )) return;
+    advance("cancelled");
+  };
+
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      {shipment.driver ? (
+        <p className="text-[11.5px] font-semibold text-ink-700">
+          {shipment.driver.name}
+          {shipment.vehicle ? ` · ${shipment.vehicle.registration}` : " · own vehicle"}
+        </p>
+      ) : (
+        <p className="text-[11.5px] font-semibold text-ops-warn">Nobody assigned yet</p>
+      )}
+
+      <div className="mt-2 grid grid-cols-2 gap-1.5">
+        <select
+          value={driverId}
+          onChange={(e) => setDriverId(e.target.value)}
+          aria-label={`Driver for ${shipment.ref}`}
+          className={field}
+        >
+          <option value="">Driver…</option>
+          {roster.drivers.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={vehicleId}
+          onChange={(e) => setVehicleId(e.target.value)}
+          aria-label={`Vehicle for ${shipment.ref}`}
+          className={field}
+        >
+          {/* Optional — a rider on their own bike is a real case here. */}
+          <option value="">No vehicle</option>
+          {roster.vehicles.map((v) => (
+            <option key={v.id} value={v.id}>
+              {v.registration} · {v.kind}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={assign}
+          disabled={pending || !driverId}
+          className={`${button} bg-chip text-ink hover:bg-hush`}
+        >
+          Assign
+        </button>
+
+        {shipment.status === "pending" && (
+          <button
+            type="button"
+            onClick={() => advance("packed")}
+            disabled={pending}
+            className={`${button} bg-ink text-white hover:bg-ink/90`}
+          >
+            Mark packed
+          </button>
+        )}
+
+        {shipment.status === "packed" && (
+          <button
+            type="button"
+            onClick={() => advance("out_for_delivery")}
+            disabled={pending}
+            className={`${button} bg-ink text-white hover:bg-ink/90`}
+          >
+            Dispatch
+          </button>
+        )}
+
+        {shipment.status === "out_for_delivery" && (
+          /* No code to hand over — the customer was not there to read it. The
+             audit trail records this as unproven, which is the difference that
+             matters later. */
+          <button
+            type="button"
+            onClick={deliverWithoutCode}
+            disabled={pending}
+            className={`${button} bg-ops-warn-tint text-ops-warn`}
+          >
+            Exception: delivered without code
+          </button>
+        )}
+
+        {shipment.status === "out_for_delivery" && (
+          <button
+            type="button"
+            onClick={receiveBack}
+            disabled={pending}
+            className={`${button} bg-chip text-ink hover:bg-hush`}
+          >
+            Delivery failed: received back
+          </button>
+        )}
+
+        {/* The document that goes in the box. Opens for printing; the handover
+            code is deliberately not on it. */}
+        <Link
+          href={`/admin/shipments/${shipment.id}/packing-slip`}
+          target="_blank"
+          className={`${button} inline-flex items-center bg-chip text-ink no-underline hover:bg-hush`}
+        >
+          Packing slip
+        </Link>
+
+        {/* Not offered while the goods are on a vehicle: cancelling restocks
+            them, and they are not on the shelf. Receive them back first. */}
+        {(shipment.status === "pending" || shipment.status === "packed") && (
+          <button
+            type="button"
+            onClick={cancel}
+            disabled={pending}
+            className={`${button} bg-ops-bad-tint text-ops-bad`}
+          >
+            Cancel
+          </button>
+        )}
+      </div>
+
+      {shipment.status === "out_for_delivery" && (
+        /* The gate. The customer reads six digits back and the shipment is
+           delivered only if they match — the code was issued at dispatch and,
+           until this existed, nothing ever asked for it, which made the whole
+           handover ceremonial.
+
+           "Delivered without a code" stays available above, because a customer
+           who was not there to read it has to be handled somehow. The audit
+           trail tells the two apart. */
+        <div className="mt-2.5 rounded-field bg-canvas p-2.5">
+          <label
+            htmlFor={`pod-${shipment.id}`}
+            className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500"
+          >
+            Code from the customer
+          </label>
+          <div className="mt-1.5 flex gap-1.5">
+            <input
+              id={`pod-${shipment.id}`}
+              value={handover}
+              onChange={(e) => setHandover(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="000000"
+              className="h-9 w-[104px] rounded-field border border-line bg-white px-2.5 text-[13px] font-bold tabular-nums tracking-[0.12em] text-ink"
+            />
+            <button
+              type="button"
+              onClick={() =>
+                run(async () => {
+                  const res = await adminConfirmDelivery({
+                    shipmentId: shipment.id,
+                    code: handover,
+                  });
+                  if (res.ok) setHandover("");
+                  return res;
+                })
+              }
+              disabled={pending || handover.length !== 6}
+              className={`${button} bg-ops-ok-tint text-ops-ok`}
+            >
+              Confirm delivery
+            </button>
+          </div>
+        </div>
+      )}
+
+      {code && (
+        /* The digits are deliberately NOT shown here. This used to say "Read this to
+           the driver" — a driver who is told the code can confirm a delivery without
+           meeting the customer, which defeats proof of delivery (owner, 14 Oct). The
+           customer sees it on their tracking page; support can read it on the admin
+           order page to verify a customer who calls. */
+        <div className="mt-2.5 rounded-field bg-ops-ok-tint p-2.5" role="status">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-ops-ok">
+            Delivery code issued
+          </p>
+          <p className="mt-1 text-[11px] font-medium leading-[15px] text-ops-ok">
+            The customer sees it in their order tracking (website and app) and reads it to the
+            driver at the gate. Never give it to the driver.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-2 text-[11.5px] font-semibold text-ops-bad" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

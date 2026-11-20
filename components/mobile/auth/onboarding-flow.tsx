@@ -25,8 +25,12 @@ const ONBOARDING_CARDS = [
   {
     id: 3,
     icon: Wallet,
-    title: "5% Wallet Cashback",
-    description: "Earn 5% cashback automatically on every delivered order to save on your next supply purchase.",
+    /* Was "5% Wallet Cashback — earn 5% automatically on every delivered
+       order". No cashback policy exists; the rate and the standing promise were
+       both invented. The wallet itself is real, so the card describes what it
+       actually does. */
+    title: "Wallet credit",
+    description: "Refunds and credits land in your wallet and come straight off your next order.",
   },
 ];
 

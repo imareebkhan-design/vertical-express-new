@@ -2,7 +2,7 @@
 
 import { cookies, headers } from "next/headers";
 import { randomUUID } from "crypto";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import {
   addItem,
   updateItemQty,
@@ -12,17 +12,30 @@ import {
   type UpdateCartQtyResult,
 } from "@/lib/services/cart";
 import { cartItemInputSchema, type ActionResult, fail, succeed } from "@/lib/validators";
+import { classifyCartError } from "@/lib/cart-errors";
+import { ORDERING_CLOSED } from "@/lib/commerce-mode";
 import { runWithContext, trackEvent, MetricsTracker, captureException } from "@/lib/observability";
+import { mergeGuestCartSafely, GUEST_CART_COOKIE } from "@/lib/services/cart-merge";
 
-const ANON_COOKIE = "ve_anon_cart";
+const ANON_COOKIE = GUEST_CART_COOKIE;
 const ANON_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
 /** Read the guest cart id, creating and persisting one when a guest first acts. */
 async function resolveContext(create: boolean): Promise<{ userId: string | null; anonId: string | null }> {
   const userId = await getAuthUserId();
-  if (userId) return { userId, anonId: null };
-
   const cookieStore = await cookies();
+  if (userId) {
+    /* E8 recovery: a signed-in request still carrying a guest cart — sign-in's
+       merge failed or was interrupted. Merge now (atomic and safe to repeat);
+       the cookie goes only once nothing is left to merge. */
+    const leftover = cookieStore.get(ANON_COOKIE)?.value ?? null;
+    if (leftover) {
+      const { clearCookie } = await mergeGuestCartSafely(userId, leftover);
+      if (clearCookie) cookieStore.delete(ANON_COOKIE);
+    }
+    return { userId, anonId: null };
+  }
+
   let anonId = cookieStore.get(ANON_COOKIE)?.value ?? null;
   if (!anonId && create) {
     anonId = randomUUID();
@@ -73,35 +86,13 @@ export async function addToCart(input: { variantId: string; qty: number }): Prom
       metric.end("add_to_cart_success");
       return succeed(await getCartSummary(userId, anonId));
     } catch (error: unknown) {
-      captureException(error, { input });
-      const errorMsg = error instanceof Error ? error.message : "";
-      if (errorMsg.startsWith("OUT_OF_STOCK") || errorMsg.startsWith("ONLY_X_LEFT")) {
-        const parts = errorMsg.split(":");
-        const code = parts[0] as "OUT_OF_STOCK" | "ONLY_X_LEFT";
-        const message = parts[1] || "Not enough stock";
-        
-        let available = 0;
-        let requested = parsed.data.qty;
-        if (code === "ONLY_X_LEFT") {
-          const availMatch = message.match(/Only (\d+) items/i);
-          if (availMatch) available = parseInt(availMatch[1], 10);
-          const reqMatch = message.match(/Requested: (\d+)/i);
-          if (reqMatch) requested = parseInt(reqMatch[1], 10);
-        }
-
-        return fail(
-          code,
-          message,
-          undefined,
-          {
-            status: code === "OUT_OF_STOCK" ? "out_of_stock" : "limited",
-            available,
-            requested,
-            message,
-          }
-        );
-      }
-      return fail("NOT_FOUND", "This product is unavailable");
+      /* Catalogue mode refusing an add is expected, not a fault to report. */
+      if (!(error instanceof Error && error.message === ORDERING_CLOSED)) captureException(error, { input });
+      /* Shared with POST /api/v1/cart/items via lib/cart-errors.ts. Both
+         surfaces perform the same operation and must refuse it for the same
+         reasons with the same numbers; two copies of this block would agree
+         only until somebody fixed one of them. */
+      return classifyCartError<CartSummary>(error, parsed.data.qty);
     }
   });
 }

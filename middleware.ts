@@ -1,65 +1,64 @@
-import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { REQUESTED_PATH_HEADER, SESSION_COOKIE } from "@/lib/auth/session-cookie";
+import { cleanTrailingPunctuation } from "@/lib/clean-path";
 
-// /admin is also gated server-side in its layout (admin allowlist); this adds
-// defense-in-depth so unauthenticated users are bounced before any admin code runs.
-const PROTECTED_PREFIXES = ["/account", "/checkout", "/admin"];
+/**
+ * Route protection and the request-id header.
+ *
+ * This checks only for the *presence* of the session cookie, not its validity.
+ * That is deliberate: verifying a Firebase session cookie needs the Admin SDK,
+ * which does not run on the Edge runtime, and forcing this file onto Node would
+ * put a cold start in front of every request including static assets.
+ *
+ * Presence is enough for what middleware is for — redirecting a signed-out
+ * visitor to sign-in instead of showing them an empty account page. It is NOT
+ * the security boundary. Every protected page and every server action resolves
+ * identity through getAuthUserId(), which verifies the cookie properly and
+ * returns null for a forged one. A fabricated cookie gets you a redirect to a
+ * page that then treats you as signed out.
+ *
+ * /admin is additionally gated in its own layout against the admin allowlist.
+ */
+const PROTECTED = [/^\/account(\/|$)/, /^\/checkout(\/|$)/, /^\/admin(\/|$)/];
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const requestId = request.headers.get("x-request-id") || crypto.randomUUID();
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-request-id", requestId);
 
-  let response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-  response.headers.set("x-request-id", requestId);
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({
-            request: {
-              headers: requestHeaders,
-            },
-          });
-          response.headers.set("x-request-id", requestId);
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
-
-  // Refresh the session on every matched request (keeps cookies alive).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
   const { pathname } = request.nextUrl;
-  const needsAuth = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
-
-  if (needsAuth && !user) {
+  /* "…/catalogue-approvals." copied out of a sentence → the real page (lib/clean-path.ts). */
+  if (request.method === "GET" || request.method === "HEAD") {
+    const cleaned = cleanTrailingPunctuation(pathname);
+    if (cleaned) {
+      const url = request.nextUrl.clone();
+      url.pathname = cleaned;
+      return NextResponse.redirect(url, 308);
+    }
+  }
+  /* For the protected layouts' early redirect (lib/auth/early-sign-in.ts), which
+     cannot read its own URL. Always overwritten, never taken from the client. */
+  requestHeaders.set(REQUESTED_PATH_HEADER, pathname + request.nextUrl.search);
+  if (PROTECTED.some((p) => p.test(pathname)) && !request.cookies.get(SESSION_COOKIE)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("next", pathname);
+    url.search = "";
+    /* Carry the destination so sign-in returns the customer to the checkout
+       they were in the middle of, not to the home page — query included, so
+       "/account/addresses?add=1&next=/checkout" comes back as itself. It always
+       starts with the protected path, and login re-checks it (safeNextPath). */
+    url.searchParams.set("next", pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set("x-request-id", requestId);
   return response;
 }
 
 export const config = {
-  // Skip static assets and images; run on pages + actions.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|categories/|products/|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|webp|ico)$).*)",
+    "/(api|trpc)(.*)",
+  ],
 };

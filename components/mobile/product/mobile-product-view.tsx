@@ -1,15 +1,12 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import React, { useState, useEffect, useTransition } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Heart,
-  Truck,
-  Wallet,
-  ShieldCheck,
   ChevronDown,
   Check,
   Loader2,
@@ -21,7 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ProductDetail, CatalogItem } from "@/lib/services/catalog";
-import { formatPaise, discountPercent } from "@/lib/money";
+import { formatPaise, discountPercent, struckMrpPaise } from "@/lib/money";
 import { useCart } from "@/hooks/use-cart";
 import { addToCart } from "@/actions/cart";
 import { toggleWishlist } from "@/actions/wishlist";
@@ -29,22 +26,37 @@ import { triggerHaptic } from "@/lib/native/haptics";
 import { cn } from "@/lib/utils";
 import { MobileProductCard } from "../home/mobile-product-card";
 import { trackProductView, type RecentlyViewedItem } from "@/components/shop/recently-viewed";
+import { PdpPromises } from "@/components/shop/pdp-promises";
+import { speedClassFor } from "@/components/ui/speed-chip";
+import { etaPhrase } from "@/lib/order-display";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { ProductEnquiry } from "@/components/shop/product-enquiry";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
+import { ENQUIRE_LABEL } from "@/lib/catalog-visibility";
+import { useBackOr } from "@/hooks/use-back-or";
 
 interface MobileProductViewProps {
   product: ProductDetail;
   related: CatalogItem[];
+  /** Order co-occurrence, not category. Empty until orders exist. */
+  boughtWith: CatalogItem[];
 }
 
-export function MobileProductView({ product, related }: MobileProductViewProps) {
-  const router = useRouter();
+export function MobileProductView({ product, related, boughtWith }: MobileProductViewProps) {
+  /* Opened from a shared link there is nothing behind this page; Back then
+     goes to the product's category rather than nowhere (lib/back-stack.ts). */
+  const goBack = useBackOr(`/category/${product.categorySlug}`);
 
   // Cart & Wishlist hooks
   const { summary, refresh, wishlistIds, setWishlisted, updateItem, removeItem } = useCart();
   const [isPending, startTransition] = useTransition();
   const [, startWishlist] = useTransition();
+  const orderingOpen = useOrderingOpen();
 
   // Variant state
-  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants[0];
+  /* Undefined for a catalog-only product (no variants are exposed): the view
+     then shows PRICE_ON_REQUEST_LABEL and no cart controls. */
+  const defaultVariant = product.variants.find((v) => v.isDefault) ?? product.variants.at(0);
   const [selectedVariant, setSelectedVariant] = useState(defaultVariant);
 
   // Gallery states
@@ -69,10 +81,11 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
   const [recentItems, setRecentItems] = useState<RecentlyViewedItem[]>([]);
 
   const saved = wishlistIds.has(product.id);
-  const discount = discountPercent(selectedVariant.pricePaise, selectedVariant.compareAtPaise);
+  const discount = selectedVariant ? discountPercent(selectedVariant.pricePaise, selectedVariant.compareAtPaise) : null;
+  const struckMrp = selectedVariant ? struckMrpPaise(selectedVariant.pricePaise, selectedVariant.compareAtPaise) : null;
 
   // Cart item matching selected variant
-  const cartItem = summary?.lines?.find((l) => l.variantId === selectedVariant.id);
+  const cartItem = selectedVariant ? summary?.lines?.find((l) => l.variantId === selectedVariant.id) : undefined;
 
   // Track product view on mount
   useEffect(() => {
@@ -80,7 +93,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
       slug: product.slug,
       title: product.title,
       imageUrl: product.images[0]?.url ?? null,
-      pricePaise: defaultVariant?.pricePaise ?? 0,
+      pricePaise: defaultVariant?.pricePaise ?? null,
       brandName: product.brandName,
     });
 
@@ -151,7 +164,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
   };
 
   const handleAddToCart = () => {
-    if (isPending) return;
+    if (isPending || !selectedVariant) return;
     triggerHaptic("medium");
 
     startTransition(async () => {
@@ -170,7 +183,6 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
       } else {
         await removeItem(cartItem.itemId);
       }
-      await refresh();
     });
   };
 
@@ -180,7 +192,6 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
 
     startTransition(async () => {
       await updateItem(cartItem.itemId, cartItem.qty + 1);
-      await refresh();
     });
   };
 
@@ -196,33 +207,35 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
         <button
           onClick={() => {
             triggerHaptic("light");
-            router.back();
+            goBack();
           }}
+          aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
         >
           <ArrowLeft className="size-4.5" />
         </button>
-        <span className="text-xs font-bold text-ink max-w-[60%] truncate">
-          {product.brandName}
-        </span>
+        <span aria-hidden className="flex-1" />
         <div className="flex items-center gap-1.5">
           <button
             onClick={handleShare}
+            aria-label="Share"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <Share2 className="size-4.5 text-ink/40" />
           </button>
           <button
             onClick={handleWishlistToggle}
+            aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
+            aria-pressed={saved}
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
-            <Heart className={cn("size-4.5 transition-colors", saved ? "fill-danger text-danger" : "text-ink/40")} />
+            <Heart className={cn("size-4.5 transition-colors", saved ? "fill-ink text-ink" : "text-ink/40")} />
           </button>
         </div>
       </div>
 
       {/* Swipe Gallery */}
-      <div className="relative aspect-square w-full bg-tile border-b border-mist/10">
+      <div className={cn("relative aspect-square w-full border-b border-mist/10", product.images.length > 0 ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
         {product.images.length > 0 ? (
           <div className="scrollbar-hide flex h-full overflow-x-auto snap-x snap-mandatory"
                onScroll={(e) => {
@@ -238,14 +251,14 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
                   setZoomScale(1);
                   setIsLightboxOpen(true);
                 }}
-                className="relative h-full w-full shrink-0 snap-center p-6"
+                className="relative h-full w-full shrink-0 snap-center"
               >
                 <Image
                   src={img.url}
                   alt={img.alt || product.title}
                   fill
                   priority={i === 0}
-                  className="object-contain p-4"
+                  className={PRODUCT_PHOTO}
                   sizes="100vw"
                 />
               </div>
@@ -280,27 +293,47 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-deep">
             {product.brandName}
           </span>
-          <h2 className="text-base font-extrabold text-ink mt-1 leading-snug">
+          <h1 className="text-base font-extrabold text-ink mt-1 leading-snug">
             {product.title}
-          </h2>
+          </h1>
+          {!selectedVariant ? (
+            <>
+              <p className="mt-2 text-base font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+              {!product.purchasable && (
+                <div id="enquiry" className="mt-3 scroll-mt-20">
+                  <ProductEnquiry productId={product.id} productTitle={product.title} />
+                </div>
+              )}
+            </>
+          ) : (
           <div className="mt-2 flex items-center gap-2">
             <span className="text-base font-extrabold text-ink">
               {formatPaise(selectedVariant.pricePaise)}
             </span>
-            {selectedVariant.compareAtPaise && (
+            {struckMrp != null && (
               <span className="text-xs text-ink/40 line-through">
-                {formatPaise(selectedVariant.compareAtPaise)}
+                {formatPaise(struckMrp)}
               </span>
             )}
             {discount && (
-              <span className="rounded-md bg-danger/10 px-1.5 py-0.5 text-[10px] font-extrabold text-danger">
+              <span className="rounded-md bg-amber-soft px-1.5 py-0.5 text-[10px] font-extrabold text-ink">
                 {discount}% OFF
               </span>
             )}
           </div>
-          <span className="text-[10px] text-ink/40 font-semibold mt-1 block">
-            Inclusive of all taxes
-          </span>
+          )}
+          {selectedVariant && (
+            <span className="text-[10px] text-ink/40 font-semibold mt-1 block">
+              Inclusive of all taxes
+            </span>
+          )}
+          {/* COMMERCE_MODE=catalogue: the published price stays, the cart bar
+              below offers this form instead (the server refuses the add). */}
+          {selectedVariant && !orderingOpen && (
+            <div id="enquiry" className="mt-3 scroll-mt-20">
+              <ProductEnquiry productId={product.id} productTitle={product.title} />
+            </div>
+          )}
         </div>
 
         {/* Variant Selector */}
@@ -316,8 +349,9 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
                   onClick={() => handleVariantSelect(v)}
                   className={cn(
                     "rounded-xl border px-3 py-2 text-xs font-bold transition-all active:scale-95",
-                    selectedVariant.id === v.id
-                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep" :"border-mist/20 bg-white text-ink/70"
+                    selectedVariant?.id === v.id
+                      ? "border-brand-deep bg-brand-deep/5 text-brand-deep"
+                      : "border-mist/20 bg-white text-ink/70"
                   )}
                 >
                   {v.name}
@@ -327,29 +361,12 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           </div>
         )}
 
-        {/* Tier Pricing Grid */}
-        {selectedVariant.bulkTiers.length > 0 && (
-          <div className="rounded-2xl border border-brand/20 bg-brand/5 p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-brand-deep/10 px-1.5 py-0.5 text-[9px] font-extrabold text-brand-deep uppercase leading-none">
-                Wholesale Price Tiers
-              </span>
-            </div>
-            <div className="divide-y divide-brand/10">
-              {selectedVariant.bulkTiers.map((tier, idx) => (
-                <div key={idx} className="flex justify-between py-2 text-xs text-ink/80">
-                  <span className="font-bold">Buy {tier.minQty}+ {product.unitLabel}s</span>
-                  <span className="font-extrabold text-brand-deep">{formatPaise(tier.pricePaise)} / {product.unitLabel}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Serviceability / Delivery Check */}
+        {/* Serviceability / Delivery Check — only for something that can be bought
+            (not in COMMERCE_MODE=catalogue; the desktop PDP hides it the same way). */}
+        {selectedVariant && orderingOpen && (
         <div className="border-t border-mist/10 pt-4 space-y-3">
           <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40">
-            Delivery Serviceability Check
+            Check delivery
           </h4>
           <form onSubmit={handlePincodeSubmit} className="flex gap-2">
             <input
@@ -374,12 +391,29 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             <div className={cn(
               "flex items-center gap-2 rounded-xl p-3 text-xs font-bold",
               pinResult.serviceable
-                ? "bg-emerald-600/10 text-emerald-700" :"bg-danger/10 text-danger"
+                ? "bg-amber-soft text-ink"
+                : "bg-chip text-ink-700"
             )}>
               {pinResult.serviceable ? (
                 <>
                   <Check className="size-4 shrink-0" />
-                  <span>Deliverable: ETA {pinResult.etaMinutes || "60"} mins to {pincode}</span>
+                  {/* Was `{pinResult.etaMinutes || "60"}`. `etaMinutes` is 0
+                      when an operator has set "no promise" for a pincode, so
+                      this did not merely misread absence — it substituted a
+                      sixty-minute delivery promise invented in a component.
+                      That is the same "60 min" claim removed from the hero in
+                      d86a85d as unverified, reappearing where nobody looked. */}
+                  <span>
+                    {/* The minute quote is the quick run's; a truck product
+                        states no time (lib/order-display). */}
+                    {speedClassFor(product.categoryIsBulk, product.deliverySpeed) === "express" &&
+                    pinResult.etaMinutes &&
+                    pinResult.etaMinutes > 0
+                      ? `We deliver to ${pincode} · ${etaPhrase(pinResult.etaMinutes).toLowerCase()} from dispatch`
+                      : speedClassFor(product.categoryIsBulk, product.deliverySpeed) === "express"
+                        ? `We deliver to ${pincode}`
+                        : `We deliver to ${pincode}, by truck`}
+                  </span>
                 </>
               ) : (
                 <>
@@ -390,20 +424,32 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
             </div>
           )}
         </div>
+        )}
 
-        {/* Brand Trust badging */}
-        <div className="grid grid-cols-3 gap-3 border-t border-b border-mist/10 py-4 text-center">
-          {[
-            { icon: Truck, label: "60-min delivery" },
-            { icon: Wallet, label: "Pay on delivery" },
-            { icon: ShieldCheck, label: "Genuine brand" },
-          ].map(({ icon: IconComponent, label }) => (
-            <div key={label} className="rounded-xl bg-surface p-2.5 border border-mist/10">
-              <IconComponent className="mx-auto size-4.5 text-brand-deep" strokeWidth={1.8} />
-              <p className="mt-1 text-[9px] font-bold text-ink/60">{label}</p>
-            </div>
-          ))}
-        </div>
+        {/*
+          The artboard's promise blocks — batch verification, the slot the
+          material actually arrives on, and what happens when a bag turns up
+          damaged.
+
+          This replaced a three-icon badge row that claimed "60-min delivery"
+          and "Genuine brand". Both are on the fabricated-claims list: the
+          60-minute SLA is unverified (ISS-018) and no brand has authorised us
+          to vouch for authenticity. PdpPromises says the same things the design
+          intends, and marks the batch claim with the placeholder rule because
+          the Batch model does not exist yet — so the section is visible and
+          honest rather than confident and wrong.
+
+          Shared with the web PDP, which is the point: one promise, one wording,
+          on both surfaces.
+        */}
+        {/* Dispatch and returns describe buying it; a catalog-only product cannot
+            be bought yet (same rule as the desktop PDP in product-switcher). */}
+        {product.purchasable && orderingOpen && (
+          <PdpPromises
+            speed={speedClassFor(product.categoryIsBulk, product.deliverySpeed)}
+            categorySlug={product.categorySlug}
+          />
+        )}
 
         {/* Accordions */}
         <div className="space-y-2">
@@ -450,6 +496,26 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
         </div>
       </div>
 
+      {/* "Also bought with this" — the app artboard's rail. Order co-occurrence,
+          so it answers "what else did this pour need" rather than "what else is
+          on this shelf". Placed above the category rail because it is the
+          better answer when it exists, and it renders nothing when it does
+          not. */}
+      {boughtWith.length > 0 && (
+        <div className="py-4 border-t border-mist/10">
+          <h3 className="px-4 text-xs font-extrabold text-ink uppercase tracking-wider mb-3">
+            Also bought with this
+          </h3>
+          <div className="scrollbar-hide flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory">
+            {boughtWith.map((item) => (
+              <div key={item.id} className="snap-center shrink-0 w-[148px]">
+                <MobileProductCard item={item} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Related Products Scroller */}
       {related.length > 0 && (
         <div className="py-4 border-t border-mist/10">
@@ -480,13 +546,13 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
                 onClick={() => triggerHaptic("light")}
                 className="snap-center shrink-0 w-[124px] rounded-xl border border-mist/20 bg-white p-2.5 shadow-card transition-shadow hover:shadow-card-hover"
               >
-                <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-mist/5">
+                <div className={cn("relative aspect-square w-full overflow-hidden rounded-lg", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-mist/5")}>
                   {item.imageUrl ? (
                     <Image
                       src={item.imageUrl}
                       alt={item.title}
                       fill
-                      className="object-contain p-1"
+                      className={PRODUCT_PHOTO}
                       sizes="100px"
                     />
                   ) : (
@@ -499,7 +565,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
                   </h4>
                   <p className="truncate text-xs font-bold text-ink mt-0.5 leading-tight">{item.title}</p>
                   <p className="text-[10px] font-extrabold text-ink mt-1 leading-none">
-                    {formatPaise(item.pricePaise)}
+                    {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
                   </p>
                 </div>
               </Link>
@@ -509,6 +575,26 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
       )}
 
       {/* Sticky Bottom Buy Drawer/CTA bar */}
+      {!selectedVariant ? (
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between gap-3 shadow-2xl">
+        <p className="text-sm font-extrabold text-ink">{PRICE_ON_REQUEST_LABEL}</p>
+        {!product.purchasable && (
+          <a href="#enquiry" className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md no-underline">
+            {ENQUIRE_LABEL}
+          </a>
+        )}
+      </div>
+      ) : !orderingOpen ? (
+      <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">
+        <span className="text-base font-extrabold text-ink">{formatPaise(selectedVariant.pricePaise)}</span>
+        <a
+          href="#enquiry"
+          className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md no-underline"
+        >
+          {ENQUIRE_LABEL}
+        </a>
+      </div>
+      ) : (
       <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t border-mist/25 px-4 pb-[calc(env(safe-area-inset-bottom,12px)+6px)] pt-3.5 flex items-center justify-between shadow-2xl">
         <div>
           <span className="text-[10px] font-extrabold text-ink/40 uppercase block leading-none">Total Price</span>
@@ -550,6 +636,7 @@ export function MobileProductView({ product, related }: MobileProductViewProps) 
           </button>
         )}
       </div>
+      )}
 
       {/* Lightbox Pinch Zoom Swiper Overlay */}
       <AnimatePresence>

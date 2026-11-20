@@ -1,0 +1,110 @@
+# Firebase App Hosting — settings SHARED by every backend.
+#
+# Serves the existing Next.js app (website + /api/v1) from Google Cloud. Nothing
+# here is a business rule; it is where the app runs and what it is told about
+# its environment.
+#
+# App Hosting reads this file, then the file for the backend's environment name:
+#   ve-staging    → apphosting.staging.yaml     (test payments, staging database)
+#   ve-production → apphosting.production.yaml  (catalogue mode, production database)
+# A variable in the environment file replaces one of the same name here.
+#
+# Nothing that differs between staging and production belongs in this file —
+# above all no payment setting. An environment file can replace a value but not
+# remove one (App Hosting rejects an empty value), so anything put here reaches
+# production too.
+#
+# SECRETS are never written here: `secret:` names an entry in Cloud Secret
+# Manager, created with `scripts/apphosting-secrets.sh`. PUBLIC values (the
+# Firebase web config) are browser-visible by design.
+
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 4
+  concurrency: 80
+
+env:
+
+  # --- product photographs: public-read Cloud Storage bucket (Task 6). Browser-visible by
+  # design; next.config.ts allows exactly this path in CSP img-src and images.remotePatterns.
+  - variable: NEXT_PUBLIC_PRODUCT_IMAGE_BASE
+    value: "https://storage.googleapis.com/ve-staging-product-images"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- public Firebase web config (needed at BUILD: inlined into the client bundle)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: "AIzaSyBz0IZomwSDsVHeP77QeyhTkFlP9IoeX4s"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: "vertical-express.firebaseapp.com"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: "vertical-express"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: "vertical-express.firebasestorage.app"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "202621320146"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: "1:202621320146:web:374d07c2f69069db04e60b"
+    availability:
+      - BUILD
+      - RUNTIME
+
+  # --- Firebase Admin (verifies the app's ID tokens and the web session cookie).
+  # Named FB_ADMIN_* because App Hosting reserves the FIREBASE_ prefix; lib/auth/firebase-admin.ts reads either.
+  - variable: FB_ADMIN_PROJECT_ID
+    value: "vertical-express"
+    availability:
+      - RUNTIME
+  - variable: FB_ADMIN_CLIENT_EMAIL
+    secret: firebase-client-email
+    availability:
+      - RUNTIME
+  - variable: FB_ADMIN_PRIVATE_KEY
+    secret: firebase-private-key
+    availability:
+      - RUNTIME
+  # Server-side only. A key restricted in Google Cloud to the Geocoding API and
+  # nothing else; used by /api/v1/location/reverse. Never NEXT_PUBLIC_.
+  - variable: GOOGLE_GEOCODING_API_KEY
+    secret: google-geocoding-api-key
+    availability:
+      - RUNTIME
+  # Server-side only. A key restricted in Google Cloud to Places API (New) and
+  # nothing else; used by /api/v1/location/places. Never NEXT_PUBLIC_.
+  - variable: GOOGLE_PLACES_API_KEY
+    secret: google-places-api-key
+    availability:
+      - RUNTIME
+  # Server-side only. Routes API key for the live-delivery route line, distance
+  # and ETA (lib/services/routes.ts). The secret existed and was granted to this
+  # backend but was never referenced, so staging could never compute a route
+  # (O-QA-5, 14 Oct). Never NEXT_PUBLIC_.
+  - variable: GOOGLE_ROUTES_API_KEY
+    secret: google-routes-api-key
+    availability:
+      - RUNTIME
+  # Operators allowed into /admin: comma-separated, verified Google emails
+  # (lib/services/admin/authz.ts). A secret, not a value, because this repo is
+  # public. Without it the console refuses everyone (fails closed).
+  - variable: ADMIN_EMAILS
+    secret: admin-emails
+    availability:
+      - RUNTIME

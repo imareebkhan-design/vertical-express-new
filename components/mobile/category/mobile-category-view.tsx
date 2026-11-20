@@ -4,27 +4,55 @@ import React, { useState, useEffect, useRef, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, RefreshCw, SlidersHorizontal, Loader2, AlertCircle, Check } from "lucide-react";
 import type { Category } from "@/prisma/generated/client/client";
-import type { CatalogResult, CatalogItem, CatalogSort } from "@/lib/services/catalog";
+import type { CatalogResult, CatalogItem } from "@/lib/services/catalog";
 import { fetchProductsAction } from "@/actions/catalog";
 import { MobileProductCard } from "../home/mobile-product-card";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { triggerHaptic } from "@/lib/native/haptics";
-import { rupeesToPaise } from "@/lib/money";
+import { categoryQueryFromParams } from "@/lib/category-query";
+import { MobileAttributeRail } from "@/components/mobile/category/mobile-attribute-rail";
+import { listingLayoutFor } from "@/lib/catalog-presentation";
+import { useBackOr } from "@/hooks/use-back-or";
+import { CatalogRow } from "@/components/shop/catalog-row";
+import { BrandStrip } from "@/components/shop/brand-strip";
+import { MostOrdered } from "@/components/shop/most-ordered";
 
 interface MobileCategoryViewProps {
+  /** Ranked by units actually ordered — empty until something has been. */
+  mostOrdered: CatalogItem[];
+  /** Brands with a published product here, most-stocked first. */
+  brands: { slug: string; name: string; count: number }[];
   category: Category;
   slug: string;
   initialResult: CatalogResult;
 }
 
-export function MobileCategoryView({ category, slug, initialResult }: MobileCategoryViewProps) {
+export function MobileCategoryView({
+  category,
+  slug,
+  initialResult,
+  mostOrdered,
+  brands,
+}: MobileCategoryViewProps) {
+  /* One rule, in lib/catalog-presentation.ts — the same one the web listing
+     uses, so a category does not change shape between surfaces. */
+  const layout = listingLayoutFor(slug);
   const router = useRouter();
+  /* Pops real history; entered directly (a shared link), it goes to the
+     category index instead of doing nothing (lib/back-stack.ts). */
+  const goBack = useBackOr("/categories");
   const searchParams = useSearchParams();
+  const queryString = searchParams.toString();
+  const currentResult = useRef(initialResult);
+  currentResult.current = initialResult;
+  const loadingRequest = useRef<object | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const hasPrices = initialResult.facets.priceRange.maxPaise > 0;
 
   // Feed states
   const [products, setProducts] = useState<CatalogItem[]>(initialResult.items);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(initialResult.items.length < initialResult.total);
+  const [page, setPage] = useState(initialResult.page);
+  const [hasMore, setHasMore] = useState(initialResult.page * initialResult.perPage < initialResult.total);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -35,7 +63,12 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
 
   // Filters state
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [sort, setSort] = useState(searchParams.get("sort") || "popular");
+  const [sort, setSort] = useState(
+    /* "Popularity" sorted by a rating count nothing writes (ISS-034), so it
+       was newest-first presented as a ranking — desktop dropped it (sort-select).
+       Old ?sort=popular links still work and land on newest. */
+    !searchParams.get("sort") || searchParams.get("sort") === "popular" ? "newest" : (searchParams.get("sort") as string)
+  );
   const [selectedBrands, setSelectedBrands] = useState<string[]>(
     searchParams.getAll("brand").flatMap((b) => b.split(",")).filter(Boolean)
   );
@@ -49,36 +82,54 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
   // Reset list when url search filters or base query changes
   useEffect(() => {
     setProducts(initialResult.items);
-    setPage(1);
-    setHasMore(initialResult.items.length < initialResult.total);
+    setPage(initialResult.page);
+    setHasMore(initialResult.page * initialResult.perPage < initialResult.total);
     setLoadingMore(false);
+    setLoadError(false);
+    loadingRequest.current = null;
   }, [initialResult]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(queryString);
+    const query = categoryQueryFromParams(slug, params);
+    setSort(query.sort ?? "newest");
+    setSelectedBrands(query.brandSlugs ?? []);
+    setMinPrice(params.get("minPrice") ?? "");
+    setMaxPrice(params.get("maxPrice") ?? "");
+    setInStockOnly(false);
+  }, [queryString, slug]);
 
   // Load more pages for infinite scroll
   const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingRequest.current || !hasMore) return;
+    const request = {};
+    loadingRequest.current = request;
+    const resultAtStart = initialResult;
     setLoadingMore(true);
+    setLoadError(false);
 
     try {
-      const activeBrands = selectedBrands.filter(Boolean);
       const nextResult = await fetchProductsAction({
-        categorySlug: slug,
+        ...categoryQueryFromParams(slug, new URLSearchParams(queryString)),
         page: page + 1,
-        sort: sort as CatalogSort,
-        brandSlugs: activeBrands.length ? activeBrands : undefined,
-        minPaise: minPrice ? rupeesToPaise(Number(minPrice)) : undefined,
-        maxPaise: maxPrice ? rupeesToPaise(Number(maxPrice)) : undefined,
+        perPage: initialResult.perPage,
       });
+      if (currentResult.current !== resultAtStart) return;
 
       if (nextResult.items.length > 0) {
         setProducts((prev) => [...prev, ...nextResult.items]);
         setPage((p) => p + 1);
-        setHasMore(products.length + nextResult.items.length < nextResult.total);
+        setHasMore(nextResult.page * nextResult.perPage < nextResult.total);
       } else {
         setHasMore(false);
       }
-    } catch {} finally {
-      setLoadingMore(false);
+    } catch {
+      if (currentResult.current === resultAtStart) setLoadError(true);
+    } finally {
+      if (loadingRequest.current === request) {
+        loadingRequest.current = null;
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -86,7 +137,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore && !loadingMore) {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loadError) {
           loadMore();
         }
       },
@@ -100,7 +151,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
       if (currentTarget) observer.unobserve(currentTarget);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hasMore, loadingMore, page]);
+  }, [hasMore, loadingMore, page, loadError, queryString, initialResult]);
 
   // Pull to refresh handlers
   const handleRefresh = () => {
@@ -148,9 +199,10 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
     setIsFilterOpen(false);
 
     startTransition(() => {
-      const params = new URLSearchParams();
-      if (sort !== "popular") params.set("sort", sort);
-      if (selectedBrands.length) params.set("brand", selectedBrands.join(","));
+      const params = new URLSearchParams(queryString);
+      for (const key of ["page", "sort", "brand", "minPrice", "maxPrice"]) params.delete(key);
+      if (sort !== "newest") params.set("sort", sort);
+      for (const brand of selectedBrands) params.append("brand", brand);
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
       router.push(`/category/${slug}?${params.toString()}`);
@@ -159,7 +211,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
 
   const resetFilters = () => {
     triggerHaptic("light");
-    setSort("popular");
+    setSort("newest");
     setSelectedBrands([]);
     setMinPrice("");
     setMaxPrice("");
@@ -213,34 +265,24 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           <button
             onClick={() => {
               triggerHaptic("light");
-              router.push("/categories");
+              goBack();
             }}
+            aria-label="Back"
             className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
           >
             <ArrowLeft className="size-4.5" />
           </button>
-          <div>
-            <h1 className="text-base font-extrabold text-ink leading-none">{category.name}</h1>
-            <p className="text-[10px] text-ink/40 font-semibold mt-1 block">
-              {initialResult.total} {initialResult.total === 1 ? "item" : "items"} available
-            </p>
-          </div>
+          <h1 className="text-base font-extrabold text-ink leading-none">{category.name}</h1>
         </div>
-        <button
-          onClick={handleRefresh}
-          className={`flex size-8 items-center justify-center rounded-full bg-mist/20 text-ink transition-transform ${
-            refreshing ? "animate-spin text-brand-deep" : ""
-          }`}
-          title="Refresh Feed"
-        >
-          <RefreshCw className="size-3.5" />
-        </button>
       </div>
 
       {/* Sticky Filter / Toolbar Bar */}
       <div className="sticky top-[53px] z-20 flex items-center justify-between border-b border-mist/10 bg-white/95 px-4 py-2.5 shadow-xs">
         <span className="text-[10px] font-extrabold text-ink/50 uppercase tracking-wide">
-          {displayedProducts.length} Showing
+          {/* The server total, unless the on-device stock toggle narrows the
+              loaded page — the loaded count alone read "24" on a 204-product shelf. */}
+          {inStockOnly ? displayedProducts.length : initialResult.total}{" "}
+          {(inStockOnly ? displayedProducts.length : initialResult.total) === 1 ? "product" : "products"}
         </span>
         <button
           onClick={() => {
@@ -254,14 +296,48 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
         </button>
       </div>
 
-      {/* Products list grid */}
+      {/* The artboard's lead rail — how a customer narrows to a grade or type
+          before scrolling a grid. Web has had it since the category work; this
+          is the phone catching up, on the surface where the decision is
+          actually made. */}
+      <MobileAttributeRail facets={initialResult.facets} slug={slug} />
+
+      {/* The artboard's order: narrow by grade, then by brand, then see what
+          other people on site actually buy — each a shorter route to a decision
+          than scrolling the grid. Every one hides itself when it has nothing to
+          say. */}
+      <BrandStrip slug={slug} brands={brands} />
+      <MostOrdered categoryName={category.name} slug={slug} items={mostOrdered} />
+
+      {/*
+        Rows or grid, by what the category actually is.
+
+        The web branch has honoured this since the listing work; mobile rendered
+        everything as a two-column grid, including cement, wire and pipe. Those
+        are the categories where a buyer already knows what they want and is
+        comparing numbers — IS standard, grade, pack size, rating — and none of
+        that survives a 170px card with a truncated title. A contractor choosing
+        between OPC 43 and OPC 53 was being shown two identical grey bags.
+
+        CatalogRow is reused rather than reimplemented. It was already built
+        mobile-first, and a second row component is how the two surfaces drifted
+        apart in the first place.
+      */}
       <div className="flex-1">
         {displayedProducts.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 p-4 bg-surface-container-low/20">
-            {displayedProducts.map((item) => (
-              <MobileProductCard key={item.id} item={item} />
-            ))}
-          </div>
+          layout === "rows" ? (
+            <div className="flex flex-col gap-2.5 p-4">
+              {displayedProducts.map((item) => (
+                <CatalogRow key={item.id} item={item} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 p-4 bg-surface-container-low/20">
+              {displayedProducts.map((item) => (
+                <MobileProductCard key={item.id} item={item} />
+              ))}
+            </div>
+          )
         ) : (
           <div className="flex flex-col items-center justify-center p-12 text-center">
             <AlertCircle className="size-10 text-ink/20 mb-3" />
@@ -276,6 +352,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
         <div ref={observerTarget} className="h-10 w-full flex items-center justify-center">
           {loadingMore && <Loader2 className="size-5 animate-spin text-brand-deep" />}
         </div>
+        {loadError && <div role="alert" className="p-4 text-center text-sm">Could not load more products. <button type="button" onClick={loadMore} className="underline">Retry</button></div>}
       </div>
 
       {/* Filter Bottom Sheet */}
@@ -292,12 +369,11 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
             </h4>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { id: "popular", label: "Popularity" },
+                { id: "newest", label: "Newest Arrivals" },
                 { id: "price_asc", label: "Price: Low to High" },
                 { id: "price_desc", label: "Price: High to Low" },
-                { id: "newest", label: "Newest Arrivals" },
                 { id: "discount", label: "Highest Discount" },
-              ].map((s) => (
+              ].filter((s) => hasPrices || s.id === "newest" || s.id === sort).map((s) => (
                 <button
                   key={s.id}
                   onClick={() => {
@@ -316,7 +392,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           </div>
 
           {/* Availability */}
-          <div>
+          {hasPrices && <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
               Availability
             </h4>
@@ -333,7 +409,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
               <span>Exclude Out of Stock (In Stock Only)</span>
               {inStockOnly && <Check className="size-4 text-brand-deep" />}
             </button>
-          </div>
+          </div>}
 
           {/* Brands */}
           {initialResult.facets.brands.length > 0 && (
@@ -362,7 +438,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
           )}
 
           {/* Price Range */}
-          <div>
+          {(hasPrices || minPrice || maxPrice) && <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
               Price Range (₹)
             </h4>
@@ -383,7 +459,7 @@ export function MobileCategoryView({ category, slug, initialResult }: MobileCate
                 className="flex-1 rounded-xl border border-mist/20 bg-surface p-2.5 text-xs font-bold text-ink outline-none focus:border-brand-deep text-center"
               />
             </div>
-          </div>
+          </div>}
 
           {/* Action CTAs */}
           <div className="flex gap-2 pt-4 border-t border-mist/10">

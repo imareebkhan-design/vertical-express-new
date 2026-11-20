@@ -1,14 +1,14 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useSearchParams } from "next/navigation";
 import type { CatalogResult } from "@/lib/services/catalog";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
 import { SearchBox } from "@/components/shop/search-box";
 import { EmptyState } from "@/components/shop/empty-state";
 import { FilterSidebar } from "@/components/shop/filter-sidebar";
@@ -17,47 +17,75 @@ import { SortSelect } from "@/components/shop/sort-select";
 import { CatalogGrid } from "@/components/shop/catalog-grid";
 import { Pagination } from "@/components/shop/pagination";
 import { PageLoader } from "@/components/page-loader";
+import { SearchCategoryChips } from "@/components/shop/search-category-chips";
+import { searchCategoryHref } from "@/lib/search-url";
 
 // Mobile Components
 import { MobileSearchView } from "@/components/mobile/search/mobile-search-view";
 
 interface SearchSwitcherProps {
   query: string;
+  /** The shelf a category chip picked, from `?category=`. */
+  category: string | null;
   result: CatalogResult;
   activeFilterCount: number;
+  /** Active brands with published products, for the entry state's shortcuts. */
+  brands: { slug: string; name: string; count: number }[];
+  /** Only populated when the search found nothing. */
+  closest: { items: CatalogResult["items"]; matchedOn: string[] };
 }
 
-export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitcherProps) {
+export function SearchSwitcher({
+  query,
+  category,
+  result,
+  activeFilterCount,
+  brands,
+  closest,
+}: SearchSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
+  const searchParams = useSearchParams();
+  const hrefFor = (slug: string | null) => searchCategoryHref(new URLSearchParams(searchParams.toString()), slug);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
-    return <MobileSearchView initialQuery={query} initialResult={result} />;
+  if (isMobile) {
+    return (
+      <MobileSearchView
+        initialQuery={query}
+        initialResult={result}
+        category={category}
+        brands={brands}
+        closest={closest}
+      />
+    );
   }
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
-      <main id="main-content" className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+      <main id="main-content" className="mx-auto max-w-[1200px] px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+          <h1 className="text-3xl font-extrabold tracking-[-0.03em] text-ink sm:text-4xl">
             {query ? <>Results for “{query}”</> : "Search"}
           </h1>
           <div className="mt-3 block lg:hidden">
             <SearchBox />
           </div>
-          <p className="mt-1.5 text-sm font-semibold text-neutral-500">
+          <p className="mt-1.5 text-sm font-medium text-ink-700">
             {result.total} {result.total === 1 ? "product" : "products"}
           </p>
+          {query ? (
+            <SearchCategoryChips
+              categories={result.facets.categories}
+              selected={category}
+              hrefFor={hrefFor}
+              className="mt-4"
+            />
+          ) : null}
         </div>
 
         {result.total === 0 ? (
@@ -81,9 +109,10 @@ export function SearchSwitcher({ query, result, activeFilterCount }: SearchSwitc
             </div>
           </div>
         )}
+
       </main>
       <Footer />
-      <FloatingCart />
     </>
   );
 }
+

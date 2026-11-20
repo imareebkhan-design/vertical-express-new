@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "vertical-express",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "port": 3000
+    },
+    {
+      "name": "ops-console-local",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:local"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "storefront-production-build",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start:smoke"
+      ],
+      "port": 3200
+    }
+  ]
+}

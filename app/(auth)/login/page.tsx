@@ -1,31 +1,35 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Logo } from "@/components/ui/logo";
-import { getAuthUserId } from "@/lib/supabase/server";
-import { LoginForm } from "@/components/auth/login-form";
+import { getAuthUserId } from "@/lib/auth/current-user";
+import { LoginSwitcher } from "@/components/auth/login-switcher";
+import { safeNextPath } from "@/lib/safe-next";
 
 export const metadata: Metadata = {
-  title: "Login | Vertical Express",
-  description: "Log in to Vertical Express with a one-time code.",
+  title: "Sign in",
+  description: "Sign in to Vertical Express with a one-time code.",
+  robots: { index: false },
 };
 
-export default async function LoginPage() {
-  // Already signed in? Straight back to the store.
-  if (await getAuthUserId()) redirect("/");
+interface PageProps {
+  searchParams: Promise<{ next?: string }>;
+}
 
-  return (
-    <main id="main-content" className="grid min-h-screen place-items-center bg-surface/60 px-4">
-      <div className="w-full max-w-md rounded-2xl border border-neutral-100 bg-white p-8 shadow-card sm:p-10">
-        <Link href="/" aria-label="Vertical Express home" className="mb-8 block hover:opacity-90 transition-opacity">
-          <Logo variant="horizontal" className="h-12 mx-auto" />
-        </Link>
+export default async function LoginPage({ searchParams }: PageProps) {
+  const { next } = await searchParams;
+  /* Same-site paths only. An open redirect here would let a phishing link
+     bounce a freshly signed-in customer to another origin. */
+  const safeNext = safeNextPath(next);
 
-        <Suspense>
-          <LoginForm />
-        </Suspense>
-      </div>
-    </main>
-  );
+  /* Somebody already signed in has nothing to do on a sign-in form — but send
+     them where they were going, not to the home page. Dropping `next` here is
+     how a customer who followed a link to their order ended up on the shop
+     front instead, with nothing said.
+     
+     Safe from looping only because no route sends an *authenticated* visitor
+     here any more: the console distinguishes "not signed in" from "not an
+     operator" (see adminGate) and answers the second itself. Reintroduce that
+     redirect and this line turns it into an infinite bounce. */
+  if (await getAuthUserId()) redirect(safeNext);
+
+  return <LoginSwitcher next={safeNext} />;
 }

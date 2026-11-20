@@ -1,15 +1,19 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { formatPaise } from "@/lib/money";
+import { PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
 
 export interface RecentlyViewedItem {
   slug: string;
   title: string;
   imageUrl: string | null;
-  pricePaise: number;
+  /** Null for catalog-only products — shown as the price-on-request label. */
+  pricePaise: number | null;
   brandName: string;
 }
 
@@ -64,13 +68,13 @@ export function RecentlyViewedSection({ currentSlug }: { currentSlug?: string })
             href={`/product/${item.slug}`}
             className="group rounded-card border border-hairline-border bg-white p-3 shadow-card transition-shadow hover:shadow-card-hover"
           >
-            <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-surface/60">
+            <div className={cn("relative aspect-square w-full overflow-hidden rounded-panel", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-surface/60")}>
               {item.imageUrl ? (
                 <Image
                   src={item.imageUrl}
                   alt={item.title}
                   fill
-                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  className={cn(PRODUCT_PHOTO, "transition-transform duration-300 group-hover:scale-105")}
                   sizes="(max-width: 640px) 50vw, 20vw"
                 />
               ) : (
@@ -87,7 +91,7 @@ export function RecentlyViewedSection({ currentSlug }: { currentSlug?: string })
                 {item.title}
               </h3>
               <p className="mt-1 text-sm font-extrabold text-ink">
-                {formatPaise(item.pricePaise)}
+                {item.pricePaise == null ? PRICE_ON_REQUEST_LABEL : formatPaise(item.pricePaise)}
               </p>
             </div>
           </Link>

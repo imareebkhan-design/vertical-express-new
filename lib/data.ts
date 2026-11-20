@@ -1,11 +1,5 @@
 import {
-  Blocks,
-  CookingPot,
-  Droplets,
   LucideIcon,
-  PaintRoller,
-  Plug,
-  ShowerHead,
 } from "lucide-react";
 
 export interface NavCategory {
@@ -26,28 +20,34 @@ export interface Product {
   id: string;
   title: string;
   brandLine: string;
-  price: number;
-  compareAt: number;
+  /** Rupees. Null for a catalog-only product: the card shows
+   *  PRICE_ON_REQUEST_LABEL and offers no Add to Cart. Never 0 as a stand-in. */
+  price: number | null;
+  compareAt: number | null;
   unit: string;
-  bulkNote?: string;
+  /** Delivery speed for this product. Derived from Category.isBulk. */
+  speed?: "express" | "scheduled" | "leadtime" | "seasonal";
+  /** Express window for the delivery pincode, from ServiceablePincode. */
+  etaMinutes?: number;
+  /** Drives the tinted product panel's group colour and material drawing. */
+  categorySlug?: string;
   icon?: LucideIcon;
   /** Product photo under /public/products; icon placeholder shows if missing. */
   image?: string;
+  /**
+   * Free stock across warehouses, from `CatalogItem.inStock`.
+   *
+   * The card and the product page had no stock state at all, so both offered
+   * "Add to cart" on an item with nothing on the shelf. `lib/services/cart.ts`
+   * refuses it server-side and throws OUT_OF_STOCK, which keeps the data
+   * correct — but the customer only found out after choosing a quantity and
+   * pressing the button. Every large catalogue marks it on the tile instead.
+   *
+   * Optional so a caller that genuinely does not know (a static example) is not
+   * forced to claim in stock; undefined renders as available, as before.
+   */
+  inStock?: boolean;
 }
-
-export interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  quote: string;
-}
-
-export const ANNOUNCEMENTS = [
-  "Open 8am to 8pm (All Days)",
-  "Free delivery for first 3 orders above ₹500 🚀",
-  "Serving Srinagar with ❤️",
-  "Superfast delivery in minutes 🚀",
-];
 
 export const NAV_PRIMARY: NavCategory[] = [
   {
@@ -101,128 +101,35 @@ export const CATEGORIES: Category[] = [
   { name: "General Hardware & Tools", slug: "general-hardware-tools", href: "/category/general-hardware-tools" },
 ];
 
-export const DEALS: Product[] = [
-  {
-    id: "ppc-cement-50kg",
-    image: "/products/ppc-cement-50kg.webp",
-    title: "PPC Cement, 50 kg Bag",
-    brandLine: "Trusted trade brand",
-    price: 320,
-    compareAt: 335,
-    unit: "per bag",
-    bulkNote: "Bulk price from ₹310/bag (100+ bags)",
-    icon: Blocks,
-  },
-  {
-    id: "waterproof-primer-20l",
-    image: "/products/waterproof-primer-20l.webp",
-    title: "Interior Waterproofing Primer, 20 L",
-    brandLine: "Advanced damp protection",
-    price: 4899,
-    compareAt: 6799,
-    unit: "per can",
-    icon: ShowerHead,
-  },
-  {
-    id: "distemper-white-20kg",
-    image: "/products/distemper-white-20kg.webp",
-    title: "Acrylic Distemper Paint, White, 20 kg",
-    brandLine: "Smooth matt finish",
-    price: 1549,
-    compareAt: 2499,
-    unit: "per bucket",
-    icon: PaintRoller,
-  },
-  {
-    id: "gp-sealant-white",
-    image: "/products/gp-sealant-white.webp",
-    title: "General Purpose Sealant, White",
-    brandLine: "Multi-surface silicone",
-    price: 199,
-    compareAt: 645,
-    unit: "per tube",
-    icon: Droplets,
-  },
-  {
-    id: "inverter-battery-combo",
-    image: "/products/inverter-battery-combo.webp",
-    title: "1050 VA Inverter & 180 Ah Battery Combo",
-    brandLine: "Home power backup",
-    price: 24499,
-    compareAt: 25599,
-    unit: "per combo",
-    icon: Plug,
-  },
-  {
-    id: "ss-kitchen-sink",
-    image: "/products/ss-kitchen-sink.webp",
-    title: "Stainless Steel Kitchen Sink, Single Bowl",
-    brandLine: "Satin finish, 24 x 18 in",
-    price: 2899,
-    compareAt: 4299,
-    unit: "per piece",
-    icon: CookingPot,
-  },
-];
-
-export const TESTIMONIALS: Testimonial[] = [
-  {
-    id: "t1",
-    name: "Ravi Kumar",
-    role: "Site Engineer, Hyderpora",
-    quote: "Cement reached my site in 45 minutes. Saved a full day of labour cost.",
-  },
-  {
-    id: "t2",
-    name: "Anita Sharma",
-    role: "Homeowner, Rajbagh",
-    quote: "Mid-renovation, we ran out of tile adhesive on a Sunday. Vertical Express delivered before lunch.",
-  },
-  {
-    id: "t3",
-    name: "Mohammed Irfan",
-    role: "Contractor, Lal Chowk",
-    quote: "Prices match the local mandi and I don't have to send a worker to fetch materials.",
-  },
-  {
-    id: "t4",
-    name: "Deepa Nair",
-    role: "Interior Designer, Nishat",
-    quote: "The hardware selection is excellent. Hinges and channels arrive in an hour, every time.",
-  },
-  {
-    id: "t5",
-    name: "Suresh Gowda",
-    role: "Builder, Bemina",
-    quote: "Pay on delivery and genuine brands. My default supplier for every project now.",
-  },
-];
-
 export const FOOTER_LINKS = {
   company: [
-    { label: "About Us", href: "#" },
-    { label: "Contact", href: "#" },
-    { label: "Price Lists", href: "#" },
-    { label: "Knowledge Hub", href: "#" },
-    { label: "FAQ\'s", href: "#" },
+    { label: "How we work", href: "/how-we-work" },
+    { label: "Contact", href: "/contact" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Services", href: "https://verticalconstruction.in" },
   ],
   policy: [
-    { label: "Refund Policy", href: "#" },
-    { label: "Privacy Policy", href: "#" },
-    { label: "Terms of Service", href: "#" },
-    { label: "Shipping Policy", href: "#" },
-    { label: "Contact Information", href: "#" },
+    { label: "Returns & refunds", href: "/refunds" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Terms of Service", href: "/terms" },
+    { label: "Shipping Policy", href: "/shipping" },
+    { label: "Contact", href: "/contact" },
   ],
 };
 
+/**
+ * Nothing renders this, which is the only reason a third address was not
+ * shipping. The footer said "Lal Chowk, Srinagar, J&K 190001", this said
+ * "Residency Road", and the contact and terms pages both say the registered
+ * address is still to be published.
+ *
+ * The address is removed rather than corrected — there is nothing to correct it
+ * to, and an unused constant holding a plausible one is how it ends up on a
+ * page later. It comes back when the owner confirms the registered address,
+ * along with the business name, GSTIN and CIN that the terms page brackets
+ * beside it.
+ */
 export const CONTACT = {
-  email: "hello@verticalexpress.co",
-  address:
-    "Vertical Express Commerce, Residency Road, Lal Chowk, Srinagar, Jammu & Kashmir 190001",
+  email: "info@verticalexpress.in",
 };
 
-export const TRUST_ITEMS: { icon: "star" | "shield" | "banknote"; title: string; caption: string }[] = [
-  { icon: "star", title: "4.9 Google Rating", caption: "Loved by thousands of builders & homeowners" },
-  { icon: "shield", title: "Quality Assurance", caption: "100% genuine brands, sourced directly" },
-  { icon: "banknote", title: "Pay on Delivery", caption: "Check your order first, then pay" },
-];

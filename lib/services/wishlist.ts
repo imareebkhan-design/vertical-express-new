@@ -1,8 +1,9 @@
 import "server-only";
 import { db } from "@/lib/db";
-import type { CatalogItem } from "@/lib/services/catalog";
+import { toItem, type CatalogItem } from "@/lib/services/catalog";
+import { catalogListingWhere, approvedImageWhere } from "@/lib/catalog-policy";
 
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 
 /** Wishlisted product-id set for the current user (empty for guests). */
 export async function currentWishlistIdSet(): Promise<Set<string>> {
@@ -53,11 +54,11 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
 
   const productIds = wl.items.map((i) => i.productId);
   const products = await db.product.findMany({
-    where: { id: { in: productIds }, status: "published" },
+    where: { id: { in: productIds }, AND: [catalogListingWhere()] },
     include: {
       brand: true,
-      category: { select: { slug: true } },
-      images: { where: { isPrimary: true }, take: 1 },
+      category: { select: { slug: true, isBulk: true } },
+      images: { where: { isPrimary: true, ...approvedImageWhere() }, take: 1 },
       variants: {
         where: { isDefault: true },
         include: {
@@ -68,27 +69,5 @@ export async function getWishlistItems(userId: string): Promise<CatalogItem[]> {
     },
   });
 
-  return products
-    .map((p): CatalogItem | null => {
-      const variant = p.variants[0];
-      if (!variant) return null;
-      const available = variant.inventory?.reduce((sum, i) => sum + (i.qtyOnHand - i.qtyReserved), 0) ?? 0;
-      return {
-        id: p.id,
-        slug: p.slug,
-        title: p.title,
-        brandName: p.brand.name,
-        categorySlug: p.category.slug,
-        imageUrl: p.images[0]?.url ?? null,
-        unitLabel: p.unitLabel,
-        variantId: variant.id,
-        pricePaise: variant.pricePaise,
-        compareAtPaise: variant.compareAtPaise,
-        hasBulkTiers: variant.bulkTiers.length > 0,
-        ratingAvg: Number(p.ratingAvg),
-        ratingCount: p.ratingCount,
-        inStock: available > 0,
-      };
-    })
-    .filter((x): x is CatalogItem => x !== null);
+  return products.map(toItem).filter((x): x is CatalogItem => x !== null);
 }

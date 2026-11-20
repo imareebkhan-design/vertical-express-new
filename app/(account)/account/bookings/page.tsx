@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
 import { EmptyState } from "@/components/shop/empty-state";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { listMyBookings } from "@/lib/services/bookings";
 
-export const metadata: Metadata = { title: "My Bookings | Vertical Express", robots: { index: false } };
+export const metadata: Metadata = { title: "My Bookings", robots: { index: false } };
 
 const STATUS_LABEL: Record<string, string> = {
   received: "Received",
@@ -28,7 +27,6 @@ export default async function BookingsPage() {
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">My Bookings</h1>
@@ -38,7 +36,7 @@ export default async function BookingsPage() {
             {bookings.length === 0 ? (
               <EmptyState
                 title="No service bookings yet"
-                caption="Book a professional from our Services page and it'll appear here."
+                caption="Service bookings are arranged on our services site and are not linked to this account, so this list stays empty."
                 actionLabel="Explore services"
                 actionHref="/services"
               />
@@ -48,7 +46,7 @@ export default async function BookingsPage() {
                   <li key={b.id} className="rounded-card border border-neutral-100 bg-white p-4 shadow-card">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-extrabold">{b.service.name}</p>
-                      <span className="rounded-md bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-neutral-600">
+                      <span className="rounded-chip bg-surface px-2 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-neutral-600">
                         {STATUS_LABEL[b.status] ?? b.status}
                       </span>
                     </div>
