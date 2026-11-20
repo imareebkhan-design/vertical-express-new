@@ -163,23 +163,22 @@ export async function POST(req: NextRequest) {
       }
 
       if (event === "payment.captured" || event === "order.paid") {
+        if (orderEntity?.id !== undefined && orderEntity.id !== razorpayOrderId) {
+          return NextResponse.json({ error: "Conflicting gateway order IDs" }, { status: 400 });
+        }
         const existingPayment = await db.payment.findFirst({
-          where: {
-            OR: paymentKeys,
-          },
+          where: { gateway: "razorpay", gatewayOrderId: razorpayOrderId },
           include: { order: true },
         });
 
         if (existingPayment) {
-          // Extract and verify amount paid in Paise
-          let capturedAmountPaise: number | null = null;
-          if (paymentEntity?.amount !== undefined && paymentEntity?.amount !== null) {
-            capturedAmountPaise = Number(paymentEntity.amount);
-          } else if (orderEntity?.amount_paid !== undefined && orderEntity?.amount_paid !== null) {
-            capturedAmountPaise = Number(orderEntity.amount_paid);
-          } else if (orderEntity?.amount !== undefined && orderEntity?.amount !== null) {
-            capturedAmountPaise = Number(orderEntity.amount);
+          if (typeof razorpayPaymentId !== "string" || !razorpayPaymentId ||
+              paymentEntity?.order_id !== existingPayment.gatewayOrderId ||
+              paymentEntity?.currency !== "INR" ||
+              (paymentEntity.status !== undefined && paymentEntity.status !== "captured")) {
+            return NextResponse.json({ error: "Capture details do not match the payment" }, { status: 400 });
           }
+          const capturedAmountPaise = typeof paymentEntity.amount === "number" ? paymentEntity.amount : null;
 
           /* A valid amount that differs from what the payment expects: real
              money in the wrong amount. Recorded and acknowledged (A-3) — a 400
@@ -243,7 +242,7 @@ export async function POST(req: NextRequest) {
               orderId: existingPayment.orderId,
               orderNo: existingPayment.order.orderNo,
               amountPaise: existingPayment.amountPaise,
-              gatewayPaymentId: razorpayPaymentId || existingPayment.gatewayPaymentId,
+              gatewayPaymentId: razorpayPaymentId,
               eventId,
               raw: payload,
               source: "webhook",

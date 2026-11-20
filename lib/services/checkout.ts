@@ -1,4 +1,5 @@
 import "server-only";
+import { z } from "zod";
 import { generateOrderNumber } from "@/lib/order-number";
 import { enqueueOrderConfirmation } from "@/lib/services/order-emails";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
@@ -14,7 +15,7 @@ import {
   resolveExpressOption,
   type ExpressOption,
 } from "@/lib/services/express-delivery";
-import { getPaymentProvider, verifyRazorpaySignature, type PaymentMethodId } from "@/lib/services/payments";
+import { getPaymentProvider, verifyRazorpaySignature, type PaymentMethodId, type CapturedLookup } from "@/lib/services/payments";
 import { computeGst, CATEGORY_TAX_CONFIGS, type GstBreakup } from "@/lib/services/tax";
 import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments";
 import { recordSystemMovement } from "@/lib/services/inventory-movements";
@@ -664,28 +665,33 @@ export async function placeOrder(params: {
   };
 }
 
-/**
- * Confirm an online order from the Razorpay Checkout callback.
- *
- * The signature alone is not enough. It proves Razorpay signed
- * `order_id|payment_id` for *some* order; it says nothing about whether that
- * order is the one being confirmed. Without binding the two, a customer could
- * pay for a cheap order, then submit that valid signature against the order
- * number of an expensive one. So the Razorpay order id in the callback must
- * equal the one this order's payment row was created with, and the order must
- * belong to the caller. Both surfaces — the Server Action and the mobile API —
- * go through here so neither can forget it.
- *
- * Every refusal is the same `false`: telling a caller which check failed tells
- * whoever is guessing which part to fix.
- */
+/** Only authenticated gateway lookups and signed capture webhooks write these records. */
+const storedCapture = z.union([
+  z.object({ verifiedCapture: z.object({ orderId: z.string(), paymentId: z.string(), amount: z.number(), currency: z.literal("INR") }) })
+    .transform(({ verifiedCapture }) => verifiedCapture),
+  z.object({
+    event: z.enum(["payment.captured", "order.paid"]),
+    payload: z.object({ payment: z.object({ entity: z.object({
+      id: z.string(), order_id: z.string(), amount: z.number(), currency: z.literal("INR"), status: z.literal("captured").optional(),
+    }) }) }),
+  }).transform(({ payload: { payment: { entity } } }) => ({ orderId: entity.order_id, paymentId: entity.id, amount: entity.amount })),
+]);
+
+export function lookupCaptureRecord(orderId: string, paymentId: string, amount: number) {
+  return { verifiedCapture: { orderId, paymentId, amount, currency: "INR" } };
+}
+
+export type CallbackCaptureLookup = (orderId: string, paymentId: string) => Promise<CapturedLookup | null>;
+
+/** Checkout's signature authenticates the two IDs. Only the gateway can establish capture. */
 export async function confirmOnlinePayment(params: {
   userId: string;
   orderNo: string;
   razorpayOrderId: string;
   razorpayPaymentId: string;
   signature: string;
-}): Promise<{ ok: boolean; reason?: "late_payment" }> {
+}, findCaptured: CallbackCaptureLookup = (orderId, paymentId) => getPaymentProvider("razorpay").findCapturedPayment(orderId, { paymentId })
+): Promise<{ ok: boolean; reason?: "late_payment" | "checking" }> {
   const { userId, orderNo, razorpayOrderId, razorpayPaymentId, signature } = params;
 
   if (!verifyRazorpaySignature({ razorpayOrderId, razorpayPaymentId, signature })) {
@@ -693,10 +699,45 @@ export async function confirmOnlinePayment(params: {
   }
 
   const payment = await db.payment.findFirst({
-    where: { gatewayOrderId: razorpayOrderId, order: { orderNo, userId } },
+    where: { gateway: "razorpay", gatewayOrderId: razorpayOrderId, order: { orderNo, userId } },
     select: { id: true, orderId: true, amountPaise: true },
   });
   if (!payment) return { ok: false };
+
+  // This UPDATE takes the payment row lock shared with unpaid cancellation.
+  // It commits the signed attempt before the provider call starts.
+  await db.payment.updateMany({
+    where: {
+      id: payment.id, status: { in: ["created", "authorized", "failed"] },
+      NOT: { callbackPaymentIds: { has: razorpayPaymentId } },
+    },
+    data: { callbackPaymentIds: { push: razorpayPaymentId } },
+  });
+
+  let capture: CapturedLookup | null = null;
+  try {
+    capture = await findCaptured(razorpayOrderId, razorpayPaymentId);
+  } catch (e) {
+    captureException(e, { orderNo, stage: "callback_gateway_lookup" });
+  }
+  if (capture?.status !== "captured" ||
+      capture.gatewayPaymentId !== razorpayPaymentId ||
+      capture.amountPaise !== payment.amountPaise) {
+    // A webhook or reconciliation may have committed while the lookup was in flight.
+    const known = await db.payment.findFirst({
+      where: {
+        orderId: payment.orderId, gatewayPaymentId: razorpayPaymentId, amountPaise: payment.amountPaise,
+        signatureVerified: true, status: { in: ["captured", "refunded"] },
+      },
+      select: { raw: true, order: { select: { status: true } } },
+    });
+    const proof = storedCapture.safeParse(known?.raw);
+    if (known && known.order.status !== "pending_payment" && proof.success && proof.data.orderId === razorpayOrderId &&
+        proof.data.paymentId === razorpayPaymentId && proof.data.amount === payment.amountPaise) {
+      return isDeadOrder(known.order.status) ? { ok: false, reason: "late_payment" } : { ok: true };
+    }
+    return { ok: false, reason: "checking" };
+  }
 
   const outcome = await settleCapturedPayment({
     paymentId: payment.id,
@@ -704,11 +745,10 @@ export async function confirmOnlinePayment(params: {
     orderNo,
     amountPaise: payment.amountPaise,
     gatewayPaymentId: razorpayPaymentId,
+    raw: lookupCaptureRecord(razorpayOrderId, razorpayPaymentId, capture.amountPaise),
     source: "client",
   });
-  /* The customer did pay — Razorpay signed it — but the order had already
-     expired. That is not a failure to be retried and not a success to be
-     celebrated: the money is recorded and needs a human. */
+  // Captured funds on a closed order remain on the existing refund worklist.
   if (outcome === "late_recorded" || outcome === "late_already_recorded") {
     return { ok: false, reason: "late_payment" };
   }
@@ -737,8 +777,8 @@ export type SettleOutcome =
  * place both the client callback and the webhook go through, so the two cannot
  * disagree about what a capture means.
  *
- * The caller has already verified authenticity (HMAC on the callback or on the
- * webhook body) and, for the webhook, the amount. This function owns state.
+ * The caller has verified capture, gateway identifiers, amount and currency
+ * using the gateway API or a signed capture event. This function owns state.
  *
  *   order pending_payment  -> confirmed, payment captured        ("confirmed")
  *   order already confirmed+ -> payment marked captured if it was

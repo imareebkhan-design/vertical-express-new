@@ -368,3 +368,7 @@ and `after = { batchId, undoOf?, by, categories: [{id, slug, from, to}], brands:
 brand row, so undo never follows a reused slug). An undo batch must be the exact reversal of the batch it names and
 can be applied once. Undo and the history read these rows (`lib/services/admin/launch-control.ts`). Only `categories.is_active` and `brands.is_active`
 change; no product row is written.
+
+## Pending Razorpay Checkout attempts
+
+Migration `20261120090000_pending_checkout_attempts` adds `payments.callback_payment_ids`, a text array with an empty default. For an unsettled payment, the backend remembers each signed Checkout payment ID before it asks Razorpay about capture. Before offering another payment, it checks that Razorpay accounts for every remembered attempt and reports each as failed. A matching capture settles through the existing order transaction. Apply the migration before starting the new application version.

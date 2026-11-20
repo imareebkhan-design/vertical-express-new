@@ -258,8 +258,8 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
           razorpayOrderId: rzp.orderId,
           razorpayPaymentId: r.razorpay_payment_id,
           signature: r.razorpay_signature,
-        });
-        if (!confirm.ok) {
+        }).catch(() => null);
+        if (!confirm?.ok) {
           /* Unverified is not unpaid: ask the server, which asks Razorpay. */
           askServer(orderNo);
           return;
@@ -641,7 +641,7 @@ export function CheckoutView({ addresses, email, actions }: { addresses: Address
             size="lg"
             className="mt-3 w-full"
             onClick={submit}
-            disabled={placing || !canSubmit || !fulfilable}
+            disabled={placing || !!paymentCheck || !canSubmit || !fulfilable}
           >
             {placing ? <Loader2 className="animate-spin" /> : "Place order"}
           </Button>

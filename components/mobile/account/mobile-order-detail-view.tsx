@@ -13,7 +13,6 @@ import {
   FileText,
   Loader2,
   XCircle,
-  CreditCard,
   Share2,
 } from "lucide-react";
 import { formatPaise } from "@/lib/money";
@@ -28,7 +27,6 @@ import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/o
 import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
 import { DeliveryCodeCard, type DeliveryCodeShipment } from "@/components/orders/delivery-code-card";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
-import type { PaymentStateName } from "@/lib/payment-status-copy";
 import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 interface MobileOrderDetailViewProps {
@@ -51,9 +49,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   const [mounted, setMounted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  /* Set when Checkout closed or its callback could not be verified: the server
-     (checkPaymentStatus) says what happened, never the browser. */
-  const [paymentCheck, setPaymentCheck] = useState<{ orderNo: string; initial: PaymentStateName | null } | null>(null);
+  const [paymentCheckRevision, setPaymentCheckRevision] = useState(0);
   const rzOpen = useRef(false); // one Razorpay window at a time
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
@@ -126,11 +122,11 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
             razorpayOrderId: rzp.orderId,
             razorpayPaymentId: response.razorpay_payment_id,
             signature: response.razorpay_signature,
-          });
+          }).catch(() => null);
 
           rzOpen.current = false;
-          if (!confirm.ok) {
-            setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
+          if (!confirm?.ok) {
+            setPaymentCheckRevision((revision) => revision + 1); // unverified is not unpaid
             return;
           }
           triggerHaptic("heavy");
@@ -139,7 +135,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
         modal: {
           ondismiss: () => {
             rzOpen.current = false;
-            setPaymentCheck({ orderNo, initial: null });
+            setPaymentCheckRevision((revision) => revision + 1);
           },
         },
       };
@@ -155,12 +151,11 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
   const handleRetryPayment = () => {
     if (rzOpen.current) return;
     setError(null);
-    setPaymentCheck(null);
     triggerHaptic("medium");
     startTransition(async () => {
       const res = await retryOrderPayment(order.orderNo);
       if (!res.ok) {
-        if (res.error.code === "UNAVAILABLE") setPaymentCheck({ orderNo: order.orderNo, initial: "pending" });
+        if (res.error.code === "UNAVAILABLE") setPaymentCheckRevision((revision) => revision + 1);
         else setError(res.error.message);
         return;
       }
@@ -231,18 +226,14 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
 
       <div className="p-4 space-y-4">
         {/* Error Banner */}
-        {paymentCheck && (
+        {isPendingPayment && (
           <PaymentStatusNotice
-            key={paymentCheck.orderNo}
-            orderNo={paymentCheck.orderNo}
+            key={`${order.orderNo}-${paymentCheckRevision}`}
+            orderNo={order.orderNo}
             check={checkPaymentStatus}
-            initialState={paymentCheck.initial}
-            onPaid={() => {
-              setPaymentCheck(null);
-              router.refresh();
-            }}
-            onPay={handleRetryPayment}
-            orderHref={`/account/orders/${paymentCheck.orderNo}`}
+            onPaid={() => { router.refresh(); }}
+            onPay={orderingOpen && !pending ? handleRetryPayment : undefined}
+            orderHref={`/account/orders/${order.orderNo}`}
           />
         )}
         {error && (
@@ -380,19 +371,6 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
 
         {/* Action Controls */}
         <div className="flex flex-col gap-2 pt-2">
-          {/* Payment retry banner. Not in COMMERCE_MODE=catalogue, where the server
-              refuses a new payment; a payment already made is still checked. */}
-          {isPendingPayment && orderingOpen && (
-            <button
-              onClick={handleRetryPayment}
-              disabled={pending}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-brand-deep py-3 text-xs font-extrabold text-white shadow-xs active:scale-[0.98]"
-            >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <CreditCard className="size-4" />}
-              <span>Complete Payment</span>
-            </button>
-          )}
-
           {/* View Invoice */}
           <Link
             href={`/account/orders/${order.orderNo}/invoice`}
@@ -420,7 +398,7 @@ export function MobileOrderDetailView({ order, shipments }: MobileOrderDetailVie
           )}
 
           {/* Paid online — no self-cancel: nothing refunds the payment yet (ISS-025). */}
-          {cancelState.kind === "paid-online" && (
+          {!isPendingPayment && cancelState.kind === "paid-online" && (
             <p className="rounded-xl border border-mist/20 bg-white p-3 text-[11px] font-semibold leading-snug text-ink/70">
               This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
               <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${order.orderNo}`} className="font-bold text-ink underline">
