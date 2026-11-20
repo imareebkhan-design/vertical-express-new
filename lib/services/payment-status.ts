@@ -75,10 +75,16 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
     return view(order, status, check === "late" || !PAID.has(status) ? "late" : "paid");
   }
   let state: PaymentState = "pending";
+  /* The order was loaded before either network call. A signed callback may
+     have been recorded since, so the attempt list is checked against the IDs
+     as they stand now, and the decision below against the same list. */
+  let known = payment.callbackPaymentIds;
   if (check === "not_captured") {
+    known = (await db.payment.findUniqueOrThrow({ where: { id: payment.id }, select: { callbackPaymentIds: true } }))
+      .callbackPaymentIds;
     const listAttempts = deps.listAttempts ?? ((gw, ids) => getPaymentProvider("razorpay").listPaymentAttempts(gw, ids));
     try {
-      const attempts = await listAttempts(payment.gatewayOrderId, payment.callbackPaymentIds);
+      const attempts = await listAttempts(payment.gatewayOrderId, known);
       if (attempts.every((attempt) => attempt === "failed")) {
         if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") state = "expired";
         else state = attempts.length ? "failed" : "unpaid";
@@ -97,7 +103,9 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
     },
   });
   if (latest.order.status !== "pending_payment") return fromClosedOrder(latest.order);
-  if (latest.callbackPaymentIds.length !== payment.callbackPaymentIds.length) return view(order, order.status, "pending");
+  const unchanged =
+    latest.callbackPaymentIds.length === known.length && latest.callbackPaymentIds.every((id) => known.includes(id));
+  if (!unchanged) return view(order, order.status, "pending");
   return view(order, order.status, state);
 }
 
