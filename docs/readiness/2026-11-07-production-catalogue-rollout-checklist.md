@@ -42,6 +42,11 @@ was written.
 
 ## B. Fresh image-hash verification (no production writes)
 
+> **19 Nov 2026: historical.** This section verified the 260-image manifest, which is now empty: those images
+> were deleted with the retired catalogue. Do not use step 4 as a gate for a later rollout; with nothing to map, the
+> script stops at "Restore has no source images to exercise" and that is not a pass. Use the check in
+> `system_architecture.md`, "Approval-preserving delivery", instead.
+
 1. Take a read-only public-schema dump of production (`pg_dump -Fc --no-owner
    --no-privileges --schema=public`, `DIRECT_URL` from the production env). Store it
    outside git; it contains customer data.

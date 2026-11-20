@@ -25,7 +25,7 @@ The candidate serves the existing approved images from version-pinned production
 ## Claude integration and rollback
 
 1. Review this isolated candidate together with preceding readiness commits. Do not merge the held release PR automatically.
-2. Before rollout, verify a fresh production snapshot with scripts/verify-image-delivery.mts on a separate local restore. It refuses remote databases. Any new approved source image missing from the manifest must be copied, pinned and hash-verified first. Current coverage is 260 images, not an assertion about future imports.
+2. Before rollout, verify a fresh production snapshot with scripts/verify-image-delivery.mts on a separate local restore. It refuses remote databases. Any new approved source image missing from the manifest must be copied, pinned and hash-verified first. Current coverage is 260 images, not an assertion about future imports. *(19 Nov 2026: superseded. The 260 images were deleted with the retired catalogue and the manifest is empty; the script now stops at "Restore has no source images to exercise". The pre-rollout check is in `system_architecture.md`, "Approval-preserving delivery".)*
 3. Preserve the pinned object generations. Do not purge them or add a lifecycle policy that removes them while referenced.
 4. Integrate and verify on a production-configured non-live candidate before the separately approved production rollout. Ordinary staging deliberately does not activate the production mapping.
 5. Roll back by setting PRODUCTION_IMAGE_DELIVERY=0 for BUILD and RUNTIME and rebuilding/redeploying the prior verified candidate. Rebuild covers prerendered pages too. Original URLs and the source bucket remain available; no data rollback or reapproval is required.
