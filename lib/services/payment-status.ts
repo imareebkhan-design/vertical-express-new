@@ -37,12 +37,10 @@ export interface PaymentStatusView {
 
 export interface PaymentStatusDeps {
   findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
-  listAttempts?: (gatewayOrderId: string) => Promise<string[]>;
+  listAttempts?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<string[]>;
 }
 
 const PAID = new Set(["confirmed", "packed", "out_for_delivery", "delivered"]);
-/** Razorpay attempt states that mean money is, or may be, on its way. */
-const IN_FLIGHT = new Set(["created", "authorized", "captured"]);
 
 const view = (order: { orderNo: string }, orderStatus: string, state: PaymentState): PaymentStatusView => ({
   orderNo: order.orderNo,
@@ -80,13 +78,13 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
 
   let attempts: string[];
   try {
-    attempts = await (deps.listAttempts ?? ((gw: string) => getPaymentProvider("razorpay").listPaymentAttempts(gw)))(
-      payment.gatewayOrderId
+    attempts = await (deps.listAttempts ?? ((gw, ids) => getPaymentProvider("razorpay").listPaymentAttempts(gw, ids)))(
+      payment.gatewayOrderId, payment.callbackPaymentIds
     );
   } catch {
     return view(order, order.status, "pending");
   }
-  if (attempts.some((a) => IN_FLIGHT.has(a))) return view(order, order.status, "pending");
+  if (attempts.some((a) => a !== "failed")) return view(order, order.status, "pending");
   if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") return view(order, order.status, "expired");
   return view(order, order.status, attempts.some((a) => a === "failed") ? "failed" : "unpaid");
 }

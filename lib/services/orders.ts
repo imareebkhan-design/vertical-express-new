@@ -5,7 +5,7 @@ import { isCancellable } from "@/lib/order-flow";
 import { IN_WAREHOUSE, LEFT_WAREHOUSE } from "@/lib/shipment-flow";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import type { Prisma } from "@/prisma/generated/client/client";
-import { settleCapturedPayment } from "@/lib/services/checkout";
+import { lookupCaptureRecord, settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
 import { captureException, triggerAlert } from "@/lib/observability";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
@@ -430,6 +430,7 @@ export async function reconcileWithGateway(
     }
     if (!found) continue;
     if (found.status === "authorized") return "authorized";
+    if (found.status !== "captured" || !found.gatewayPaymentId) return "unknown";
     if (found.amountPaise !== p.amountPaise) {
       triggerAlert(
         `${opts.context}_capture_amount_mismatch`,
@@ -444,6 +445,7 @@ export async function reconcileWithGateway(
       orderNo: order.orderNo,
       amountPaise: p.amountPaise,
       gatewayPaymentId: found.gatewayPaymentId,
+      raw: lookupCaptureRecord(p.gatewayOrderId!, found.gatewayPaymentId, found.amountPaise),
       source: `${opts.context}_check`,
       note: {
         expiry: "Payment captured at Razorpay before the payment window closed (found by the expiry check)",

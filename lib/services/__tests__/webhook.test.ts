@@ -110,6 +110,7 @@ test("Test 1 — Webhook verification with exact amount updates payment and orde
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: EXPECTED_AMOUNT_PAISE, // Exact matches expected amount
         },
       },
@@ -158,6 +159,7 @@ test("Test 2 — signed capture for a lower amount is recorded as a mismatch, no
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: 1, // Only 1 Paise, lower than 100000 Paise
         },
       },
@@ -193,6 +195,7 @@ test("Test 3 — signed capture for a higher amount is recorded as a mismatch, n
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: EXPECTED_AMOUNT_PAISE + 1, // Higher than expected
         },
       },
@@ -220,6 +223,7 @@ test("Test 4 — Webhook verification with missing amount rejects payment", asyn
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           // amount field is missing
         },
       },
@@ -243,6 +247,7 @@ test("Test 5 — Webhook verification with non-integer amount rejects payment", 
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: 100000.5, // Float value
         },
       },
@@ -270,6 +275,7 @@ test("Test 6 — Webhook idempotency prevents processing duplicate valid events"
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: EXPECTED_AMOUNT_PAISE,
         },
       },
@@ -317,6 +323,7 @@ test("Test 7 — wrong amount with a valid signature is recorded as a mismatch a
         entity: {
           id: gatewayPaymentId,
           order_id: GATEWAY_ORDER_ID,
+          currency: "INR",
           amount: 500, // Valid signature will cover this payload, but amount is wrong (500 vs 100000)
         },
       },
@@ -350,7 +357,7 @@ function capturedPayload(gatewayPaymentId: string, extra: object = {}) {
   return {
     event: "payment.captured",
     ...extra,
-    payload: { payment: { entity: { id: gatewayPaymentId, order_id: GATEWAY_ORDER_ID, amount: EXPECTED_AMOUNT_PAISE } } },
+    payload: { payment: { entity: { id: gatewayPaymentId, order_id: GATEWAY_ORDER_ID, currency: "INR", amount: EXPECTED_AMOUNT_PAISE } } },
   };
 }
 
@@ -386,7 +393,7 @@ test("Test 9 — payment.captured then order.paid (distinct header ids) confirms
   const orderPaid = {
     event: "order.paid",
     payload: {
-      payment: { entity: { id: payId, order_id: GATEWAY_ORDER_ID, amount: EXPECTED_AMOUNT_PAISE } },
+      payment: { entity: { id: payId, order_id: GATEWAY_ORDER_ID, currency: "INR", amount: EXPECTED_AMOUNT_PAISE } },
       order: { entity: { id: GATEWAY_ORDER_ID, amount_paid: EXPECTED_AMOUNT_PAISE } },
     },
   };
@@ -422,7 +429,7 @@ test("Test 11 — stale payment.failed after capture cannot downgrade the captur
 
   const failed = {
     event: "payment.failed",
-    payload: { payment: { entity: { id: `pay_failedattempt_${crypto.randomUUID().slice(0, 6)}`, order_id: GATEWAY_ORDER_ID, amount: EXPECTED_AMOUNT_PAISE, status: "failed" } } },
+    payload: { payment: { entity: { id: `pay_failedattempt_${crypto.randomUUID().slice(0, 6)}`, order_id: GATEWAY_ORDER_ID, currency: "INR", amount: EXPECTED_AMOUNT_PAISE, status: "failed" } } },
   };
   const res = await POST(createSignedRequest(failed, WEBHOOK_SECRET, `evt_fail_${crypto.randomUUID().slice(0, 8)}`));
   assert.equal(res.status, 200);
@@ -520,4 +527,23 @@ test("Test 16 — a signed capture that matches no payment here is acknowledged 
   assert.equal(res.status, 200);
   assert.equal((await res.json()).status, "unmatched_recorded");
   assert.equal(await db.payment.count(), before, "no payment row is invented for it");
+});
+
+test("signed capture events must identify the captured INR payment on this gateway order", async () => {
+  await resetState();
+  const payment = { id: "pay_evidence", order_id: GATEWAY_ORDER_ID, currency: "INR", amount: EXPECTED_AMOUNT_PAISE };
+  for (const change of [{ currency: "USD" }, { currency: undefined }, { id: undefined }, { order_id: undefined },
+    { amount: undefined }, { status: "authorized" }, { order_id: "order_conflicting" }]) {
+    const payload = {
+      event: "order.paid",
+      payload: {
+        payment: { entity: { ...payment, ...change } },
+        order: { entity: { id: GATEWAY_ORDER_ID, amount_paid: EXPECTED_AMOUNT_PAISE } },
+      },
+    };
+    const response = await POST(createSignedRequest(payload));
+    assert.equal(response.status, 400);
+    assert.equal((await db.order.findUniqueOrThrow({ where: { id: TEST_ORDER_ID } })).status, "pending_payment");
+    assert.equal(await confirmEvents(), 0);
+  }
 });

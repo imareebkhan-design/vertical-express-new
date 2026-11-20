@@ -4,7 +4,7 @@ import { checkoutTimeoutSeconds, PAYMENT_WINDOW_CLOSED_MESSAGE } from "@/lib/pay
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { CreditCard, FileText, Loader2, RotateCcw, XCircle } from "lucide-react";
+import { FileText, Loader2, RotateCcw, XCircle } from "lucide-react";
 import { cancelOrder, reorder, retryOrderPayment, checkPaymentStatus } from "@/actions/orders";
 import { PaymentStatusNotice } from "@/components/shop/payment-status-notice";
 import { confirmRazorpayPayment } from "@/actions/checkout";
@@ -70,18 +70,17 @@ export function OrderActions({
   };
 
   const rzOpen = useRef(false);
-  const [paymentCheck, setPaymentCheck] = useState(false);
+  const [checkRevision, setCheckRevision] = useState(0);
 
   const doRetryPayment = () => {
     if (rzOpen.current) return; // one Razorpay window at a time
     setError(null);
-    setPaymentCheck(false);
     startTransition(async () => {
       const res = await retryOrderPayment(orderNo);
       if (!res.ok) {
         /* "Pending" (approved / in flight / unverifiable) is not an error to
            retry past: show the server's status with Check payment status. */
-        if (res.error.code === "UNAVAILABLE") setPaymentCheck(true);
+        if (res.error.code === "UNAVAILABLE") setCheckRevision((revision) => revision + 1);
         else setError(res.error.message);
         return;
       }
@@ -132,9 +131,9 @@ export function OrderActions({
           razorpayOrderId: rzp.orderId,
           razorpayPaymentId: r.razorpay_payment_id,
           signature: r.razorpay_signature,
-        });
-        if (!confirm.ok) {
-          setPaymentCheck(true); // unverified is not unpaid: ask the server
+        }).catch(() => null);
+        if (!confirm?.ok) {
+          setCheckRevision((revision) => revision + 1); // unverified is not unpaid: ask the server
           return;
         }
         await refresh();
@@ -143,7 +142,7 @@ export function OrderActions({
       modal: {
         ondismiss: () => {
           rzOpen.current = false;
-          setPaymentCheck(true);
+          setCheckRevision((revision) => revision + 1);
         },
       },
     });
@@ -153,25 +152,20 @@ export function OrderActions({
 
   return (
     <div className="flex flex-col gap-3">
-      {paymentCheck && (
+      {isPendingPayment && (
         <PaymentStatusNotice
+          key={`${orderNo}-${checkRevision}`}
           orderNo={orderNo}
           check={checkPaymentStatus}
           onPaid={() => {
-            setPaymentCheck(false);
             void refresh();
             router.refresh();
           }}
-          onPay={doRetryPayment}
+          onPay={orderingOpen && !pending ? doRetryPayment : undefined}
           orderHref={`/account/orders/${orderNo}`}
         />
       )}
       <div className="flex flex-wrap gap-3">
-        {isPendingPayment && orderingOpen && (
-          <Button onClick={doRetryPayment} disabled={pending} className="bg-brand-deep text-white hover:opacity-90">
-            {pending ? <Loader2 className="animate-spin" /> : <CreditCard className="size-4" />} Complete Payment
-          </Button>
-        )}
         {orderingOpen && (
         <Button variant="outline" onClick={doReorder} disabled={pending}>
           {pending ? <Loader2 className="animate-spin" /> : <RotateCcw className="size-4" />} Reorder
@@ -207,7 +201,7 @@ export function OrderActions({
           refunds the payment yet (lib/order-flow.ts, ISS-025). Offering the
           button would take the order and keep the money. No refund is promised
           here either — the policy is not set. */}
-      {cancelState.kind === "paid-online" && (
+      {!isPendingPayment && cancelState.kind === "paid-online" && (
         <p className="text-sm font-semibold text-neutral-600">
           This order is paid, so it can’t be cancelled here. To cancel it, email{" "}
           <a href={`mailto:${CONTACT.email}?subject=Cancel%20order%20${orderNo}`} className="font-bold text-ink underline">

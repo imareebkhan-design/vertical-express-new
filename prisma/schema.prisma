@@ -611,6 +611,8 @@ model Payment {
   gateway           PaymentMethod
   gatewayOrderId    String?       @unique @map("gateway_order_id")
   gatewayPaymentId  String?       @map("gateway_payment_id")
+  /// Signed Checkout attempts whose capture was uncertain. A retry must account for each of them.
+  callbackPaymentIds String[]     @default([]) @map("callback_payment_ids")
   gatewayEventId    String?       @unique @map("gateway_event_id")
   amountPaise       Int           @map("amount_paise")
   status            PaymentStatus @default(created)

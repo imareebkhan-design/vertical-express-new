@@ -67,7 +67,7 @@ export async function advanceOrderStatus(
   /* An online order is confirmed by its payment, never by hand: confirming an
      unpaid one would dispatch goods nobody paid for (architecture principle 7,
      payment-provider-authoritative). Cash on delivery has no payment yet. */
-  if (order.status === "pending_payment" && to === "confirmed" && order.paymentMethod !== "cod" && !funded) {
+  if (order.status === "pending_payment" && to === "confirmed" && order.paymentMethod !== "cod") {
     throw new Error("PAYMENT_REQUIRED");
   }
   /* "Awaiting payment" may only mean the confirmation never reached us. The

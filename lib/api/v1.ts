@@ -2,7 +2,7 @@ import "server-only";
 import { normaliseContactEmail } from "@/lib/contact-email";
 import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
-import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
+import { PAYMENT_PENDING_MESSAGE, checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
 import { withApiUser, withApiPublic, readJson, type ApiDeps } from "@/lib/api/authed";
@@ -45,7 +45,7 @@ import { getUserWallet } from "@/lib/services/wallet";
 import { getWishlistItems, toggleWishlist } from "@/lib/services/wishlist";
 
 import { checkServiceability } from "@/lib/services/serviceability";
-import { computeTotals, placeOrder, confirmOnlinePayment, LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
+import { computeTotals, placeOrder, confirmOnlinePayment, type CallbackCaptureLookup, LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
 import { resolveCoupon, refusalMessage } from "@/lib/services/coupon-eligibility";
 import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
 import {
@@ -765,12 +765,14 @@ const confirmSchema = z.object({
 export async function handleConfirmPayment(
   request: Request,
   orderNo: string,
-  deps: ApiDeps = {}
+  deps: ApiDeps & { findCaptured?: CallbackCaptureLookup } = {}
 ): Promise<NextResponse> {
   return withApiUser(request, "co-confirm", deps, async ({ userId }) => {
     const body = confirmSchema.safeParse(await readJson(request));
     if (!body.success) return apiFail("VALIDATION", "Invalid payment result");
-    const res = await confirmOnlinePayment({ userId, orderNo, ...body.data });
+    const res = await confirmOnlinePayment({ userId, orderNo, ...body.data }, deps.findCaptured);
+    // Installed clients interpret every 2xx confirmation as paid. On 503 they poll payment status.
+    if (res.reason === "checking") return apiFail("UNAVAILABLE", PAYMENT_PENDING_MESSAGE, { metadata: { reason: "PAYMENT_PENDING" } });
     if (res.reason === "late_payment") {
       /* The customer paid; the order had already expired. Distinct from a failed
          verification so the app never tells them to pay again. */
@@ -865,7 +867,7 @@ export async function handleGetOrder(
   orderNo: string,
   deps: ApiDeps & {
     findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
-    listAttempts?: (gatewayOrderId: string) => Promise<string[]>;
+    listAttempts?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<string[]>;
   } = {}
 ): Promise<NextResponse> {
   return withApiUser(request, "ord-get", deps, async ({ userId }) => {
