@@ -704,7 +704,8 @@ export async function confirmOnlinePayment(params: {
   });
   if (!payment) return { ok: false };
 
-  // A signed attempt exists even if Checkout closes or the provider lookup times out.
+  // This UPDATE takes the payment row lock shared with unpaid cancellation.
+  // It commits the signed attempt before the provider call starts.
   await db.payment.updateMany({
     where: {
       id: payment.id, status: { in: ["created", "authorized", "failed"] },

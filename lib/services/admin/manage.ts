@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import type { OrderStatus, BookingStatus, Prisma, ProductStatus } from "@/prisma/generated/client/client";
 import { creditCashbackForOrder } from "@/lib/services/wallet";
 import { notifyOrderStatusChange } from "@/lib/services/notifications";
-import { cancelOpenShipments, hasDispatchedShipment, reconcileWithGateway, releaseOrderInventory } from "@/lib/services/orders";
+import { cancelOpenShipments, hasDispatchedShipment, lockCheckedPaymentAttempts, reconcileWithAttemptSnapshot, releaseOrderInventory, type UnpaidGatewayCheck } from "@/lib/services/orders";
 import type { CapturedLookup } from "@/lib/services/payments";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import { recordAudit } from "@/lib/services/audit";
@@ -76,11 +76,13 @@ export async function advanceOrderStatus(
      restock an order the customer had in fact paid for, and the money then
      showed up only if a webhook happened to arrive. Same rule here: cancel on
      a definite "nothing captured" and on nothing else. Outside any transaction. */
+  let unpaid: UnpaidGatewayCheck | undefined;
   if (to === "cancelled" && order.status === "pending_payment" && !funded) {
-    const check = await reconcileWithGateway(order, { context: "admin_cancel", findCaptured: deps.findCaptured });
-    if (check === "settled" || check === "late") throw new Error("PAYMENT_FOUND");
-    if (check === "authorized") throw new Error("PAYMENT_IN_PROGRESS");
-    if (check === "unknown" || check === "unconfigured") throw new Error("PAYMENT_STATUS_UNKNOWN");
+    const check = await reconcileWithAttemptSnapshot(order, { context: "admin_cancel", findCaptured: deps.findCaptured });
+    if (check.status === "settled" || check.status === "late") throw new Error("PAYMENT_FOUND");
+    if (check.status === "authorized") throw new Error("PAYMENT_IN_PROGRESS");
+    if (check.status !== "not_captured") throw new Error("PAYMENT_STATUS_UNKNOWN");
+    unpaid = check;
   }
   /* Cancelling a paid order is allowed — operations may have to — but nothing
      refunds it (ISS-025), so it must not happen quietly. */
@@ -99,6 +101,7 @@ export async function advanceOrderStatus(
       },
     });
     if (moved.count !== 1) throw new Error("STATUS_CHANGED");
+    if (unpaid) await lockCheckedPaymentAttempts(tx, orderId, unpaid);
     /* Cancelling after dispatch is a driver's job, not a status change: the
        goods are on a vehicle and restocking them here would invent stock. */
     if (to === "cancelled" && (await hasDispatchedShipment(tx, orderId))) throw new Error("SHIPMENT_DISPATCHED");

@@ -1,9 +1,11 @@
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHmac, randomUUID } from "node:crypto";
+import { Client } from "pg";
 import { db } from "@/lib/db";
-import { cancelOrder, type CapturedLookup } from "../orders";
-import { settleCapturedPayment, listCapturedPaymentsOnDeadOrders } from "../checkout";
+import { cancelOrder, cleanupExpiredPendingOrders, type CapturedLookup } from "../orders";
+import { confirmOnlinePayment, settleCapturedPayment, listCapturedPaymentsOnDeadOrders } from "../checkout";
+import { advanceOrderStatus } from "../admin/manage";
 import { redeemCoupon } from "../coupon-eligibility";
 import { PaymentConfigError } from "../payments";
 
@@ -108,6 +110,7 @@ before(async () => {
 });
 
 after(async () => {
+  await db.auditLog.deleteMany({ where: { actorId: OTHER } });
   const ids = (await db.order.findMany({ where: { userId: USER }, select: { id: true } })).map((o) => o.id);
   await db.couponRedemption.deleteMany({ where: { couponId } });
   await db.orderStatusEvent.deleteMany({ where: { orderId: { in: ids } } });
@@ -280,3 +283,107 @@ test("7. another customer's order: not found, and Razorpay is never asked", asyn
   assert.equal(l.asked.length, 0, "ownership is checked before any gateway call");
   assert.equal((await state(o.id)).status, "pending_payment");
 });
+
+/** Observe a specific lock dependency, independent of the speed of either worker. */
+async function blockedBy(holder: number): Promise<number> {
+  const deadline = Date.now() + 4000;
+  while (Date.now() < deadline) {
+    const rows = await db.$queryRaw<{ pid: number }[]>`
+      SELECT pid FROM pg_stat_activity WHERE datname = current_database()
+      AND ${holder}::int = ANY(pg_blocking_pids(pid))`;
+    if (rows.length) return rows[0].pid;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`Timed out waiting for a backend blocked by ${holder}`);
+}
+
+for (const path of ["customer", "admin", "expiry"] as const) {
+  for (const first of ["callback", "cancellation"] as const) {
+    void test(`${path} cancellation: ${first} commits first after the gateway check`, async (t) => {
+      const o = await pendingOrder();
+      await db.inventory.update({
+        where: { variantId_warehouseId: { variantId, warehouseId } }, data: { qtyOnHand: { decrement: QTY } },
+      });
+      if (path === "expiry") await db.order.update({ where: { id: o.id }, data: { placedAt: new Date(0) } });
+      const [stockAtPlacement, usesAtPlacement] = await Promise.all([stock(), redeemed()]);
+      const paymentId = `pay_${randomUUID()}`;
+      const oldSecret = process.env.RAZORPAY_KEY_SECRET;
+      const secret = "disposable-checkout-signature-fixture";
+      process.env.RAZORPAY_KEY_SECRET = secret;
+      t.after(() => {
+        if (oldSecret === undefined) delete process.env.RAZORPAY_KEY_SECRET;
+        else process.env.RAZORPAY_KEY_SECRET = oldSecret;
+      });
+      const callback = (captured: boolean) => confirmOnlinePayment({
+        userId: USER, orderNo: o.orderNo, razorpayOrderId: o.gw, razorpayPaymentId: paymentId,
+        signature: createHmac("sha256", secret).update(`${o.gw}|${paymentId}`).digest("hex"),
+      }, async () => ({ gatewayPaymentId: paymentId, amountPaise: AMOUNT, status: captured ? "captured" : "authorized" }));
+
+      const barrier = new Client({ connectionString: process.env.DATABASE_URL });
+      await barrier.connect();
+      t.after(async () => { await barrier.end(); });
+      await barrier.query("BEGIN");
+      const { rows: [holder] } = await barrier.query<{ pid: number }>("SELECT pg_backend_pid() AS pid");
+      const findCaptured = async (gw: string) => {
+        assert.equal(gw, o.gw);
+        // Acquire the barrier after expiry has claimed the order, before the
+        // lookup returns. The fixture connection never writes a business row.
+        if (first === "callback") await barrier.query("SELECT id FROM orders WHERE id = $1 FOR NO KEY UPDATE", [o.id]);
+        else await barrier.query("SELECT id FROM inventory WHERE variant_id = $1 AND warehouse_id = $2 FOR UPDATE", [variantId, warehouseId]);
+        return null;
+      };
+      const cancel = async () => {
+        if (path === "expiry") return (await cleanupExpiredPendingOrders(60 * 24 * 365, { findCaptured })) === 1;
+        if (path === "admin") await advanceOrderStatus(OTHER, o.id, "cancelled", { findCaptured });
+        else await cancelOrder(USER, o.orderNo, "fixture", { findCaptured });
+        return true;
+      };
+      const result = cancel().catch((err: Error) => err.message);
+      const canceller = await blockedBy(holder.pid);
+
+      if (first === "callback") {
+        // The cancel is waiting at its order UPDATE, past the last gateway/ID read.
+        try {
+          assert.deepEqual(await callback(false), { ok: false, reason: "checking" });
+        } finally {
+          await barrier.query("ROLLBACK");
+        }
+        assert.equal(await result, path === "expiry" ? false : "PAYMENT_STATUS_UNKNOWN");
+        const s = await state(o.id);
+        assert.equal(s.status, "pending_payment");
+        assert.equal(s.cancelEvents, 0);
+        assert.equal(s.redemptions, 1);
+        assert.equal(await stock(), stockAtPlacement);
+        assert.equal(await redeemed(), usesAtPlacement);
+        return;
+      }
+
+      // Cancellation has checked the attempts and is waiting to release stock.
+      // Its payment lock must keep the callback from recording its ID until commit.
+      const late = callback(true);
+      let attemptsWhileBlocked: string[];
+      try {
+        await blockedBy(canceller);
+        const payment = await db.payment.findUniqueOrThrow({ where: { id: o.paymentId }, select: { callbackPaymentIds: true } });
+        attemptsWhileBlocked = payment.callbackPaymentIds;
+      } finally {
+        await barrier.query("ROLLBACK");
+      }
+      assert.equal(await result, true);
+      assert.deepEqual(await late, { ok: false, reason: "late_payment" });
+      assert.deepEqual(attemptsWhileBlocked, [], "the signed-attempt write was still waiting");
+      assert.deepEqual(await callback(true), { ok: false, reason: "late_payment" });
+      const s = await state(o.id);
+      assert.equal(s.status, "cancelled");
+      assert.equal(s.cancelEvents, 1);
+      assert.equal(s.confirmEvents, 0);
+      assert.equal(s.payment, "captured");
+      assert.equal(s.gatewayPaymentId, paymentId);
+      assert.equal(s.redemptions, 0);
+      assert.equal(await stock(), stockAtPlacement + QTY);
+      assert.equal(await redeemed(), usesAtPlacement - 1);
+      assert.equal(await db.orderStatusEvent.count({ where: { orderId: o.id, note: { contains: "Under review for refund" } } }), 1);
+      assert.equal((await listCapturedPaymentsOnDeadOrders()).filter((row) => row.order.orderNo === o.orderNo).length, 1);
+    });
+  }
+}
