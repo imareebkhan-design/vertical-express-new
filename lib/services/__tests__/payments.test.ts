@@ -273,6 +273,29 @@ test("boot: catalogue mode with a valid live gateway (to settle and refund what 
   assert.doesNotThrow(() => assertBootConfig());
 });
 
+test("refund lookup searches subsequent pages and rejects an incomplete collection", async (t) => {
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_fixture");
+  setEnv("RAZORPAY_KEY_SECRET", "fixture");
+  const provider = getPaymentProvider("razorpay-test");
+  const items = Array.from({ length: 100 }, (_, i) => ({ id: `rfnd_${i}`, receipt: null }));
+  const hit = { id: "rfnd_wanted", receipt: "claim", amount: 500, status: "processed" };
+  const offsets: string[] = [];
+  let complete = true;
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    const offset = new URL(url).searchParams.get("skip")!;
+    offsets.push(offset);
+    if (offset === "0") return Response.json({ count: 100, items });
+    return Response.json({ count: 1, items: complete ? [hit] : [] });
+  });
+  assert.deepEqual(await provider.findRefund("pay_fixture", "claim"), {
+    refundId: hit.id, amountPaise: 500, status: "processed",
+  });
+  assert.deepEqual(offsets, ["0", "100"]);
+  complete = false;
+  await assert.rejects(provider.findRefund("pay_fixture", "claim"), /LOOKUP_UNREADABLE/);
+});
+
 test("boot: an unknown COMMERCE_MODE refuses to boot", () => {
   setEnv("NODE_ENV", "production");
   setEnv("COMMERCE_MODE", "catalog");
