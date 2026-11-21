@@ -1,12 +1,15 @@
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
+import https from "node:https";
+import { EventEmitter } from "node:events";
+import { Readable } from "node:stream";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { POST as webhook } from "@/app/api/webhooks/razorpay/route";
 import { listCapturedPaymentsOnDeadOrders, listDuplicateCaptures } from "@/lib/services/checkout";
 import { checkRefundWithGateway, isDefiniteRefusal, requestRefund } from "@/lib/services/refunds";
-import type { GatewayRefund, RefundAccepted } from "@/lib/services/payments";
+import { getPaymentProvider, type GatewayRefund, type RefundAccepted } from "@/lib/services/payments";
 
 /**
  * Refunds of money that was never owed (ISS-025).
@@ -63,7 +66,7 @@ async function makeOrder(opts: { status?: "cancelled" | "confirmed"; captures?: 
           orderId: order.id,
           gateway: "razorpay",
           gatewayOrderId: `order_${randomUUID().slice(0, 14)}`,
-          gatewayPaymentId: `pay_${randomUUID().slice(0, 14)}`,
+          gatewayPaymentId: `pay_${randomUUID().replaceAll("-", "").slice(0, 14)}`,
           amountPaise: amount,
           status: "captured",
           signatureVerified: true,
@@ -336,6 +339,36 @@ test("a lookup outage leaves the outstanding refund claimed", async () => {
     provider: { findRefund: async () => { throw new Error("RAZORPAY_LOOKUP_UNREADABLE"); } },
   }, { actorType: "admin" }), /LOOKUP_UNREADABLE/);
   assert.equal((await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } })).status, "requested");
+  const retry = gateway(accepted());
+  assert.deepEqual(await requestRefund(params, retry), { ok: false, code: "IN_FLIGHT" });
+  assert.equal(retry.calls.length, 0);
+});
+
+test("a malformed provider entry cannot release an aged refund claim", async (t) => {
+  const { payments: [payment] } = await makeOrder();
+  const params = { paymentId: payment.id, reason: REASON, ...ADMIN };
+  await requestRefund(params, gateway(() => { throw new Error("TIMEOUT"); }));
+  const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+
+  for (const [name, value] of Object.entries({ PAYMENT_GATEWAY: "razorpay-test", RAZORPAY_KEY_ID: "rzp_test_fixture", RAZORPAY_KEY_SECRET: "fixture" })) {
+    const previous = process.env[name];
+    process.env[name] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+  }
+  t.mock.method(https, "get", (_origin: string, _options: unknown, callback: (stream: Readable) => void) => {
+    const page = { count: 1, items: [{ id: "rfnd_unreadable", amount: row.amountPaise, status: "processed" }] };
+    callback(Object.assign(Readable.from([Buffer.from(JSON.stringify(page))]), { statusCode: 200 }));
+    return new EventEmitter();
+  });
+  await assert.rejects(checkRefundWithGateway(row.id, {
+    now: new Date(row.createdAt.getTime() + 11 * 60_000),
+    provider: getPaymentProvider("razorpay-test"),
+  }, { actorType: "admin" }), /LOOKUP_UNREADABLE/);
+  assert.equal((await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } })).status, "requested");
+  assert.equal(await db.auditLog.count({ where: { entityId: payment.id, action: "payment.refund_not_at_gateway" } }), 0);
   const retry = gateway(accepted());
   assert.deepEqual(await requestRefund(params, retry), { ok: false, code: "IN_FLIGHT" });
   assert.equal(retry.calls.length, 0);
