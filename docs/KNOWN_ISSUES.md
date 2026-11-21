@@ -1911,6 +1911,8 @@ drill — a backup that has never been restored is a hypothesis, not a backup.
 
 ## ISS-025 — No refund entity or workflow
 
+**Refund finality (F4).** Gateway replies, manual checks and webhook deliveries reconcile against committed refund state. Only an effective transition produces its audit event. An incomplete provider lookup keeps an outstanding claim in flight.
+
 | | |
 |---|---|
 | **Severity** | MEDIUM |

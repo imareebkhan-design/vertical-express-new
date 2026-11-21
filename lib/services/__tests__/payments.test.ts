@@ -1,5 +1,8 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import https from "node:https";
+import { EventEmitter } from "node:events";
+import { Readable } from "node:stream";
 import {
   activeGateway,
   assertBootConfig,
@@ -271,6 +274,35 @@ test("boot: catalogue mode with a valid live gateway (to settle and refund what 
   setEnv("RAZORPAY_KEY_SECRET", "s");
   setEnv("RAZORPAY_WEBHOOK_SECRET", "w");
   assert.doesNotThrow(() => assertBootConfig());
+});
+
+test("refund lookup searches subsequent pages and rejects an incomplete collection", async (t) => {
+  setEnv("PAYMENT_GATEWAY", "razorpay-test");
+  setEnv("RAZORPAY_KEY_ID", "rzp_test_fixture");
+  setEnv("RAZORPAY_KEY_SECRET", "fixture");
+  const provider = getPaymentProvider("razorpay-test");
+  const items = Array.from({ length: 100 }, (_, i) => ({ id: `rfnd_${i}`, receipt: null }));
+  const hit = { id: "rfnd_wanted", receipt: "claim", amount: 500, status: "processed" };
+  const offsets: string[] = [];
+  let complete = true;
+  t.mock.method(https, "get", (origin: string, options: { path: string }, callback: (stream: Readable) => void) => {
+    assert.equal(origin, "https://api.razorpay.com");
+    const url = new URL(options.path, origin);
+    assert.equal(url.pathname, "/v1/payments/pay_fixture/refunds");
+    const offset = url.searchParams.get("skip")!;
+    offsets.push(offset);
+    const page = offset === "0" ? { count: 100, items } : { count: 1, items: complete ? [hit] : [] };
+    callback(Object.assign(Readable.from([Buffer.from(JSON.stringify(page))]), { statusCode: 200 }));
+    return new EventEmitter();
+  });
+  await assert.rejects(provider.findRefund("invalid", "claim"), /INVALID_PAYMENT_ID/);
+  assert.deepEqual(offsets, []);
+  assert.deepEqual(await provider.findRefund("pay_fixture", "claim"), {
+    refundId: hit.id, amountPaise: 500, status: "processed",
+  });
+  assert.deepEqual(offsets, ["0", "100"]);
+  complete = false;
+  await assert.rejects(provider.findRefund("pay_fixture", "claim"), /LOOKUP_UNREADABLE/);
 });
 
 test("boot: an unknown COMMERCE_MODE refuses to boot", () => {
