@@ -1503,6 +1503,8 @@ roles yet (ISS-027).
 
 ## ISS-016 — Cart accepts quantities exceeding available stock
 
+**Checkout reserve protection (F2).** The delivery quote and atomic sale both use on-hand stock less reservations at the serving warehouse. The reserved-stock regression covers two customers competing for the last sellable unit and verifies the losing transaction rolls back its coupon use.
+
 | | |
 |---|---|
 | **Severity** | MEDIUM |
