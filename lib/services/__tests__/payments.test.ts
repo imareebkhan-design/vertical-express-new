@@ -282,8 +282,10 @@ test("refund lookup searches subsequent pages and rejects an incomplete collecti
   const hit = { id: "rfnd_wanted", receipt: "claim", amount: 500, status: "processed" };
   const offsets: string[] = [];
   let complete = true;
-  t.mock.method(globalThis, "fetch", async (url: string) => {
-    const offset = new URL(url).searchParams.get("skip")!;
+  t.mock.method(globalThis, "fetch", async (url: URL) => {
+    assert.equal(url.origin, "https://api.razorpay.com");
+    assert.equal(url.pathname, "/v1/payments/pay_fixture/refunds");
+    const offset = url.searchParams.get("skip")!;
     offsets.push(offset);
     if (offset === "0") return Response.json({ count: 100, items });
     return Response.json({ count: 1, items: complete ? [hit] : [] });

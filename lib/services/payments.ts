@@ -364,11 +364,14 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
     const pageSize = 100;
     const seen = new Set<string>();
     const signal = AbortSignal.timeout(10_000);
+    const endpoint = new URL("https://api.razorpay.com");
+    endpoint.pathname = `/v1/payments/${encodeURIComponent(paymentId)}/refunds`;
+    endpoint.searchParams.set("count", String(pageSize));
     for (let skip = 0; ; skip += pageSize) {
-      const res = await fetch(
-        `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refunds?count=${pageSize}&skip=${skip}`,
-        { headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` }, signal }
-      );
+      endpoint.searchParams.set("skip", String(skip));
+      const res = await fetch(endpoint, {
+        headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` }, signal,
+      });
       if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
       const data = (await res.json()) as {
         count: number; items: { id: string; receipt?: string | null; amount: number; status: string }[];
