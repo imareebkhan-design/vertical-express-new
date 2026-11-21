@@ -1,12 +1,15 @@
 import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac, randomUUID } from "node:crypto";
+import https from "node:https";
+import { EventEmitter } from "node:events";
+import { Readable } from "node:stream";
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { POST as webhook } from "@/app/api/webhooks/razorpay/route";
 import { listCapturedPaymentsOnDeadOrders, listDuplicateCaptures } from "@/lib/services/checkout";
 import { checkRefundWithGateway, isDefiniteRefusal, requestRefund } from "@/lib/services/refunds";
-import type { GatewayRefund, RefundAccepted } from "@/lib/services/payments";
+import { getPaymentProvider, type GatewayRefund, type RefundAccepted } from "@/lib/services/payments";
 
 /**
  * Refunds of money that was never owed (ISS-025).
@@ -63,7 +66,7 @@ async function makeOrder(opts: { status?: "cancelled" | "confirmed"; captures?: 
           orderId: order.id,
           gateway: "razorpay",
           gatewayOrderId: `order_${randomUUID().slice(0, 14)}`,
-          gatewayPaymentId: `pay_${randomUUID().slice(0, 14)}`,
+          gatewayPaymentId: `pay_${randomUUID().replaceAll("-", "").slice(0, 14)}`,
           amountPaise: amount,
           status: "captured",
           signatureVerified: true,
@@ -235,6 +238,142 @@ test("an unknown outcome keeps the refund in flight; Razorpay's record then sett
   assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payments[0].id } })).status, "refunded");
 });
 
+/** Wait for the actual database lock dependency before starting the next writer. */
+async function waitForBlockedRefundWriter(holder: number): Promise<number> {
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    const rows = await db.$queryRaw<{ pid: number }[]>`
+      SELECT pid FROM pg_stat_activity WHERE datname = current_database()
+        AND ${holder}::int = ANY(pg_blocking_pids(pid))`;
+    if (rows.length) return rows[0].pid;
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+  throw new Error("Timed out waiting for a refund writer");
+}
+
+for (const first of ["processed", "pending"] as const) {
+  test(`concurrent webhook and manual refund writers: ${first} commits first`, async () => {
+    const { payments: [payment], amount } = await makeOrder();
+    await requestRefund({ paymentId: payment.id, reason: REASON, ...ADMIN }, gateway(() => { throw new Error("TIMEOUT"); }));
+    const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+    const refundId = `rfnd_${randomUUID()}`;
+    const processed = () => refundHook("refund.processed", {
+      id: refundId, receipt: row.id, payment_id: payment.gatewayPaymentId, amount, status: "processed",
+    });
+    const pending = () => checkRefundWithGateway(row.id, {
+      provider: { findRefund: async () => ({ refundId, amountPaise: amount, status: "pending" }) },
+    }, { actorType: "admin" });
+    let hook!: ReturnType<typeof processed>;
+    let check!: ReturnType<typeof pending>;
+    await db.$transaction(async tx => {
+      const [lock] = await tx.$queryRaw<{ pid: number }[]>`
+        SELECT pg_backend_pid() AS pid FROM payment_refunds WHERE id = ${row.id}::uuid FOR UPDATE`;
+      if (first === "processed") hook = processed(); else check = pending();
+      const firstWriter = await waitForBlockedRefundWriter(lock.pid);
+      if (first === "processed") check = pending(); else hook = processed();
+      await waitForBlockedRefundWriter(firstWriter);
+    }, { timeout: 15000 });
+    assert.equal((await hook).status, 200);
+    assert.deepEqual(await check, { status: first, found: true });
+    const latest = await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } });
+    assert.equal(latest.status, "processed");
+    assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).status, "refunded");
+    const events = await db.auditLog.findMany({ where: { entityId: payment.id, action: "payment.refund_processed" } });
+    assert.equal(events.length, 1);
+    assert.deepEqual(events[0].before, { refundStatus: first === "processed" ? "requested" : "pending" });
+  });
+}
+
+for (const reply of ["pending", "refused", "timeout"] as const) {
+  test(`processed webhook committed before the provider's ${reply} reply wins`, async () => {
+    const { payments: [payment], amount } = await makeOrder();
+    const refundId = `rfnd_${randomUUID()}`;
+    const result = await requestRefund({ paymentId: payment.id, reason: REASON, ...ADMIN }, gateway(async ({ receipt }) => {
+      const hook = await refundHook("refund.processed", { id: refundId, receipt, payment_id: payment.gatewayPaymentId, amount, status: "processed" });
+      assert.equal(hook.status, 200);
+      if (reply === "refused") throw new Error("RAZORPAY_REFUND_FAILED:400");
+      if (reply === "timeout") throw new Error("RAZORPAY_REFUND_FAILED:503");
+      return { refundId, status: "pending" };
+    }));
+    const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+    assert.deepEqual(result, { ok: true, status: "processed", refundId: row.id });
+    assert.equal(row.status, "processed");
+    assert.equal(row.failure, null);
+    assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).status, "refunded");
+    const audit = await db.auditLog.findMany({ where: { entityId: payment.id }, select: { action: true } });
+    assert.deepEqual(audit.map(a => a.action).sort(), ["payment.refund_processed", "payment.refund_requested"]);
+  });
+}
+
+for (const first of ["webhook", "manual check"] as const) {
+  test(`processed webhook and an absent lookup converge when ${first} commits first`, async () => {
+    const { payments: [payment], amount } = await makeOrder();
+    await requestRefund({ paymentId: payment.id, reason: REASON, ...ADMIN }, gateway(() => { throw new Error("TIMEOUT"); }));
+    const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+    const entity = { id: `rfnd_${randomUUID()}`, receipt: row.id, payment_id: payment.gatewayPaymentId, amount, status: "processed" };
+    const hook = async () => assert.equal((await refundHook("refund.processed", entity)).status, 200);
+    const check = await checkRefundWithGateway(row.id, {
+      now: new Date(row.createdAt.getTime() + 11 * 60_000),
+      provider: { findRefund: async () => {
+        if (first === "webhook") await hook();
+        return null;
+      } },
+    }, { actorType: "admin" });
+    assert.deepEqual(check, first === "webhook" ? { status: "processed", found: true } : { status: "failed", found: false });
+    await Promise.all([hook(), hook()]);
+    assert.equal((await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } })).status, "processed");
+    assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).status, "refunded");
+    const auditCount = (action: string) => db.auditLog.count({ where: { entityId: payment.id, action } });
+    assert.equal(await auditCount("payment.refund_processed"), 1);
+    assert.equal(await auditCount("payment.refund_not_at_gateway"), first === "manual check" ? 1 : 0);
+  });
+}
+
+test("a lookup outage leaves the outstanding refund claimed", async () => {
+  const { payments: [payment] } = await makeOrder();
+  const params = { paymentId: payment.id, reason: REASON, ...ADMIN };
+  await requestRefund(params, gateway(() => { throw new Error("TIMEOUT"); }));
+  const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+  await assert.rejects(checkRefundWithGateway(row.id, {
+    now: new Date(row.createdAt.getTime() + 11 * 60_000),
+    provider: { findRefund: async () => { throw new Error("RAZORPAY_LOOKUP_UNREADABLE"); } },
+  }, { actorType: "admin" }), /LOOKUP_UNREADABLE/);
+  assert.equal((await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } })).status, "requested");
+  const retry = gateway(accepted());
+  assert.deepEqual(await requestRefund(params, retry), { ok: false, code: "IN_FLIGHT" });
+  assert.equal(retry.calls.length, 0);
+});
+
+test("a malformed provider entry cannot release an aged refund claim", async (t) => {
+  const { payments: [payment] } = await makeOrder();
+  const params = { paymentId: payment.id, reason: REASON, ...ADMIN };
+  await requestRefund(params, gateway(() => { throw new Error("TIMEOUT"); }));
+  const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payment.id } });
+
+  for (const [name, value] of Object.entries({ PAYMENT_GATEWAY: "razorpay-test", RAZORPAY_KEY_ID: "rzp_test_fixture", RAZORPAY_KEY_SECRET: "fixture" })) {
+    const previous = process.env[name];
+    process.env[name] = value;
+    t.after(() => {
+      if (previous === undefined) delete process.env[name];
+      else process.env[name] = previous;
+    });
+  }
+  t.mock.method(https, "get", (_origin: string, _options: unknown, callback: (stream: Readable) => void) => {
+    const page = { count: 1, items: [{ id: "rfnd_unreadable", amount: row.amountPaise, status: "processed" }] };
+    callback(Object.assign(Readable.from([Buffer.from(JSON.stringify(page))]), { statusCode: 200 }));
+    return new EventEmitter();
+  });
+  await assert.rejects(checkRefundWithGateway(row.id, {
+    now: new Date(row.createdAt.getTime() + 11 * 60_000),
+    provider: getPaymentProvider("razorpay-test"),
+  }, { actorType: "admin" }), /LOOKUP_UNREADABLE/);
+  assert.equal((await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } })).status, "requested");
+  assert.equal(await db.auditLog.count({ where: { entityId: payment.id, action: "payment.refund_not_at_gateway" } }), 0);
+  const retry = gateway(accepted());
+  assert.deepEqual(await requestRefund(params, retry), { ok: false, code: "IN_FLIGHT" });
+  assert.equal(retry.calls.length, 0);
+});
+
 test("no record at Razorpay frees the payment only after ten minutes", async () => {
   const { payments } = await makeOrder();
   await requestRefund(
@@ -296,6 +435,19 @@ test("a refund made in the Razorpay dashboard is recorded and closes the payment
   const row = await db.paymentRefund.findFirstOrThrow({ where: { paymentId: payments[0].id } });
   assert.equal(row.actorEmail, "razorpay-dashboard");
   assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payments[0].id } })).status, "refunded");
+});
+
+test("two distinct processed dashboard refunds together cover one payment exactly", async () => {
+  const { payments: [payment], amount } = await makeOrder();
+  const parts = [1000, amount - 1000].map(value => ({
+    id: `rfnd_${randomUUID()}`, payment_id: payment.gatewayPaymentId, status: "processed", amount: value,
+  }));
+  await Promise.all(parts.map(async part => assert.equal((await refundHook("refund.processed", part)).status, 200)));
+  const rows = await db.paymentRefund.findMany({ where: { paymentId: payment.id } });
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every(row => row.status === "processed"));
+  assert.equal(rows.reduce((sum, row) => sum + row.amountPaise, 0), amount);
+  assert.equal((await db.payment.findUniqueOrThrow({ where: { id: payment.id } })).status, "refunded");
 });
 
 test("a part-refund made in the dashboard is recorded but leaves the rest owed", async () => {

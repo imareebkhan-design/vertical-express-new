@@ -1,5 +1,8 @@
 import "server-only";
 import crypto from "crypto";
+import https from "node:https";
+import { json as readJson } from "node:stream/consumers";
+import { z } from "zod";
 import { commerceMode } from "@/lib/commerce-mode";
 
 /**
@@ -240,6 +243,31 @@ class CodPaymentProvider implements PaymentProvider {
   }
 }
 
+const refundPage = z.object({
+  count: z.int().nonnegative(),
+  items: z.array(z.object({
+    id: z.string().regex(/^rfnd_[a-zA-Z0-9]+$/),
+    receipt: z.string().regex(/\S/).nullable(),
+    amount: z.int().positive(),
+    status: z.enum(["processed", "pending", "failed"]),
+  })),
+});
+
+/** Send credentials only to the fixed TLS origin. The native client returns
+ * redirects as responses, so an unexpected redirect is a failed lookup. */
+function readRefundPage(path: string, auth: string, signal: AbortSignal): Promise<unknown> {
+  return new Promise((resolve, reject) => {
+    https.get("https://api.razorpay.com", { path, auth, signal }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error(`RAZORPAY_LOOKUP_FAILED:${res.statusCode}`));
+        return;
+      }
+      resolve(readJson(res));
+    }).on("error", reject);
+  });
+}
+
 /**
  * Base Razorpay provider. Creates a Razorpay Order server-side and returns it
  * UNSETTLED — the browser opens Razorpay Checkout with `gatewayOrderId`, then
@@ -361,24 +389,25 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
 
   async findRefund(paymentId: string, receipt: string): Promise<GatewayRefund | null> {
     const { keyId, keySecret } = this.creds();
-    const res = await fetch(
-      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refunds?count=100`,
-      {
-        headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` },
-        signal: AbortSignal.timeout(10_000),
+    const pageSize = 100;
+    const seen = new Set<string>();
+    const signal = AbortSignal.timeout(10_000);
+    if (!/^pay_[a-zA-Z0-9]+$/.test(paymentId)) throw new Error("RAZORPAY_INVALID_PAYMENT_ID");
+    for (let skip = 0; ; skip += pageSize) {
+      const path = `/v1/payments/${paymentId}/refunds?count=${pageSize}&skip=${skip}`;
+      const page = refundPage.safeParse(await readRefundPage(path, `${keyId}:${keySecret}`, signal));
+      if (!page.success || page.data.count !== page.data.items.length || page.data.count > pageSize) {
+        throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
       }
-    );
-    if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
-    const data = (await res.json()) as {
-      items?: { id?: string; status?: string; amount?: number; receipt?: string | null }[];
-    };
-    if (!Array.isArray(data.items)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
-    const hit = data.items.find((r) => r.receipt === receipt);
-    if (!hit) return null;
-    if (!hit.id || !Number.isInteger(hit.amount)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
-    const status = hit.status === "processed" || hit.status === "pending" || hit.status === "failed" ? hit.status : null;
-    if (!status) throw new Error(`RAZORPAY_LOOKUP_UNREADABLE:${hit.status ?? "unknown"}`);
-    return { refundId: hit.id, status, amountPaise: hit.amount as number };
+      const { items } = page.data;
+      for (const refund of items) {
+        if (seen.has(refund.id)) throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
+        seen.add(refund.id);
+      }
+      const hit = items.find(refund => refund.receipt === receipt);
+      if (hit) return { refundId: hit.id, status: hit.status, amountPaise: hit.amount };
+      if (items.length < pageSize) return null;
+    }
   }
 
   async healthCheck(): Promise<boolean> {
