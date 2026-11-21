@@ -13,6 +13,7 @@ test("checkout quotes and sells only the serving warehouse's unreserved units", 
   const variantId = fixture.variant.id;
   const inventory = await db.inventory.findFirstOrThrow({ where: { variantId } });
   const pincode = String(randomInt(990000, 999999));
+  const serviceablePincodeId = randomUUID();
   const users = [randomUUID(), randomUUID()];
   const coupon = await db.coupon.create({ data: { code: `R${randomUUID().slice(0, 8).toUpperCase()}`, type: "flat", value: 100 } });
   t.after(async () => {
@@ -20,10 +21,10 @@ test("checkout quotes and sells only the serving warehouse's unreserved units", 
     await db.order.deleteMany({ where: { userId: { in: users } } });
     await db.user.deleteMany({ where: { id: { in: users } } });
     await db.coupon.delete({ where: { id: coupon.id } });
-    await db.serviceablePincode.deleteMany({ where: { warehouseId: inventory.warehouseId } });
+    await db.serviceablePincode.deleteMany({ where: { id: serviceablePincodeId } });
     await fixture.cleanup();
   });
-  await db.serviceablePincode.create({ data: { pincode, cityId: await liveTestCityId(), warehouseId: inventory.warehouseId } });
+  await db.serviceablePincode.create({ data: { id: serviceablePincodeId, pincode, cityId: await liveTestCityId(), warehouseId: inventory.warehouseId } });
   const addresses: string[] = [];
   for (const userId of users) {
     await db.user.create({ data: { id: userId } });
