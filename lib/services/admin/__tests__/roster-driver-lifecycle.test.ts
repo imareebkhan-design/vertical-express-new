@@ -10,7 +10,7 @@ import {
   releaseDriverLogin,
   listRosterDetailed,
 } from "@/lib/services/admin/roster-write";
-import { assignShipment, advanceShipment } from "@/lib/services/admin/shipments-write";
+import { assignShipment, advanceShipment, receiveShipmentBack } from "@/lib/services/admin/shipments-write";
 import { resolveDriver } from "@/lib/services/tracking";
 
 /**
@@ -110,7 +110,7 @@ test("release app login: refused while out on a delivery; otherwise unbinds with
   assert.equal((await advanceShipment({ shipmentId, to: "out_for_delivery", actor: actor() })).ok, true);
   assert.deepEqual(await releaseDriverLogin({ driverId: d.id, reason: "phone lost", actor: actor() }), { ok: false, reason: "on_delivery" });
 
-  await advanceShipment({ shipmentId, to: "cancelled", actor: actor() });
+  assert.ok((await receiveShipmentBack({ shipmentId, actor: actor(), reason: "Driver returned the shipment", goodsReceivedBack: true })).ok);
   assert.deepEqual(await releaseDriverLogin({ driverId: d.id, reason: "phone lost", actor: actor() }), { ok: true, id: d.id });
   const audit = await db.auditLog.findFirstOrThrow({ where: { entityId: d.id, action: "driver.login_released" } });
   assert.equal((audit.after as { reason: string }).reason, "phone lost");

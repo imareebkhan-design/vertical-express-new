@@ -422,6 +422,8 @@ size placed before `PRODUCT_PHOTO`; failed before the fix); `mobile/src/lib/__te
 
 ## ISS-090 — Cancelled orders kept live shipments; cancels released stock twice
 
+**On-road shipment cancellation (F3).** The shipment service refuses cancellation after dispatch. An operator records physical receipt to return the leg to packed. A subsequent cancellation releases only that leg’s units once.
+
 **11 October 2026 · HIGH · Fulfilment/Inventory · FIXED; live on staging (`build-2026-10-11-001`), not production.** Found during payment walkthrough D.
 
 **Root cause.** Order status and shipment status were kept separately and no cancel path joined them:
