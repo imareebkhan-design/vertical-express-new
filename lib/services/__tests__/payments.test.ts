@@ -1,5 +1,8 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import https from "node:https";
+import { EventEmitter } from "node:events";
+import { Readable } from "node:stream";
 import {
   activeGateway,
   assertBootConfig,
@@ -282,14 +285,18 @@ test("refund lookup searches subsequent pages and rejects an incomplete collecti
   const hit = { id: "rfnd_wanted", receipt: "claim", amount: 500, status: "processed" };
   const offsets: string[] = [];
   let complete = true;
-  t.mock.method(globalThis, "fetch", async (url: URL) => {
-    assert.equal(url.origin, "https://api.razorpay.com");
+  t.mock.method(https, "get", (origin: string, options: { path: string }, callback: (stream: Readable) => void) => {
+    assert.equal(origin, "https://api.razorpay.com");
+    const url = new URL(options.path, origin);
     assert.equal(url.pathname, "/v1/payments/pay_fixture/refunds");
     const offset = url.searchParams.get("skip")!;
     offsets.push(offset);
-    if (offset === "0") return Response.json({ count: 100, items });
-    return Response.json({ count: 1, items: complete ? [hit] : [] });
+    const page = offset === "0" ? { count: 100, items } : { count: 1, items: complete ? [hit] : [] };
+    callback(Object.assign(Readable.from([Buffer.from(JSON.stringify(page))]), { statusCode: 200 }));
+    return new EventEmitter();
   });
+  await assert.rejects(provider.findRefund("invalid", "claim"), /INVALID_PAYMENT_ID/);
+  assert.deepEqual(offsets, []);
   assert.deepEqual(await provider.findRefund("pay_fixture", "claim"), {
     refundId: hit.id, amountPaise: 500, status: "processed",
   });

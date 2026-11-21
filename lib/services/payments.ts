@@ -1,5 +1,7 @@
 import "server-only";
 import crypto from "crypto";
+import https from "node:https";
+import { json as readJson } from "node:stream/consumers";
 import { commerceMode } from "@/lib/commerce-mode";
 
 /**
@@ -240,6 +242,26 @@ class CodPaymentProvider implements PaymentProvider {
   }
 }
 
+interface RefundPage {
+  count: number;
+  items: { id: string; receipt?: string | null; amount: number; status: string }[];
+}
+
+/** Send credentials only to the fixed TLS origin. The native client returns
+ * redirects as responses, so an unexpected redirect is a failed lookup. */
+function readRefundPage(path: string, auth: string, signal: AbortSignal): Promise<RefundPage> {
+  return new Promise((resolve, reject) => {
+    https.get("https://api.razorpay.com", { path, auth, signal }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error(`RAZORPAY_LOOKUP_FAILED:${res.statusCode}`));
+        return;
+      }
+      resolve(readJson(res) as Promise<RefundPage>);
+    }).on("error", reject);
+  });
+}
+
 /**
  * Base Razorpay provider. Creates a Razorpay Order server-side and returns it
  * UNSETTLED — the browser opens Razorpay Checkout with `gatewayOrderId`, then
@@ -364,18 +386,10 @@ abstract class RazorpayPaymentProviderBase implements PaymentProvider {
     const pageSize = 100;
     const seen = new Set<string>();
     const signal = AbortSignal.timeout(10_000);
-    const endpoint = new URL("https://api.razorpay.com");
-    endpoint.pathname = `/v1/payments/${encodeURIComponent(paymentId)}/refunds`;
-    endpoint.searchParams.set("count", String(pageSize));
+    if (!/^pay_[a-zA-Z0-9]+$/.test(paymentId)) throw new Error("RAZORPAY_INVALID_PAYMENT_ID");
     for (let skip = 0; ; skip += pageSize) {
-      endpoint.searchParams.set("skip", String(skip));
-      const res = await fetch(endpoint, {
-        headers: { Authorization: `Basic ${Buffer.from(`${keyId}:${keySecret}`).toString("base64")}` }, signal,
-      });
-      if (!res.ok) throw new Error(`RAZORPAY_LOOKUP_FAILED:${res.status}`);
-      const data = (await res.json()) as {
-        count: number; items: { id: string; receipt?: string | null; amount: number; status: string }[];
-      };
+      const path = `/v1/payments/${paymentId}/refunds?count=${pageSize}&skip=${skip}`;
+      const data = await readRefundPage(path, `${keyId}:${keySecret}`, signal);
       if (!Array.isArray(data?.items) || data.count !== data.items.length || data.count > pageSize) {
         throw new Error("RAZORPAY_LOOKUP_UNREADABLE");
       }
