@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { announceAuthChanged } from "@/lib/auth/auth-events";
-import { acknowledgeAccountDeleted, deleteMyAccount } from "@/actions/account-deletion";
+import { deleteMyAccount } from "@/actions/account-deletion";
 import type { DeletionBlocker } from "@/lib/services/account-deletion";
 
 type PanelState = "eligible" | "blocked" | "pending" | "deleted";
@@ -150,7 +150,11 @@ export function DeleteAccountPanel({
  */
 export function AccountDeletedNotice() {
   useEffect(() => {
-    void acknowledgeAccountDeleted();
+    /* A plain request, not a server action, so consuming the proof does not
+       re-render this page and replace the notice being read. */
+    void fetch("/api/auth/deletion-notice", { method: "DELETE" }).catch(() => {
+      /* The proof expires on its own within two minutes. */
+    });
     firebaseSignOut(firebaseAuth())
       .catch(() => {
         /* The server session is cleared and the Firebase user is deleted already. */
@@ -170,4 +174,16 @@ export function AccountDeletedNotice() {
       </Link>
     </div>
   );
+}
+
+/**
+ * The signed-out area of /delete-account. When the page was rendered with the
+ * deletion proof, it keeps showing the confirmation for as long as it stays
+ * mounted, even after the proof is consumed and the page re-renders without it
+ * (React keeps this component's state across server re-renders). Without the
+ * proof it shows its children: the sign-in prompt.
+ */
+export function SignedOutArea({ proof, children }: { proof: boolean; children: React.ReactNode }) {
+  const [deleted] = useState(proof);
+  return deleted ? <AccountDeletedNotice /> : <>{children}</>;
 }

@@ -128,6 +128,8 @@ test("no route handler reads admin data without gating itself", () => {
      by the admin layout, so a new one touching admin data would be open. */
   const PUBLIC_BY_DESIGN = new Set([
     "app/api/auth/session/route.ts", // this is how you sign in; rate-limited
+    /* Clears only the one-time "your account was deleted" cookie, same-origin only. */
+    "app/api/auth/deletion-notice/route.ts",
     "app/api/health/route.ts",
     "app/api/search/suggest/route.ts",
     "app/api/serviceability/[pincode]/route.ts",

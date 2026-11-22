@@ -20,11 +20,6 @@ const DELETION_PENDING_MESSAGE =
 
 export type DeleteMyAccountResult = { status: "deleted" };
 
-/** Clears the one-time proof once the confirmation has been shown. */
-export async function acknowledgeAccountDeleted(): Promise<void> {
-  (await cookies()).set(DELETION_DONE_COOKIE, "", { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/delete-account", maxAge: 0 });
-}
-
 export async function deleteMyAccount(input: unknown): Promise<ActionResult<DeleteMyAccountResult>> {
   /* A server action's argument arrives from the browser: check it, don't trust its type. */
   const confirmed = typeof input === "object" && input !== null && (input as { confirm?: unknown }).confirm === true;
