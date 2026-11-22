@@ -18,8 +18,10 @@ const DELETION_PENDING_MESSAGE =
 
 export type DeleteMyAccountResult = { status: "deleted" };
 
-export async function deleteMyAccount(input: { confirm: boolean }): Promise<ActionResult<DeleteMyAccountResult>> {
-  if (input?.confirm !== true) return fail("VALIDATION", "Confirm that you want to delete your account", "confirm");
+export async function deleteMyAccount(input: unknown): Promise<ActionResult<DeleteMyAccountResult>> {
+  /* A server action's argument arrives from the browser: check it, don't trust its type. */
+  const confirmed = typeof input === "object" && input !== null && (input as { confirm?: unknown }).confirm === true;
+  if (!confirmed) return fail("VALIDATION", "Confirm that you want to delete your account", "confirm");
 
   /* A live account needs a valid session. A revoked one is accepted only to
      finish a deletion already under way (see readSessionAllowingRevoked). */

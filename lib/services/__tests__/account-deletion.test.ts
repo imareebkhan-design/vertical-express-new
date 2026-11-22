@@ -1,6 +1,6 @@
 import test, { before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
@@ -47,7 +47,7 @@ function fakeFirebase(opts: { fail?: boolean } = {}): FirebaseAccountOps & { del
   };
 }
 
-const randomPhone = () => `+9198${Math.floor(10000000 + Math.random() * 89999999)}`;
+const randomPhone = () => `+9198${randomInt(10000000, 100000000)}`;
 const token = (uid: string, phone?: string) => ({ uid, ...(phone ? { phone_number: phone } : {}) }) as unknown as DecodedIdToken;
 
 async function customer(extra: { role?: "customer" | "admin"; email?: string } = {}) {

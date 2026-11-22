@@ -28,7 +28,7 @@ export function DeleteAccountPanel({
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
-  const submit = () =>
+  const submit = () => {
     start(async () => {
       setError(null);
       const r = await deleteMyAccount({ confirm: true });
@@ -53,6 +53,7 @@ export function DeleteAccountPanel({
         setError(r.error.message);
       }
     });
+  };
 
   if (state === "deleted") {
     return (
@@ -116,7 +117,9 @@ export function DeleteAccountPanel({
         <input
           type="checkbox"
           checked={understood}
-          onChange={(e) => setUnderstood(e.target.checked)}
+          onChange={(e) => {
+            setUnderstood(e.target.checked);
+          }}
           className="mt-1"
         />
         I understand this deletes my account straight away, can&apos;t be undone, and that order and tax records are
