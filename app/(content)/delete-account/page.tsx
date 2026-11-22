@@ -9,7 +9,7 @@ import { isDeletedUid, resolveUserFromToken } from "@/lib/auth/current-user";
 import { signInPathFor } from "@/lib/auth/sign-in-path";
 import { CONTACT } from "@/lib/data";
 import { DELETION_EXPLAINER, getDeletionStatus } from "@/lib/services/account-deletion";
-import { AccountDeletedNotice, DeleteAccountPanel } from "@/components/account/delete-account-panel";
+import { DeleteAccountPanel, SignedOutArea } from "@/components/account/delete-account-panel";
 
 /**
  * The public account-deletion page: linked from Account settings on the
@@ -80,9 +80,8 @@ export default async function DeleteAccountPage() {
         </p>
 
         <div className="mt-8">
-          {state === "signed_out" && justDeleted ? (
-            <AccountDeletedNotice />
-          ) : state === "signed_out" ? (
+          {state === "signed_out" ? (
+            <SignedOutArea proof={justDeleted}>
             <div className="rounded-[1.25rem] bg-chip p-5">
               <p className="text-[14px] font-bold">Sign in to the account you want to delete.</p>
               <p className="mt-1 text-[13px] font-medium text-ink-700">
@@ -95,6 +94,7 @@ export default async function DeleteAccountPage() {
                 Sign in to continue
               </Link>
             </div>
+            </SignedOutArea>
           ) : (
             <DeleteAccountPanel
               initial={state}
