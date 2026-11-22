@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client/client";
 import { log, triggerAlert } from "@/lib/observability";
 import { AccountDeletedError, assertAccountLive } from "@/lib/services/account-live";
+import { recordAudit } from "@/lib/services/audit";
 import { SETTING_KEYS, readSetting, parsePercent } from "@/lib/services/settings";
 
 /**
@@ -144,7 +145,17 @@ export async function creditCashbackForOrder(params: {
     });
   } catch (e) {
     if (e instanceof AccountDeletedError) {
-      triggerAlert("cashback_skipped_deleted_account", `Cashback for order #${orderNo} was not credited: the customer deleted their account.`, { orderId });
+      /* Accounted for durably, not only in a log line: the audit trail records
+         the amount that was not credited and why, for ops to settle case by
+         case through support as the owner decided (22 Nov 2026). */
+      await recordAudit(db, {
+        actorType: "system",
+        action: "wallet.cashback_not_credited",
+        entityType: "order",
+        entityId: orderId,
+        after: { orderNo, cashbackPaise, reason: "account_deleted" },
+      });
+      triggerAlert("cashback_skipped_deleted_account", `Cashback for order #${orderNo} was not credited: the customer deleted their account.`, { orderId, cashbackPaise });
       return;
     }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

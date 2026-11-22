@@ -2,6 +2,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import type { AddressInput } from "@/lib/validators";
 import { reverseGeocode } from "@/lib/services/geocoding";
+import { withLiveAccount } from "@/lib/services/account-live";
 
 type Geocode = typeof reverseGeocode;
 
@@ -43,11 +44,15 @@ export async function createAddress(userId: string, input: AddressInput, geocode
   const count = await db.address.count({ where: { userId, deletedAt: null } });
   const makeDefault = input.isDefault || count === 0;
 
+  const state = await stateFor(input.pincode, input.state);
+  /* Under the account lock: an address must not land on an account that was
+     deleted while this request was in flight (account-deletion.ts). */
+  return withLiveAccount(db, userId, async (tx) => {
   if (makeDefault) {
-    await db.address.updateMany({ where: { userId }, data: { isDefault: false } });
+    await tx.address.updateMany({ where: { userId }, data: { isDefault: false } });
   }
 
-  return db.address.create({
+  return tx.address.create({
     data: {
       userId,
       label: input.label,
@@ -58,7 +63,7 @@ export async function createAddress(userId: string, input: AddressInput, geocode
       landmark: input.landmark || null,
       accessNote: input.accessNote || null,
       city: input.city,
-      state: await stateFor(input.pincode, input.state),
+      state,
       pincode: input.pincode,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
@@ -67,6 +72,7 @@ export async function createAddress(userId: string, input: AddressInput, geocode
       pinPincode,
       isDefault: makeDefault,
     },
+  });
   });
 }
 

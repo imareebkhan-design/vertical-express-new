@@ -6,6 +6,11 @@ import { db } from "@/lib/db";
 import { addItem } from "@/lib/services/cart";
 import { placeOrder } from "../checkout";
 import { creditCashbackForOrder } from "../wallet";
+import { createAddress } from "../addresses";
+import { getOrCreateCart } from "../cart";
+import { toggleWishlist } from "../wishlist";
+import { saveProfile } from "../profile";
+import { withLiveAccount } from "../account-live";
 import { provisionUser, resolveUserFromToken } from "@/lib/auth/current-user";
 import { deletedMarker, pendingMarker, isDeletedAccount } from "@/lib/auth/deletion-marker";
 import {
@@ -442,4 +447,98 @@ test("an unknown uid is not found and nothing is touched", async () => {
   const firebase = fakeFirebase();
   assert.deepEqual(await deleteAccount(`nobody${TAG}`, { firebase }), { status: "not_found" });
   assert.deepEqual(firebase.deleted, []);
+});
+
+/* ------------------------------------------- owned data written mid-deletion */
+
+const ADDRESS = { label: "site" as const, name: "N", phone: "9876543210", line1: "Plot 1", city: "Srinagar", state: "Jammu & Kashmir", isDefault: false };
+const noGeocode = async () => ({ status: "NOT_CONFIGURED" }) as never;
+
+test("after deletion, no customer-owned data can be written back by a request still in flight", async () => {
+  const c = await customer();
+  await deleteAccount(c.uid, { firebase: fakeFirebase() });
+  await assert.rejects(() => createAddress(c.id, { ...ADDRESS, pincode: PINCODE }, noGeocode), /ACCOUNT_DELETED/);
+  await assert.rejects(() => getOrCreateCart(c.id, null), /ACCOUNT_DELETED/);
+  await assert.rejects(() => toggleWishlist(c.id, randomUUID()), /ACCOUNT_DELETED/);
+  await assert.rejects(() => saveProfile(c.id, { fullName: "Back again" }), /ACCOUNT_DELETED/);
+  assert.equal(await db.address.count({ where: { userId: c.id } }), 0);
+  assert.equal(await db.cart.count({ where: { userId: c.id } }), 0);
+  assert.equal(await db.wishlist.count({ where: { userId: c.id } }), 0);
+  assert.equal(await db.profile.count({ where: { userId: c.id } }), 0);
+});
+
+test("an address save that commits while deletion waits is purged by it", async () => {
+  const c = await customer();
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  const save = withLiveAccount(db, c.id, async (tx) => {
+    await tx.address.create({ data: { userId: c.id, ...ADDRESS, pincode: PINCODE } });
+    await held;
+  });
+  await new Promise((r) => setTimeout(r, 150));
+  const deletion = deleteAccount(c.uid, { firebase: fakeFirebase() });
+  await new Promise((r) => setTimeout(r, 300));
+  release();
+  await save;
+  assert.equal((await deletion).status, "deleted");
+  assert.equal(await db.address.count({ where: { userId: c.id } }), 0, "the in-flight address survived deletion");
+});
+
+test("a return recorded while deletion waits is seen, and the deletion is refused", async () => {
+  const c = await customer();
+  const o = await order(c.id, "delivered");
+  let release!: () => void;
+  const held = new Promise<void>((r) => (release = r));
+  /* createReturnRequest's own locks: the order row, then the customer's row FOR SHARE. */
+  const ret = db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM orders WHERE id = ${o.id}::uuid FOR UPDATE`;
+    await tx.$queryRaw`SELECT 1 FROM users u JOIN orders o ON o.user_id = u.id WHERE o.id = ${o.id}::uuid FOR SHARE OF u`;
+    await tx.returnRequest.create({
+      data: { returnNo: `RET-${randomUUID().slice(0, 10)}`, orderId: o.id, status: "requested", reason: "damaged_in_transit", explanation: "race", requestedAt: new Date(), channel: "test", createdByUserId: c.id },
+    });
+    await held;
+  }, { timeout: 15000 });
+  await new Promise((r) => setTimeout(r, 150));
+  const deletion = deleteAccount(c.uid, { firebase: fakeFirebase() });
+  await new Promise((r) => setTimeout(r, 300));
+  release();
+  await ret;
+  const r = await deletion;
+  assert.ok(r.status === "blocked" && r.blockers.some((b) => b.code === "RETURN_IN_PROGRESS"), `got ${r.status}`);
+});
+
+test("cashback that could not be credited to a deleted account is recorded in the audit trail", async () => {
+  const c = await customer();
+  const o = await order(c.id, "delivered");
+  await deleteAccount(c.uid, { firebase: fakeFirebase() });
+  if (await db.setting.findUnique({ where: { key: "cashback.percent" } })) return;
+  const prev = process.env.WALLET_CASHBACK_PERCENT;
+  process.env.WALLET_CASHBACK_PERCENT = "5";
+  try {
+    await creditCashbackForOrder({ userId: c.id, orderId: o.id, orderNo: o.orderNo, orderTotalPaise: 50000 });
+  } finally {
+    if (prev === undefined) delete process.env.WALLET_CASHBACK_PERCENT;
+    else process.env.WALLET_CASHBACK_PERCENT = prev;
+  }
+  const audit = await db.auditLog.findFirst({ where: { action: "wallet.cashback_not_credited", entityId: o.id } });
+  assert.ok(audit, "skipped cashback left no durable record");
+  assert.equal((audit!.after as { cashbackPaise?: number }).cashbackPaise, 2500);
+  await db.auditLog.deleteMany({ where: { entityId: o.id } });
+});
+
+test("a pending deletion that keeps failing does not starve the others in the retry queue", async () => {
+  const a = await customer();
+  const b = await customer();
+  await deleteAccount(a.uid, { firebase: fakeFirebase({ fail: true }) });
+  await new Promise((r) => setTimeout(r, 20));
+  await deleteAccount(b.uid, { firebase: fakeFirebase({ fail: true }) });
+  /* Only these two are pending in this suite's run; others from earlier tests are finished. */
+  const failing = { async deleteUser(uid: string) { if (uid === a.uid) throw new Error("still failing"); } };
+  let reachedB = false;
+  for (let i = 0; i < 3 && !reachedB; i++) {
+    await retryPendingDeletions({ firebase: failing, limit: 1 });
+    reachedB = (await db.user.findUniqueOrThrow({ where: { id: b.id } })).firebaseUid === deletedMarker(b.uid);
+  }
+  assert.ok(reachedB, "the retry kept picking the failing account and never reached the next one");
+  await retryPendingDeletions({ firebase: fakeFirebase(), limit: 50 });
 });

@@ -360,9 +360,12 @@ export async function retryPendingDeletions(
   deps: { firebase?: FirebaseAccountOps; limit?: number } = {}
 ): Promise<{ checked: number; finished: number }> {
   const firebase = deps.firebase ?? firebaseAccountOps;
+  /* Least recently tried first: a failed attempt touches updated_at (below),
+     so a few accounts that keep failing cannot starve the rest of the queue. */
   const pending = await db.user.findMany({
     where: { firebaseUid: { startsWith: "deletion-pending:" } },
     select: { id: true, firebaseUid: true },
+    orderBy: { updatedAt: "asc" },
     take: deps.limit ?? 25,
   });
   let finished = 0;
@@ -371,6 +374,7 @@ export async function retryPendingDeletions(
     if (!uid) continue;
     const r = await finishFirebaseDeletion(p.id, uid, firebase);
     if (r.status === "deleted") finished += 1;
+    else await db.user.update({ where: { id: p.id }, data: { updatedAt: new Date() } });
   }
   if (pending.length > 0 && finished < pending.length) {
     triggerAlert(
