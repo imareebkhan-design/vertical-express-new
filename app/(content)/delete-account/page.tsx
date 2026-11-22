@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { DELETION_DONE_COOKIE } from "@/lib/auth/deletion-marker";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { readSession, readSessionAllowingRevoked } from "@/lib/auth/session";
@@ -23,8 +25,9 @@ export const metadata: Metadata = {
 
 export const dynamic = "force-dynamic";
 
-export default async function DeleteAccountPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
-  const justDeleted = (await searchParams).deleted === "1";
+export default async function DeleteAccountPage() {
+  /* Server-issued proof of a just-finished deletion (actions/account-deletion.ts), never a URL parameter. */
+  const justDeleted = (await cookies()).get(DELETION_DONE_COOKIE)?.value === "1";
   const token = await readSession();
   let state: "signed_out" | "eligible" | "blocked" | "pending" = "signed_out";
   let blockers: Awaited<ReturnType<typeof getDeletionStatus>> = null;

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { announceAuthChanged } from "@/lib/auth/auth-events";
-import { deleteMyAccount } from "@/actions/account-deletion";
+import { acknowledgeAccountDeleted, deleteMyAccount } from "@/actions/account-deletion";
 import type { DeletionBlocker } from "@/lib/services/account-deletion";
 
 type PanelState = "eligible" | "blocked" | "pending" | "deleted";
@@ -143,12 +143,14 @@ export function DeleteAccountPanel({
 }
 
 /**
- * Shown at /delete-account?deleted=1, where the server action sends the
- * browser once the deletion has fully finished (Firebase included). Also ends
- * the client-side Firebase session, which the server cannot reach.
+ * Shown on /delete-account when the server-issued proof cookie is present,
+ * which only the delete action sets once deletion has fully finished
+ * (Firebase included). Consumes the proof, and ends the client-side Firebase
+ * session, which the server cannot reach.
  */
 export function AccountDeletedNotice() {
   useEffect(() => {
+    void acknowledgeAccountDeleted();
     firebaseSignOut(firebaseAuth())
       .catch(() => {
         /* The server session is cleared and the Firebase user is deleted already. */

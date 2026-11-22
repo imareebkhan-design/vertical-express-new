@@ -67,3 +67,10 @@ export function uidFromMarker(firebaseUid: string | null): string | null {
 
 /** What ops screens show where a deleted customer's name, phone or email would be. */
 export const DELETED_CUSTOMER_LABEL = "Deleted customer";
+
+/**
+ * Set only by the website's delete action once deletion has fully finished,
+ * so /delete-account can say so after the session is gone. httpOnly and
+ * short-lived; another site or a crafted link cannot set it.
+ */
+export const DELETION_DONE_COOKIE = "__ve_account_deleted";
