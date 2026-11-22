@@ -184,6 +184,9 @@ export function AccountDeletedNotice() {
  * proof it shows its children: the sign-in prompt.
  */
 export function SignedOutArea({ proof, children }: { proof: boolean; children: React.ReactNode }) {
-  const [deleted] = useState(proof);
-  return deleted ? <AccountDeletedNotice /> : <>{children}</>;
+  /* Latched: true from the first render that carries the proof, whether that
+     is the first render or a later one, and never false again while mounted. */
+  const [seen, setSeen] = useState(proof);
+  if (proof && !seen) setSeen(true);
+  return seen || proof ? <AccountDeletedNotice /> : <>{children}</>;
 }
