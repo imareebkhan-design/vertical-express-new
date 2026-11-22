@@ -1,7 +1,8 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client/client";
-import { log } from "@/lib/observability";
+import { log, triggerAlert } from "@/lib/observability";
+import { AccountDeletedError, assertAccountLive } from "@/lib/services/account-live";
 import { SETTING_KEYS, readSetting, parsePercent } from "@/lib/services/settings";
 
 /**
@@ -88,6 +89,10 @@ export async function creditCashbackForOrder(params: {
 
   try {
     await db.$transaction(async (tx) => {
+      /* Serialises against account deletion, which requires a zero balance:
+         a credit landing after deletion checked the balance would leave money
+         on an account nobody can reach. */
+      await assertAccountLive(tx, userId);
       const existingTx = await tx.walletTransaction.findFirst({
         where: {
           walletId: wallet.id,
@@ -138,6 +143,10 @@ export async function creditCashbackForOrder(params: {
       });
     });
   } catch (e) {
+    if (e instanceof AccountDeletedError) {
+      triggerAlert("cashback_skipped_deleted_account", `Cashback for order #${orderNo} was not credited: the customer deleted their account.`, { orderId });
+      return;
+    }
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       // Duplicate cashback credit attempt caught by DB unique constraint @@unique([referenceId, type])
       return;

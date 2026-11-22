@@ -55,5 +55,7 @@ export function classifyPlaceOrderError<T>(e: unknown): ActionResult<T> {
   if (msg === "COD_UNAVAILABLE") return fail("CONFLICT", "Pay on delivery isn't available here");
   if (msg === "CART_EMPTY") return fail("CONFLICT", "Your cart is empty");
   if (msg === "ADDRESS_NOT_FOUND") return fail("NOT_FOUND", "Select a valid delivery address");
+  /* The account was deleted while this order was being placed (account-deletion.ts). Nothing was placed. */
+  if (msg === "ACCOUNT_DELETED") return fail("UNAUTHENTICATED", "This account has been deleted, so nothing was placed. Sign in again to start a new account.");
   return fail("PAYMENT_FAILED", "Something went wrong placing your order");
 }

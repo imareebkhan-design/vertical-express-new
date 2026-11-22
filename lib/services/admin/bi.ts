@@ -5,6 +5,7 @@ import { SETTING_KEYS, parseMinutes, readSettings } from "@/lib/services/setting
 import { orderNeedsTruck } from "@/lib/speed";
 import { addDays, istDateKey } from "@/lib/ist";
 import { PAID_ORDER_WHERE, isPaidOrder } from "@/lib/services/admin/paid-orders";
+import { DELETED_CUSTOMER_LABEL, isDeletedAccount } from "@/lib/auth/deletion-marker";
 
 /** ISO week label, e.g. "W31". The artboard's x-axis. */
 function isoWeek(d: Date): string {
@@ -548,7 +549,13 @@ export async function getBiData(filters: BiFilters): Promise<BiDashboardData> {
   
   /* Spend and repeat purchase are about paid orders. */
   const customerOrdersAgg = paidOrders.reduce((map, o) => {
-    const data = map.get(o.userId) || { count: 0, spent: 0, email: o.user.email || "unknown", name: o.user.phone || "User" };
+    const deleted = isDeletedAccount(o.user.firebaseUid);
+    const data = map.get(o.userId) || {
+      count: 0,
+      spent: 0,
+      email: deleted ? "—" : o.user.email || "unknown",
+      name: deleted ? DELETED_CUSTOMER_LABEL : o.user.phone || "User",
+    };
     data.count++;
     data.spent += o.totalPaise;
     map.set(o.userId, data);

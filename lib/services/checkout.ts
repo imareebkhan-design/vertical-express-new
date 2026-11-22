@@ -21,6 +21,7 @@ import { planShipments, createShipmentsForOrder } from "@/lib/services/shipments
 import { recordSystemMovement } from "@/lib/services/inventory-movements";
 import { trackEvent, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 import { SETTING_KEYS, readSetting, parseFlag } from "@/lib/services/settings";
+import { assertAccountLive } from "@/lib/services/account-live";
 
 export interface CheckoutTotals {
   subtotalPaise: number;
@@ -441,6 +442,9 @@ export async function placeOrder(params: {
   let order;
   try {
     order = await db.$transaction(async (tx) => {
+      /* First, so an account deletion running now either sees this order (and
+         refuses) or has already happened (and this throws ACCOUNT_DELETED). */
+      await assertAccountLive(tx, userId);
       await lockServiceability(tx, address.pincode, warehouseId);
       await assertCheckoutCatalogue(tx, cart.lines);
       // Prepare line items with full financial snapshots

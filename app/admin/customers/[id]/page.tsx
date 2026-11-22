@@ -7,6 +7,7 @@ import { OrderStatusChip, StatusChip } from "@/components/admin/status-chip";
 import { formatPaise } from "@/lib/money";
 import { PlaceholderValue } from "@/components/ui/placeholder-value";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { DELETED_CUSTOMER_LABEL } from "@/lib/auth/deletion-marker";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,9 @@ export default async function AdminCustomerDetail({
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-2.5">
           <h1 className="text-[22px] font-extrabold tracking-tight">
-            {name ?? c.phone ?? c.email ?? "Customer"}
+            {c.deleted ? DELETED_CUSTOMER_LABEL : (name ?? c.phone ?? c.email ?? "Customer")}
           </h1>
+          {c.deleted && <StatusChip tone="neutral">Account deleted</StatusChip>}
           {c.profile?.buyerType && (
             <StatusChip tone="neutral">
               {BUYER_LABEL[c.profile.buyerType] ?? c.profile.buyerType}
@@ -52,8 +54,10 @@ export default async function AdminCustomerDetail({
           )}
         </div>
         <p className="mt-1 text-[12px] font-semibold text-ink-500">
-          {c.phone ?? "no phone"} · {c.email ?? "no email"} · joined{" "}
-          {c.createdAt.toLocaleDateString("en-IN", DATE)}
+          {c.deleted
+            ? "The customer deleted this account. Their contact details, sites and profile are gone; orders are kept as tax records."
+            : `${c.phone ?? "no phone"} · ${c.email ?? "no email"}`}{" "}
+          · joined {c.createdAt.toLocaleDateString("en-IN", DATE)}
         </p>
       </div>
 

@@ -66,4 +66,19 @@ export async function verifyIdToken(idToken: string): Promise<DecodedIdToken | n
   }
 }
 
+/**
+ * A token whose signature and expiry are good, revoked or not. Used ONLY by
+ * account deletion to resume a deletion already under way: deletion revokes
+ * the customer's tokens before deleting the Firebase user, so if that delete
+ * fails, the customer's retry arrives with a revoked token. Anything that
+ * grants access to an account must use `verifyIdToken`.
+ */
+export async function verifyIdTokenAllowingRevoked(idToken: string): Promise<DecodedIdToken | null> {
+  try {
+    return await getAuth(adminApp()).verifyIdToken(idToken, false);
+  } catch {
+    return null;
+  }
+}
+
 export { adminApp };

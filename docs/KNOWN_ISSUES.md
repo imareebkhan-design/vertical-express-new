@@ -4667,3 +4667,21 @@ Candidate codex/launch-readiness repairs mobile catalogue enquiry navigation, fi
 **Remaining release gates:** signed-in owner admin verification on staging, production image cutover with approval provenance preserved, legal/contact/policy facts, verified sellable SKU prices and physical inventory, LIVE payments/refunds, fulfilment/tracking acceptance, end-to-end alert receipt. PR #24 remains held.
 
 **6 Nov image-cutover update (candidate only):** the URL-write blocker is avoided by keeping approved database identity unchanged and resolving exact id/url/hash tuples to verified generation-pinned production copies at serialization. Rehearsal preserved all 324 image rows and visibility of 260 products; rollback passed. No migration or live rollout occurred. See docs/readiness/2026-11-06-image-delivery.md. Shared runtime IAM remains separate work.
+
+
+## ISS-117 — No way for a customer to delete their account
+
+**Status:** FIXED in code on `claude/account-deletion` (22 Nov 2026); not deployed. Required by Apple (guideline 5.1.1(v)) and Google Play before either store will accept the app.
+
+Customers can now delete their own account from Account (website and app) or from the public page `/delete-account`, which is also the URL to give Google Play. The rules are the owner's, given 22 Nov 2026:
+
+- Immediate, no grace period, no ops step.
+- Refused, with the specific reason and what to do, while an order is unpaid or still being fulfilled, a refund or return is open, a service booking is open, or the wallet balance is anything but ₹0. A wallet balance goes to support for case-by-case settlement (info@verticalexpress.in). No payout is promised and there is no payout record type.
+- Staff accounts (`users.role` or `ADMIN_EMAILS`) and delivery partners (on the roster by phone or bound uid) are refused.
+- Deleted: phone, email, profile and GSTIN, addresses, cart, wishlist, product enquiries, the Firebase user. Kept: orders, payments, refunds and their tax figures with each order's delivery snapshot, the wallet ledger and service bookings.
+
+It runs in two phases, because Firebase is outside the database transaction; the marker is described in `docs/DATABASE_SCHEMA.md` → users. A failed Firebase delete is reported as unfinished, never as success. It is retried on the customer's next attempt and by the cleanup cron. Checkout and the cashback credit lock the user row `FOR SHARE` and refuse a deleted account, so neither can race a deletion.
+
+API contract for the app: `docs/ACCOUNT_DELETION.md`.
+
+**Still open:** the privacy policy's retention period is still "[to be confirmed with our accountant]". The deletion page says records are kept "as tax law requires", which matches the policy but names no period.

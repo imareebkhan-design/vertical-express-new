@@ -23,6 +23,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 **users** (mirrors Supabase `auth.users` via trigger)
 - `id uuid pk` (= auth.uid), `phone text unique`, `email text unique null`, `role enum(customer, admin, vendor, professional) default customer`
 - Validation: phone E.164; email RFC. Index: `phone`, `email`.
+- **Deleted accounts (22 Nov 2026, no migration).** A customer who deletes their account keeps the row, because orders, payments and refunds reference it as tax records. `phone`, `email` and `clerk_id` become null. `firebase_uid` becomes `deletion-pending:<uid>` (database part done, Firebase sign-in not yet deleted; retried) and then `deleted:<uid>`. A blank `firebase_uid` still means an unclaimed pre-Firebase row, *not* a deleted one. See `lib/auth/deletion-marker.ts` and `lib/services/account-deletion.ts`.
 
 **profiles** — 1:1 users
 - `user_id fk unique`, `full_name text`, `avatar_url text`, `gstin text null`, `company_name text null`, `default_address_id fk null`, `marketing_opt_in bool default false`, `first_utm jsonb`
