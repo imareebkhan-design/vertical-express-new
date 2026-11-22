@@ -1,11 +1,12 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { readSession, readSessionAllowingRevoked } from "@/lib/auth/session";
 import { SESSION_COOKIE } from "@/lib/auth/session-cookie";
 import { isDeletedUid } from "@/lib/auth/current-user";
 import { deleteAccount, type DeletionBlocker } from "@/lib/services/account-deletion";
-import { type ActionResult, fail, succeed } from "@/lib/validators";
+import { type ActionResult, fail } from "@/lib/validators";
 
 /**
  * The website's "Delete account" button. Same service and rules as
@@ -42,7 +43,10 @@ export async function deleteMyAccount(input: unknown): Promise<ActionResult<Dele
         path: "/",
         maxAge: 0,
       });
-      return succeed({ status: "deleted" });
+      /* Clearing the cookie makes Next re-render this page as signed out,
+         which would unmount the panel before it could say the account was
+         deleted. The confirmation therefore lives at its own URL. */
+      redirect("/delete-account?deleted=1");
     }
     case "blocked":
       return fail<DeleteMyAccountResult>("CONFLICT", "This account can't be deleted yet.", undefined, {
