@@ -505,6 +505,15 @@ export function MobileAccountView({
           <LogOut className="size-4.5" />
           <span>{loggingOut ? "Signing Out..." : "Sign Out Account"}</span>
         </button>
+
+        {/* Store policy: deletion is reachable from Account settings. The page
+            explains what is deleted and kept before anything happens. */}
+        <Link
+          href="/delete-account"
+          className="block w-full py-3 text-center text-[11px] font-bold text-ink/55 underline-offset-2 hover:underline"
+        >
+          Delete account
+        </Link>
       </div>
 
       {/* Notifications Inbox overlay BottomSheet */}

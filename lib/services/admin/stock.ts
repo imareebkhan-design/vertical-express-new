@@ -1,4 +1,5 @@
 import "server-only";
+import { isDeletedAccount } from "@/lib/auth/deletion-marker";
 import { db } from "@/lib/db";
 import { istTodayStart } from "@/lib/ist";
 import { isPaidOrder } from "@/lib/services/admin/paid-orders";
@@ -103,6 +104,8 @@ export interface CustomerRow {
   id: string;
   phone: string | null;
   email: string | null;
+  /** The customer deleted their account; phone and email are gone, orders kept. */
+  deleted: boolean;
   createdAt: Date;
   orderCount: number;
   /** Paid orders only; see `lib/services/admin/paid-orders.ts`. */
@@ -140,6 +143,7 @@ export async function adminListCustomers(page = 1, perPage = 30, search?: string
         id: true,
         phone: true,
         email: true,
+        firebaseUid: true,
         createdAt: true,
         orders: {
           where: { status: { notIn: ["cancelled", "refunded"] } },
@@ -161,6 +165,7 @@ export async function adminListCustomers(page = 1, perPage = 30, search?: string
         id: u.id,
         phone: u.phone,
         email: u.email,
+        deleted: isDeletedAccount(u.firebaseUid),
         createdAt: u.createdAt,
         orderCount: u.orders.length,
         /* Value is what was paid for. The order count and last-order date stay
@@ -314,6 +319,7 @@ export async function adminCustomerDetail(id: string) {
       id: true,
       phone: true,
       email: true,
+      firebaseUid: true,
       createdAt: true,
       profile: {
         select: { fullName: true, companyName: true, gstin: true, buyerType: true },
@@ -362,8 +368,11 @@ export async function adminCustomerDetail(id: string) {
   const paid = counted.filter(isPaidOrder);
   const lifetimePaise = paid.reduce((s, o) => s + o.totalPaise, 0);
 
+  const { firebaseUid, ...rest } = user;
   return {
-    ...user,
+    ...rest,
+    /* Deleted by the customer (account-deletion.ts): orders kept, contact gone. */
+    deleted: isDeletedAccount(firebaseUid),
     lifetimePaise,
     orderCount: counted.length,
     /* Per paid order, so the average is of the same orders the value sums.

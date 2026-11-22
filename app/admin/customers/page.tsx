@@ -4,6 +4,7 @@ import { adminListCustomers, adminCustomerMix } from "@/lib/services/admin/stock
 import { formatPaise } from "@/lib/money";
 import { StatusChip } from "@/components/admin/status-chip";
 import { getAdminUser } from "@/lib/services/admin/authz";
+import { DELETED_CUSTOMER_LABEL } from "@/lib/auth/deletion-marker";
 
 export const dynamic = "force-dynamic";
 
@@ -132,10 +133,10 @@ export default async function AdminCustomers({
                         href={`/admin/customers/${u.id}`}
                         className="text-[12.5px] font-bold tabular-nums text-ink no-underline hover:underline"
                       >
-                        {u.phone ?? u.email ?? "Customer"}
+                        {u.deleted ? DELETED_CUSTOMER_LABEL : (u.phone ?? u.email ?? "Customer")}
                       </Link>
                       <p className="truncate text-[11px] font-semibold text-ink-500">
-                        {u.email ?? "no email"}
+                        {u.deleted ? "Account deleted by the customer" : (u.email ?? "no email")}
                       </p>
                     </div>
                   </div>

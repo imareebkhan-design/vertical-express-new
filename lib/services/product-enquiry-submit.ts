@@ -3,6 +3,8 @@ import { z } from "zod";
 import { phoneSchema } from "@/lib/validators";
 import { rateLimit } from "@/lib/services/rate-limit";
 import { createProductEnquiry } from "@/lib/services/product-enquiries";
+import { isAccountLive } from "@/lib/services/account-live";
+import { db } from "@/lib/db";
 
 /**
  * The one submission path for product enquiries — the web server action and
@@ -57,7 +59,8 @@ export async function submitProductEnquiry(
     phone: d.phone,
     quantity: d.quantity,
     message: d.message,
-    userId: ctx.userId,
+    /* A deleted account's enquiry is kept as the anonymous lead it then is. */
+    userId: ctx.userId && (await db.$transaction((tx) => isAccountLive(tx, ctx.userId!))) ? ctx.userId : null,
   });
   if (!result.ok) return { ok: false, code: "NOT_FOUND", message: "This product is not available for enquiries" };
   return { ok: true, enquiryNo: result.enquiryNo };

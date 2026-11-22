@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { isValidGstin, normaliseGstin } from "@/lib/gstin";
+import { withLiveAccount } from "@/lib/services/account-live";
 
 /**
  * The customer's own profile: name, what they buy as, and their business.
@@ -85,5 +86,8 @@ export async function saveProfile(userId: string, patch: ProfilePatch): Promise<
   const { onboardedAt, ...rest } = patch;
   const data = { ...rest, ...(onboardedAt === "now" ? { onboardedAt: new Date() } : {}) };
   /* Upsert: nothing creates a Profile row at sign-up. */
-  return db.profile.upsert({ where: { userId }, create: { userId, ...data }, update: data, select: fields });
+  /* Under the account lock: a profile (name, GSTIN) must not be re-created on a deleted account. */
+  return withLiveAccount(db, userId, (tx) =>
+    tx.profile.upsert({ where: { userId }, create: { userId, ...data }, update: data, select: fields })
+  );
 }
