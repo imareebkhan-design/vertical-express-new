@@ -78,10 +78,10 @@ async function unavailableAt(pincode: string, cart: CartSummary): Promise<string
   if (!served?.warehouseId) return [];
   const stock = await db.inventory.findMany({
     where: { warehouseId: served.warehouseId, variantId: { in: cart.lines.map((l) => l.variantId) } },
-    select: { variantId: true, qtyOnHand: true },
+    select: { variantId: true, qtyOnHand: true, qtyReserved: true },
   });
-  const onHand = new Map(stock.map((r) => [r.variantId, r.qtyOnHand]));
-  return cart.lines.filter((l) => (onHand.get(l.variantId) ?? 0) < l.qty).map((l) => l.title);
+  const available = new Map(stock.map((r) => [r.variantId, r.qtyOnHand - r.qtyReserved]));
+  return cart.lines.filter((l) => (available.get(l.variantId) ?? 0) < l.qty).map((l) => l.title);
 }
 
 export async function computeTotals(
@@ -585,17 +585,12 @@ export async function placeOrder(params: {
 
       // Atomic, race-free stock decrement
       for (const line of cart.lines) {
-        const res = await tx.inventory.updateMany({
-          where: {
-            variantId: line.variantId,
-            warehouseId,
-            qtyOnHand: { gte: line.qty },
-          },
-          data: { qtyOnHand: { decrement: line.qty } },
-        });
-        if (res.count === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
-        /* The decrement above is unchanged; this writes the ledger row that
-           explains it, in the same transaction (ISS-090 remaining gap). */
+        const sold = await tx.$executeRaw`
+          UPDATE inventory SET qty_on_hand = qty_on_hand - ${line.qty}
+          WHERE variant_id = ${line.variantId}::uuid AND warehouse_id = ${warehouseId}::uuid
+            AND qty_on_hand - qty_reserved >= ${line.qty}
+        `;
+        if (sold === 0) throw new Error(`OUT_OF_STOCK:${line.title}`);
         await recordSystemMovement(tx, {
           variantId: line.variantId,
           warehouseId,
