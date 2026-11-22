@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { signOut as firebaseSignOut } from "firebase/auth";
 import { firebaseAuth } from "@/lib/firebase/client";
 import { announceAuthChanged } from "@/lib/auth/auth-events";
-import { deleteMyAccount } from "@/actions/account-deletion";
+import { acknowledgeAccountDeleted, deleteMyAccount } from "@/actions/account-deletion";
 import type { DeletionBlocker } from "@/lib/services/account-deletion";
 
 type PanelState = "eligible" | "blocked" | "pending" | "deleted";
@@ -138,6 +138,36 @@ export function DeleteAccountPanel({
       >
         {pending ? "Deleting…" : "Delete my account"}
       </button>
+    </div>
+  );
+}
+
+/**
+ * Shown on /delete-account when the server-issued proof cookie is present,
+ * which only the delete action sets once deletion has fully finished
+ * (Firebase included). Consumes the proof, and ends the client-side Firebase
+ * session, which the server cannot reach.
+ */
+export function AccountDeletedNotice() {
+  useEffect(() => {
+    void acknowledgeAccountDeleted();
+    firebaseSignOut(firebaseAuth())
+      .catch(() => {
+        /* The server session is cleared and the Firebase user is deleted already. */
+      })
+      .finally(() => {
+        announceAuthChanged();
+      });
+  }, []);
+  return (
+    <div role="status" className="rounded-[1.25rem] bg-chip p-5">
+      <p className="text-[15px] font-extrabold">Your account has been deleted.</p>
+      <p className="mt-1 text-[13px] font-medium text-ink-700">
+        You&apos;ve been signed out everywhere. Thank you for shopping with Vertical Express.
+      </p>
+      <Link href="/" className="mt-4 inline-block text-sm font-bold">
+        Back to the home page
+      </Link>
     </div>
   );
 }

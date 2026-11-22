@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { DELETION_DONE_COOKIE } from "@/lib/auth/deletion-marker";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { readSession, readSessionAllowingRevoked } from "@/lib/auth/session";
@@ -7,7 +9,7 @@ import { isDeletedUid, resolveUserFromToken } from "@/lib/auth/current-user";
 import { signInPathFor } from "@/lib/auth/sign-in-path";
 import { CONTACT } from "@/lib/data";
 import { DELETION_EXPLAINER, getDeletionStatus } from "@/lib/services/account-deletion";
-import { DeleteAccountPanel } from "@/components/account/delete-account-panel";
+import { AccountDeletedNotice, DeleteAccountPanel } from "@/components/account/delete-account-panel";
 
 /**
  * The public account-deletion page: linked from Account settings on the
@@ -24,6 +26,8 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function DeleteAccountPage() {
+  /* Server-issued proof of a just-finished deletion (actions/account-deletion.ts), never a URL parameter. */
+  const justDeleted = (await cookies()).get(DELETION_DONE_COOKIE)?.value === "1";
   const token = await readSession();
   let state: "signed_out" | "eligible" | "blocked" | "pending" = "signed_out";
   let blockers: Awaited<ReturnType<typeof getDeletionStatus>> = null;
@@ -76,7 +80,9 @@ export default async function DeleteAccountPage() {
         </p>
 
         <div className="mt-8">
-          {state === "signed_out" ? (
+          {state === "signed_out" && justDeleted ? (
+            <AccountDeletedNotice />
+          ) : state === "signed_out" ? (
             <div className="rounded-[1.25rem] bg-chip p-5">
               <p className="text-[14px] font-bold">Sign in to the account you want to delete.</p>
               <p className="mt-1 text-[13px] font-medium text-ink-700">
