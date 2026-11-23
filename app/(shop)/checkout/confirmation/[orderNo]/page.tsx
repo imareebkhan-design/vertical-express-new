@@ -25,6 +25,7 @@ export default async function ConfirmationPage({
     getShipmentsForOrder(userId, orderNo),
   ]);
   if (!order) notFound();
+  if (order.status === "pending_payment") redirect(`/account/orders/${orderNo}`);
 
   const shipments = (withShipments?.shipments ?? []).map((s) => ({ speedClass: s.speedClass }));
   /* `OrderItem.gstRate` is a Prisma Decimal, which cannot cross into a client

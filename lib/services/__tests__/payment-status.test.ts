@@ -99,6 +99,44 @@ test("a failed attempt next to one still in flight: pending (the in-flight one m
   assert.deepEqual([s.state, s.canPay], ["pending", false]);
 });
 
+/* A signed callback recorded while the status check is running must not be
+   missed: without it the attempt list looks empty and checkout is offered
+   again on an order that may already be paid. Covers each window. */
+const recordCallback = (paymentRowOrderId: string, id: string) =>
+  db.payment.updateMany({ where: { orderId: paymentRowOrderId }, data: { callbackPaymentIds: { push: id } } });
+
+test("race: callback recorded after the order was loaded, before the check → pending, the new ID is checked", async () => {
+  const o = await order();
+  const loaded = await load(o.orderNo);
+  await recordCallback(o.id, "pay_race_a");
+  const seen: string[][] = [];
+  const s = await paymentStatusFor(loaded, {
+    findCaptured: none,
+    listAttempts: async (_gw, ids) => { seen.push(ids); return ids.includes("pay_race_a") ? ["created"] : []; },
+  });
+  assert.deepEqual(seen, [["pay_race_a"]], "the attempt list is asked about the callback recorded after load");
+  assert.deepEqual([s.state, s.canPay], ["pending", false]);
+});
+
+test("race: callback recorded during the capture lookup → pending, no checkout", async () => {
+  const o = await order();
+  const s = await paymentStatusFor(await load(o.orderNo), {
+    findCaptured: async () => { await recordCallback(o.id, "pay_race_b"); return null; },
+    listAttempts: async () => [],
+  });
+  assert.deepEqual([s.state, s.canPay], ["pending", false]);
+});
+
+test("race: callback recorded during the attempt listing → pending, no checkout", async () => {
+  const o = await order();
+  const s = await paymentStatusFor(await load(o.orderNo), {
+    findCaptured: none,
+    listAttempts: async () => { await recordCallback(o.id, "pay_race_c"); return []; },
+  });
+  assert.deepEqual([s.state, s.canPay], ["pending", false]);
+  assert.equal((await db.order.findUniqueOrThrow({ where: { id: o.id } })).status, "pending_payment");
+});
+
 test("no attempt at all (closed before paying): unpaid, checkout may be offered", async () => {
   const o = await order();
   const s = await paymentStatusFor(await load(o.orderNo), { findCaptured: none, listAttempts: async () => [] });

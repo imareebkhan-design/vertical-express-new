@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { cleanupExpiredPendingOrders, sweepCancelledOrdersForLateCaptures } from "@/lib/services/orders";
 import { pruneRateLimits } from "@/lib/services/rate-limit";
 import { deliverOrderEmails } from "@/lib/services/order-emails";
+import { retryPendingDeletions } from "@/lib/services/account-deletion";
 import { runWithContext, MetricsTracker, captureException, triggerAlert } from "@/lib/observability";
 
 /**
@@ -77,8 +78,12 @@ export async function GET(request: NextRequest) {
       }
       let emails = null;
       try { emails = await deliverOrderEmails(); } catch (err) { captureException(err); }
+      /* Account deletions whose Firebase step failed (account-deletion.ts).
+         Same rule: never costs the order cleanup its result. */
+      let accountDeletions: { checked: number; finished: number } | null = null;
+      try { accountDeletions = await retryPendingDeletions(); } catch (err) { captureException(err); }
       metric.end("cleanup_orders_cron_success", { cancelledCount, prunedRateLimits });
-      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits, lateCaptureSweep, emails });
+      return NextResponse.json({ status: "ok", cancelledCount, prunedRateLimits, lateCaptureSweep, emails, accountDeletions });
     } catch (err: unknown) {
       captureException(err);
       metric.end("cleanup_orders_cron_failed");

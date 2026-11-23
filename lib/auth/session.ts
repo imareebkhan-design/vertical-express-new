@@ -66,6 +66,21 @@ export async function readSession(): Promise<DecodedIdToken | null> {
  * only ever turn somebody away. It must never be used to let anybody in — a
  * revoked session passes this and is refused by `readSession` as before.
  */
+/**
+ * The session's identity, revoked or not. Account deletion only: see
+ * `verifyIdTokenAllowingRevoked` in firebase-admin.ts for why, and why nothing
+ * else may use it.
+ */
+export async function readSessionAllowingRevoked(): Promise<DecodedIdToken | null> {
+  const value = (await cookies()).get(COOKIE)?.value;
+  if (!value) return null;
+  try {
+    return await getAuth(adminApp()).verifySessionCookie(value, false);
+  } catch {
+    return null;
+  }
+}
+
 export async function hasPlausibleSession(): Promise<boolean> {
   const value = (await cookies()).get(COOKIE)?.value;
   if (!value) return false;

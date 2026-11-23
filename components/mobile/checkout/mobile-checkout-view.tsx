@@ -239,10 +239,10 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
             razorpayOrderId: rzp.orderId,
             razorpayPaymentId: response.razorpay_payment_id,
             signature: response.razorpay_signature,
-          });
+          }).catch(() => null);
 
           rzOpen.current = false;
-          if (!confirm.ok) {
+          if (!confirm?.ok) {
             setPaymentCheck({ orderNo, initial: null }); // unverified is not unpaid
             return;
           }
@@ -870,7 +870,7 @@ export function MobileCheckoutView({ initialAddresses, email }: MobileCheckoutVi
 
           <button
             onClick={handlePlaceOrder}
-            disabled={placing || !canSubmit || stockMessage !== null}
+            disabled={placing || !!paymentCheck || !canSubmit || stockMessage !== null}
             className="flex h-12 items-center justify-center rounded-xl bg-brand-deep px-8 text-xs font-extrabold text-white shadow-md hover:opacity-95 active:scale-98 disabled:opacity-50"
           >
             {placing ? (

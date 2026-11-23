@@ -82,7 +82,7 @@ async function makeOrder(status: "pending_payment" | "cancelled" = "pending_paym
 const pid = () => `pay_${randomUUID().slice(0, 12)}`;
 
 function hook(event: string, gw: string, paymentId: string, amount: number, eventId = `evt_${randomUUID().slice(0, 10)}`) {
-  const raw = JSON.stringify({ event, payload: { payment: { entity: { id: paymentId, order_id: gw, amount } } } });
+  const raw = JSON.stringify({ event, payload: { payment: { entity: { id: paymentId, order_id: gw, currency: "INR", amount } } } });
   const sig = createHmac("sha256", WEBHOOK_SECRET).update(raw).digest("hex");
   return new NextRequest("http://localhost/api/webhooks/razorpay", {
     method: "POST",
@@ -103,7 +103,7 @@ const confirm = (orderNo: string, gw: string, paymentId: string) =>
       }),
     }),
     orderNo,
-    { verify }
+    { verify, findCaptured: async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 50000 }) }
   );
 
 const rows = async (o: { id: string }) => {

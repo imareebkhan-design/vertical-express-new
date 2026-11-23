@@ -82,6 +82,13 @@ export async function createReturnRequest(input: ReturnIntake, actorId: string):
     if (input.requestedAt < order.placedAt) return { ok: false as const, reason: "invalid" as const, message: "The request cannot be before the order was placed" };
     /* One request at a time per order, so two operators cannot both claim the last bag. */
     await tx.$queryRaw`SELECT id FROM orders WHERE id = ${order.id}::uuid FOR UPDATE`;
+    /* Serialise with account deletion, which refuses while a return is open: a
+       return recorded at the same moment as a deletion is either seen by it
+       (deletion refused) or recorded after it. Not refused afterwards — this
+       is ops recording goods that physically came back against an order that
+       is kept as a tax record, whether or not the customer still has an
+       account. */
+    await tx.$queryRaw`SELECT 1 FROM users u JOIN orders o ON o.user_id = u.id WHERE o.id = ${order.id}::uuid FOR SHARE OF u`;
     const avail = await returnableLines(tx, order.id);
     const byId = new Map((avail ?? []).map((a) => [a.orderItemId, a]));
     for (const l of lines) {

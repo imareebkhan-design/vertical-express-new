@@ -107,7 +107,7 @@ after(async () => {
 test("a payment Razorpay captured before the window closed confirms the order instead of cancelling it", async () => {
   const gw = `order_${TAG}_paid`;
   const o = await staleOrder(gw);
-  await cleanupExpiredPendingOrders(15, { findCaptured: lookupFor({ [gw]: { gatewayPaymentId: `pay_${TAG}`, amountPaise: AMOUNT } }) });
+  await cleanupExpiredPendingOrders(15, { findCaptured: lookupFor({ [gw]: { status: "captured" as const, gatewayPaymentId: `pay_${TAG}`, amountPaise: AMOUNT } }) });
 
   const after = await db.order.findUniqueOrThrow({ where: { id: o.id }, include: { payments: true } });
   assert.equal(after.status, "confirmed", "a paid order was cancelled");
@@ -139,7 +139,7 @@ test("a failed lookup leaves the order for the next run — never cancel on miss
 test("a captured amount that does not match is neither settled nor cancelled", async () => {
   const gw = `order_${TAG}_mismatch`;
   const o = await staleOrder(gw);
-  await cleanupExpiredPendingOrders(15, { findCaptured: lookupFor({ [gw]: { gatewayPaymentId: `pay_${TAG}_x`, amountPaise: AMOUNT - 1 } }) });
+  await cleanupExpiredPendingOrders(15, { findCaptured: lookupFor({ [gw]: { status: "captured" as const, gatewayPaymentId: `pay_${TAG}_x`, amountPaise: AMOUNT - 1 } }) });
 
   const after = await db.order.findUniqueOrThrow({ where: { id: o.id }, include: { payments: true } });
   assert.equal(after.status, "pending_payment");
@@ -250,23 +250,35 @@ test("the Razorpay lookup returns the captured payment of the order, and throws 
     globalThis.fetch = (async (url: string) => {
       calls.push(String(url));
       return new Response(JSON.stringify({ items: [
-        { id: "pay_failed", status: "failed", amount: AMOUNT },
-        { id: "pay_ok", status: "captured", amount: AMOUNT },
+        { id: "pay_failed", status: "failed", amount: AMOUNT, order_id: "order_abc", currency: "INR" },
+        { id: "pay_ok", status: "captured", amount: AMOUNT, order_id: "order_abc", currency: "INR" },
       ] }), { status: 200 });
     }) as typeof fetch;
     const provider = getPaymentProvider("razorpay");
     assert.deepEqual(await provider.findCapturedPayment("order_abc"), { gatewayPaymentId: "pay_ok", amountPaise: AMOUNT, status: "captured" });
     assert.equal(calls[0], "https://api.razorpay.com/v1/orders/order_abc/payments");
 
-    globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_x", status: "failed", amount: AMOUNT }] }), { status: 200 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_x", status: "failed", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
     assert.equal(await provider.findCapturedPayment("order_abc"), null, "a failed attempt is not a capture");
+    assert.equal(await provider.findCapturedPayment("order_abc", { callbackPaymentIds: ["pay_x"] }), null);
+    await assert.rejects(provider.findCapturedPayment("order_abc", { callbackPaymentIds: ["pay_x", "missing"] }), /RAZORPAY_LOOKUP_INCOMPLETE/);
 
     /* E5: held money is reported as held, never as "nothing" — and a capture wins. */
-    globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT }] }), { status: 200 })) as typeof fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
     assert.deepEqual(await provider.findCapturedPayment("order_abc"), { gatewayPaymentId: "pay_auth", amountPaise: AMOUNT, status: "authorized" });
     globalThis.fetch = (async () =>
-      new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT }, { id: "pay_cap", status: "captured", amount: AMOUNT }] }), { status: 200 })) as typeof fetch;
+      new Response(JSON.stringify({ items: [{ id: "pay_auth", status: "authorized", amount: AMOUNT, order_id: "order_abc", currency: "INR" }, { id: "pay_cap", status: "captured", amount: AMOUNT, order_id: "order_abc", currency: "INR" }] }), { status: 200 })) as typeof fetch;
     assert.equal((await provider.findCapturedPayment("order_abc"))?.gatewayPaymentId, "pay_cap");
+
+    assert.equal((await provider.findCapturedPayment("order_abc", { paymentId: "pay_auth" }))?.status, "authorized");
+    assert.equal(await provider.findCapturedPayment("order_abc", { paymentId: "other_payment" }), null);
+    await assert.rejects(provider.listPaymentAttempts("order_abc", ["missing_callback_attempt"]), /RAZORPAY_LOOKUP_INCOMPLETE/);
+    assert.deepEqual(await provider.listPaymentAttempts("order_abc", ["pay_auth"]), ["authorized", "captured"]);
+    for (const overrides of [{ order_id: "another_order" }, { currency: "USD" }, { currency: undefined }]) {
+      const entity = { id: "pay_cap", status: "captured", amount: AMOUNT, order_id: "order_abc", currency: "INR", ...overrides };
+      globalThis.fetch = async () => Response.json({ items: [entity] });
+      await assert.rejects(provider.findCapturedPayment("order_abc", { paymentId: "pay_cap" }), /RAZORPAY_LOOKUP_UNREADABLE/);
+    }
 
     globalThis.fetch = (async () => new Response("nope", { status: 503 })) as typeof fetch;
     await assert.rejects(provider.findCapturedPayment("order_abc"), /RAZORPAY_LOOKUP_FAILED:503/);

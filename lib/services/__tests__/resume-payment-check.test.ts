@@ -95,7 +95,7 @@ test("paid at Razorpay, callback lost: the order comes back confirmed and no sec
   const paid = async (gw: string) => {
     calls++;
     assert.equal(gw, o.gw, "asks about this order's Razorpay order");
-    return { gatewayPaymentId: p, amountPaise: o.amount };
+    return { status: "captured" as const, gatewayPaymentId: p, amountPaise: o.amount };
   };
 
   const res = await get(o.orderNo, paid);
@@ -153,7 +153,7 @@ test("Razorpay cannot be asked: no checkout offered, and nothing is marked faile
 test("a capture of a different amount is never settled and no checkout is offered", async () => {
   const o = await pendingOrder();
   const d = await body(
-    await get(o.orderNo, async () => ({ gatewayPaymentId: `pay_${randomUUID().slice(0, 8)}`, amountPaise: o.amount - 100 }))
+    await get(o.orderNo, async () => ({ status: "captured" as const, gatewayPaymentId: `pay_${randomUUID().slice(0, 8)}`, amountPaise: o.amount - 100 }))
   );
   assert.equal(d.status, "pending_payment");
   assert.equal(d.razorpay, null);
@@ -195,7 +195,7 @@ test("the order expired between our read and the capture: recorded as late, neve
   const d = await body(
     await get(o.orderNo, async () => {
       await db.order.update({ where: { id: o.id }, data: { status: "cancelled" } }); // the expiry wins the race
-      return { gatewayPaymentId: p, amountPaise: o.amount };
+      return { status: "captured" as const, gatewayPaymentId: p, amountPaise: o.amount };
     })
   );
   assert.equal(d.status, "cancelled");
@@ -210,7 +210,7 @@ test("the check racing the webhook for the same payment: one confirmation", asyn
   for (let i = 0; i < 4; i++) {
     const o = await pendingOrder();
     const p = `pay_${randomUUID().slice(0, 12)}`;
-    const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: p, order_id: o.gw, amount: o.amount } } } });
+    const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: p, order_id: o.gw, currency: "INR", amount: o.amount } } } });
     const hook = new NextRequest("http://localhost/api/webhooks/razorpay", {
       method: "POST",
       headers: {
@@ -220,7 +220,7 @@ test("the check racing the webhook for the same payment: one confirmation", asyn
       },
       body: raw,
     });
-    const [res] = await Promise.all([get(o.orderNo, async () => ({ gatewayPaymentId: p, amountPaise: o.amount })), webhook(hook)]);
+    const [res] = await Promise.all([get(o.orderNo, async () => ({ status: "captured" as const, gatewayPaymentId: p, amountPaise: o.amount })), webhook(hook)]);
     assert.equal(res.status, 200);
     const s = await state(o.id);
     assert.equal(s.status, "confirmed");
@@ -256,7 +256,7 @@ test("catalogue mode, nothing paid: no checkout details are offered and the orde
 test("catalogue mode, already paid at Razorpay: the existing payment still settles the order", async () => {
   const o = await pendingOrder();
   const p = `pay_${randomUUID().slice(0, 12)}`;
-  const d = await inCatalogueMode(async () => body(await get(o.orderNo, async () => ({ gatewayPaymentId: p, amountPaise: o.amount }))));
+  const d = await inCatalogueMode(async () => body(await get(o.orderNo, async () => ({ status: "captured" as const, gatewayPaymentId: p, amountPaise: o.amount }))));
   assert.equal(d.status, "confirmed");
   assert.equal(d.razorpay, null);
   const s = await state(o.id);
@@ -267,7 +267,7 @@ test("catalogue mode, already paid at Razorpay: the existing payment still settl
 test("catalogue mode: a signed payment.captured webhook still confirms the order once", async () => {
   const o = await pendingOrder();
   const p = `pay_${randomUUID().slice(0, 12)}`;
-  const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: p, order_id: o.gw, amount: o.amount } } } });
+  const raw = JSON.stringify({ event: "payment.captured", payload: { payment: { entity: { id: p, order_id: o.gw, currency: "INR", amount: o.amount } } } });
   const hook = new NextRequest("http://localhost/api/webhooks/razorpay", {
     method: "POST",
     headers: {

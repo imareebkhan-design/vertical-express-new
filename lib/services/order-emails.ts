@@ -27,7 +27,11 @@ const STALE_MS = 24 * 60 * 60 * 1000;
 /** Run by the authenticated scheduler, at most five bounded sends per run. */
 export async function deliverOrderEmails(opts: { send?: OrderEmailSender; from?: string; now?: Date; limit?: number } = {}) {
   const from = opts.from ?? process.env.EMAIL_FROM;
-  if (!from || (!opts.send && !process.env.RESEND_API_KEY)) return { sent: 0, failed: 0, configured: false };
+  const recipientSetting = process.env.ORDER_EMAIL_ALLOWED_RECIPIENT;
+  const allowedRecipient = normaliseContactEmail(recipientSetting);
+  if (!from || (!opts.send && !process.env.RESEND_API_KEY) || (recipientSetting !== undefined && !allowedRecipient)) {
+    return { sent: 0, failed: 0, configured: false };
+  }
   const now = opts.now ?? new Date();
   const sender: OrderEmailSender = opts.send ?? sendEmail;
   let sent = 0, failed = 0;
@@ -35,8 +39,9 @@ export async function deliverOrderEmails(opts: { send?: OrderEmailSender; from?:
     const claim = await db.$transaction(async tx => {
       const candidates = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM order_emails
-        WHERE (state = 'queued' AND available_at <= ${now})
-           OR (state = 'sending' AND lease_until <= ${now})
+        WHERE ((state = 'queued' AND available_at <= ${now})
+           OR (state = 'sending' AND lease_until <= ${now}))
+          AND (${allowedRecipient}::text IS NULL OR recipient = ${allowedRecipient})
         ORDER BY available_at, id FOR UPDATE SKIP LOCKED LIMIT 1`;
       if (!candidates[0]) return null;
       const row = await tx.orderEmail.findUniqueOrThrow({ where: { id: candidates[0].id } });

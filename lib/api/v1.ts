@@ -2,11 +2,13 @@ import "server-only";
 import { normaliseContactEmail } from "@/lib/contact-email";
 import { ORDERING_CLOSED, ORDERING_CLOSED_MESSAGE, orderingOpen } from "@/lib/commerce-mode";
 import { paymentStatusFor, gatePlaceOrderReplay } from "@/lib/services/payment-status";
-import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
+import { PAYMENT_PENDING_MESSAGE, checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
 import type { NextResponse } from "next/server";
 import { apiFail, apiOk, apiResult } from "@/lib/api/response";
 import { withApiUser, withApiPublic, readJson, type ApiDeps } from "@/lib/api/authed";
 import { captureException } from "@/lib/observability";
+import { cancelErrorResult, customerCancelState, type CancelState } from "@/lib/order-display";
+import { CONTACT } from "@/lib/data";
 import { storageGuidanceFor } from "@/lib/storage-guidance";
 import { categoryImage } from "@/lib/merchandising/home";
 import {
@@ -45,7 +47,7 @@ import { getUserWallet } from "@/lib/services/wallet";
 import { getWishlistItems, toggleWishlist } from "@/lib/services/wishlist";
 
 import { checkServiceability } from "@/lib/services/serviceability";
-import { computeTotals, placeOrder, confirmOnlinePayment, LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
+import { computeTotals, placeOrder, confirmOnlinePayment, type CallbackCaptureLookup, LATE_PAYMENT_MESSAGE } from "@/lib/services/checkout";
 import { resolveCoupon, refusalMessage } from "@/lib/services/coupon-eligibility";
 import { activeGateway, type PaymentMethodId } from "@/lib/services/payments";
 import {
@@ -53,7 +55,9 @@ import {
   getOrderByIdempotencyKey,
   listOrders,
   reorder,
+  cancelOrder,
   type CapturedLookup,
+  type GatewayCheck,
   type OrderWithDetails,
 } from "@/lib/services/orders";
 import { classifyPlaceOrderError } from "@/lib/checkout-errors";
@@ -765,12 +769,14 @@ const confirmSchema = z.object({
 export async function handleConfirmPayment(
   request: Request,
   orderNo: string,
-  deps: ApiDeps = {}
+  deps: ApiDeps & { findCaptured?: CallbackCaptureLookup } = {}
 ): Promise<NextResponse> {
   return withApiUser(request, "co-confirm", deps, async ({ userId }) => {
     const body = confirmSchema.safeParse(await readJson(request));
     if (!body.success) return apiFail("VALIDATION", "Invalid payment result");
-    const res = await confirmOnlinePayment({ userId, orderNo, ...body.data });
+    const res = await confirmOnlinePayment({ userId, orderNo, ...body.data }, deps.findCaptured);
+    // Installed clients interpret every 2xx confirmation as paid. On 503 they poll payment status.
+    if (res.reason === "checking") return apiFail("UNAVAILABLE", PAYMENT_PENDING_MESSAGE, { metadata: { reason: "PAYMENT_PENDING" } });
     if (res.reason === "late_payment") {
       /* The customer paid; the order had already expired. Distinct from a failed
          verification so the app never tells them to pay again. */
@@ -859,52 +865,166 @@ export async function handleListOrders(request: Request, deps: ApiDeps = {}): Pr
   });
 }
 
+type OrderDetailDeps = {
+  findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
+  listAttempts?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<string[]>;
+};
+
+/** Razorpay answers on which cancelOrder refuses (PAYMENT_IN_PROGRESS / PAYMENT_STATUS_UNKNOWN). */
+const CANCEL_BLOCKING_GATEWAY: ReadonlySet<GatewayCheck> = new Set(["authorized", "unknown", "unconfigured"]);
+
+function cancelOffer(order: OrderWithDetails, gateway: GatewayCheck | undefined): CancelState {
+  const offer = customerCancelState({
+    status: order.status,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.payments[0]?.status,
+  });
+  if (offer.kind === "allowed" && gateway && CANCEL_BLOCKING_GATEWAY.has(gateway)) return { kind: "not-cancellable" };
+  return offer;
+}
+
+/** The order detail body `GET /api/v1/orders/:orderNo` answers with; null when the
+ *  caller has no such order. Shared so the cancel endpoint answers with exactly
+ *  what a later GET would return. */
+async function orderDetailBody(userId: string, orderNo: string, deps: OrderDetailDeps) {
+  let order = await getOrderByNo(userId, orderNo);
+  if (!order) return null;
+  /* E5 + payment safety: this is where the app gets the details to "Complete
+     payment" and where it checks a payment after Checkout closes. The server
+     decides (paymentStatusFor): paid → the order comes back confirmed; checkout
+     details only when nothing was paid and nothing is in flight (`canPay`);
+     otherwise none, and `paymentState: "pending"` tells the app to say "don't
+     pay again yet" with a Check-status action. */
+  const status = await paymentStatusFor(order, { findCaptured: deps.findCaptured, listAttempts: deps.listAttempts });
+  if (status.orderStatus !== order.status) order = (await getOrderByNo(userId, orderNo)) ?? order;
+  const dto = {
+    ...orderDto(order, { detail: true }),
+    ...(status.canPay && orderingOpen() ? {} : { razorpay: null }),
+    paymentState: status.state,
+    /* Additive: lets the app hide Reorder in catalogue mode (the server refuses it anyway). */
+    orderingOpen: orderingOpen(),
+    /* Additive (C-9): whether to offer Cancel — what POST …/cancel would decide.
+       Computed after the reconciliation above, so an order Razorpay just settled
+       comes back `paid-online`. The stored rows alone are not enough: cancel asks
+       Razorpay too and refuses when the bank has approved a payment that is not
+       captured yet (`authorized`) or Razorpay cannot be asked (`unknown`,
+       `unconfigured`). This GET has just asked the same question, so in those
+       cases the button is not offered — `not-cancellable` for now, alongside
+       `paymentState: "pending"`, which already tells the customer to wait and not
+       pay again. The kinds are unchanged; cancelOrder stays the authority. */
+    cancel: cancelOffer(order, status.gateway),
+  };
+  const tracked = await getShipmentsForOrder(userId, orderNo);
+  return {
+    ...dto,
+    /* The real shipments checkout persisted. `promisedAt` stays null until
+       delivery slots exist — the app must not fill it in. */
+    shipments: (tracked?.shipments ?? []).map((sh) => ({
+      sequence: sh.sequence,
+      speedClass: sh.speedClass,
+      status: sh.status,
+      promisedAt: sh.promisedAt?.toISOString() ?? null,
+      dispatchedAt: sh.dispatchedAt?.toISOString() ?? null,
+      deliveredAt: sh.deliveredAt?.toISOString() ?? null,
+      deliveryCode: sh.deliveryCode,
+      driverName: sh.driver?.name ?? null,
+      vehicle: sh.vehicle?.registration ?? null,
+      items: sh.items.map((it) => ({ title: it.orderItem.title, qty: it.qty })),
+    })),
+  };
+}
+
 /** GET /api/v1/orders/:orderNo */
 export async function handleGetOrder(
   request: Request,
   orderNo: string,
-  deps: ApiDeps & {
-    findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
-    listAttempts?: (gatewayOrderId: string) => Promise<string[]>;
-  } = {}
+  deps: ApiDeps & OrderDetailDeps = {}
 ): Promise<NextResponse> {
   return withApiUser(request, "ord-get", deps, async ({ userId }) => {
-    let order = await getOrderByNo(userId, orderNo);
-    if (!order) return apiFail("NOT_FOUND", "Order not found");
-    /* E5 + payment safety: this is where the app gets the details to "Complete
-       payment" and where it checks a payment after Checkout closes. The server
-       decides (paymentStatusFor): paid → the order comes back confirmed; checkout
-       details only when nothing was paid and nothing is in flight (`canPay`);
-       otherwise none, and `paymentState: "pending"` tells the app to say "don't
-       pay again yet" with a Check-status action. */
-    const status = await paymentStatusFor(order, { findCaptured: deps.findCaptured, listAttempts: deps.listAttempts });
-    if (status.orderStatus !== order.status) order = (await getOrderByNo(userId, orderNo)) ?? order;
-    const dto = {
-      ...orderDto(order, { detail: true }),
-      ...(status.canPay && orderingOpen() ? {} : { razorpay: null }),
-      paymentState: status.state,
-      /* Additive: lets the app hide Reorder in catalogue mode (the server refuses it anyway). */
-      orderingOpen: orderingOpen(),
-    };
-    const tracked = await getShipmentsForOrder(userId, orderNo);
-    return apiOk({
-      ...dto,
-      /* The real shipments checkout persisted. `promisedAt` stays null until
-         delivery slots exist — the app must not fill it in. */
-      shipments: (tracked?.shipments ?? []).map((sh) => ({
-        sequence: sh.sequence,
-        speedClass: sh.speedClass,
-        status: sh.status,
-        promisedAt: sh.promisedAt?.toISOString() ?? null,
-        dispatchedAt: sh.dispatchedAt?.toISOString() ?? null,
-        deliveredAt: sh.deliveredAt?.toISOString() ?? null,
-        deliveryCode: sh.deliveryCode,
-        driverName: sh.driver?.name ?? null,
-        vehicle: sh.vehicle?.registration ?? null,
-        items: sh.items.map((it) => ({ title: it.orderItem.title, qty: it.qty })),
-      })),
-    });
+    const body = await orderDetailBody(userId, orderNo, deps);
+    return body ? apiOk(body) : apiFail("NOT_FOUND", "Order not found");
   });
+}
+
+/** The service errors `cancelOrder` refuses with; anything else is unexpected. */
+const CANCEL_REFUSALS = new Set(["NOT_FOUND", "NOT_CANCELLABLE", "PAID_NOT_CANCELLABLE", "PAYMENT_IN_PROGRESS", "PAYMENT_STATUS_UNKNOWN"]);
+
+/** Fixed on the server so the status event says where the cancel came from; the
+ *  device sends no free text into what the operations console shows. */
+export const APP_CANCEL_REASON = "Cancelled by app customer";
+
+type CancelDeps = ApiDeps &
+  OrderDetailDeps & {
+    /** Test seams: stand in for the service and the post-cancel detail read. Route files pass nothing. */
+    cancel?: typeof cancelOrder;
+    readDetail?: typeof orderDetailBody;
+  };
+
+/**
+ * POST /api/v1/orders/:orderNo/cancel  (C-9)
+ *
+ * No request body. Calls the same `cancelOrder` service the website uses, so the
+ * rules are one piece of code: ownership (someone else's order is 404), status,
+ * any captured/authorised payment, and — for an online order awaiting payment —
+ * a Razorpay check before cancelling.
+ *
+ * No ORDERING_CLOSED gate: cancelling takes no new commitment, and an unpaid
+ * order placed before catalogue mode was switched on must stay cancellable.
+ *
+ * Success answers with the refreshed order detail — the same body GET returns.
+ * The cancel is committed before that read, so if the read fails the answer is
+ * still success, with the minimal `{ orderNo, status: "cancelled" }` (the client
+ * refetches); it is never an error for an order that was cancelled.
+ *
+ * Retrying is safe: the service's compare-and-set lets one cancel through, so a
+ * retry writes no second status event, restock or coupon release. A retry on an
+ * order THIS customer already cancelled from the app (its reason is ours) answers
+ * success again, with `alreadyCancelled: true` — the request's outcome, even when
+ * the first response was lost. Any other cancelled order (expired, cancelled on
+ * the web or by an operator) is refused as "no longer cancellable", as specified.
+ *
+ * A refusal carries the service error in `error.metadata.reason`; the client
+ * should refetch after any refusal (after PAID_NOT_CANCELLABLE the order has been
+ * settled to confirmed). An unexpected error is reported and answered as a
+ * CONFLICT "try again", never as "Order not found".
+ */
+export async function handleCancelOrder(request: Request, orderNo: string, deps: CancelDeps = {}): Promise<NextResponse> {
+  return withApiUser(request, "ord-cancel", deps, async ({ userId }) => {
+    let alreadyCancelled = false;
+    try {
+      await (deps.cancel ?? cancelOrder)(userId, orderNo, APP_CANCEL_REASON, { findCaptured: deps.findCaptured });
+    } catch (e) {
+      const reason = e instanceof Error ? e.message : "";
+      if (reason === "NOT_CANCELLABLE" && (await cancelledByThisRequestKind(userId, orderNo))) {
+        alreadyCancelled = true;
+      } else if (CANCEL_REFUSALS.has(reason)) {
+        const { code, message } = cancelErrorResult(reason, CONTACT.email);
+        return apiFail(code, message, { metadata: { reason } });
+      } else {
+        captureException(e, { route: "cancel" });
+        return apiFail("CONFLICT", "Could not cancel this order. Please try again.");
+      }
+    }
+    const extra = alreadyCancelled ? { alreadyCancelled: true } : {};
+    try {
+      const body = await (deps.readDetail ?? orderDetailBody)(userId, orderNo, deps);
+      if (body) return apiOk({ ...body, ...extra });
+    } catch (e) {
+      captureException(e, { route: "cancel", stage: "detail_after_commit" });
+    }
+    return apiOk({ orderNo, status: "cancelled", ...extra });
+  });
+}
+
+/** Whether the caller's order is already cancelled by an app cancel — the outcome a
+ *  retried request asked for. Read-only; a failed read counts as "no". */
+async function cancelledByThisRequestKind(userId: string, orderNo: string): Promise<boolean> {
+  try {
+    const o = await db.order.findFirst({ where: { orderNo, userId }, select: { status: true, cancelledReason: true } });
+    return o?.status === "cancelled" && o.cancelledReason === APP_CANCEL_REASON;
+  } catch {
+    return false;
+  }
 }
 
 /**

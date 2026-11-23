@@ -128,6 +128,8 @@ test("no route handler reads admin data without gating itself", () => {
      by the admin layout, so a new one touching admin data would be open. */
   const PUBLIC_BY_DESIGN = new Set([
     "app/api/auth/session/route.ts", // this is how you sign in; rate-limited
+    /* Clears only the one-time "your account was deleted" cookie, same-origin only. */
+    "app/api/auth/deletion-notice/route.ts",
     "app/api/health/route.ts",
     "app/api/search/suggest/route.ts",
     "app/api/serviceability/[pincode]/route.ts",
@@ -201,6 +203,8 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/v1/orders/[orderNo]/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/confirm-payment/route.ts": "lib/api/authed.ts",
     "app/api/v1/orders/[orderNo]/reorder/route.ts": "lib/api/authed.ts",
+    /* The order's owner only — cancelOrder looks the order up by orderNo AND userId. */
+    "app/api/v1/orders/[orderNo]/cancel/route.ts": "lib/api/authed.ts",
     "app/api/v1/addresses/[id]/route.ts": "lib/api/authed.ts",
     "app/api/v1/me/route.ts": "lib/api/authed.ts",
     /* Authenticated because every call spends money on Google's side. */
@@ -214,6 +218,11 @@ test("no route handler reads admin data without gating itself", () => {
     "app/api/v1/coupon/validate/route.ts": "lib/api/authed.ts",
     /* The order's owner only — ownership is in the tracking query. */
     "app/api/v1/orders/[orderNo]/tracking/route.ts": "lib/api/authed.ts",
+    /* The customer's own account deletion. GET goes through withApiUser; POST
+       verifies the bearer token itself so it can finish a deletion already
+       pending (lib/api/account-deletion.ts). Its 401 cases are pinned by
+       lib/services/__tests__/v1-account-deletion.test.ts. */
+    "app/api/v1/me/deletion/route.ts": "lib/api/authed.ts",
   };
 
   /* The driver app. Authenticated by a verified Firebase token resolved to an

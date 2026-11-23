@@ -93,6 +93,15 @@ After the first rollout the backend has a URL of the form
 - add the host to Firebase Auth **Authorized domains** (web sign-in) — `firebase.json` `auth.authorizedDomains`;
 - set `EXPO_PUBLIC_API_URL` in `mobile/eas.json` (development + preview profiles) to it.
 
+## Staging order confirmations
+
+Create `resend-api-key-staging` from a Resend sending-access key in Secret Manager,
+or put it in the ignored `.env.local` as `RESEND_API_KEY_STAGING` before running
+the secrets setup. Run the staging-only grant printed by the script before
+deploying. The sandbox sender delivers to the Resend account inbox. The outbox
+only selects rows already addressed to `ORDER_EMAIL_ALLOWED_RECIPIENT`. For the
+hosted acceptance test, use a fresh QA order with that address as its receipt email.
+
 ## Migrations
 
 ### Staging release source (PR #38)

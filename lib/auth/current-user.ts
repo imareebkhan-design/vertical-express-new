@@ -4,6 +4,7 @@ import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { claimableIdentifier, mayClaimRow } from "@/lib/auth/link-policy";
+import { deletedMarker, pendingMarker } from "@/lib/auth/deletion-marker";
 import { log } from "@/lib/observability";
 
 /**
@@ -48,7 +49,23 @@ export async function resolveUserFromToken(token: DecodedIdToken): Promise<strin
   });
   if (existing) return existing.id;
 
+  /* A deleted account's row is marked `deletion-pending:<uid>` or
+     `deleted:<uid>` (lib/auth/deletion-marker.ts). Its Firebase token can stay
+     valid for up to an hour, and longer if the Firebase deletion failed. Without
+     this check the next request from that session would find no row for the uid
+     and provision a fresh, empty account: deletion undone by a page refresh. */
+  if (await isDeletedUid(token.uid)) return null;
+
   return provisionUser(token);
+}
+
+/** True when this Firebase uid belongs to an account that has been deleted (or is mid-deletion). */
+export async function isDeletedUid(uid: string): Promise<boolean> {
+  const row = await db.user.findFirst({
+    where: { firebaseUid: { in: [pendingMarker(uid), deletedMarker(uid)] } },
+    select: { id: true },
+  });
+  return row !== null;
 }
 
 /**

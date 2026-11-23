@@ -23,6 +23,7 @@ PostgreSQL via Prisma. Conventions: `id uuid pk default gen_random_uuid()`, `cre
 **users** (mirrors Supabase `auth.users` via trigger)
 - `id uuid pk` (= auth.uid), `phone text unique`, `email text unique null`, `role enum(customer, admin, vendor, professional) default customer`
 - Validation: phone E.164; email RFC. Index: `phone`, `email`.
+- **Deleted accounts (22 Nov 2026, no migration).** A customer who deletes their account keeps the row, because orders, payments and refunds reference it as tax records. `phone`, `email` and `clerk_id` become null. `firebase_uid` becomes `deletion-pending:<uid>` (database part done, Firebase sign-in not yet deleted; retried) and then `deleted:<uid>`. A blank `firebase_uid` still means an unclaimed pre-Firebase row, *not* a deleted one. See `lib/auth/deletion-marker.ts` and `lib/services/account-deletion.ts`.
 
 **profiles** — 1:1 users
 - `user_id fk unique`, `full_name text`, `avatar_url text`, `gstin text null`, `company_name text null`, `default_address_id fk null`, `marketing_opt_in bool default false`, `first_utm jsonb`
@@ -368,3 +369,7 @@ and `after = { batchId, undoOf?, by, categories: [{id, slug, from, to}], brands:
 brand row, so undo never follows a reused slug). An undo batch must be the exact reversal of the batch it names and
 can be applied once. Undo and the history read these rows (`lib/services/admin/launch-control.ts`). Only `categories.is_active` and `brands.is_active`
 change; no product row is written.
+
+## Pending Razorpay Checkout attempts
+
+Migration `20261120090000_pending_checkout_attempts` adds `payments.callback_payment_ids`, a text array with an empty default. For an unsettled payment, the backend remembers each signed Checkout payment ID before it asks Razorpay about capture. Before offering another payment, it checks that Razorpay accounts for every remembered attempt and reports each as failed. A matching capture settles through the existing order transaction. Apply the migration before starting the new application version.

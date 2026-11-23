@@ -332,13 +332,17 @@ test("delivery by code ends tracking: no position stored, none shown, further up
   assert.equal(refused.body.error.metadata.reason, "NOT_TRACKABLE", "the app stops tracking on this answer");
 });
 
-test("cancelling a shipment on the road removes its live position", async () => {
-  const { advanceShipment } = await import("@/lib/services/admin/shipments-write");
+test("a refused on-road cancellation keeps the live position until warehouse receipt", async () => {
+  const { advanceShipment, receiveShipmentBack } = await import("@/lib/services/admin/shipments-write");
   const s = await scratchOrder({ driverId: driverOne });
   await handleDriverStart(req("POST", "d1"), s.shipmentId, verify);
   const t0 = new Date();
   await handleDriverLocation(req("POST", "d1", ping(t0)), s.shipmentId, verify, t0);
-  const r = await advanceShipment({ shipmentId: s.shipmentId, to: "cancelled", actor: { id: ownerId, email: "zzz@demo.invalid" } });
+  const actor = { id: ownerId, email: "zzz@demo.invalid" };
+  const refused = await advanceShipment({ shipmentId: s.shipmentId, to: "cancelled", actor });
+  assert.deepEqual(refused, { ok: false, reason: "illegal_transition" });
+  assert.equal(await db.shipmentLiveLocation.count({ where: { shipmentId: s.shipmentId } }), 1);
+  const r = await receiveShipmentBack({ shipmentId: s.shipmentId, actor, reason: "Load returned to the warehouse", goodsReceivedBack: true });
   assert.equal(r.ok, true);
   assert.equal(await db.shipmentLiveLocation.count({ where: { shipmentId: s.shipmentId } }), 0);
 });

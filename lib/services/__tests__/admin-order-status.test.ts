@@ -181,13 +181,18 @@ test("an unpaid online order cannot be confirmed by hand, and nothing changes", 
   assert.deepEqual(await snapshot(order.id), before);
 });
 
-test("cash on delivery, and an online order with a captured payment, can be confirmed", async () => {
+test("cash on delivery can be confirmed by hand, online confirmation belongs to settlement", async () => {
   const cod = await makeOrder({ suffix: "COD", status: "pending_payment", paymentMethod: "cod" });
   await advanceOrderStatus(ADMIN, cod.id, "confirmed");
   assert.equal((await snapshot(cod.id)).status, "confirmed");
   const paid = await makeOrder({ suffix: "PAID", status: "pending_payment", paymentMethod: "razorpay", payments: ["captured"] });
-  await advanceOrderStatus(ADMIN, paid.id, "confirmed");
-  assert.equal((await snapshot(paid.id)).status, "confirmed");
+  const held = await makeOrder({ suffix: "HELD", status: "pending_payment", paymentMethod: "razorpay", payments: ["authorized"] });
+  for (const order of [paid, held]) {
+    const before = await snapshot(order.id);
+    await assert.rejects(advanceOrderStatus(ADMIN, order.id, "confirmed"), /PAYMENT_REQUIRED/);
+    assert.deepEqual(await snapshot(order.id), before);
+    assert.equal(await db.orderEmail.count({ where: { orderId: order.id } }), 0);
+  }
 });
 
 test("cancelling a paid order is allowed, flagged refund-required, restocks once, and reaches the refund worklist", async () => {
