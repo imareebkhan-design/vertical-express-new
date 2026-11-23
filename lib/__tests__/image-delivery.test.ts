@@ -75,7 +75,12 @@ function retiredMappingProblems(entries: readonly ImageDelivery[], deleted: read
   const deletedGeneration = new Map(deleted.map((p) => [p.id, p.generation]));
   const recoveredGeneration = new Map(recovered.map((p) => [p.id, p.generation]));
   const problems: string[] = [];
-  for (const r of recovered) if (!deletedGeneration.has(r.id)) problems.push(`${r.id}: listed as recovered but was never deleted`);
+  const mapped = new Set(entries.map((e) => e.id));
+  for (const r of recovered) {
+    if (!deletedGeneration.has(r.id)) problems.push(`${r.id}: listed as recovered but was never deleted`);
+    // A recovery recorded only in the fixture restores nothing customers can see.
+    else if (!mapped.has(r.id)) problems.push(`${r.id}: listed as recovered but has no delivery mapping`);
+  }
   for (const entry of entries) {
     const old = deletedGeneration.get(entry.id);
     if (old === undefined) continue;
@@ -110,6 +115,7 @@ test("the retired-image guard accepts only a recorded new generation for a resto
   assert.match(retiredMappingProblems([mapping(deleted[0].generation)], deleted, [{ id: deleted[0].id, generation: deleted[0].generation }])[0], /deleted generation/);
   assert.match(retiredMappingProblems([restored], deleted, [{ id: deleted[0].id, generation: "1800000000000002" }])[0], /recovery recorded/);
   assert.match(retiredMappingProblems([], deleted, [{ id: "not-deleted", generation: "1" }])[0], /never deleted/);
+  assert.match(retiredMappingProblems([], deleted, [{ id: deleted[0].id, generation: "1800000000000001" }])[0], /no delivery mapping/);
   assert.deepEqual(retiredMappingProblems([restored], deleted, [{ id: deleted[0].id, generation: "1800000000000001" }]), []);
 
   const resolveRestored = deliveryUrlResolver([restored]);
