@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
-import { getOrderByNo, reconcileWithGateway, type OrderWithDetails } from "@/lib/services/orders";
+import { getOrderByNo, reconcileWithGateway, type GatewayCheck, type OrderWithDetails } from "@/lib/services/orders";
 import type { PlaceOrderResult } from "@/lib/services/checkout";
 import { getPaymentProvider, type CapturedLookup } from "@/lib/services/payments";
 import { checkoutTimeoutSeconds, paymentTermsFor } from "@/lib/payment-window";
@@ -33,6 +33,10 @@ export interface PaymentStatusView {
   orderStatus: string;
   state: PaymentState;
   canPay: boolean;
+  /** What Razorpay answered when this view asked it (absent when it was not asked).
+   *  Lets a caller tell "approved, capture pending" and "could not ask" apart from
+   *  "nothing captured" — `state` says `pending` for all three. Additive. */
+  gateway?: GatewayCheck;
 }
 
 export interface PaymentStatusDeps {
@@ -42,11 +46,12 @@ export interface PaymentStatusDeps {
 
 const PAID = new Set(["confirmed", "packed", "out_for_delivery", "delivered"]);
 
-const view = (order: { orderNo: string }, orderStatus: string, state: PaymentState): PaymentStatusView => ({
+const view = (order: { orderNo: string }, orderStatus: string, state: PaymentState, gateway?: GatewayCheck): PaymentStatusView => ({
   orderNo: order.orderNo,
   orderStatus,
   state,
   canPay: state === "failed" || state === "unpaid",
+  ...(gateway ? { gateway } : {}),
 });
 
 function fromClosedOrder(order: { orderNo: string; status: string; payments: { status: string }[] }): PaymentStatusView {
@@ -72,7 +77,7 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
   if (check === "settled" || check === "late") {
     const now = await db.order.findUnique({ where: { id: order.id }, select: { status: true } });
     const status = now?.status ?? order.status;
-    return view(order, status, check === "late" || !PAID.has(status) ? "late" : "paid");
+    return view(order, status, check === "late" || !PAID.has(status) ? "late" : "paid", check);
   }
   let state: PaymentState = "pending";
   /* The order was loaded before either network call. A signed callback may
@@ -105,8 +110,8 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
   if (latest.order.status !== "pending_payment") return fromClosedOrder(latest.order);
   const unchanged =
     latest.callbackPaymentIds.length === known.length && latest.callbackPaymentIds.every((id) => known.includes(id));
-  if (!unchanged) return view(order, order.status, "pending");
-  return view(order, order.status, state);
+  if (!unchanged) return view(order, order.status, "pending", check);
+  return view(order, order.status, state, check);
 }
 
 /**
