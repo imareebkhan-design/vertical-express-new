@@ -7,6 +7,7 @@ import { approvedImageWhere, catalogListingWhere } from "@/lib/catalog-policy";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
 import { validateCommercialReadiness } from "@/lib/services/admin/commercial-readiness";
 import { SETTING_KEYS, parseFreeDeliveryThresholdPaise, readSetting } from "@/lib/services/settings";
+import { withLiveAccount } from "@/lib/services/account-live";
 
 /**
  * The free-delivery offer for a basket, given the owner's threshold.
@@ -143,7 +144,8 @@ function tierPrice(
 /** Find (or create) the cart for a user or guest anon id. */
 export async function getOrCreateCart(userId: string | null, anonId: string | null) {
   if (userId) {
-    return db.cart.upsert({ where: { userId }, update: {}, create: { userId } });
+    /* Under the account lock, so a cart is never re-created on a deleted account. */
+    return withLiveAccount(db, userId, (tx) => tx.cart.upsert({ where: { userId }, update: {}, create: { userId } }));
   }
   if (anonId) {
     return db.cart.upsert({ where: { anonId }, update: {}, create: { anonId } });

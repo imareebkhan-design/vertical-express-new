@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { cancelOrder, cleanupExpiredPendingOrders } from "../orders";
 import { advanceOrderStatus } from "../admin/manage";
-import { advanceShipment } from "../admin/shipments-write";
+import { advanceShipment, receiveShipmentBack } from "../admin/shipments-write";
 
 /**
  * Cancelling returns each unit of stock exactly once, to the warehouse it came
@@ -217,10 +217,28 @@ test("an order with goods on the road cannot be cancelled, and nothing is restoc
   assert.deepEqual(await stock(), before);
 });
 
-test("a failed delivery brought back restocks that shipment once (the supported return)", async () => {
-  const { express } = await mixedOrder("RETURNED");
+test("an on-road shipment releases stock only after physical receipt and cancellation", async () => {
+  const { order, express, truck } = await mixedOrder("physical-receipt");
   await dispatch(express.id);
-  const before = await stock();
-  assert.equal((await advanceShipment({ shipmentId: express.id, to: "cancelled", actor: OPS })).ok, true);
-  assert.deepEqual(await stock(), plus(before, { "light@main": LIGHT }));
+  await db.shipment.update({ where: { id: express.id }, data: { deliveryCode: "123456" } });
+  await db.shipment.update({ where: { id: truck.id }, data: { status: "delivered", deliveredAt: new Date() } });
+  const baseline = await stock();
+  const releases = () => db.stockMovement.findMany({ where: { orderId: order.id, reason: "released" }, select: { variantId: true, qtyDelta: true } });
+  const cancel = () => advanceShipment({ shipmentId: express.id, to: "cancelled", actor: OPS });
+
+  assert.deepEqual(await cancel(), { ok: false, reason: "illegal_transition" });
+  assert.equal(await shipStatus(express.id), "out_for_delivery");
+  assert.deepEqual(await releases(), []);
+  assert.deepEqual(await stock(), baseline);
+
+  assert.ok((await receiveShipmentBack({ shipmentId: express.id, actor: OPS, reason: "Driver returned the express items", goodsReceivedBack: true })).ok);
+  const returned = await db.shipment.findUniqueOrThrow({ where: { id: express.id } });
+  assert.equal(returned.status, "packed");
+  assert.equal(returned.deliveryCode, null);
+  assert.deepEqual(await stock(), baseline);
+  assert.ok((await cancel()).ok);
+  assert.equal((await cancel()).ok, false);
+  assert.deepEqual(await stock(), plus(baseline, { "light@main": LIGHT }));
+  assert.deepEqual(await releases(), [{ variantId: v.light, qtyDelta: LIGHT }]);
+  assert.equal(await shipStatus(truck.id), "delivered");
 });

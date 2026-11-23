@@ -84,6 +84,15 @@ export async function refundEligibility(tx: DbClient, paymentId: string): Promis
   return { ok: true, basis, remainingPaise };
 }
 
+/** Serialise all evidence for a payment, including different partial refunds.
+ * Take the same parent lock as requestRefund before reading refund state. */
+async function lockRefundPayment(tx: Prisma.TransactionClient, refundId: string) {
+  await tx.$queryRaw`
+    SELECT p.id FROM payments p JOIN payment_refunds r ON r.payment_id = p.id
+    WHERE r.id = ${refundId}::uuid FOR UPDATE OF p
+  `;
+}
+
 /** Mark the payment refunded once processed refunds cover it. */
 async function settlePaymentIfCovered(tx: DbClient, paymentId: string) {
   const payment = await tx.payment.findUnique({
@@ -186,35 +195,37 @@ export async function requestRefund(
     accepted = await deps.provider.refundPayment(claimed.gatewayPaymentId, claimed.amountPaise, claimed.refundId);
   } catch (e) {
     const failure = errorCode(e);
-    if (isDefiniteRefusal(e)) {
-      await db.$transaction(async (tx) => {
-        await tx.paymentRefund.updateMany({ where: { id: claimed.refundId, status: "requested" }, data: { status: "failed", failure } });
-        await recordAudit(tx, {
-          actorType: "admin",
-          actorId: params.actorUserId ?? null,
-          action: "payment.refund_refused",
-          entityType: "payment",
-          entityId: params.paymentId,
-          after: { refundId: claimed.refundId, failure },
-        });
+    const refused = isDefiniteRefusal(e);
+    return db.$transaction(async (tx) => {
+      await lockRefundPayment(tx, claimed.refundId);
+      const row = await tx.paymentRefund.findUniqueOrThrow({ where: { id: claimed.refundId } });
+      if (row.status !== "requested") return refundOutcome(row.id, row.status, row.failure);
+      await tx.paymentRefund.update({
+        where: { id: row.id }, data: { failure, ...(refused ? { status: "failed" as const } : {}) },
       });
-      triggerAlert("refund_refused", "Razorpay refused a refund", { refundId: claimed.refundId, failure });
-      return { ok: false, code: "GATEWAY_REFUSED", refundId: claimed.refundId, failure };
-    }
-    await db.paymentRefund.update({ where: { id: claimed.refundId }, data: { failure } });
-    triggerAlert("refund_outcome_unknown", "A refund request's outcome is unknown; it stays in flight until Razorpay's record is checked", {
-      refundId: claimed.refundId,
-      failure,
+      if (refused) {
+        await recordAudit(tx, {
+          actorType: "admin", actorId: params.actorUserId ?? null, action: "payment.refund_refused",
+          entityType: "payment", entityId: params.paymentId, after: { refundId: row.id, failure },
+        });
+        triggerAlert("refund_refused", "Razorpay refused a refund", { refundId: row.id, failure });
+      } else {
+        triggerAlert("refund_outcome_unknown", "The refund stays in flight until Razorpay's record is checked", { refundId: row.id, failure });
+      }
+      return refundOutcome(row.id, refused ? "failed" : "requested", failure);
     });
-    return { ok: false, code: "OUTCOME_UNKNOWN", refundId: claimed.refundId, failure };
   }
 
-  await applyGatewayRefund(claimed.refundId, { refundId: accepted.refundId, status: accepted.status, amountPaise: claimed.amountPaise }, {
-    actorType: "admin",
-    actorId: params.actorUserId ?? null,
-    source: "refund_request",
+  const status = await applyGatewayRefund(claimed.refundId, { refundId: accepted.refundId, status: accepted.status, amountPaise: claimed.amountPaise }, {
+    actorType: "admin", actorId: params.actorUserId ?? null, source: "refund_request",
   });
-  return { ok: true, refundId: claimed.refundId, status: accepted.status };
+  return refundOutcome(claimed.refundId, status);
+}
+
+function refundOutcome(refundId: string, status: string | null, failure?: string | null): RefundOutcome {
+  if (status === "processed" || status === "pending") return { ok: true, refundId, status };
+  if (status === "failed") return { ok: false, refundId, code: "GATEWAY_REFUSED", failure: failure ?? "GATEWAY_FAILED" };
+  return { ok: false, refundId, code: "OUTCOME_UNKNOWN", failure: failure ?? "UNKNOWN" };
 }
 
 /**
@@ -227,6 +238,7 @@ export async function applyGatewayRefund(
   meta: { actorType: "admin" | "system"; actorId?: string | null; source: string }
 ): Promise<string | null> {
   return db.$transaction(async (tx) => {
+    await lockRefundPayment(tx, refundRowId);
     const row = await tx.paymentRefund.findUnique({ where: { id: refundRowId } });
     if (!row) return null;
     if (row.amountPaise !== gateway.amountPaise) {
@@ -248,7 +260,7 @@ export async function applyGatewayRefund(
     }
     await tx.paymentRefund.update({
       where: { id: row.id },
-      data: { status: gateway.status, gatewayRefundId: gateway.refundId, ...(gateway.status === "failed" ? { failure: row.failure ?? "GATEWAY_FAILED" } : {}) },
+      data: { status: gateway.status, gatewayRefundId: gateway.refundId, failure: gateway.status === "failed" ? row.failure ?? "GATEWAY_FAILED" : null },
     });
     await recordAudit(tx, {
       actorType: meta.actorType,
@@ -284,29 +296,33 @@ export async function checkRefundWithGateway(
   if (!row) return { status: null, found: false };
   if (!(IN_FLIGHT as readonly string[]).includes(row.status)) return { status: row.status, found: true };
   if (!row.payment.gatewayPaymentId) return { status: row.status, found: false };
-  const found = await deps.provider.findRefund(row.payment.gatewayPaymentId, row.id);
+  let found: GatewayRefund | null;
+  try {
+    found = await deps.provider.findRefund(row.payment.gatewayPaymentId, row.id);
+  } catch (error) {
+    const current = await db.paymentRefund.findUniqueOrThrow({ where: { id: row.id } });
+    if (current.status !== row.status) return { status: current.status, found: current.gatewayRefundId !== null };
+    throw error;
+  }
   if (found) {
     return { status: await applyGatewayRefund(row.id, found, { ...meta, source: "gateway_check" }), found: true };
   }
-  const ageMs = (deps.now ?? new Date()).getTime() - row.createdAt.getTime();
-  if (row.status === "requested" && ageMs > 10 * 60 * 1000) {
-    await db.$transaction(async (tx) => {
-      await tx.paymentRefund.updateMany({
-        where: { id: row.id, status: "requested" },
-        data: { status: "failed", failure: row.failure ?? "NOT_AT_GATEWAY" },
+  return db.$transaction(async (tx) => {
+    await lockRefundPayment(tx, row.id);
+    const current = await tx.paymentRefund.findUniqueOrThrow({ where: { id: row.id } });
+    const ageMs = (deps.now ?? new Date()).getTime() - current.createdAt.getTime();
+    if (current.status === "requested" && ageMs > 10 * 60 * 1000) {
+      await tx.paymentRefund.update({
+        where: { id: row.id }, data: { status: "failed", failure: current.failure ?? "NOT_AT_GATEWAY" },
       });
       await recordAudit(tx, {
-        actorType: meta.actorType,
-        actorId: meta.actorId ?? null,
-        action: "payment.refund_not_at_gateway",
-        entityType: "payment",
-        entityId: row.paymentId,
-        after: { refundId: row.id },
+        actorType: meta.actorType, actorId: meta.actorId ?? null, action: "payment.refund_not_at_gateway",
+        entityType: "payment", entityId: row.paymentId, after: { refundId: row.id },
       });
-    });
-    return { status: "failed", found: false };
-  }
-  return { status: row.status, found: false };
+      return { status: "failed", found: false };
+    }
+    return { status: current.status, found: current.status !== row.status && current.gatewayRefundId !== null };
+  });
 }
 
 /**
@@ -342,6 +358,7 @@ export async function applyRefundWebhook(entity: {
   if (!payment) return "unknown_payment";
   try {
     await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM payments WHERE id = ${payment.id}::uuid FOR UPDATE`;
       await tx.paymentRefund.create({
         data: {
           paymentId: payment.id,
@@ -368,7 +385,10 @@ export async function applyRefundWebhook(entity: {
          in flight for the same payment and Razorpay's refund is a different one.
          The second needs a person. */
       const already = await db.paymentRefund.findUnique({ where: { gatewayRefundId: refundId } });
-      if (already) return "applied";
+      if (already) {
+        await applyGatewayRefund(already.id, { refundId, status, amountPaise: amount }, { actorType: "system", source: "webhook" });
+        return "applied";
+      }
       triggerAlert("refund_external_conflict", "A dashboard refund arrived while one of ours is in flight for the same payment", {
         gatewayRefundId: refundId,
       });

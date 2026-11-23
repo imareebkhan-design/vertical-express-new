@@ -5,7 +5,7 @@ import { isCancellable } from "@/lib/order-flow";
 import { IN_WAREHOUSE, LEFT_WAREHOUSE } from "@/lib/shipment-flow";
 import { releaseCouponRedemption } from "@/lib/services/coupon-eligibility";
 import type { Prisma } from "@/prisma/generated/client/client";
-import { settleCapturedPayment } from "@/lib/services/checkout";
+import { lookupCaptureRecord, settleCapturedPayment } from "@/lib/services/checkout";
 import { getPaymentProvider, PaymentConfigError, type CapturedLookup } from "@/lib/services/payments";
 import { captureException, triggerAlert } from "@/lib/observability";
 import { ORDERING_CLOSED, orderingOpen } from "@/lib/commerce-mode";
@@ -302,28 +302,24 @@ export async function cancelOrder(
      is recorded by the webhook as a late payment on the refund worklist with a
      `late_payment_captured` alert (`settleCapturedPayment`) — if the webhook
      arrives. Nothing refunds automatically. */
+  let unpaid: UnpaidGatewayCheck | undefined;
   if (order.status === "pending_payment") {
-    const check = await reconcileWithGateway(order, { context: "cancel", findCaptured: deps.findCaptured });
-    if (check === "settled" || check === "late") throw new Error("PAID_NOT_CANCELLABLE");
-    if (check === "authorized") throw new Error("PAYMENT_IN_PROGRESS");
-    if (check === "unknown" || check === "unconfigured") throw new Error("PAYMENT_STATUS_UNKNOWN");
+    const check = await reconcileWithAttemptSnapshot(order, { context: "cancel", findCaptured: deps.findCaptured });
+    if (check.status === "settled" || check.status === "late") throw new Error("PAID_NOT_CANCELLABLE");
+    if (check.status === "authorized") throw new Error("PAYMENT_IN_PROGRESS");
+    if (check.status !== "not_captured") throw new Error("PAYMENT_STATUS_UNKNOWN");
+    unpaid = check;
   }
 
   await db.$transaction(async (tx) => {
-    /* Guarded on the status read above, in one statement — this, not the
-       payment read, is what makes the check safe against a concurrent payment.
-       Every writer that records a capture on a pending order
-       (`settleCapturedPayment`) moves the order out of
-       `pending_payment` in the same transaction, and the expiry cron cancels
-       with the same compare-and-set. So whichever commits first wins the row;
-       a cancel that loses changes nothing and throws. Nothing writes an
-       `authorized` payment today; if something ever did without moving the
-       order, this guarantee would need that writer to join the protocol. */
+    // The status guard orders cancellation against settlement. A signed attempt
+    // can leave the order pending, so validate it under the payment lock too.
     const moved = await tx.order.updateMany({
       where: { id: order.id, status: order.status },
       data: { status: "cancelled", cancelledReason: reason },
     });
     if (moved.count !== 1) throw new Error("NOT_CANCELLABLE");
+    if (unpaid) await lockCheckedPaymentAttempts(tx, order.id, unpaid);
     /* Goods on the road are not cancelled from an app; the throw rolls the
        status change back. */
     if (await hasDispatchedShipment(tx, order.id)) throw new Error("NOT_CANCELLABLE");
@@ -360,6 +356,36 @@ export async function reorder(userId: string, orderNo: string) {
 
 export type GatewayCheck = "settled" | "late" | "not_captured" | "authorized" | "unknown" | "unconfigured";
 
+type CheckedPayment = { id: string; callbackPaymentIds: string[] };
+export type UnpaidGatewayCheck = { status: "not_captured"; payments: CheckedPayment[] };
+type GatewayCheckResult = UnpaidGatewayCheck | { status: Exclude<GatewayCheck, "not_captured"> };
+type GatewayCheckOptions = {
+  context: "expiry" | "retry" | "cancel" | "admin_cancel" | "admin_check" | "status" | "sweep";
+  findCaptured?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<CapturedLookup | null>;
+};
+
+/** Call after winning the order status update, before releasing stock or coupon use.
+ * PostgreSQL returns the latest committed row after a lock wait. A callback
+ * appending an ID to that row then waits until this transaction finishes.
+ * Settlement and refunds also acquire the order lock before the payment lock.
+ */
+export async function lockCheckedPaymentAttempts(tx: Prisma.TransactionClient, orderId: string, check: UnpaidGatewayCheck) {
+  const current = await tx.$queryRaw<CheckedPayment[]>`
+    SELECT id, callback_payment_ids AS "callbackPaymentIds" FROM payments
+    WHERE order_id = ${orderId}::uuid AND gateway = 'razorpay'
+      AND gateway_order_id IS NOT NULL AND status <> 'captured'
+    ORDER BY id FOR UPDATE`;
+  const checked = new Map(check.payments.map((p) => [p.id, p.callbackPaymentIds]));
+  if (current.length !== checked.size) throw new Error("PAYMENT_STATUS_UNKNOWN");
+  for (const payment of current) {
+    const ids = checked.get(payment.id);
+    if (!ids || ids.length !== payment.callbackPaymentIds.length ||
+        ids.some((id, index) => id !== payment.callbackPaymentIds[index])) {
+      throw new Error("PAYMENT_STATUS_UNKNOWN");
+    }
+  }
+}
+
 /**
  * Ask Razorpay whether a pending order was in fact paid, and settle it if so.
  *
@@ -388,22 +414,26 @@ export type GatewayCheck = "settled" | "late" | "not_captured" | "authorized" | 
  */
 export async function reconcileWithGateway(
   order: { id: string; orderNo: string },
-  opts: {
-    context: "expiry" | "retry" | "cancel" | "admin_cancel" | "admin_check" | "status" | "sweep";
-    findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
-  }
+  opts: GatewayCheckOptions
 ): Promise<GatewayCheck> {
+  return (await reconcileWithAttemptSnapshot(order, opts)).status;
+}
+
+export async function reconcileWithAttemptSnapshot(
+  order: { id: string; orderNo: string },
+  opts: GatewayCheckOptions
+): Promise<GatewayCheckResult> {
   let unconfigured = false;
   const findCaptured =
-    opts.findCaptured ?? ((gw: string) => getPaymentProvider("razorpay").findCapturedPayment(gw));
+    opts.findCaptured ?? ((gw, callbackPaymentIds) => getPaymentProvider("razorpay").findCapturedPayment(gw, { callbackPaymentIds }));
   const gatewayPayments = await db.payment.findMany({
     where: { orderId: order.id, gateway: "razorpay", gatewayOrderId: { not: null }, status: { not: "captured" } },
-    select: { id: true, gatewayOrderId: true, amountPaise: true },
+    select: { id: true, gatewayOrderId: true, amountPaise: true, callbackPaymentIds: true },
   });
   for (const p of gatewayPayments) {
     let found: CapturedLookup | null;
     try {
-      found = await findCaptured(p.gatewayOrderId!);
+      found = await findCaptured(p.gatewayOrderId!, p.callbackPaymentIds);
     } catch (e) {
       if (e instanceof PaymentConfigError) {
         /* This process cannot ask Razorpay: the order may be paid, and we
@@ -426,17 +456,25 @@ export async function reconcileWithGateway(
         "Could not ask the gateway whether a pending order was paid; left pending",
         { orderNo: order.orderNo }
       );
-      return "unknown";
+      return { status: "unknown" };
     }
-    if (!found) continue;
-    if (found.status === "authorized") return "authorized";
+    if (!found) {
+      // A callback can arrive during the network round trip. The lookup did not account for that ID.
+      const unchanged = await db.payment.count({
+        where: { id: p.id, callbackPaymentIds: { equals: p.callbackPaymentIds } },
+      });
+      if (!unchanged) return { status: "unknown" };
+      continue;
+    }
+    if (found.status === "authorized") return { status: "authorized" };
+    if (found.status !== "captured" || !found.gatewayPaymentId) return { status: "unknown" };
     if (found.amountPaise !== p.amountPaise) {
       triggerAlert(
         `${opts.context}_capture_amount_mismatch`,
         "Gateway reports a capture of a different amount; order left pending",
         { orderNo: order.orderNo, expected: p.amountPaise, received: found.amountPaise }
       );
-      return "unknown";
+      return { status: "unknown" };
     }
     const outcome = await settleCapturedPayment({
       paymentId: p.id,
@@ -444,6 +482,7 @@ export async function reconcileWithGateway(
       orderNo: order.orderNo,
       amountPaise: p.amountPaise,
       gatewayPaymentId: found.gatewayPaymentId,
+      raw: lookupCaptureRecord(p.gatewayOrderId!, found.gatewayPaymentId, found.amountPaise),
       source: `${opts.context}_check`,
       note: {
         expiry: "Payment captured at Razorpay before the payment window closed (found by the expiry check)",
@@ -455,9 +494,9 @@ export async function reconcileWithGateway(
         sweep: "Payment captured at Razorpay after this order was cancelled (found by the scheduled check of cancelled orders)",
       }[opts.context],
     });
-    return outcome === "late_recorded" || outcome === "late_already_recorded" ? "late" : "settled";
+    return { status: outcome === "late_recorded" || outcome === "late_already_recorded" ? "late" : "settled" };
   }
-  return unconfigured ? "unconfigured" : "not_captured";
+  return unconfigured ? { status: "unconfigured" } : { status: "not_captured", payments: gatewayPayments };
 }
 
 /** How many stale orders one expiry run takes (ISS-078). */
@@ -553,8 +592,7 @@ export async function cleanupExpiredPendingOrders(
   const runBudgetMs = deps.runBudgetMs ?? EXPIRY_RUN_BUDGET_MS;
   const startedAt = now();
   const cutoff = new Date(startedAt - maxAgeMinutes * 60 * 1000);
-  const findCaptured =
-    deps.findCaptured ?? ((gw: string) => getPaymentProvider("razorpay").findCapturedPayment(gw));
+  const findCaptured = deps.findCaptured;
 
   const claimable = (at: number) => ({
     status: "pending_payment" as const,
@@ -606,8 +644,8 @@ export async function cleanupExpiredPendingOrders(
        ("unconfigured": alerted, left pending — the same rule as a customer's
        cancel). Only a definite "nothing captured" — or an order with no
        Razorpay order to ask about — expires. */
-    const found = await reconcileWithGateway(order, { context: "expiry", findCaptured });
-    if (found !== "not_captured") continue;
+    const found = await reconcileWithAttemptSnapshot(order, { context: "expiry", findCaptured });
+    if (found.status !== "not_captured") continue;
 
     try {
       await db.$transaction(async (tx) => {
@@ -617,6 +655,7 @@ export async function cleanupExpiredPendingOrders(
         });
 
         if (updated.count > 0) {
+          await lockCheckedPaymentAttempts(tx, order.id, found);
           /* An unpaid order's shipment cannot be dispatched (`advanceShipment`
              refuses), so this holds only for rows from before that guard. The
              throw rolls back; the catch below rotates the order. */

@@ -173,7 +173,7 @@ test("a confirmed cash-on-delivery order cancels and the body is the refreshed d
 
 test("paid at Razorpay with the callback lost: 409 paid message, and the order is now confirmed", async () => {
   const o = await order("online", "pending_payment");
-  const paid = async () => ({ gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: o.amount });
+  const paid = async () => ({ status: "captured" as const, gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: o.amount });
   const res = await cancel(o.orderNo, paid);
   assert.equal(res.status, 409);
   const b = await json(res);
@@ -290,7 +290,7 @@ const gatewayCases: {
   },
   {
     name: "a capture of a different amount",
-    lookup: async () => ({ gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: 100 }),
+    lookup: async () => ({ status: "captured" as const, gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: 100 }),
     offer: "not-cancellable",
     paymentState: "pending",
     post: { status: 503, reason: "PAYMENT_STATUS_UNKNOWN", orderAfter: "pending_payment" },
@@ -332,7 +332,7 @@ test("GET detail says whether to offer Cancel for stored states, and paid-online
   assert.equal((await json(await get(packed.orderNo))).data?.cancel?.kind, "not-cancellable");
 
   const lost = await order("online", "pending_payment");
-  const settled = await json(await get(lost.orderNo, async () => ({ gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: lost.amount })));
+  const settled = await json(await get(lost.orderNo, async () => ({ status: "captured" as const, gatewayPaymentId: `pay_${randomUUID().slice(0, 12)}`, amountPaise: lost.amount })));
   assert.equal(settled.data?.status, "confirmed");
   assert.equal(settled.data?.cancel?.kind, "paid-online");
 });

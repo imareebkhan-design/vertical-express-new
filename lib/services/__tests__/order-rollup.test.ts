@@ -2,7 +2,7 @@ import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { db } from "@/lib/db";
-import { assignShipment, advanceShipment, confirmDelivery } from "@/lib/services/admin/shipments-write";
+import { assignShipment, advanceShipment, confirmDelivery, receiveShipmentBack } from "@/lib/services/admin/shipments-write";
 import { advanceOrderStatus } from "@/lib/services/admin/manage";
 import { afterOrderRollup, forwardSteps, targetFromShipments } from "@/lib/services/order-rollup";
 import { createDriver } from "@/lib/services/admin/roster-write";
@@ -102,6 +102,7 @@ test("multi-shipment: delivered only when every shipment is delivered", async ()
 
 test("a cancelled shipment does not hold the order back; the rest delivered → delivered", async () => {
   const { orderId, ships } = await dispatchedOrder(2);
+  assert.ok((await receiveShipmentBack({ shipmentId: ships[1].id, actor: actor(), reason: "Undelivered goods received back", goodsReceivedBack: true })).ok);
   assert.equal((await advanceShipment({ shipmentId: ships[1].id, to: "cancelled", actor: actor() })).ok, true);
   await confirmDelivery({ shipmentId: ships[0].id, code: ships[0].code, actor: actor() });
   assert.equal(await status(orderId), "delivered");

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DELETED_CUSTOMER_LABEL, isDeletedAccount } from "@/lib/auth/deletion-marker";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { adminOrderDetail } from "@/lib/services/admin/order-detail";
@@ -376,6 +377,10 @@ export default async function AdminOrderDetail({
               <p className="text-[11px] font-semibold text-ink-500">Account mobile {order.user.phone}</p>
             )}
             {order.user?.email && <p className="text-[11px] font-semibold text-ink-500">{order.user.email}</p>}
+            {/* The snapshot above is the order's own record and is kept; the account behind it is gone. */}
+            {isDeletedAccount(order.user?.firebaseUid ?? null) && (
+              <p className="mt-1 text-[11px] font-bold text-ink-500">{DELETED_CUSTOMER_LABEL} — the customer deleted their account. The name and phone above are this order&apos;s delivery record.</p>
+            )}
           </Panel>
 
           <Panel title="Delivery address">

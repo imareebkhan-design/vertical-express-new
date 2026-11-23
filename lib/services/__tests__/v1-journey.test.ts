@@ -350,7 +350,7 @@ async function pendingOrder(user: string, totalPaise: number, gatewayOrderId: st
   return order.orderNo;
 }
 
-test("payment confirmation: a valid signature confirms its own order", async () => {
+test("payment confirmation: a matching gateway capture confirms its own signed callback", async () => {
   const rzpOrder = `order_${randomUUID().slice(0, 12)}`;
   const orderNo = await pendingOrder(userA, 40000, rzpOrder);
   const paymentId = `pay_${randomUUID().slice(0, 12)}`;
@@ -362,7 +362,7 @@ test("payment confirmation: a valid signature confirms its own order", async () 
         body: { razorpayOrderId: rzpOrder, razorpayPaymentId: paymentId, signature: sign(rzpOrder, paymentId) },
       }),
       orderNo,
-      { verify }
+      { verify, findCaptured: async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 40000 }) }
     )
   );
   assert.equal(res.status, 200, JSON.stringify(res.body));
@@ -457,7 +457,7 @@ test("payment confirmation: a duplicate is idempotent — one transition, one ev
         body: { razorpayOrderId: rzp, razorpayPaymentId: paymentId, signature: sign(rzp, paymentId) },
       }),
       orderNo,
-      { verify }
+      { verify, findCaptured: async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 40000 }) }
     );
 
   assert.equal((await confirm(pay1)).status, 200);
@@ -477,7 +477,7 @@ test("payment confirmation: a duplicate is idempotent — one transition, one ev
     row.statusEvents.filter((e) => e.fromStatus === "pending_payment" && e.toStatus === "confirmed").length,
     1
   );
-  /* pay2 carries a valid signature, so Razorpay really took it: a second
+  /* Razorpay reports a distinct capture for pay2: a second
      payment, not a replay. It is recorded on its own row for refund rather
      than dropped (E5; `duplicate-capture.test.ts`). */
   assert.deepEqual(
@@ -497,7 +497,7 @@ test("payment confirmation: concurrent confirmations still produce a single tran
         body: { razorpayOrderId: rzp, razorpayPaymentId: paymentId, signature: sign(rzp, paymentId) },
       }),
       orderNo,
-      { verify }
+      { verify, findCaptured: async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 40000 }) }
     );
   await Promise.all([call(), call(), call()]);
   const events = await db.orderStatusEvent.count({ where: { order: { orderNo }, toStatus: "confirmed" } });
@@ -516,7 +516,7 @@ test("payment confirmation: a cancelled order cannot be revived by a valid signa
         body: { razorpayOrderId: rzp, razorpayPaymentId: paymentId, signature: sign(rzp, paymentId) },
       }),
       orderNo,
-      { verify }
+      { verify, findCaptured: async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 40000 }) }
     )
   );
   assert.equal(res.status, 409, "the customer paid: this is a late payment, not a failed verification");

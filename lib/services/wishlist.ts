@@ -4,6 +4,7 @@ import { toItem, type CatalogItem } from "@/lib/services/catalog";
 import { catalogListingWhere, approvedImageWhere } from "@/lib/catalog-policy";
 
 import { getAuthUserId } from "@/lib/auth/current-user";
+import { withLiveAccount } from "@/lib/services/account-live";
 
 /** Wishlisted product-id set for the current user (empty for guests). */
 export async function currentWishlistIdSet(): Promise<Set<string>> {
@@ -22,11 +23,10 @@ export async function getWishlistProductIds(userId: string): Promise<string[]> {
 }
 
 export async function toggleWishlist(userId: string, productId: string): Promise<boolean> {
-  const wishlist = await db.wishlist.upsert({
-    where: { userId },
-    update: {},
-    create: { userId },
-  });
+  /* Under the account lock, so a wishlist is never re-created on a deleted account. */
+  const wishlist = await withLiveAccount(db, userId, (tx) =>
+    tx.wishlist.upsert({ where: { userId }, update: {}, create: { userId } })
+  );
   const existing = await db.wishlistItem.findUnique({
     where: { wishlistId_productId: { wishlistId: wishlist.id, productId } },
   });

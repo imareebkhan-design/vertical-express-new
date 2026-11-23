@@ -17,7 +17,7 @@ export async function adminOrderDetail(orderNo: string) {
       payments: { orderBy: { createdAt: "asc" } },
       statusEvents: { orderBy: { createdAt: "asc" } },
       warehouse: { select: { name: true, city: true } },
-      user: { select: { id: true, phone: true, email: true } },
+      user: { select: { id: true, phone: true, email: true, firebaseUid: true } },
       shipments: {
         orderBy: { sequence: "asc" },
         include: {

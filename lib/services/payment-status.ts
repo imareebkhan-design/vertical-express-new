@@ -41,12 +41,10 @@ export interface PaymentStatusView {
 
 export interface PaymentStatusDeps {
   findCaptured?: (gatewayOrderId: string) => Promise<CapturedLookup | null>;
-  listAttempts?: (gatewayOrderId: string) => Promise<string[]>;
+  listAttempts?: (gatewayOrderId: string, callbackPaymentIds: string[]) => Promise<string[]>;
 }
 
 const PAID = new Set(["confirmed", "packed", "out_for_delivery", "delivered"]);
-/** Razorpay attempt states that mean money is, or may be, on its way. */
-const IN_FLIGHT = new Set(["created", "authorized", "captured"]);
 
 const view = (order: { orderNo: string }, orderStatus: string, state: PaymentState, gateway?: GatewayCheck): PaymentStatusView => ({
   orderNo: order.orderNo,
@@ -56,7 +54,7 @@ const view = (order: { orderNo: string }, orderStatus: string, state: PaymentSta
   ...(gateway ? { gateway } : {}),
 });
 
-function fromClosedOrder(order: OrderWithDetails): PaymentStatusView {
+function fromClosedOrder(order: { orderNo: string; status: string; payments: { status: string }[] }): PaymentStatusView {
   const captured = order.payments.some((p) => p.status === "captured" || p.status === "refunded");
   if (PAID.has(order.status)) return view(order, order.status, "paid");
   if (order.status === "refund_initiated" || order.status === "refunded" || captured) {
@@ -81,19 +79,39 @@ export async function paymentStatusFor(order: OrderWithDetails, deps: PaymentSta
     const status = now?.status ?? order.status;
     return view(order, status, check === "late" || !PAID.has(status) ? "late" : "paid", check);
   }
-  if (check !== "not_captured") return view(order, order.status, "pending", check); // authorized | unknown | unconfigured
-
-  let attempts: string[];
-  try {
-    attempts = await (deps.listAttempts ?? ((gw: string) => getPaymentProvider("razorpay").listPaymentAttempts(gw)))(
-      payment.gatewayOrderId
-    );
-  } catch {
-    return view(order, order.status, "pending", check);
+  let state: PaymentState = "pending";
+  /* The order was loaded before either network call. A signed callback may
+     have been recorded since, so the attempt list is checked against the IDs
+     as they stand now, and the decision below against the same list. */
+  let known = payment.callbackPaymentIds;
+  if (check === "not_captured") {
+    known = (await db.payment.findUniqueOrThrow({ where: { id: payment.id }, select: { callbackPaymentIds: true } }))
+      .callbackPaymentIds;
+    const listAttempts = deps.listAttempts ?? ((gw, ids) => getPaymentProvider("razorpay").listPaymentAttempts(gw, ids));
+    try {
+      const attempts = await listAttempts(payment.gatewayOrderId, known);
+      if (attempts.every((attempt) => attempt === "failed")) {
+        if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") state = "expired";
+        else state = attempts.length ? "failed" : "unpaid";
+      }
+    } catch {
+      // An incomplete or unavailable list leaves the payment pending.
+    }
   }
-  if (attempts.some((a) => IN_FLIGHT.has(a))) return view(order, order.status, "pending", check);
-  if (checkoutTimeoutSeconds(paymentTermsFor(order.placedAt)) === "closed") return view(order, order.status, "expired", check);
-  return view(order, order.status, attempts.some((a) => a === "failed") ? "failed" : "unpaid", check);
+
+  // A webhook or a new signed attempt may have committed during either network call.
+  const latest = await db.payment.findUniqueOrThrow({
+    where: { id: payment.id },
+    select: {
+      callbackPaymentIds: true,
+      order: { select: { orderNo: true, status: true, payments: { select: { status: true } } } },
+    },
+  });
+  if (latest.order.status !== "pending_payment") return fromClosedOrder(latest.order);
+  const unchanged =
+    latest.callbackPaymentIds.length === known.length && latest.callbackPaymentIds.every((id) => known.includes(id));
+  if (!unchanged) return view(order, order.status, "pending", check);
+  return view(order, order.status, state, check);
 }
 
 /**

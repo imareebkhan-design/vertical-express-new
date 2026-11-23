@@ -45,13 +45,9 @@ export const INACTIVE_ORDER_STATES = ["pending_payment", "cancelled", "refund_in
 export const SHIPMENT_FLOW: Record<ShipmentStatus, ShipmentStatus[]> = {
   pending: ["packed", "cancelled"],
   packed: ["out_for_delivery", "cancelled"],
-  /**
-   * No route back to `packed`. Once goods are on a vehicle, "unpack it" is a
-   * physical act with a physical record — the driver returns and the load is
-   * received back — not a dropdown. A failed delivery becomes `cancelled`,
-   * which restocks; it does not quietly rewind.
-   */
-  out_for_delivery: ["delivered", "cancelled"],
+  // A failed delivery returns to packed through receiveShipmentBack, which
+  // records physical receipt before warehouse cancellation can release stock.
+  out_for_delivery: ["delivered"],
   delivered: [],
   cancelled: [],
 };

@@ -7,8 +7,10 @@ import { Prisma } from "@/prisma/generated/client/client";
 import { db } from "@/lib/db";
 import { POST as webhook } from "@/app/api/webhooks/razorpay/route";
 import { handleConfirmPayment, handleGetOrder } from "@/lib/api/v1";
-import { listCapturedPaymentsOnDeadOrders } from "@/lib/services/checkout";
-import { cleanupExpiredPendingOrders } from "@/lib/services/orders";
+import { paymentStatusFor } from "@/lib/services/payment-status";
+import { advanceShipment } from "@/lib/services/admin/shipments-write";
+import { listCapturedPaymentsOnDeadOrders, type CallbackCaptureLookup } from "@/lib/services/checkout";
+import { cancelOrder, cleanupExpiredPendingOrders, getOrderByNo } from "@/lib/services/orders";
 
 /**
  * The payment state machine under duplicates, delays and races.
@@ -89,7 +91,7 @@ function hook(event: string, gw: string, paymentId: string, amount: number, even
   const raw = JSON.stringify({
     event,
     event_id: eventId,
-    payload: { payment: { entity: { id: paymentId, order_id: gw, amount } } },
+    payload: { payment: { entity: { id: paymentId, order_id: gw, currency: "INR", amount } } },
   });
   const sig = createHmac("sha256", WEBHOOK_SECRET).update(raw).digest("hex");
   return new NextRequest("http://localhost/api/webhooks/razorpay", {
@@ -99,7 +101,9 @@ function hook(event: string, gw: string, paymentId: string, amount: number, even
   });
 }
 
-const confirm = (token: string, orderNo: string, gw: string, paymentId: string) =>
+const confirm = (token: string, orderNo: string, gw: string, paymentId: string,
+  findCaptured: CallbackCaptureLookup = async () => ({ status: "captured", gatewayPaymentId: paymentId, amountPaise: 50000 })
+) =>
   handleConfirmPayment(
     new Request("http://localhost/x", {
       method: "POST",
@@ -107,7 +111,7 @@ const confirm = (token: string, orderNo: string, gw: string, paymentId: string) 
       body: JSON.stringify({ razorpayOrderId: gw, razorpayPaymentId: paymentId, signature: clientSig(gw, paymentId) }),
     }),
     orderNo,
-    { verify }
+    { verify, findCaptured }
   );
 
 const events = (orderId: string) => db.orderStatusEvent.findMany({ where: { orderId }, orderBy: { createdAt: "asc" } });
@@ -246,6 +250,10 @@ test("ordering: client first then webhook, and webhook first then client, each c
   assert.equal((await confirm(TOKEN_A, b.orderNo, b.gw, pb)).status, 200);
   assert.equal((await events(b.id)).filter((e) => e.toStatus === "confirmed").length, 1);
   assert.equal((await state(b)).status, "confirmed");
+  for (const order of [a, b]) assert.equal(await db.orderEmail.count({ where: { orderId: order.id } }), 1);
+  const unavailable = async () => { throw new Error("fixture timeout"); };
+  assert.equal((await confirm(TOKEN_A, a.orderNo, a.gw, pa, unavailable)).status, 200);
+  assert.equal((await confirm(TOKEN_A, a.orderNo, a.gw, pid(), unavailable)).status, 503);
 });
 
 test("race: client, webhook and a retry at once produce a single confirmation", async () => {
@@ -314,4 +322,129 @@ test("integrity: a gateway order id names exactly one payment row; COD rows (nul
   const cod = await makeOrder();
   await db.payment.create({ data: { orderId: cod.id, gateway: "cod", amountPaise: 1, status: "created" } });
   await db.payment.create({ data: { orderId: cod.id, gateway: "cod", amountPaise: 1, status: "created" } });
+});
+
+test("authorization and uncertain callbacks block dispatch until a matching capture settles once", async (t) => {
+  const o = await makeOrder();
+  const p = pid();
+  const inventory = await db.inventory.findFirstOrThrow({ where: { qtyOnHand: { gt: 0 } } });
+  const coupon = await db.coupon.create({ data: { code: o.orderNo, type: "flat", value: 100, redeemedCount: 1 } });
+  t.after(async () => { await db.coupon.delete({ where: { id: coupon.id } }); });
+  await db.order.update({
+    where: { id: o.id },
+    data: {
+      warehouseId: inventory.warehouseId, couponCode: coupon.code, address: { email: "capture@example.invalid" },
+      items: { create: { variantId: inventory.variantId, title: "Fixture", variantName: "Unit", unitPricePaise: o.amount + 100, qty: 1, lineTotalPaise: o.amount + 100 } },
+      couponRedemption: { create: { couponId: coupon.id, userId: userA, useIndex: 1, discountPaise: 100 } },
+    },
+  });
+  const shipment = await db.shipment.create({ data: { orderId: o.id, sequence: 1, speedClass: "express" } });
+  const timeout = async () => { throw new Error("fixture lookup timed out"); };
+  const checks: CallbackCaptureLookup[] = [
+    async () => ({ status: "authorized", gatewayPaymentId: p, amountPaise: o.amount }),
+    timeout,
+    async () => null,
+    async () => ({ status: "captured", gatewayPaymentId: p, amountPaise: o.amount - 1 }),
+    async () => ({ status: "captured", gatewayPaymentId: "different_attempt", amountPaise: o.amount }),
+  ];
+  const emailCount = () => db.orderEmail.count({ where: { orderId: o.id } });
+  for (const lookup of checks) {
+    const response = await confirm(TOKEN_A, o.orderNo, o.gw, p, lookup);
+    assert.equal(response.status, 503);
+    assert.match(await response.text(), /PAYMENT_PENDING/);
+    assert.equal((await state(o)).status, "pending_payment");
+    assert.equal((await state(o)).payments[0].status, "created");
+    assert.deepEqual(await advanceShipment({ shipmentId: shipment.id, to: "packed", actor: { id: userA, email: "fixture@example.invalid" } }),
+      { ok: false, reason: "order_not_active" });
+    assert.equal((await events(o.id)).length, 0);
+    assert.equal(await emailCount(), 0);
+    assert.deepEqual((await state(o)).payments[0].callbackPaymentIds, [p]);
+  }
+  // The signed webhook commits during the final lookup. Later callback and webhook replays see the same money.
+  const duringLookup = await confirm(TOKEN_A, o.orderNo, o.gw, p, async () => {
+    assert.equal((await webhook(hook("payment.captured", o.gw, p, o.amount))).status, 200);
+    return timeout();
+  });
+  assert.equal(duringLookup.status, 200);
+  assert.equal((await confirm(TOKEN_A, o.orderNo, o.gw, p, timeout)).status, 200);
+  assert.equal((await webhook(hook("order.paid", o.gw, p, o.amount))).status, 200);
+  assert.equal((await state(o)).status, "confirmed");
+  assert.equal((await events(o.id)).filter(e => e.toStatus === "confirmed").length, 1);
+  assert.equal(await emailCount(), 1);
+  assert.equal((await db.orderEmail.findUniqueOrThrow({ where: { orderId: o.id } })).state, "queued");
+  assert.equal((await db.inventory.findUniqueOrThrow({ where: { id: inventory.id } })).qtyOnHand, inventory.qtyOnHand);
+  assert.equal((await db.coupon.findUniqueOrThrow({ where: { id: coupon.id } })).redeemedCount, 1);
+  assert.equal(await db.couponRedemption.count({ where: { orderId: o.id } }), 1);
+});
+
+test("the mobile contract withholds checkout when the gateway temporarily omits a signed attempt", async (t) => {
+  const o = await makeOrder();
+  const paymentId = pid();
+  const priorGateway = process.env.PAYMENT_GATEWAY;
+  const priorKey = process.env.RAZORPAY_KEY_ID;
+  process.env.PAYMENT_GATEWAY = "razorpay-test";
+  process.env.RAZORPAY_KEY_ID = "rzp_test_fixture";
+  t.after(() => {
+    if (priorGateway === undefined) delete process.env.PAYMENT_GATEWAY;
+    else process.env.PAYMENT_GATEWAY = priorGateway;
+    if (priorKey === undefined) delete process.env.RAZORPAY_KEY_ID;
+    else process.env.RAZORPAY_KEY_ID = priorKey;
+  });
+  const attempts = [{ id: pid(), order_id: o.gw, status: "failed", amount: o.amount, currency: "INR" }];
+  t.mock.method(globalThis, "fetch", async (url: string) => {
+    assert.equal(url, `https://api.razorpay.com/v1/orders/${o.gw}/payments`);
+    return Response.json({ items: attempts });
+  });
+  const req = new Request("http://localhost/x", {
+    method: "POST", headers: { authorization: `Bearer ${TOKEN_A}`, "content-type": "application/json" },
+    body: JSON.stringify({ razorpayOrderId: o.gw, razorpayPaymentId: paymentId, signature: clientSig(o.gw, paymentId) }),
+  });
+  assert.equal((await handleConfirmPayment(req, o.orderNo, { verify })).status, 503);
+  const detail = async () => {
+    const response = await handleGetOrder(new Request("http://localhost/x", { headers: { authorization: `Bearer ${TOKEN_A}` } }), o.orderNo, { verify });
+    assert.equal(response.status, 200);
+    return (await response.json()).data;
+  };
+  const missing = await detail();
+  assert.equal(missing.paymentState, "pending");
+  assert.equal(missing.razorpay, null);
+  await assert.rejects(cancelOrder(userA, o.orderNo, "fixture"), /PAYMENT_STATUS_UNKNOWN/);
+  await db.order.update({ where: { id: o.id }, data: { placedAt: new Date(Date.now() - 60 * 60_000) } });
+  await cleanupExpiredPendingOrders(15);
+  assert.equal((await state(o)).status, "pending_payment");
+
+  attempts.push({ id: paymentId, order_id: o.gw, status: "authorized", amount: o.amount, currency: "INR" });
+  assert.equal((await detail()).paymentState, "pending");
+  attempts[1].status = "captured";
+  assert.equal((await detail()).paymentState, "paid");
+  assert.equal((await confirm(TOKEN_A, o.orderNo, o.gw, paymentId, async () => null)).status, 200);
+});
+
+test("a check in flight notices a newly signed attempt before offering another checkout or cancelling", async () => {
+  const o = await makeOrder();
+  const stale = await getOrderByNo(userA, o.orderNo);
+  assert.ok(stale);
+  const anotherCallback = async () => {
+    const res = await confirm(TOKEN_A, o.orderNo, o.gw, pid(), async () => null);
+    assert.equal(res.status, 503);
+  };
+  const checked = await paymentStatusFor(stale, {
+    findCaptured: async () => null,
+    listAttempts: async () => { await anotherCallback(); return ["failed"]; },
+  });
+  assert.equal(checked.state, "pending");
+  assert.equal(checked.canPay, false);
+  await assert.rejects(cancelOrder(userA, o.orderNo, "fixture", {
+    findCaptured: async () => { await anotherCallback(); return null; },
+  }), /PAYMENT_STATUS_UNKNOWN/);
+  assert.equal((await state(o)).status, "pending_payment");
+
+  const captured = await paymentStatusFor(stale, {
+    findCaptured: async () => {
+      assert.equal((await webhook(hook("payment.captured", o.gw, pid(), o.amount))).status, 200);
+      throw new Error("fixture timeout");
+    },
+  });
+  assert.equal(captured.state, "paid");
+  assert.equal(captured.canPay, false);
 });
