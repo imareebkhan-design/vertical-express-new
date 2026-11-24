@@ -108,10 +108,10 @@ jobs:
           NAV_VERSION: ${{ matrix.navbar }}
           PLAYWRIGHT_JSON_OUTPUT_NAME: navbar-results.json
         run: |
-          NODE_ENV=production npm run start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/navbar-next.log" 2>&1 &
+          env -u PAYMENT_GATEWAY NODE_ENV=production npm run start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/navbar-next.log" 2>&1 &
           server_pid=$!
           trap 'kill "$server_pid" 2>/dev/null || true' EXIT
-          curl -fsS --retry 20 --retry-all-errors --retry-delay 2 http://localhost:3000/services -o /dev/null
+          curl -fsS --retry 8 --retry-all-errors --retry-delay 2 http://localhost:3000/services -o /dev/null || { tail -50 "$RUNNER_TEMP/navbar-next.log"; exit 1; }
           result=0
           npx playwright test e2e/navbar-scroll.spec.ts --workers=1 --retries=0 --reporter=list,json || result=$?
           python - <<'PY'
