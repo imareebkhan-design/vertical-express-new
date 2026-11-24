@@ -137,7 +137,44 @@ jobs:
           if os.environ["NAV_VERSION"] == "before":
               assert min(drifts) > 1, drifts
           PY
-          if [ "$NAV_VERSION" = after ]; then exit "$result"; fi
+          if [ "$NAV_VERSION" = after ]; then
+            if [ "$result" != 0 ]; then exit "$result"; fi
+            node --input-type=module <<'JS'
+          import { chromium } from "@playwright/test";
+          import assert from "node:assert/strict";
+          const browser = await chromium.launch();
+          try {
+            const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+            await page.goto(process.env.E2E_BASE_URL);
+            const nav = page.getByRole("navigation", { name: "Category and secondary navigation" });
+            await nav.waitFor();
+            await page.evaluate(() => document.fonts.ready.then(() => undefined));
+            await page.mouse.move(700, 350);
+            await page.evaluate(() => {
+              window.recordedNavbar = [];
+              function tick() {
+                const hero = document.querySelector("main > section");
+                window.recordedNavbar.push([scrollY, hero.getBoundingClientRect().top + scrollY]);
+                requestAnimationFrame(tick);
+              }
+              tick();
+            });
+            for (const dy of [5, 5, 5, 6, -5, 5, -4, 90, -200]) {
+              await page.mouse.wheel(0, dy);
+              await page.waitForTimeout(180);
+            }
+            await page.waitForTimeout(1500);
+            const samples = await page.evaluate(() => window.recordedNavbar);
+            const pos = samples.map(s => s[1]);
+            const drift = Math.max(...pos) - Math.min(...pos);
+            const peak = Math.max(...samples.map(s => s[0]));
+            console.log("Wheel reversals:", samples.length, "frames, peak scroll", peak, "px, hero drift", drift, "px, final scroll", samples.at(-1)[0]);
+            assert.ok(drift <= 1 && peak > 50 && samples.at(-1)[0] === 0);
+          } finally {
+            await browser.close();
+          }
+          JS
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
