@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { usePathname } from "next/navigation";
@@ -148,6 +148,15 @@ function PrimaryHeader() {
 
 function CategoryNavigation() {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // The trigger scrolls beneath the pinned header. Dismiss its floating menu
+  // when the page moves, without changing the height of either row.
+  useEffect(() => {
+    if (openGroup === null) return;
+    const closeMenu = () => setOpenGroup(null);
+    window.addEventListener("scroll", closeMenu, { passive: true, once: true });
+    return () => window.removeEventListener("scroll", closeMenu);
+  }, [openGroup]);
+
   const pathname = usePathname();
   /* Departments and their categories, as the shop shows them (lib/category-nav.ts).
      A switched-off category is not linked; an emptied department disappears. */

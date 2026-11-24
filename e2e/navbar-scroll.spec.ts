@@ -68,6 +68,12 @@ test("the pointer can travel from a department into its dropdown", async ({ page
   await page.mouse.move(triggerBox.x + 8, triggerBox.y + triggerBox.height / 2);
   await page.mouse.move(itemBox.x + 8, itemBox.y + itemBox.height / 2, { steps: 40 });
   await expect(item).toBeVisible();
+  await page.evaluate(() => window.scrollTo({ top: 80, behavior: "instant" }));
+  await expect(item).toBeHidden();
+  await page.mouse.move(10, 350);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" }));
+  await trigger.hover();
+  await expect(item).toBeVisible();
   const href = await item.getAttribute("href");
   if (!href) throw new Error("The category link has no destination.");
   const destination = new URL(href, page.url()).href;
