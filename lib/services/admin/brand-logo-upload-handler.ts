@@ -15,6 +15,7 @@ const MESSAGES: Record<string, string> = {
   TOO_LARGE: "The logo is larger than 2 MB",
   NOT_AN_IMAGE: "Only JPEG, PNG or WebP logos can be uploaded (no SVG)",
   TOO_SMALL: "The logo is smaller than 64 px on its short side",
+  TOO_BIG_DIMENSIONS: "The logo is larger than 4000 px on its long side",
   UNREADABLE: "The logo could not be read",
   RIGHTS_REQUIRED: "Confirm that the business may use this logo",
   LICENCE_REQUIRED: "Say which licence or agreement the logo is used under",

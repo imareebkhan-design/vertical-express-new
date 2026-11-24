@@ -11,7 +11,8 @@ mock.module("@/lib/services/admin/authz", { namedExports: { getAdminUser: async 
 mock.module("@/lib/observability", { namedExports: { log() {} } });
 mock.module("@/lib/services/audit", { namedExports: { recordAudit() {} } });
 const write = async () => { writes++; if (failure) throw failure; return { name: "Before", slug: "before" }; };
-mock.module("@/lib/db", { namedExports: { db: { $transaction: write } } });
+let existingBrand: { id: string; name: string; slug: string; isActive: boolean; logoUrl: string | null } | null = null;
+mock.module("@/lib/db", { namedExports: { db: { $transaction: write, brand: { findFirst: async () => existingBrand } } } });
 mock.module("@/lib/services/admin/brand-writes", { namedExports: {
   editBrand: write,
   setBrandActive: async () => { writes++; return "unchanged"; },
@@ -21,7 +22,7 @@ mock.module("@/lib/services/admin/brand-writes", { namedExports: {
 mock.module("@/lib/services/admin/brand-logos", { namedExports: { removeBrandLogo: async () => { writes++; return "removed"; } } });
 let actions: typeof import("@/actions/brands");
 before(async () => { actions = await import("@/actions/brands"); });
-beforeEach(() => { authorized = true; failure = undefined; writes = 0; paths.length = 0; });
+beforeEach(() => { authorized = true; failure = undefined; writes = 0; paths.length = 0; existingBrand = null; });
 
 test("brand active action rejects non-boolean runtime input without writing", async () => {
   for (const input of [undefined, null, "false", 0, {}]) {
@@ -67,18 +68,30 @@ test("unchanged brand retries still invalidate console and storefront caches", a
   assert.deepEqual(paths, ["/admin/products", "/"]);
 });
 
-test("quick-add from the product form: an audit failure is a failure, never 'already exists'", async () => {
+void test("quick-add from the product form: an audit failure is a failure, never 'already exists'", async () => {
   const ok = await actions.adminQuickAddBrand({ name: "After" });
   assert.equal(ok.ok, true);
-  if (ok.ok) assert.deepEqual(ok.data, { id: "new-id", name: "After", slug: "after", logoUrl: null });
+  if (ok.ok) assert.deepEqual(ok.data, { id: "new-id", name: "After", slug: "after", logoUrl: null, existed: false });
   const error = new Prisma.PrismaClientKnownRequestError("audit conflict", { code: "P2002", clientVersion: "test", meta: { modelName: "AuditLog", target: ["id"] } });
   failure = error;
   await assert.rejects(actions.adminQuickAddBrand({ name: "After" }), (received) => received === error);
 });
 
-test("quick-add refuses a name with no letters or numbers without writing", async () => {
+void test("quick-add refuses a name with no letters or numbers without writing", async () => {
   const result = await actions.adminQuickAddBrand({ name: "!!!" });
   assert.equal(result.ok, false);
   if (!result.ok) assert.equal(result.error.code, "VALIDATION");
   assert.equal(writes, 0);
+});
+
+void test("quick-add of a brand someone already added selects it; a retired one is refused", async () => {
+  failure = new Prisma.PrismaClientKnownRequestError("unique", { code: "P2002", clientVersion: "test", meta: { modelName: "Brand", target: ["slug"] } });
+  existingBrand = { id: "existing-id", name: "After", slug: "after", isActive: true, logoUrl: null };
+  const picked = await actions.adminQuickAddBrand({ name: "after" });
+  assert.equal(picked.ok, true);
+  if (picked.ok) assert.deepEqual(picked.data, { id: "existing-id", name: "After", slug: "after", logoUrl: null, existed: true });
+  existingBrand = { ...existingBrand, isActive: false };
+  const retired = await actions.adminQuickAddBrand({ name: "after" });
+  assert.equal(retired.ok, false);
+  if (!retired.ok) assert.equal(retired.error.code, "CONFLICT");
 });

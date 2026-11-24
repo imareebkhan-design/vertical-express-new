@@ -106,11 +106,11 @@ export function ListingForm({ options }: { options: ListingOptions }) {
   const brand = brands.find((b) => b.id === form.brandId);
 
   const addedBrand = (b: ListingOptions["brands"][number]) => {
-    setBrands((list) => [...list, b].sort((x, y) => x.name.localeCompare(y.name)));
+    setBrands((list) => (list.some((x) => x.id === b.id) ? list : [...list, b].sort((x, y) => x.name.localeCompare(y.name))));
     set("brandId", b.id);
   };
   const addedCategory = (c: ListingOptions["categories"][number]) => {
-    setCategories((list) => [...list, c]);
+    setCategories((list) => (list.some((x) => x.id === c.id) ? list : [...list, c]));
     /* Same rule as choosing one from the list: a type typed for another
        category does not carry over. */
     setForm((f) => ({ ...f, categoryId: c.id, productType: "" }));
@@ -557,6 +557,7 @@ function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; l
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const add = () => {
@@ -565,6 +566,7 @@ function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; l
       const res = await adminQuickAddBrand({ name });
       if (res.ok) {
         onAdded({ id: res.data.id, name: res.data.name, logoUrl: res.data.logoUrl });
+        setNote(res.data.existed ? `"${res.data.name}" already existed, so it was selected.` : null);
         setName("");
         setOpen(false);
       } else {
@@ -575,15 +577,23 @@ function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; l
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-        }}
-        className="mt-1.5 text-[12px] font-bold text-ink underline"
-      >
-        + New brand
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            setNote(null);
+            setOpen(true);
+          }}
+          className="mt-1.5 text-[12px] font-bold text-ink underline"
+        >
+          + New brand
+        </button>
+        {note && (
+          <p className="mt-1 text-[11.5px] font-semibold text-ink-700" role="status">
+            {note}
+          </p>
+        )}
+      </>
     );
   }
   return (
@@ -639,6 +649,7 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
   const [name, setName] = useState("");
   const [group, setGroup] = useState<CategoryGroupKey | "">("");
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
   const add = () => {
@@ -647,6 +658,7 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
       const res = await adminQuickAddCategory({ name, group });
       if (res.ok) {
         onAdded(res.data);
+        setNote(res.data.existed ? `"${res.data.name}" already existed, so it was selected.` : null);
         setName("");
         setGroup("");
         setOpen(false);
@@ -658,15 +670,23 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-        }}
-        className="mt-1.5 text-[12px] font-bold text-ink underline"
-      >
-        + New category
-      </button>
+      <>
+        <button
+          type="button"
+          onClick={() => {
+            setNote(null);
+            setOpen(true);
+          }}
+          className="mt-1.5 text-[12px] font-bold text-ink underline"
+        >
+          + New category
+        </button>
+        {note && (
+          <p className="mt-1 text-[11.5px] font-semibold text-ink-700" role="status">
+            {note}
+          </p>
+        )}
+      </>
     );
   }
   return (

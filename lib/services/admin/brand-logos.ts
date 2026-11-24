@@ -28,6 +28,8 @@ import { sniffImage, type StoreObject } from "@/lib/services/admin/product-image
 
 export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
 export const MIN_LOGO_EDGE = 64;
+/** A logo is a small mark; this bounds decode memory for highly compressed files. */
+export const MAX_LOGO_EDGE = 4000;
 
 type Actor = { id: string; email: string };
 
@@ -35,7 +37,7 @@ export type BrandLogoResult =
   | { ok: true; logoUrl: string; unchanged: boolean }
   | {
       ok: false;
-      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "UNREADABLE" | "RIGHTS_REQUIRED" | "LICENCE_REQUIRED" | "BAD_SOURCE" | "STORE_FAILED";
+      code: "NOT_FOUND" | "TOO_LARGE" | "NOT_AN_IMAGE" | "TOO_SMALL" | "TOO_BIG_DIMENSIONS" | "UNREADABLE" | "RIGHTS_REQUIRED" | "LICENCE_REQUIRED" | "BAD_SOURCE" | "STORE_FAILED";
       detail?: string;
     };
 
@@ -83,41 +85,56 @@ export async function uploadBrandLogo(
     return { ok: false, code: "UNREADABLE" };
   }
   if (Math.min(width, height) < MIN_LOGO_EDGE) return { ok: false, code: "TOO_SMALL" };
+  if (Math.max(width, height) > MAX_LOGO_EDGE) return { ok: false, code: "TOO_BIG_DIMENSIONS" };
 
   const sha256 = createHash("sha256").update(params.bytes).digest("hex");
   const base = deps.imageBase.replace(/\/$/, "");
   const path = `brands/${brand.slug}/logo-${sha256}.${kind.ext}`;
   const logoUrl = `${base}/${path}`;
-  if (brand.logoUrl === logoUrl) return { ok: true, logoUrl, unchanged: true };
 
+  /* Storing is idempotent (hash-addressed, create-only; an object already there
+     is success, lib/services/admin/image-store.ts), so it happens before the row
+     is touched and also covers restoring a logo removed earlier. */
   try {
     await deps.store(path, params.bytes, kind.contentType);
   } catch (e) {
     return { ok: false, code: "STORE_FAILED", detail: e instanceof Error ? e.message.slice(0, 80) : "unknown" };
   }
 
-  await db.$transaction(async (tx) => {
-    await tx.brand.update({ where: { id: brand.id }, data: { logoUrl } });
+  const declaration = {
+    logoUrl,
+    sha256,
+    width,
+    height,
+    contentType: kind.contentType,
+    licence,
+    sourceUrl: sourceUrl || null,
+    rightsDeclaredBy: params.actor.email,
+  };
+  /* The row is locked and re-read here, so the comparison and the audit's
+     "before" are what is actually stored now, not what was read before the
+     upload: a concurrent replace or remove cannot be overwritten unrecorded.
+     The same file again still records this upload's declaration (a renewed
+     licence or a different declarer is worth keeping), without changing the row. */
+  const unchanged = await db.$transaction(async (tx) => {
+    const [current] = await tx.$queryRaw<{ id: string; logoUrl: string | null }[]>`
+      SELECT id, logo_url AS "logoUrl" FROM brands WHERE id = ${brand.id}::uuid FOR UPDATE`;
+    if (!current) return null;
+    const same = current.logoUrl === logoUrl;
+    if (!same) await tx.brand.update({ where: { id: current.id }, data: { logoUrl } });
     await recordAudit(tx, {
       actorType: "admin",
       actorId: params.actor.id,
-      action: "brand.logo_set",
+      action: same ? "brand.logo_declared" : "brand.logo_set",
       entityType: "brand",
-      entityId: brand.id,
-      before: { logoUrl: brand.logoUrl },
-      after: {
-        logoUrl,
-        sha256,
-        width,
-        height,
-        contentType: kind.contentType,
-        licence,
-        sourceUrl: sourceUrl || null,
-        rightsDeclaredBy: params.actor.email,
-      },
+      entityId: current.id,
+      before: { logoUrl: current.logoUrl },
+      after: declaration,
     });
+    return same;
   });
-  return { ok: true, logoUrl, unchanged: false };
+  if (unchanged === null) return { ok: false, code: "NOT_FOUND" };
+  return { ok: true, logoUrl, unchanged };
 }
 
 /** Take a brand's logo off. The stored file is kept (the bucket is create-only for

@@ -216,7 +216,7 @@ const quickBrandSchema = z.object({ name: schema.shape.name });
 
 export async function adminQuickAddBrand(
   input: unknown
-): Promise<ActionResult<{ id: string; name: string; slug: string; logoUrl: string | null }>> {
+): Promise<ActionResult<{ id: string; name: string; slug: string; logoUrl: string | null; existed: boolean }>> {
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
   const parsed = quickBrandSchema.safeParse(input);
@@ -230,24 +230,27 @@ export async function adminQuickAddBrand(
     created = await createBrand({ name, slug, isActive: true }, admin, "product_form");
   } catch (error) {
     if (!isBrandConflict(error)) throw error;
-    /* Say which brand is already there, so the operator can simply pick it. */
+    /* Already there (perhaps added by someone else since the form loaded): hand
+       an active one back so the form selects it and the draft is kept; a retired
+       one is refused, since choosing it would bring it back without saying so. */
     const existing = await db.brand.findFirst({
       where: { OR: [{ slug }, { name: { equals: name, mode: "insensitive" } }] },
-      select: { name: true, isActive: true },
+      select: { id: true, name: true, slug: true, isActive: true, logoUrl: true },
     });
+    if (existing?.isActive) {
+      return succeed({ id: existing.id, name: existing.name, slug: existing.slug, logoUrl: existing.logoUrl, existed: true });
+    }
     return fail(
       "CONFLICT",
       existing
-        ? existing.isActive
-          ? `"${existing.name}" already exists. Choose it from the list.`
-          : `"${existing.name}" already exists but is retired. Restore it on the Brands page to use it.`
+        ? `"${existing.name}" already exists but is retired. Restore it on the Brands page to use it.`
         : "A brand with that name already exists"
     );
   }
   log("INFO", { service: "catalog", event: "brand_created", metadata: { slug, createdBy: admin.email, source: "product_form" } });
   revalidatePath("/admin/brands");
   revalidatePath("/admin/listing");
-  return succeed({ id: created.id, name: created.name, slug: created.slug, logoUrl: null });
+  return succeed({ id: created.id, name: created.name, slug: created.slug, logoUrl: null, existed: false });
 }
 
 /** Take a brand's logo off (issue #7). The audit row keeps the URL removed. */

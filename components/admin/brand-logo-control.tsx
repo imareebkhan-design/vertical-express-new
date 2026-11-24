@@ -55,7 +55,7 @@ export function BrandLogoControl({
       const res = await fetch("/api/admin/brand-logos", { method: "POST", body });
       const json = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; unchanged?: boolean } | null;
       if (res.ok && json?.ok) {
-        setMessage({ ok: true, text: json.unchanged ? "That logo is already set." : "Logo saved." });
+        setMessage({ ok: true, text: json.unchanged ? "That logo is already set; this declaration was recorded." : "Logo saved." });
         reset();
         router.refresh();
       } else {

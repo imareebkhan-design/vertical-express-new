@@ -8,6 +8,7 @@ import { categorySlug } from "@/lib/services/admin/taxonomy-slug";
 import { productTypeLabel } from "@/lib/services/admin/product-create";
 import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
+import { db } from "@/lib/db";
 
 /** Creating and editing categories from the console. Rules: lib/services/admin/categories.ts. */
 
@@ -113,6 +114,7 @@ export async function adminQuickAddCategory(input: unknown): Promise<
     hsn: string | null;
     gstRatePct: number | null;
     typeLabel: string;
+    existed: boolean;
   }>
 > {
   const admin = await getAdminUser();
@@ -136,24 +138,27 @@ export async function adminQuickAddCategory(input: unknown): Promise<
     },
     { id: admin.id, email: admin.email }
   );
+  const taxes = new Map(Object.entries(CATEGORY_TAX_CONFIGS));
+  const option = (c: { id: string; name: string; slug: string; group: string; isBulk: boolean; isActive: boolean }, existed: boolean) => ({
+    ...c,
+    hsn: taxes.get(c.slug)?.hsn ?? null,
+    gstRatePct: taxes.get(c.slug)?.ratePct ?? null,
+    typeLabel: productTypeLabel(c.slug),
+    existed,
+  });
   if (!result.ok) {
-    if (result.code === "NAME_TAKEN") return fail("CONFLICT", `A category called "${name}" already exists. Choose it from the list.`);
-    return fail("CONFLICT", `The web address "${slug}" is already used by another category. Choose it from the list, or use a different name.`);
+    /* Already there (perhaps added by someone else since the form loaded):
+       hand it back so the form selects it and the draft is kept. Hidden or
+       shown, it keeps its own settings; nothing about it is changed here. */
+    const existing = await db.category.findFirst({
+      where: { OR: [{ slug }, { name: { equals: name, mode: "insensitive" } }] },
+      select: { id: true, name: true, slug: true, group: true, isBulk: true, isActive: true },
+    });
+    if (existing) return succeed(option(existing, true));
+    return fail("CONFLICT", `The web address "${slug}" is already used by another category. Use a different name.`);
   }
 
   revalidatePath("/admin/categories");
   revalidatePath("/admin/listing");
-  /* Own-property lookup: the slug is derived from operator input. */
-  const tax = new Map(Object.entries(CATEGORY_TAX_CONFIGS)).get(slug);
-  return succeed({
-    id: result.id,
-    name,
-    slug,
-    group: parsed.data.group,
-    isBulk: false,
-    isActive: false,
-    hsn: tax?.hsn ?? null,
-    gstRatePct: tax?.ratePct ?? null,
-    typeLabel: productTypeLabel(slug),
-  });
+  return succeed(option({ id: result.id, name, slug, group: parsed.data.group, isBulk: false, isActive: false }, false));
 }

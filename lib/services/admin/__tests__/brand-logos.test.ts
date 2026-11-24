@@ -67,13 +67,15 @@ test("a logo is stored by its hash and audited with the rights declaration and l
   assert.equal(after.sourceUrl, "https://example.test/brand");
   assert.match(String(after.sha256), /^[a-f0-9]{64}$/);
 
-  // The same file again changes nothing and writes no second audit row.
+  // The same file again changes nothing on the brand, but its new declaration is kept.
   const again = await uploadBrandLogo(
-    { brandSlug: b.slug, bytes, rightsConfirmed: true, licence: LICENCE, actor: b.actor },
+    { brandSlug: b.slug, bytes, rightsConfirmed: true, licence: "renewed dealer agreement 2027", actor: b.actor },
     { store: m.store, imageBase: BASE }
   );
   assert.deepEqual(again, { ok: true, logoUrl: r.logoUrl, unchanged: true });
   assert.equal(await db.auditLog.count({ where: { entityId: b.id, action: "brand.logo_set" } }), 1);
+  const declared = await db.auditLog.findFirstOrThrow({ where: { entityId: b.id, action: "brand.logo_declared" } });
+  assert.equal((declared.after as { licence: string }).licence, "renewed dealer agreement 2027");
 });
 
 test("no rights declaration or no licence: refused before anything is stored", async () => {
@@ -154,4 +156,44 @@ test("createBrand refuses a duplicate name or slug instead of renaming the exist
   await assert.rejects(createBrand({ name: `${TAG} other`, slug: b.slug, isActive: true }, a, "product_form"), isBrandP2002);
   await assert.rejects(createBrand({ name: b.name, slug: `${TAG}-other`, isActive: true }, a, "product_form"), isBrandP2002);
   assert.equal((await db.brand.findUniqueOrThrow({ where: { id: b.id } })).name, b.name);
+});
+
+test("a logo changed while an upload was storing is what the audit records as replaced", async () => {
+  const b = await brand("race");
+  const m = memoryStore();
+  const first = await uploadBrandLogo({ brandSlug: b.slug, bytes: await png(100, 100, 20), rightsConfirmed: true, licence: LICENCE, actor: b.actor }, { store: m.store, imageBase: BASE });
+  assert.ok(first.ok);
+  if (!first.ok) return;
+  // Another operator removes the logo while this upload is being stored.
+  const racing: StoreObject = async (path, bytes, contentType) => {
+    await removeBrandLogo(b.slug, b.actor);
+    await m.store(path, bytes, contentType);
+  };
+  const second = await uploadBrandLogo({ brandSlug: b.slug, bytes: await png(100, 100, 220), rightsConfirmed: true, licence: LICENCE, actor: b.actor }, { store: racing, imageBase: BASE });
+  assert.ok(second.ok && !second.unchanged);
+  const latest = await db.auditLog.findFirstOrThrow({ where: { entityId: b.id, action: "brand.logo_set" }, orderBy: { createdAt: "desc" } });
+  assert.equal((latest.before as { logoUrl: string | null }).logoUrl, null, "the audit recorded a URL that was no longer there");
+});
+
+test("a removed logo can be restored by uploading the same file again", async () => {
+  const b = await brand("restore");
+  const m = memoryStore();
+  const bytes = await png(120, 120, 60);
+  const up = (store: StoreObject) => uploadBrandLogo({ brandSlug: b.slug, bytes, rightsConfirmed: true, licence: LICENCE, actor: b.actor }, { store, imageBase: BASE });
+  const first = await up(m.store);
+  assert.ok(first.ok);
+  assert.equal(await removeBrandLogo(b.slug, b.actor), "removed");
+  // The object already exists; the real store treats that as success (create-only bucket, 412 = stored).
+  const again = await up(m.store);
+  assert.ok(again.ok && !again.unchanged);
+  if (first.ok && again.ok) assert.equal(again.logoUrl, first.logoUrl);
+  assert.equal((await db.brand.findUniqueOrThrow({ where: { id: b.id } })).logoUrl, first.ok ? first.logoUrl : null);
+});
+
+test("an oversized image is refused before storage", async () => {
+  const b = await brand("huge");
+  const m = memoryStore();
+  const r = await uploadBrandLogo({ brandSlug: b.slug, bytes: await png(4100, 80), rightsConfirmed: true, licence: LICENCE, actor: b.actor }, { store: m.store, imageBase: BASE });
+  assert.equal(r.ok === false && r.code, "TOO_BIG_DIMENSIONS");
+  assert.equal(m.objects.size, 0);
 });
