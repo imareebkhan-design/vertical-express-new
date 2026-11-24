@@ -134,7 +134,9 @@ export function BrandLogoControl({
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+              }}
               aria-label={`Logo file for ${name}`}
               className="mt-1 block w-full text-[12px] font-semibold normal-case tracking-normal text-ink"
             />
@@ -143,7 +145,9 @@ export function BrandLogoControl({
             Licence or agreement
             <input
               value={licence}
-              onChange={(e) => setLicence(e.target.value)}
+              onChange={(e) => {
+                setLicence(e.target.value);
+              }}
               placeholder="e.g. dealer agreement with the brand, 2026"
               aria-label={`Licence for ${name} logo`}
               className={`${field} mt-1 normal-case tracking-normal`}
@@ -153,7 +157,9 @@ export function BrandLogoControl({
             Where it came from (optional)
             <input
               value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.target.value)}
+              onChange={(e) => {
+                setSourceUrl(e.target.value);
+              }}
               placeholder="https://…"
               aria-label={`Source link for ${name} logo`}
               className={`${field} mt-1 normal-case tracking-normal`}
@@ -163,7 +169,9 @@ export function BrandLogoControl({
             <input
               type="checkbox"
               checked={rights}
-              onChange={(e) => setRights(e.target.checked)}
+              onChange={(e) => {
+                setRights(e.target.checked);
+              }}
               aria-label={`The business has the right to use the ${name} logo`}
               className="mt-0.5"
             />
@@ -172,7 +180,9 @@ export function BrandLogoControl({
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={upload}
+              onClick={() => {
+                void upload();
+              }}
               disabled={!ready || busy}
               className="h-9 rounded-panel bg-ink px-4 text-[12.5px] font-bold text-white disabled:opacity-50"
             >

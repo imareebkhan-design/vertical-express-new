@@ -16,7 +16,9 @@ mock.module("@/lib/services/admin/brand-writes", { namedExports: {
   editBrand: write,
   setBrandActive: async () => { writes++; return "unchanged"; },
   assignProductBrand: async () => { writes++; return { ok: true, changed: false }; },
+  createBrand: async () => { await write(); return { id: "new-id", name: "After", slug: "after", isActive: true }; },
 } });
+mock.module("@/lib/services/admin/brand-logos", { namedExports: { removeBrandLogo: async () => { writes++; return "removed"; } } });
 let actions: typeof import("@/actions/brands");
 before(async () => { actions = await import("@/actions/brands"); });
 beforeEach(() => { authorized = true; failure = undefined; writes = 0; paths.length = 0; });
@@ -34,7 +36,7 @@ test("brand actions reject a non-admin before validating or mutating", async () 
   authorized = false;
   const results = await Promise.all([
     actions.adminSaveBrand(null), actions.adminSetBrandActive("test", undefined as unknown as boolean),
-    actions.adminAssignProductBrand(null),
+    actions.adminAssignProductBrand(null), actions.adminQuickAddBrand(null), actions.adminRemoveBrandLogo(null),
   ]);
   for (const result of results) {
     assert.equal(result.ok, false);
@@ -63,4 +65,20 @@ test("unchanged brand retries still invalidate console and storefront caches", a
   paths.length = 0;
   assert.equal((await actions.adminAssignProductBrand({ productId: "1d4c4a12-e858-4f82-bc49-fb67cd346701", brandId: "2d4c4a12-e858-4f82-bc49-fb67cd346701" })).ok, true);
   assert.deepEqual(paths, ["/admin/products", "/"]);
+});
+
+test("quick-add from the product form: an audit failure is a failure, never 'already exists'", async () => {
+  const ok = await actions.adminQuickAddBrand({ name: "After" });
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.deepEqual(ok.data, { id: "new-id", name: "After", slug: "after", logoUrl: null });
+  const error = new Prisma.PrismaClientKnownRequestError("audit conflict", { code: "P2002", clientVersion: "test", meta: { modelName: "AuditLog", target: ["id"] } });
+  failure = error;
+  await assert.rejects(actions.adminQuickAddBrand({ name: "After" }), (received) => received === error);
+});
+
+test("quick-add refuses a name with no letters or numbers without writing", async () => {
+  const result = await actions.adminQuickAddBrand({ name: "!!!" });
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "VALIDATION");
+  assert.equal(writes, 0);
 });

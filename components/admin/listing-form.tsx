@@ -575,7 +575,13 @@ function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; l
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 text-[12px] font-bold text-ink underline">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+        }}
+        className="mt-1.5 text-[12px] font-bold text-ink underline"
+      >
         + New brand
       </button>
     );
@@ -584,7 +590,9 @@ function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; l
     <div className="mt-2 flex flex-col gap-2 rounded-field bg-chip-soft/60 p-2.5" role="group" aria-label="New brand">
       <input
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => {
+          setName(e.target.value);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -650,7 +658,13 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 text-[12px] font-bold text-ink underline">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+        }}
+        className="mt-1.5 text-[12px] font-bold text-ink underline"
+      >
         + New category
       </button>
     );
@@ -659,7 +673,9 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
     <div className="mt-2 flex flex-col gap-2 rounded-field bg-chip-soft/60 p-2.5" role="group" aria-label="New category">
       <input
         value={name}
-        onChange={(e) => setName(e.target.value)}
+        onChange={(e) => {
+          setName(e.target.value);
+        }}
         placeholder="Category name"
         aria-label="New category name"
         autoFocus
@@ -667,14 +683,16 @@ function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories
       />
       <select
         value={group}
-        onChange={(e) => setGroup(e.target.value as CategoryGroupKey | "")}
+        onChange={(e) => {
+          setGroup(e.target.value as CategoryGroupKey | "");
+        }}
         aria-label="New category department"
         className="h-9 w-full rounded-field bg-white px-3 text-[12.5px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
       >
         <option value="">Department…</option>
-        {(Object.keys(GROUP_LABELS) as CategoryGroupKey[]).map((g) => (
+        {Object.entries(GROUP_LABELS).map(([g, label]) => (
           <option key={g} value={g}>
-            {GROUP_LABELS[g]}
+            {label}
           </option>
         ))}
       </select>

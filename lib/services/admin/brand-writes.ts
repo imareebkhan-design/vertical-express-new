@@ -76,41 +76,31 @@ export async function assignProductBrand(productId: string, brandId: string, act
   });
 }
 
-export type CreateBrandResult =
-  | { ok: true; brand: { id: string; name: string; slug: string; isActive: boolean } }
-  | { ok: false; code: "TAKEN" };
-
 /**
  * Insert a brand and audit it in one transaction. The single create path for the
- * Brands page and for "+ New brand" on the product form, so both refuse a
- * duplicate the same way: the unique constraint on name and slug, never an upsert
- * (an upsert keyed on slug silently renamed an existing brand; see actions/brands.ts).
+ * Brands page and for "+ New brand" on the product form. Never an upsert (an
+ * upsert keyed on slug silently renamed an existing brand; see actions/brands.ts):
+ * a duplicate name or slug raises the unique-constraint error, which the caller
+ * classifies. Any other failure, including one from the audit write, propagates.
  */
 export async function createBrand(
   data: { name: string; slug: string; isActive: boolean },
   actor: Actor,
   source: "brands_page" | "product_form" = "brands_page"
-): Promise<CreateBrandResult> {
-  try {
-    const brand = await db.$transaction(async (tx) => {
-      const created = await tx.brand.create({
-        data,
-        select: { id: true, name: true, slug: true, isActive: true },
-      });
-      await recordAudit(tx, {
-        actorType: "admin",
-        actorId: actor.id,
-        action: "brand.created",
-        entityType: "brand",
-        entityId: created.id,
-        after: { ...data, source },
-      });
-      return created;
+): Promise<{ id: string; name: string; slug: string; isActive: boolean }> {
+  return db.$transaction(async (tx) => {
+    const created = await tx.brand.create({
+      data,
+      select: { id: true, name: true, slug: true, isActive: true },
     });
-    return { ok: true, brand };
-  } catch (error) {
-    const e = error as { code?: string; meta?: { modelName?: string } };
-    if (e?.code === "P2002") return { ok: false, code: "TAKEN" };
-    throw error;
-  }
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "brand.created",
+      entityType: "brand",
+      entityId: created.id,
+      after: { ...data, source },
+    });
+    return created;
+  });
 }

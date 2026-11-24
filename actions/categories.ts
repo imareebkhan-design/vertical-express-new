@@ -143,7 +143,8 @@ export async function adminQuickAddCategory(input: unknown): Promise<
 
   revalidatePath("/admin/categories");
   revalidatePath("/admin/listing");
-  const tax = CATEGORY_TAX_CONFIGS[slug];
+  /* Own-property lookup: the slug is derived from operator input. */
+  const tax = new Map(Object.entries(CATEGORY_TAX_CONFIGS)).get(slug);
   return succeed({
     id: result.id,
     name,

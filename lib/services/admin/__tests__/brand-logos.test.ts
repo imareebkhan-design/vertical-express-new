@@ -29,11 +29,9 @@ async function actor() {
 }
 async function brand(suffix: string) {
   const a = await actor();
-  const r = await createBrand({ name: `${TAG} ${suffix}`, slug: `${TAG}-${suffix}`, isActive: true }, a);
-  assert.equal(r.ok, true);
-  if (!r.ok) throw new Error("brand fixture");
-  createdIds.push(r.brand.id);
-  return { ...r.brand, actor: a };
+  const created = await createBrand({ name: `${TAG} ${suffix}`, slug: `${TAG}-${suffix}`, isActive: true }, a);
+  createdIds.push(created.id);
+  return { ...created, actor: a };
 }
 const png = (w: number, h: number, shade = 90) =>
   sharp({ create: { width: w, height: h, channels: 3, background: { r: shade, g: 30, b: 160 } } }).png().toBuffer().then((b) => new Uint8Array(b));
@@ -56,7 +54,9 @@ test("a logo is stored by its hash and audited with the rights declaration and l
   );
   assert.equal(r.ok, true);
   if (!r.ok) return;
-  assert.match(r.logoUrl, new RegExp(`^${BASE}/brands/${b.slug}/logo-[a-f0-9]{64}\\.png$`));
+  const prefix = `${BASE}/brands/${b.slug}/logo-`;
+  assert.ok(r.logoUrl.startsWith(prefix) && r.logoUrl.endsWith(".png"), r.logoUrl);
+  assert.match(r.logoUrl.slice(prefix.length, -".png".length), /^[a-f0-9]{64}$/);
   assert.equal(m.objects.size, 1);
   const row = await db.brand.findUniqueOrThrow({ where: { id: b.id }, select: { logoUrl: true } });
   assert.equal(row.logoUrl, r.logoUrl);
@@ -150,9 +150,8 @@ test("the upload route refuses cross-site requests and non-admins before reading
 test("createBrand refuses a duplicate name or slug instead of renaming the existing brand", async () => {
   const b = await brand("dupe");
   const a = await actor();
-  const sameSlug = await createBrand({ name: `${TAG} other`, slug: b.slug, isActive: true }, a, "product_form");
-  assert.deepEqual(sameSlug, { ok: false, code: "TAKEN" });
-  const sameName = await createBrand({ name: b.name, slug: `${TAG}-other`, isActive: true }, a, "product_form");
-  assert.deepEqual(sameName, { ok: false, code: "TAKEN" });
+  const isBrandP2002 = (e: unknown) => (e as { code?: string; meta?: { modelName?: string } }).code === "P2002" && (e as { meta?: { modelName?: string } }).meta?.modelName === "Brand";
+  await assert.rejects(createBrand({ name: `${TAG} other`, slug: b.slug, isActive: true }, a, "product_form"), isBrandP2002);
+  await assert.rejects(createBrand({ name: b.name, slug: `${TAG}-other`, isActive: true }, a, "product_form"), isBrandP2002);
   assert.equal((await db.brand.findUniqueOrThrow({ where: { id: b.id } })).name, b.name);
 });

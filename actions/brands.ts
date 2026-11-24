@@ -58,6 +58,12 @@ const schema = z.object({
     .optional(),
 });
 
+/** A unique-constraint failure on the brand itself (name or slug taken). Not one
+ *  from the audit write or anything else: those are failures, not "already exists". */
+function isBrandConflict(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.meta?.modelName === "Brand";
+}
+
 export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>> {
   const admin = await getAdminUser();
   if (!admin) return fail("FORBIDDEN", "Admin access required");
@@ -98,8 +104,12 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
   } else {
     /* Both name and slug are unique. Either collision means the brand is
        already here — which is a thing to say, not a thing to overwrite. */
-    const created = await createBrand({ name, slug, isActive }, admin);
-    if (!created.ok) return fail("CONFLICT", "A brand with that name or slug already exists");
+    try {
+      await createBrand({ name, slug, isActive }, admin);
+    } catch (error) {
+      if (isBrandConflict(error)) return fail("CONFLICT", "A brand with that name or slug already exists");
+      throw error;
+    }
 
     log("INFO", {
       service: "catalog",
@@ -215,8 +225,11 @@ export async function adminQuickAddBrand(
   const slug = brandSlug(name);
   if (slug.length < 2) return fail("VALIDATION", "A brand name needs at least two letters or numbers");
 
-  const created = await createBrand({ name, slug, isActive: true }, admin, "product_form");
-  if (!created.ok) {
+  let created: Awaited<ReturnType<typeof createBrand>>;
+  try {
+    created = await createBrand({ name, slug, isActive: true }, admin, "product_form");
+  } catch (error) {
+    if (!isBrandConflict(error)) throw error;
     /* Say which brand is already there, so the operator can simply pick it. */
     const existing = await db.brand.findFirst({
       where: { OR: [{ slug }, { name: { equals: name, mode: "insensitive" } }] },
@@ -234,7 +247,7 @@ export async function adminQuickAddBrand(
   log("INFO", { service: "catalog", event: "brand_created", metadata: { slug, createdBy: admin.email, source: "product_form" } });
   revalidatePath("/admin/brands");
   revalidatePath("/admin/listing");
-  return succeed({ id: created.brand.id, name: created.brand.name, slug: created.brand.slug, logoUrl: null });
+  return succeed({ id: created.id, name: created.name, slug: created.slug, logoUrl: null });
 }
 
 /** Take a brand's logo off (issue #7). The audit row keeps the URL removed. */
