@@ -153,17 +153,43 @@ retired product; old addresses 404; the photo URLs 404.
 
 `lib/catalog/production-image-delivery.json` is now empty; photos uploaded since go to the production bucket
 directly. `scripts/verify-image-delivery.mts` was a rehearsal for the original 260-image cutover and no longer
-applies.
+applies: against today's catalogue it stops at "Restore has no source images to exercise" and never prints a
+result. That stop means "nothing to check", not "photos verified".
 
-Restore: within the bucket's soft-delete window (7 days, to 26 Nov), run
-`gcloud storage restore 'gs://ve-production-product-images/<object>#<deleted-generation>'` for each object.
-Cloud Storage assigns a **new generation** to each restored object. Regenerate
-`lib/catalog/production-image-delivery.json` using those new generations, verify the pinned URLs serve the backed-up
-bytes, and deploy the updated mapping. The previous mapping (find it with
-`git log -- lib/catalog/production-image-delivery.json`) is a reference for entries only; its old generation pins
-will not serve the restored objects. After the soft-delete window, re-upload from the local copies and likewise
-regenerate and verify the mapping with the new generations. `scripts/apply-image-rehome.mts` updates database URLs;
-it does not generate this delivery mapping.
+### Restoring the photos
+
+A recovery is its own owner-approved change. Reverting a commit restores no photo: the bytes are only in the
+bucket's soft-delete store (to 26 Nov) and in the local copies. The guard
+`lib/__tests__/image-delivery.test.ts` ("stay removed unless a reviewed recovery lists them") fails CI on any mapping
+for one of the 260 deleted ids unless that id is in `recovered` in
+`lib/__tests__/fixtures/retired-image-delivery-ids.json` with the generation the mapping pins. It also fails a
+mapping that pins the deleted generation (listed per id in `deleted`), which no longer serves.
+
+1. **Rows.** Restore the photo rows first (below). The mapping only applies to a row whose id, URL and SHA-256 all
+   match it; the backed-up rows point at `ve-staging-product-images`, and the mapping keeps that URL as `from`.
+2. **Objects.** Within the soft-delete window run
+   `gcloud storage restore 'gs://ve-production-product-images/<object>#<deleted-generation>'` per object. The deleted generation
+   per id is in the fixture's `deleted`; the object is the row's URL path under `products/`; both are also in
+   `dry-run-delete-files.csv` in the backup folder. After
+   the window, upload the local copy instead. Either way the live object gets a **new generation**.
+3. **Record the new generation** of each object:
+   `gcloud storage objects describe gs://ve-production-product-images/<object> --format='value(generation)'`.
+4. **Verify the bytes.** Download
+   `https://storage.googleapis.com/ve-production-product-images/<object>?generation=<new>` and check its SHA-256
+   equals the restored row's `sha256`. If it does not, stop: that photo is not recovered.
+5. **The recovery change**, reviewed and merged to the release branch, updates both files for each verified photo:
+   - `lib/catalog/production-image-delivery.json`: `{ id, sha256, from, to }`, where `id` and `sha256` are the row's,
+     `from` is the row's `url`, and `to` is the production object URL with `?generation=<new>` and no other query.
+   - the fixture's `recovered`: `{ id, generation: "<new>" }`.
+   CI then checks the entry's shape and that it pins exactly the recorded new generation. Do not copy entries from
+   the old mapping (`git show 27fac16:lib/catalog/production-image-delivery.json`): every pin in it is a deleted
+   generation and the guard rejects it. `scripts/apply-image-rehome.mts` rewrites database URLs; it does not produce
+   this mapping and is not the recovery path.
+6. **Deploy** the reviewed commit with `PRODUCTION_IMAGE_DELIVERY=1` (already set in `apphosting.production.yaml`).
+   The photos belong to archived products, so customers see them only once those products are brought back
+   (`scripts/catalogue-reset.mts restore`, separately approved). Only then can
+   `scripts/verify-image-delivery.mts` rehearse the whole set end to end on a local restore; until then, step 4 is the
+   check.
 
 Rows: explicitly set `RESTORE_DATABASE_URL` to the owner-approved target database and `WORKSPACE_ROOT` to the
 absolute workspace path, then run:
@@ -175,4 +201,5 @@ pg_restore --dbname="${RESTORE_DATABASE_URL:?Set the approved restore target}" -
 
 Rehearse against a scratch database first: this restores all `product_images` rows in the backup, so reconcile
 any rows already present before restoring to production. The object list with deleted generations and the file
-copies are in `outputs/production-image-backups/legacy-catalogue-2026-11-19/` (workspace).
+copies are in `outputs/production-image-backups/legacy-catalogue-2026-11-19/` (workspace). None of these steps has
+been rehearsed; the guard's behaviour is covered by synthetic test data only.
