@@ -4,7 +4,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import type { DecodedIdToken } from "firebase-admin/auth";
 import { db } from "@/lib/db";
 import { APP_CANCEL_REASON, handleCancelOrder, handleGetOrder } from "@/lib/api/v1";
-import type { CapturedLookup } from "@/lib/services/orders";
+import { cancelOrder, type CapturedLookup } from "@/lib/services/orders";
 import { PaymentConfigError } from "@/lib/services/payments";
 import { redeemCoupon } from "@/lib/services/coupon-eligibility";
 
@@ -379,4 +379,40 @@ test("the cancel commits and the detail comes back empty: 200 with the minimal b
   assert.equal(res.status, 200);
   assert.deepEqual((await json(res)).data, { orderNo: o.orderNo, status: "cancelled" });
   assert.equal(await statusOf(o.id), "cancelled");
+});
+
+/* ------------------------------------------- who cancelled, for the order page */
+
+test("detail says cancelledByCustomer only when the customer cancelled — never for expiry or an operator", async () => {
+  const detail = async (orderNo: string) =>
+    (await json(await get(orderNo))).data as unknown as { status: string; paymentState: string; cancelledByCustomer: boolean };
+
+  const viaApp = await order("online", "pending_payment");
+  assert.equal((await cancel(viaApp.orderNo)).status, 200);
+  const app = await detail(viaApp.orderNo);
+  assert.equal(app.cancelledByCustomer, true);
+  assert.equal(app.paymentState, "expired", "the payment state itself is unchanged");
+
+  const viaWeb = await order("cod", "confirmed");
+  await cancelOrder(userA, viaWeb.orderNo, "Cancelled by customer");
+  assert.equal((await detail(viaWeb.orderNo)).cancelledByCustomer, true);
+
+  /* As the expiry job writes it: no actor. */
+  const expired = await order("online", "pending_payment");
+  await db.order.update({ where: { id: expired.id }, data: { status: "cancelled", cancelledReason: "Payment window expired (15 min)" } });
+  await db.orderStatusEvent.create({
+    data: { orderId: expired.id, fromStatus: "pending_payment", toStatus: "cancelled", note: "Stale pending_payment auto-cancelled after 15 minutes" },
+  });
+  const exp = await detail(expired.orderNo);
+  assert.equal(exp.cancelledByCustomer, false);
+  assert.equal(exp.paymentState, "expired");
+
+  /* An operator's cancel: someone else is the actor. */
+  const byOps = await order("cod", "confirmed");
+  await db.order.update({ where: { id: byOps.id }, data: { status: "cancelled", cancelledReason: "Out of stock" } });
+  await db.orderStatusEvent.create({ data: { orderId: byOps.id, fromStatus: "confirmed", toStatus: "cancelled", note: "Out of stock", actorUserId: userB } });
+  assert.equal((await detail(byOps.orderNo)).cancelledByCustomer, false);
+
+  const open = await order("cod", "confirmed");
+  assert.equal((await detail(open.orderNo)).cancelledByCustomer, false);
 });

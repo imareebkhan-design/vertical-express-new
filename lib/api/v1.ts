@@ -883,6 +883,14 @@ function cancelOffer(order: OrderWithDetails, gateway: GatewayCheck | undefined)
   return offer;
 }
 
+/** True when the order is cancelled and its latest cancellation was recorded by the
+ *  order's own customer (the web and app cancel both set `actorUserId` to them). */
+function cancelledByCustomer(order: OrderWithDetails): boolean {
+  if (order.status !== "cancelled") return false;
+  const last = [...order.statusEvents].reverse().find((e) => e.toStatus === "cancelled");
+  return !!last && last.actorUserId === order.userId;
+}
+
 /** The order detail body `GET /api/v1/orders/:orderNo` answers with; null when the
  *  caller has no such order. Shared so the cancel endpoint answers with exactly
  *  what a later GET would return. */
@@ -913,6 +921,11 @@ async function orderDetailBody(userId: string, orderNo: string, deps: OrderDetai
        `paymentState: "pending"`, which already tells the customer to wait and not
        pay again. The kinds are unchanged; cancelOrder stays the authority. */
     cancel: cancelOffer(order, status.gateway),
+    /* Additive: whether the customer cancelled this order themselves (web or app),
+       read from who recorded the cancellation. `paymentState` says "expired" for
+       any cancelled order with no payment, which is right for payment purposes but
+       must not be read as "it expired": the expiry job records no actor. */
+    cancelledByCustomer: cancelledByCustomer(order),
   };
   const tracked = await getShipmentsForOrder(userId, orderNo);
   return {
