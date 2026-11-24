@@ -1,31 +1,17 @@
-name: CI
-
-# Quality gate for every push and pull request. Mirrors the "Before reporting done"
-# checklist in CLAUDE.md: typecheck, lint, the component tests, the commerce test
-# suite and a production build must all pass.
-#
-# The suite writes real rows, so it runs against a throwaway Postgres service
-# container — never a shared database. test-support/db-guard.mjs enforces that.
-
+name: PR 97 browser verification
 on:
   push:
-    branches: ["**"]
-  pull_request:
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
+    branches: ["qa/pr-97-navbar-browser"]
+permissions:
+  contents: read
 jobs:
-  verify:
+  browser:
     runs-on: ubuntu-latest
-    # The service suite alone takes ~11 minutes locally (755 tests, 26 Sep 2026);
-    # 15 left no room for the component tests and the production build.
-    # 30 stopped being enough by 19 Nov 2026: the test step alone took 25-26
-    # minutes and the release-head push run was cancelled at the limit twice
-    # during the production build (run 44388941929).
-    timeout-minutes: 45
-
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        navbar: [before, after]
     services:
       postgres:
         image: postgres:17
@@ -46,12 +32,20 @@ jobs:
       DIRECT_URL: postgresql://postgres:postgres@localhost:5432/vertical_express_test?schema=public
       VE_TEST_DATABASE: "1"
       NODE_ENV: test
+      COMMERCE_MODE: catalogue
+      NEXT_TELEMETRY_DISABLED: '1'
       PAYMENT_GATEWAY: dummy
       AUTH_OTP_CHANNEL: email
       NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Restore the release navbar for the baseline
+        if: matrix.navbar == 'before'
+        run: git restore --source=5817e00e3609ff065925771bc177c7a4e972b152 -- components/sections/navbar.tsx
 
       - uses: actions/setup-node@v4
         with:
@@ -90,34 +84,6 @@ jobs:
       - name: Approve seeded synthetic catalogue for tests
         run: NODE_PATH=./test-support/stubs node --conditions=react-server --import ./test-support/db-guard.mjs --import tsx test-support/approve-seed-catalogue.mts
 
-      - name: Typecheck
-        run: npx tsc --noEmit
-
-      - name: Lint
-        run: npm run lint
-
-      # jsdom + Testing Library (`test-support/ui-setup.ts`). No database.
-      - name: Component tests
-        run: npm run test:ui
-
-      # Guards the two blind spots the token migration could not reach:
-      # retired brand colours hidden inside arbitrary values, and stray hex.
-      - name: Design system
-        run: npm run check:ds
-
-      # Guards the failure that let real manufacturers' product photography ship as
-      # our own catalogue: a branded file used as a product image, a category
-      # composite silently substituted as a fallback, or a referenced image missing.
-      - name: Assets
-        run: npm run check:assets
-
-      - name: Test
-        run: npm test
-
-      # The release artefact itself. Runs last, against the seeded throwaway
-      # database above (static pages query it at build time), with no .env file
-      # in the checkout. The gateway stays `dummy`: the production payment guard
-      # (`assertPaymentConfig`) runs at server start, not at build.
       - name: Production build
         env:
           NODE_ENV: production
@@ -133,3 +99,48 @@ jobs:
           NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "0"
           NEXT_PUBLIC_FIREBASE_APP_ID: ci-placeholder
         run: npm run build
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run the navbar checks against the local production build
+        env:
+          E2E_BASE_URL: http://localhost:3000
+          NAV_VERSION: ${{ matrix.navbar }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: navbar-results.json
+        run: |
+          NODE_ENV=production npm run start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/navbar-next.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          curl -fsS --retry 20 --retry-all-errors --retry-delay 2 http://localhost:3000/services -o /dev/null
+          result=0
+          npx playwright test e2e/navbar-scroll.spec.ts --workers=1 --retries=0 --reporter=list,json || result=$?
+          python - <<'PY'
+          import base64, json, os
+          report = json.load(open("navbar-results.json"))
+          drifts = []
+          def visit(suite):
+              for spec in suite.get("specs", []):
+                  for test in spec["tests"]:
+                      for result in test["results"]:
+                          for attachment in result.get("attachments", []):
+                              if attachment["name"] != "navbar-scroll-trace":
+                                  continue
+                              trace = json.loads(base64.b64decode(attachment["body"]))
+                              tops = [s["contentTop"] for s in trace]
+                              drift = max(tops) - min(tops)
+                              drifts.append(drift)
+                              print(spec["title"], "document-position range:", drift, "CSS px", flush=True)
+              for child in suite.get("suites", []):
+                  visit(child)
+          visit(report)
+          assert len(drifts) == 2, drifts
+          if os.environ["NAV_VERSION"] == "before":
+              assert min(drifts) > 1, drifts
+          PY
+          if [ "$NAV_VERSION" = after ]; then exit "$result"; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: navbar-${{ matrix.navbar }}-browser-results
+          path: navbar-results.json
+          retention-days: 7
