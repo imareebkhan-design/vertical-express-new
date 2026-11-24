@@ -4,6 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { adminListProduct } from "@/actions/listing";
+import { adminQuickAddBrand } from "@/actions/brands";
+import { adminQuickAddCategory } from "@/actions/categories";
+import { GROUP_LABELS, type CategoryGroupKey } from "@/components/admin/categories-manager";
 import { parsePincodeList } from "@/lib/pincode";
 
 /**
@@ -23,7 +26,7 @@ import { parsePincodeList } from "@/lib/pincode";
  * (lib/services/admin/publish-guard.ts), not this form.
  */
 export interface ListingOptions {
-  brands: { id: string; name: string }[];
+  brands: { id: string; name: string; logoUrl?: string | null }[];
   /* Tax comes down with the category rather than being looked up here. The
      rate table is server-only and is the single source of truth for what a
      customer is charged; a client-side copy of it would drift, and the version
@@ -34,6 +37,8 @@ export interface ListingOptions {
     slug: string;
     group: string;
     isBulk: boolean;
+    /** False for a hidden category: selectable for a draft, not shown to customers. */
+    isActive?: boolean;
     hsn: string | null;
     gstRatePct: number | null;
     /** What "product type" is called in this category: "Grade" for cement, "Type" for tile. */
@@ -82,6 +87,10 @@ export function ListingForm({ options }: { options: ListingOptions }) {
   const [skuTouched, setSkuTouched] = useState(false);
   const [pending, start] = useTransition();
   const [result, setResult] = useState<{ ok: boolean; text: string; slug?: string } | null>(null);
+  /* Brands and categories made from this form (issue #7) join these lists and are
+     selected, without touching anything else already typed into the draft. */
+  const [brands, setBrands] = useState(options.brands);
+  const [categories, setCategories] = useState(options.categories);
 
   const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -93,7 +102,19 @@ export function ListingForm({ options }: { options: ListingOptions }) {
     });
   };
 
-  const category = options.categories.find((c) => c.id === form.categoryId);
+  const category = categories.find((c) => c.id === form.categoryId);
+  const brand = brands.find((b) => b.id === form.brandId);
+
+  const addedBrand = (b: ListingOptions["brands"][number]) => {
+    setBrands((list) => [...list, b].sort((x, y) => x.name.localeCompare(y.name)));
+    set("brandId", b.id);
+  };
+  const addedCategory = (c: ListingOptions["categories"][number]) => {
+    setCategories((list) => [...list, c]);
+    /* Same rule as choosing one from the list: a type typed for another
+       category does not carry over. */
+    setForm((f) => ({ ...f, categoryId: c.id, productType: "" }));
+  };
 
   const submit = () => {
     setResult(null);
@@ -167,12 +188,23 @@ export function ListingForm({ options }: { options: ListingOptions }) {
               className={field}
             >
               <option value="">Choose a brand…</option>
-              {options.brands.map((b) => (
+              {brands.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}
                 </option>
               ))}
             </select>
+            {brand?.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element -- admin preview of the brand's stored logo
+              <img
+                src={brand.logoUrl}
+                alt={`${brand.name} logo`}
+                width={28}
+                height={28}
+                className="mt-1.5 h-7 w-7 rounded-field bg-white object-contain ring-1 ring-line"
+              />
+            )}
+            <QuickAddBrand onAdded={addedBrand} />
           </Field>
 
           <Field label="Category" need="required" hint="Decides the tax rate and how it travels.">
@@ -188,12 +220,19 @@ export function ListingForm({ options }: { options: ListingOptions }) {
               className={field}
             >
               <option value="">Choose a category…</option>
-              {options.categories.map((c) => (
+              {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                  {c.isActive === false ? " (hidden)" : ""}
                 </option>
               ))}
             </select>
+            {category?.isActive === false && (
+              <p className="mt-1.5 text-[11.5px] font-semibold leading-[16px] text-ops-warn">
+                Hidden: customers do not see this category until it is switched on in Categories.
+              </p>
+            )}
+            <QuickAddCategory onAdded={addedCategory} />
           </Field>
 
           <Field
@@ -242,6 +281,12 @@ export function ListingForm({ options }: { options: ListingOptions }) {
           <p className="text-[12px] font-medium leading-[17px] text-ink-700">
             Tax follows the category: HSN {category.hsn}, GST {category.gstRatePct}%. Prices
             you enter below are inclusive of it — the tax is extracted, never added on top.
+          </p>
+        )}
+        {category && category.gstRatePct === null && (
+          <p className="text-[12px] font-semibold leading-[17px] text-ops-warn">
+            Tax for {category.name}: <strong>Not configured</strong>. The draft can be saved, but it
+            cannot be published until an HSN code and GST rate are confirmed for this category.
           </p>
         )}
       </Section>
@@ -504,5 +549,163 @@ function Field({
       {children}
       {hint && <span className="mt-1 block text-[11.5px] font-medium text-ink-500">{hint}</span>}
     </label>
+  );
+}
+
+/** "+ New brand": a name, created through the same rules as the Brands page. */
+function QuickAddBrand({ onAdded }: { onAdded: (b: { id: string; name: string; logoUrl: string | null }) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const add = () => {
+    setError(null);
+    start(async () => {
+      const res = await adminQuickAddBrand({ name });
+      if (res.ok) {
+        onAdded({ id: res.data.id, name: res.data.name, logoUrl: res.data.logoUrl });
+        setName("");
+        setOpen(false);
+      } else {
+        setError(res.error.message);
+      }
+    });
+  };
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 text-[12px] font-bold text-ink underline">
+        + New brand
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-field bg-chip-soft/60 p-2.5" role="group" aria-label="New brand">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (name.trim().length >= 2 && !pending) add();
+          }
+        }}
+        placeholder="Brand name, as on the pack"
+        aria-label="New brand name"
+        autoFocus
+        className="h-9 w-full rounded-field bg-white px-3 text-[12.5px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+      />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={add}
+          disabled={pending || name.trim().length < 2}
+          className="h-8 rounded-panel bg-ink px-3.5 text-[12px] font-bold text-white disabled:opacity-50"
+        >
+          {pending ? "Adding…" : "Add brand"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="h-8 rounded-panel bg-chip px-3.5 text-[12px] font-bold text-ink"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p className="text-[11.5px] font-semibold text-ops-bad" role="status">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** "+ New category": created hidden, with no tax until one is confirmed. */
+function QuickAddCategory({ onAdded }: { onAdded: (c: ListingOptions["categories"][number]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [group, setGroup] = useState<CategoryGroupKey | "">("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const add = () => {
+    setError(null);
+    start(async () => {
+      const res = await adminQuickAddCategory({ name, group });
+      if (res.ok) {
+        onAdded(res.data);
+        setName("");
+        setGroup("");
+        setOpen(false);
+      } else {
+        setError(res.error.message);
+      }
+    });
+  };
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-1.5 text-[12px] font-bold text-ink underline">
+        + New category
+      </button>
+    );
+  }
+  return (
+    <div className="mt-2 flex flex-col gap-2 rounded-field bg-chip-soft/60 p-2.5" role="group" aria-label="New category">
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Category name"
+        aria-label="New category name"
+        autoFocus
+        className="h-9 w-full rounded-field bg-white px-3 text-[12.5px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+      />
+      <select
+        value={group}
+        onChange={(e) => setGroup(e.target.value as CategoryGroupKey | "")}
+        aria-label="New category department"
+        className="h-9 w-full rounded-field bg-white px-3 text-[12.5px] font-semibold text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-ink"
+      >
+        <option value="">Department…</option>
+        {(Object.keys(GROUP_LABELS) as CategoryGroupKey[]).map((g) => (
+          <option key={g} value={g}>
+            {GROUP_LABELS[g]}
+          </option>
+        ))}
+      </select>
+      <p className="text-[11.5px] font-medium leading-[16px] text-ink-700">
+        Starts hidden from customers, with no tax set. Show it on the Categories page once it is ready.
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={add}
+          disabled={pending || name.trim().length < 2 || group === ""}
+          className="h-8 rounded-panel bg-ink px-3.5 text-[12px] font-bold text-white disabled:opacity-50"
+        >
+          {pending ? "Adding…" : "Add category"}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            setError(null);
+          }}
+          className="h-8 rounded-panel bg-chip px-3.5 text-[12px] font-bold text-ink"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && (
+        <p className="text-[11.5px] font-semibold text-ops-bad" role="status">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }

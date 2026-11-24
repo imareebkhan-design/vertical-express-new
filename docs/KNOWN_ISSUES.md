@@ -1015,6 +1015,16 @@ does not appear anywhere in the built output.
 
 ---
 
+### ISS-044 addendum — Brand logos from the console (25 Nov 2026, issue #7)
+
+Brand logos can now be uploaded on the Brands page (`lib/services/admin/brand-logos.ts`).
+A logo is stored only when the operator ticks a declaration that the business may use it
+and names the licence or agreement; both are written to the audit log (`brand.logo_set`)
+with the file's SHA-256, dimensions, uploader and the URL it replaced. Raster only (JPEG,
+PNG, WebP, sniffed from the bytes; no SVG), at most 2 MB, at least 64 px. Removing a logo
+is audited (`brand.logo_removed`) and keeps the stored file. No storefront surface renders
+`Brand.logoUrl`; showing logos to customers is a separate, owner-approved change.
+
 ### ISS-008 / ISS-044 addendum — Login hero brand names in text (31 Aug 2026, FIXED)
 
 The login hero (`components/auth/login-hero.tsx`) rendered six third-party brand names

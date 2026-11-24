@@ -17,7 +17,7 @@ export default async function AdminBrands() {
   if (!(await getAdminUser())) return null;
   const rows = await db.brand.findMany({
     orderBy: [{ isActive: "desc" }, { name: "asc" }],
-    select: { slug: true, name: true, isActive: true, _count: { select: { products: true } } },
+    select: { slug: true, name: true, isActive: true, logoUrl: true, _count: { select: { products: true } } },
   });
 
   return (
@@ -31,7 +31,9 @@ export default async function AdminBrands() {
           name: b.name,
           isActive: b.isActive,
           productCount: b._count.products,
+          logoUrl: b.logoUrl,
         }))}
+        logoUploadEnabled={Boolean(process.env.NEXT_PUBLIC_PRODUCT_IMAGE_BASE)}
       />
     </OpsScreen>
   );

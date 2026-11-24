@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { CATEGORY_GROUPS, saveCategory, setCategoryActive } from "@/lib/services/admin/categories";
+import { categorySlug } from "@/lib/services/admin/taxonomy-slug";
+import { productTypeLabel } from "@/lib/services/admin/product-create";
+import { CATEGORY_TAX_CONFIGS } from "@/lib/services/tax";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /** Creating and editing categories from the console. Rules: lib/services/admin/categories.ts. */
@@ -78,4 +81,78 @@ export async function adminSetCategoryActive(slug: unknown, isActive: unknown): 
   revalidatePath(`/category/${parsedSlug.data}`);
   revalidatePath("/", "layout");
   return succeed({ changed: result === "changed" });
+}
+
+/**
+ * "+ New category" on the product form (issue #7).
+ *
+ * Creates the category HIDDEN (isActive false) and hands back what the form
+ * needs to select it, so a draft can be filed under it straight away while the
+ * category itself stays off the storefront until the owner shows it on the
+ * Categories page. It has no tax mapping until an HSN/GST rate is confirmed and
+ * added in code; the form says "Not configured", and the publish check refuses
+ * to sell anything in it until then (lib/services/admin/publish-guard.ts).
+ * Nothing about a draft depends on either.
+ *
+ * The department group is chosen, never guessed: it decides where the category
+ * is listed once shown.
+ */
+const quickSchema = z.object({
+  name: schema.shape.name,
+  group: schema.shape.group,
+});
+
+export async function adminQuickAddCategory(input: unknown): Promise<
+  ActionResult<{
+    id: string;
+    name: string;
+    slug: string;
+    group: string;
+    isBulk: boolean;
+    isActive: boolean;
+    hsn: string | null;
+    gstRatePct: number | null;
+    typeLabel: string;
+  }>
+> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = quickSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", parsed.error.issues[0]?.message ?? "Those details are not valid");
+  const name = parsed.data.name;
+  const slug = categorySlug(name);
+  if (!schema.shape.slug.safeParse(slug).success) return fail("VALIDATION", "A category name needs at least two letters or numbers");
+
+  const result = await saveCategory(
+    {
+      slug,
+      name,
+      group: parsed.data.group as (typeof CATEGORY_GROUPS)[number],
+      description: null,
+      sortOrder: 0,
+      isActive: false,
+      seoTitle: null,
+      seoDescription: null,
+    },
+    { id: admin.id, email: admin.email }
+  );
+  if (!result.ok) {
+    if (result.code === "NAME_TAKEN") return fail("CONFLICT", `A category called "${name}" already exists. Choose it from the list.`);
+    return fail("CONFLICT", `The web address "${slug}" is already used by another category. Choose it from the list, or use a different name.`);
+  }
+
+  revalidatePath("/admin/categories");
+  revalidatePath("/admin/listing");
+  const tax = CATEGORY_TAX_CONFIGS[slug];
+  return succeed({
+    id: result.id,
+    name,
+    slug,
+    group: parsed.data.group,
+    isBulk: false,
+    isActive: false,
+    hsn: tax?.hsn ?? null,
+    gstRatePct: tax?.ratePct ?? null,
+    typeLabel: productTypeLabel(slug),
+  });
 }
