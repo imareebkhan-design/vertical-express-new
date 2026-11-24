@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { adminSaveBrand, adminSetBrandActive } from "@/actions/brands";
+import { BrandLogoControl } from "@/components/admin/brand-logo-control";
 
 /**
  * The brands the catalogue sells, and a way to add one.
@@ -10,14 +11,15 @@ import { adminSaveBrand, adminSetBrandActive } from "@/actions/brands";
  * catalogue shipped with ten invented ones because there was no way to enter a
  * real one — this is that way.
  *
- * Names only. Logos and packaging photography are licensed separately from the
- * right to say you stock something, so there is no image field here until the
- * owner confirms what their agreements permit.
+ * Logos are licensed separately from the right to say you stock something, so
+ * each upload asks for that right and the licence (BrandLogoControl, issue #7).
  */
 export function BrandsManager({
   brands,
+  logoUploadEnabled = false,
 }: {
-  brands: { slug: string; name: string; isActive: boolean; productCount: number }[];
+  brands: { slug: string; name: string; isActive: boolean; productCount: number; logoUrl?: string | null }[];
+  logoUploadEnabled?: boolean;
 }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -224,13 +226,16 @@ export function BrandsManager({
                   )}
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-[13.5px] font-bold text-ink">{b.name}</p>
-                    <p className="mt-0.5 text-[11.5px] font-semibold text-ink-500">
-                      {b.slug} · {b.productCount}{" "}
-                      {b.productCount === 1 ? "product" : "products"}
-                    </p>
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <p className="text-[13.5px] font-bold text-ink">{b.name}</p>
+                      <p className="mt-0.5 text-[11.5px] font-semibold text-ink-500">
+                        {b.slug} · {b.productCount}{" "}
+                        {b.productCount === 1 ? "product" : "products"}
+                      </p>
+                    </div>
+                    <BrandLogoControl slug={b.slug} name={b.name} logoUrl={b.logoUrl ?? null} uploadEnabled={logoUploadEnabled} />
                   </div>
                   <div className="flex items-center gap-2">
                     <button

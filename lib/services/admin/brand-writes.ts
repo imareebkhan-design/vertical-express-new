@@ -75,3 +75,32 @@ export async function assignProductBrand(productId: string, brandId: string, act
     return { ok: true as const, changed: true as const, product, brand };
   });
 }
+
+/**
+ * Insert a brand and audit it in one transaction. The single create path for the
+ * Brands page and for "+ New brand" on the product form. Never an upsert (an
+ * upsert keyed on slug silently renamed an existing brand; see actions/brands.ts):
+ * a duplicate name or slug raises the unique-constraint error, which the caller
+ * classifies. Any other failure, including one from the audit write, propagates.
+ */
+export async function createBrand(
+  data: { name: string; slug: string; isActive: boolean },
+  actor: Actor,
+  source: "brands_page" | "product_form" = "brands_page"
+): Promise<{ id: string; name: string; slug: string; isActive: boolean }> {
+  return db.$transaction(async (tx) => {
+    const created = await tx.brand.create({
+      data,
+      select: { id: true, name: true, slug: true, isActive: true },
+    });
+    await recordAudit(tx, {
+      actorType: "admin",
+      actorId: actor.id,
+      action: "brand.created",
+      entityType: "brand",
+      entityId: created.id,
+      after: { ...data, source },
+    });
+    return created;
+  });
+}

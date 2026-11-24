@@ -6,8 +6,9 @@ import { db } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client/client";
 import { getAdminUser } from "@/lib/services/admin/authz";
 import { log } from "@/lib/observability";
-import { recordAudit } from "@/lib/services/audit";
-import { editBrand, setBrandActive, assignProductBrand } from "@/lib/services/admin/brand-writes";
+import { editBrand, setBrandActive, assignProductBrand, createBrand } from "@/lib/services/admin/brand-writes";
+import { brandSlug } from "@/lib/services/admin/taxonomy-slug";
+import { removeBrandLogo } from "@/lib/services/admin/brand-logos";
 import { type ActionResult, fail, succeed } from "@/lib/validators";
 
 /**
@@ -18,9 +19,10 @@ import { type ActionResult, fail, succeed } from "@/lib/validators";
  * a product page is a factual claim about what is in the bag, so it belongs to
  * whoever buys the stock, not to a seed file.
  *
- * Names only. Logos and packaging photography are licensed separately from the
- * right to say you stock something, and nothing here uploads an image until the
- * owner confirms what their agreements actually permit (ISS-044).
+ * Logos are separate (lib/services/admin/brand-logos.ts): a name is the right
+ * to say you stock something, a logo is artwork licensed on its own terms, so
+ * a logo is stored only with the operator's declaration of the right to use it
+ * and the licence it is used under (issue #7, ISS-044).
  */
 const schema = z.object({
   name: z.string().trim().min(2, "A brand needs a name").max(60),
@@ -55,6 +57,12 @@ const schema = z.object({
     .regex(/^[a-z0-9-]+$/)
     .optional(),
 });
+
+/** A unique-constraint failure on the brand itself (name or slug taken). Not one
+ *  from the audit write or anything else: those are failures, not "already exists". */
+function isBrandConflict(error: unknown): boolean {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.meta?.modelName === "Brand";
+}
 
 export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>> {
   const admin = await getAdminUser();
@@ -94,24 +102,12 @@ export async function adminSaveBrand(input: unknown): Promise<ActionResult<null>
       },
     });
   } else {
+    /* Both name and slug are unique. Either collision means the brand is
+       already here — which is a thing to say, not a thing to overwrite. */
     try {
-      await db.$transaction(async (tx) => {
-        const created = await tx.brand.create({ data: { slug, name, isActive }, select: { id: true } });
-        await recordAudit(tx, {
-          actorType: "admin",
-          actorId: admin.id,
-          action: "brand.created",
-          entityType: "brand",
-          entityId: created.id,
-          after: { name, slug, isActive },
-        });
-      });
+      await createBrand({ name, slug, isActive }, admin);
     } catch (error) {
-      /* Both name and slug are unique. Either collision means the brand is
-         already here — which is a thing to say, not a thing to overwrite. */
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && error.meta?.modelName === "Brand") {
-        return fail("CONFLICT", "A brand with that name or slug already exists");
-      }
+      if (isBrandConflict(error)) return fail("CONFLICT", "A brand with that name or slug already exists");
       throw error;
     }
 
@@ -204,4 +200,68 @@ export async function adminAssignProductBrand(input: unknown): Promise<ActionRes
   revalidatePath("/admin/products");
   revalidatePath("/", "layout");
   return succeed(null);
+}
+
+/**
+ * "+ New brand" on the product form (issue #7): create a brand without leaving
+ * the draft being typed, and hand back what the form needs to select it.
+ *
+ * Name only; the slug is derived here, so the two forms of creation cannot
+ * disagree about what a slug is. Active, like a brand added on the Brands page:
+ * a brand is shown to customers only once a published product carries it
+ * (lib/services/catalog.ts brandsInCategory / brandsForSearchEntry), so making
+ * it selectable publishes nothing.
+ */
+const quickBrandSchema = z.object({ name: schema.shape.name });
+
+export async function adminQuickAddBrand(
+  input: unknown
+): Promise<ActionResult<{ id: string; name: string; slug: string; logoUrl: string | null; existed: boolean }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = quickBrandSchema.safeParse(input);
+  if (!parsed.success) return fail("VALIDATION", parsed.error.issues[0]?.message ?? "That name is not valid");
+  const name = parsed.data.name;
+  const slug = brandSlug(name);
+  if (slug.length < 2) return fail("VALIDATION", "A brand name needs at least two letters or numbers");
+
+  let created: Awaited<ReturnType<typeof createBrand>>;
+  try {
+    created = await createBrand({ name, slug, isActive: true }, admin, "product_form");
+  } catch (error) {
+    if (!isBrandConflict(error)) throw error;
+    /* Already there (perhaps added by someone else since the form loaded): hand
+       an active one back so the form selects it and the draft is kept; a retired
+       one is refused, since choosing it would bring it back without saying so. */
+    const existing = await db.brand.findFirst({
+      where: { OR: [{ slug }, { name: { equals: name, mode: "insensitive" } }] },
+      select: { id: true, name: true, slug: true, isActive: true, logoUrl: true },
+    });
+    if (existing?.isActive) {
+      return succeed({ id: existing.id, name: existing.name, slug: existing.slug, logoUrl: existing.logoUrl, existed: true });
+    }
+    return fail(
+      "CONFLICT",
+      existing
+        ? `"${existing.name}" already exists but is retired. Restore it on the Brands page to use it.`
+        : "A brand with that name already exists"
+    );
+  }
+  log("INFO", { service: "catalog", event: "brand_created", metadata: { slug, createdBy: admin.email, source: "product_form" } });
+  revalidatePath("/admin/brands");
+  revalidatePath("/admin/listing");
+  return succeed({ id: created.id, name: created.name, slug: created.slug, logoUrl: null, existed: false });
+}
+
+/** Take a brand's logo off (issue #7). The audit row keeps the URL removed. */
+export async function adminRemoveBrandLogo(slug: unknown): Promise<ActionResult<{ removed: boolean }>> {
+  const admin = await getAdminUser();
+  if (!admin) return fail("FORBIDDEN", "Admin access required");
+  const parsed = z.string().trim().regex(/^[a-z0-9-]+$/).safeParse(slug);
+  if (!parsed.success) return fail("VALIDATION", "That is not a brand");
+  const result = await removeBrandLogo(parsed.data, admin);
+  if (result === "missing") return fail("NOT_FOUND", "That brand no longer exists");
+  revalidatePath("/admin/brands");
+  revalidatePath("/admin/listing");
+  return succeed({ removed: result === "removed" });
 }

@@ -236,3 +236,18 @@ test("product type means the category's first browse attribute", async () => {
   const cement = options.categories.find((c) => c.slug === "cement");
   if (cement) assert.equal(cement.typeLabel, "Grade");
 });
+
+test("a hidden category is offered for drafts and says it is hidden (issue #7)", async () => {
+  const slug = `zzz-hidden-${randomUUID().slice(0, 8)}`;
+  const c = await db.category.create({ data: { slug, name: `ZZZ hidden ${slug}`, group: "other", isActive: false } });
+  try {
+    const o = await listingFormOptions();
+    const hidden = o.categories.find((x) => x.id === c.id);
+    assert.ok(hidden, "a hidden category is not offered, so a draft cannot be filed under one made from the form");
+    assert.equal(hidden.isActive, false);
+    assert.equal(hidden.gstRatePct, null, "a new category must not appear to have a tax rate");
+    assert.ok(o.brands.every((b) => "logoUrl" in b), "brand options no longer carry the logo the form previews");
+  } finally {
+    await db.category.delete({ where: { id: c.id } });
+  }
+});

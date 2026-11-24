@@ -229,12 +229,15 @@ export async function listingFormOptions() {
     db.brand.findMany({
       where: { isActive: true },
       orderBy: { name: "asc" },
-      select: { id: true, name: true },
+      select: { id: true, name: true, logoUrl: true },
     }),
+    /* Hidden categories too (issue #7): a category added from the form starts
+       hidden until the owner shows it, and a draft may be filed under it. The
+       form labels them; the storefront never lists a product whose category is
+       hidden (catalogIdentityWhere), so choosing one publishes nothing. */
     db.category.findMany({
-      where: { isActive: true },
-      orderBy: [{ group: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, slug: true, group: true, isBulk: true },
+      orderBy: [{ isActive: "desc" }, { group: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, slug: true, group: true, isBulk: true, isActive: true },
     }),
     db.warehouse.findMany({
       where: { isActive: true },
