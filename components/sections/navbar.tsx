@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import { usePathname } from "next/navigation";
@@ -15,23 +15,24 @@ import {
 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
-import { useScrolled } from "@/hooks/use-scrolled";
 import { SearchBox } from "@/components/shop/search-box";
 import { AccountButton } from "@/components/auth/account-button";
 import { formatINR, cn } from "@/lib/utils";
 import { useCategoryNav } from "@/components/shop/category-nav-provider";
 
-
 export function Navbar() {
-  const scrolled = useScrolled(16);
+  return (
+    <>
+      <PrimaryHeader />
+      <CategoryNavigation />
+    </>
+  );
+}
+
+function PrimaryHeader() {
   const { count, summary } = useCart();
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
   /* The location sheet is the shell's (one instance for every page). */
   const { hasChosenLocation, locationLabel, openLocationModal } = useNativeShell();
-  const pathname = usePathname();
-  /* Departments and their categories, as the shop shows them (lib/category-nav.ts).
-     A switched-off category is not linked; an emptied department disappears. */
-  const { departments } = useCategoryNav();
 
   const totalDisplay = summary.subtotalPaise > 0
     ? formatINR(summary.subtotalPaise / 100)
@@ -106,103 +107,6 @@ export function Navbar() {
 
         {/* 1.5px Soft Rule */}
         <div className="h-[1.5px] bg-line" />
-
-        {/* ROW 2: Category Nav (Collapses on Scroll) */}
-        <AnimatePresence>
-          {!scrolled && (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 50, opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-visible"
-              aria-label="Category and secondary navigation"
-            >
-              <div className="mx-auto flex h-[50px] max-w-[1200px] items-center gap-[26px] px-6">
-                {/* All 21 Categories Ink Pill */}
-                <Link
-                  href="/categories"
-                  className={cn(
-                    "inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold tracking-[-0.01em] transition-colors",
-                    pathname === "/categories"
-                      ? "bg-ink text-white"
-                      : "bg-chip text-ink hover:bg-ink hover:text-white"
-                  )}
-                >
-                  <LayoutGrid className="size-3.5" aria-hidden />
-                  <span>All categories</span>
-                </Link>
-
-                {/* 4 L1 Groups with Dropdowns */}
-                {departments.map((group) => {
-                  const isOpen = openGroup === group.label;
-                  return (
-                    <div
-                      key={group.label}
-                      className="relative"
-                      onMouseEnter={() => setOpenGroup(group.label)}
-                      onMouseLeave={() => setOpenGroup(null)}
-                    >
-                      <Link
-                        href={group.href}
-                        className={cn(
-                          "inline-flex items-center gap-1 text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors",
-                          isOpen && "text-ink"
-                        )}
-                      >
-                        <span>{group.label}</span>
-                        <ChevronDown className="size-3 text-ink-300 transition-transform" aria-hidden />
-                      </Link>
-
-                      {/* Dropdown Menu */}
-                      <AnimatePresence>
-                        {isOpen && (
-                          <motion.div
-                            initial={{ opacity: 0, y: 6 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 6 }}
-                            transition={{ duration: 0.15 }}
-                            className="absolute left-0 top-full z-50 mt-1 min-w-[220px] rounded-card border border-line bg-paper p-2 shadow-card-hover"
-                          >
-                            {group.items.map((item) => (
-                              <Link
-                                key={item.href}
-                                href={item.href}
-                                className="block rounded-chip px-3 py-2 text-[13px] font-semibold text-ink-700 hover:bg-hush hover:text-ink transition-colors"
-                              >
-                                {item.label}
-                              </Link>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-
-                {/* Deals */}
-                <Link
-                  href="/#deals"
-                  className="inline-flex items-center text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors"
-                >
-                  Deals
-                </Link>
-
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Right link */}
-                <Link
-                  href="/services"
-                  className="inline-flex items-center gap-1 text-[13.5px] font-bold tracking-[-0.01em] text-ink hover:text-ink-700 transition-colors"
-                >
-                  <span>Services</span>
-                  <ExternalLink className="size-3.5 text-ink-500" aria-hidden />
-                </Link>
-              </div>
-            </motion.nav>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* =========================================================================
@@ -239,5 +143,114 @@ export function Navbar() {
         </div>
       </div>
     </header>
+  );
+}
+
+function CategoryNavigation() {
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // The trigger scrolls beneath the pinned header. Dismiss its floating menu
+  // when the page moves, without changing the height of either row.
+  useEffect(() => {
+    if (openGroup === null) return;
+    const closeMenu = () => setOpenGroup(null);
+    window.addEventListener("scroll", closeMenu, { passive: true, once: true });
+    return () => window.removeEventListener("scroll", closeMenu);
+  }, [openGroup]);
+
+  const pathname = usePathname();
+  /* Departments and their categories, as the shop shows them (lib/category-nav.ts).
+     A switched-off category is not linked; an emptied department disappears. */
+  const { departments } = useCategoryNav();
+
+  return (
+    <nav
+      aria-label="Category and secondary navigation"
+      className="relative z-30 hidden bg-paper shadow-header lg:block"
+    >
+      <div className="mx-auto flex h-[50px] max-w-[1200px] items-center gap-[26px] px-6">
+        {/* All 21 Categories Ink Pill */}
+        <Link
+          href="/categories"
+          className={cn(
+            "inline-flex h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-bold tracking-[-0.01em] transition-colors",
+            pathname === "/categories"
+              ? "bg-ink text-white"
+              : "bg-chip text-ink hover:bg-ink hover:text-white"
+          )}
+        >
+          <LayoutGrid className="size-3.5" aria-hidden />
+          <span>All categories</span>
+        </Link>
+
+        {/* 4 L1 Groups with Dropdowns */}
+        {departments.map((group) => {
+          const isOpen = openGroup === group.label;
+          return (
+            <div
+              key={group.label}
+              className="relative"
+              onMouseEnter={() => setOpenGroup(group.label)}
+              onMouseLeave={() => setOpenGroup(null)}
+            >
+              <Link
+                href={group.href}
+                className={cn(
+                  "inline-flex items-center gap-1 text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors",
+                  isOpen && "text-ink"
+                )}
+              >
+                <span>{group.label}</span>
+                <ChevronDown className="size-3 text-ink-300 transition-transform" aria-hidden />
+              </Link>
+
+              {/* Dropdown Menu */}
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 top-full z-50 min-w-[220px] pt-1"
+                  >
+                    <div className="rounded-card border border-line bg-paper p-2 shadow-card-hover">
+                      {group.items.map((item) => (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className="block rounded-chip px-3 py-2 text-[13px] font-semibold text-ink-700 hover:bg-hush hover:text-ink transition-colors"
+                        >
+                          {item.label}
+                        </Link>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
+
+        {/* Deals */}
+        <Link
+          href="/#deals"
+          className="inline-flex items-center text-[13.5px] font-bold tracking-[-0.01em] text-ink-700 hover:text-ink transition-colors"
+        >
+          Deals
+        </Link>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Right link */}
+        <Link
+          href="/services"
+          className="inline-flex items-center gap-1 text-[13.5px] font-bold tracking-[-0.01em] text-ink hover:text-ink-700 transition-colors"
+        >
+          <span>Services</span>
+          <ExternalLink className="size-3.5 text-ink-500" aria-hidden />
+        </Link>
+      </div>
+    </nav>
   );
 }
