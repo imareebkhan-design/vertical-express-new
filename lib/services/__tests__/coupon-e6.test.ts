@@ -22,6 +22,7 @@ import { placeOrder, computeTotals } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
 import { SETTING_KEYS } from "@/lib/services/settings";
+import { enableCodForThisFile } from "@/test-support/cod-setting";
 const SUITE_START = new Date();
 
 const PINCODE = "999916";
@@ -68,6 +69,9 @@ const counter = async (couponCode: string) => (await db.coupon.findUniqueOrThrow
 const stockOf = async (variantId: string) =>
   (await db.inventory.findFirstOrThrow({ where: { variantId, warehouseId } })).qtyOnHand;
 
+/* COD on for this file only; restored (or removed) afterwards. */
+enableCodForThisFile();
+
 before(async () => {
   savedEnv.PAYMENT_GATEWAY = process.env.PAYMENT_GATEWAY;
   process.env.PAYMENT_GATEWAY = "dummy";
@@ -86,11 +90,6 @@ before(async () => {
   warehouseId = (await db.warehouse.create({ data: { name: `${TAG} Warehouse`, city: "Srinagar", pincode: "190001" } })).id;
   await db.serviceablePincode.create({
     data: { cityId: await liveTestCityId(), pincode: PINCODE, warehouseId, isActive: true, codAllowed: true, deliveryFeePaise: FEE },
-  });
-  await db.setting.upsert({
-    where: { key: "cod.enabled" },
-    create: { key: "cod.enabled", value: "true" },
-    update: { value: "true" },
   });
   const mkAddr = async (userId: string) =>
     (await db.address.create({

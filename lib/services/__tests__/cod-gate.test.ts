@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { computeTotals } from "@/lib/services/checkout";
 import type { CartSummary } from "@/lib/services/cart";
 import { checkServiceability } from "@/lib/services/serviceability";
+import { preserveCodSettingForThisFile } from "@/test-support/cod-setting";
 
 /**
  * Cash on delivery is off until somebody turns it on.
@@ -43,9 +44,8 @@ async function codAllowedFor(setting: string | null) {
   return totals.codAllowed;
 }
 
-test.after(async () => {
-  await db.setting.deleteMany({ where: { key: "cod.enabled" } });
-});
+/* The cases below set, unset and delete the row; put it back as it was. */
+preserveCodSettingForThisFile();
 
 test("with no setting, cash on delivery is not offered", async () => {
   /* THE DEFAULT THAT MATTERS. An unconfigured system must not offer to take
