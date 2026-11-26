@@ -24,6 +24,10 @@ import { handleAddCartItem } from "@/lib/api/cart-items";
 import { readFileSync } from "node:fs";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
+import { enableCodForThisFile } from "@/test-support/cod-setting";
+
+/* These tests place COD orders; COD is off on a fresh test database. */
+enableCodForThisFile();
 const SUITE_START = new Date();
 
 /**
