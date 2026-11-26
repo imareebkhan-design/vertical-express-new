@@ -17,18 +17,36 @@ import { SETTING_KEYS } from "@/lib/services/settings";
  * any database not marked disposable. Production COD is untouched.
  */
 export function enableCodForThisFile(): void {
+  guardCodSetting({ enable: true });
+}
+
+/**
+ * Saves the `cod.enabled` row before the calling file runs and puts it back
+ * exactly afterwards (value, note, updatedBy), or removes it if it was absent.
+ * For files that switch COD on and off themselves.
+ */
+export function preserveCodSettingForThisFile(): void {
+  guardCodSetting({ enable: false });
+}
+
+function guardCodSetting({ enable }: { enable: boolean }): void {
   let saved: Awaited<ReturnType<typeof db.setting.findUnique>> = null;
   /* Only restore what was actually read: if the read failed, after() must not
      delete a setting it never saw. */
   let captured = false;
+  /* One hook, read first and then write: Node does not run two top-level
+     before() hooks in the order they were registered, so a separate "enable"
+     hook could write before the original row was read. */
   before(async () => {
     saved = await db.setting.findUnique({ where: { key: SETTING_KEYS.codEnabled } });
     captured = true;
-    await db.setting.upsert({
-      where: { key: SETTING_KEYS.codEnabled },
-      create: { key: SETTING_KEYS.codEnabled, value: "true" },
-      update: { value: "true" },
-    });
+    if (enable) {
+      await db.setting.upsert({
+        where: { key: SETTING_KEYS.codEnabled },
+        create: { key: SETTING_KEYS.codEnabled, value: "true" },
+        update: { value: "true" },
+      });
+    }
   });
   after(async () => {
     if (!captured) return;

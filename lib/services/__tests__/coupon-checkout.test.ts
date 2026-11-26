@@ -20,6 +20,7 @@ import { addItem, getCartSummary } from "../cart";
 import { placeOrder, computeTotals } from "../checkout";
 import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
 import { liveTestCityId } from "@/test-support/service-city";
+import { enableCodForThisFile } from "@/test-support/cod-setting";
 const SUITE_START = new Date();
 
 const TEST_PINCODE = "999907";
@@ -31,6 +32,12 @@ let addressId: string;
 let productId: string;
 let variantId: string;
 const savedEnv: Record<string, string | undefined> = {};
+
+/* Cash on delivery is off at the business level until the console turns it
+   on, and these orders are placed as COD. This suite is about coupon
+   arithmetic, not payment policy, so it opts in explicitly for this file and
+   puts the setting back afterwards. */
+enableCodForThisFile();
 
 before(async () => {
   savedEnv.PAYMENT_GATEWAY = process.env.PAYMENT_GATEWAY;
@@ -57,15 +64,6 @@ before(async () => {
     data: { cityId: await liveTestCityId(), pincode: TEST_PINCODE, warehouseId, isActive: true, codAllowed: true },
   });
 
-  /* Cash on delivery is now off at the business level until the console turns
-     it on, and these orders are placed as COD. This suite is about coupon
-     arithmetic, not payment policy, so it opts in explicitly rather than
-     inheriting whatever the default happens to be. */
-  await db.setting.upsert({
-    where: { key: "cod.enabled" },
-    create: { key: "cod.enabled", value: "true" },
-    update: { value: "true" },
-  });
 
   const address = await db.address.create({
     data: {
