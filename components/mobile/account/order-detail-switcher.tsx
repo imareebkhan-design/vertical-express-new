@@ -1,19 +1,25 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
+import { isLatePaid, LATE_PAYMENT_MESSAGE } from "@/lib/payment-window";
+import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { OrderActions } from "@/components/account/order-actions";
 import { PageLoader } from "@/components/page-loader";
 import { formatPaise } from "@/lib/money";
+import { customerCancelState, etaLine, orderTotals, paymentLabel } from "@/lib/order-display";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
 import { ChevronRight, MapPin } from "lucide-react";
 import Link from "next/link";
+import { OrderExpressSelection, type DeliverySelectionShipment } from "@/components/orders/express-selection";
+import { DeliveryCodeCard, type DeliveryCodeShipment } from "@/components/orders/delivery-code-card";
 
 // Mobile Components
 import { MobileOrderDetailView } from "@/components/mobile/account/mobile-order-detail-view";
@@ -29,32 +35,31 @@ const TIMELINE_LABEL: Record<string, string> = {
 interface OrderDetailSwitcherProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   order: any;
+  shipments: ({ speedClass: string } & DeliverySelectionShipment & Partial<DeliveryCodeShipment>)[];
 }
 
-export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
+export function OrderDetailSwitcher({ order, shipments }: OrderDetailSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
-    return <MobileOrderDetailView order={order} />;
+  if (isMobile) {
+    return <MobileOrderDetailView order={order} shipments={shipments} />;
   }
 
   const addr = order.address as unknown as OrderAddressSnapshot;
   const cancelled = order.status === "cancelled";
-  const cancellable = order.status === "pending_payment" || order.status === "confirmed";
+  const payment = { status: order.status, paymentMethod: order.paymentMethod, paymentStatus: order.payments?.[0]?.status };
+  const cancelState = customerCancelState(payment);
+  const eta = etaLine(order, shipments);
+  const totals = orderTotals(order);
   const currentIdx = TIMELINE.indexOf(order.status as (typeof TIMELINE)[number]);
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
         <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1 text-xs font-bold text-neutral-500">
@@ -95,13 +100,20 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
                 );
               })}
             </ol>
-            {order.etaMinutes && currentIdx < 3 && (
-              <p className="mt-4 text-center text-sm font-bold text-success">Estimated delivery in ~{order.etaMinutes} min</p>
-            )}
+            {eta && <p className="mt-4 text-center text-sm font-bold text-success">{eta}</p>}
           </div>
         )}
 
-        {cancelled && order.cancelledReason && (
+        <div className="mb-8 empty:hidden">
+          <DeliveryCodeCard orderNo={order.orderNo} shipments={shipments.map((s) => ({ sequence: s.sequence, deliveryCode: s.deliveryCode ?? null }))} />
+        </div>
+
+        {isLatePaid(order) ? (
+          <div role="status" className="mb-8 rounded-card border border-brand/40 bg-brand/15 p-4 text-sm font-bold text-ink">
+            {LATE_PAYMENT_MESSAGE}
+          </div>
+        ) : null}
+        {cancelled && order.cancelledReason && !isLatePaid(order) && (
           <div className="mb-8 rounded-card border border-neutral-200 bg-surface/60 p-4 text-sm font-bold text-neutral-600">
             This order was cancelled. {order.cancelledReason}
           </div>
@@ -114,10 +126,10 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {order.items.map((item: any) => (
               <li key={item.id} className="flex gap-3">
-                <span className="size-14 shrink-0 overflow-hidden rounded-lg bg-tile">
+                <span className={cn("size-14 shrink-0 overflow-hidden rounded-lg", item.imageUrl ? PRODUCT_PHOTO_SURFACE : "bg-tile")}>
                   {item.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={item.imageUrl} alt={item.title} className="size-full object-contain p-1.5" />
+                    <img src={item.imageUrl} alt={item.title} className={PRODUCT_PHOTO} />
                   )}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -129,13 +141,17 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
             ))}
           </ul>
           <dl className="mt-4 space-y-1.5 border-t border-neutral-100 pt-4 text-sm font-bold">
-            <div className="flex justify-between"><dt className="text-neutral-500">Subtotal</dt><dd>{formatPaise(order.subtotalPaise)}</dd></div>
-            <div className="flex justify-between"><dt className="text-neutral-500">Delivery</dt><dd className={order.deliveryFeePaise === 0 ? "text-success" : ""}>{order.deliveryFeePaise === 0 ? "FREE" : formatPaise(order.deliveryFeePaise)}</dd></div>
-            <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-base font-extrabold"><dt>Total</dt><dd>{formatPaise(order.totalPaise)}</dd></div>
+            {totals.lines.map((l) => (
+              <div key={l.label} className="flex justify-between">
+                <dt className="text-neutral-500">{l.label}</dt>
+                <dd className={l.value === "FREE" ? "text-success" : ""}>{l.value}</dd>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-neutral-100 pt-1.5 text-base font-extrabold"><dt>Total</dt><dd>{totals.total}</dd></div>
           </dl>
-          <p className="mt-3 text-xs font-bold text-neutral-500">
-            Payment: {order.paymentMethod === "cod" ? "Pay on delivery" : "Paid online"}
-          </p>
+          {totals.discountNote && <p className="mt-2 text-xs font-bold text-success">{totals.discountNote}</p>}
+          <p className="mt-3 text-xs font-bold text-neutral-500">Payment: {paymentLabel(payment)}</p>
+          <OrderExpressSelection expressFeePaise={order.expressFeePaise} shipments={shipments} />
         </div>
 
         {/* Address */}
@@ -150,7 +166,7 @@ export function OrderDetailSwitcher({ order }: OrderDetailSwitcherProps) {
         </div>
 
         <div className="mt-6">
-          <OrderActions orderNo={order.orderNo} cancellable={cancellable} status={order.status} />
+          <OrderActions orderNo={order.orderNo} cancelState={cancelState} status={order.status} />
         </div>
       </main>
       <Footer />

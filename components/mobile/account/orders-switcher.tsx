@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
 // Web Components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Footer } from "@/components/sections/footer";
 import { AccountNav } from "@/components/account/account-nav";
@@ -12,6 +12,7 @@ import { OrderStatusBadge } from "@/components/account/order-status-badge";
 import { EmptyState } from "@/components/shop/empty-state";
 import { PageLoader } from "@/components/page-loader";
 import { formatPaise } from "@/lib/money";
+import { itemCountLabel } from "@/lib/order-display";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 
@@ -27,23 +28,18 @@ interface OrdersSwitcherProps {
 
 export function OrdersSwitcher({ orders, page, pages }: OrdersSwitcherProps) {
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return <MobileOrdersView initialOrders={orders} initialPage={page} totalPages={pages} />;
   }
 
   return (
     <>
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content" className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <h1 className="mb-6 text-2xl font-extrabold tracking-tight sm:text-3xl">My Orders</h1>
@@ -54,7 +50,7 @@ export function OrdersSwitcher({ orders, page, pages }: OrdersSwitcherProps) {
             {orders.length === 0 ? (
               <EmptyState
                 title="No orders yet"
-                caption="When you place an order it'll show up here with live tracking."
+                caption="When you place an order it'll show up here with its status."
                 actionLabel="Start shopping"
                 actionHref="/categories"
               />
@@ -84,8 +80,7 @@ export function OrdersSwitcher({ orders, page, pages }: OrdersSwitcherProps) {
                         </div>
                         <p className="mt-0.5 text-xs font-semibold text-neutral-500">
                           {new Date(o.placedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} ·{" "}
-                          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-                          {o.items.reduce((s: number, i: any) => s + i.qty, 0)} items · {formatPaise(o.totalPaise)}
+                          {itemCountLabel(o.items)} · {formatPaise(o.totalPaise)}
                         </p>
                       </div>
                       <ChevronRight className="size-5 shrink-0 text-neutral-300" />

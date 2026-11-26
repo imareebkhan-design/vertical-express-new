@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { AddressesSwitcher } from "@/components/mobile/account/addresses-switcher";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/auth/current-user";
 import { listAddresses } from "@/lib/services/addresses";
 import type { AddressFormValues } from "@/components/account/address-form";
 
 export const metadata: Metadata = {
-  title: "My Addresses | Vertical Express",
+  title: "My Addresses",
   robots: { index: false },
 };
 
@@ -23,9 +23,13 @@ export default async function AddressesPage() {
     line1: a.line1,
     line2: a.line2,
     landmark: a.landmark,
+    accessNote: a.accessNote,
     city: a.city,
     state: a.state,
     pincode: a.pincode,
+    latitude: a.latitude,
+    longitude: a.longitude,
+    placeId: a.placeId,
     isDefault: a.isDefault,
   }));
 

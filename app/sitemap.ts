@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
+import { catalogListingWhere } from "@/lib/catalog-policy";
+import { isQaFixtureSlug } from "@/lib/catalog/qa-fixture-ids";
+
+export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://verticalexpress.dev";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://www.verticalexpress.in";
 
   // Static routes
   const routes = ["", "/categories", "/services"].map((route) => ({
@@ -15,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     // Dynamic Categories
     const categories = await db.category.findMany({
-      where: { isActive: true },
+      where: { isActive: true, products: { some: catalogListingWhere() } },
       select: { slug: true, updatedAt: true },
     });
 
@@ -28,11 +32,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     // Dynamic Products
     const products = await db.product.findMany({
-      where: { status: "published" },
+      where: catalogListingWhere(),
       select: { slug: true, updatedAt: true },
     });
 
-    const productRoutes = products.map((p) => ({
+    /* The synthetic staging checkout item is never advertised. */
+    const productRoutes = products.filter((p) => !isQaFixtureSlug(p.slug)).map((p) => ({
       url: `${siteUrl}/product/${p.slug}`,
       lastModified: p.updatedAt,
       changeFrequency: "weekly" as const,

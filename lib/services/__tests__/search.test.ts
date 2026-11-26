@@ -3,6 +3,11 @@ import assert from "node:assert/strict";
 import { db } from "@/lib/db";
 import { listProducts } from "../catalog";
 import { getSuggestions } from "../search";
+import { handleSearchClosest } from "@/lib/api/v1";
+import { approveTestProductsCreatedSince } from "../../../test-support/catalogue-fixtures";
+import { CATEGORY_TAX_CONFIGS } from "../tax";
+const syntheticCategorySlugs: string[] = [];
+const SUITE_START = new Date();
 let categoryId1: string;
 let categoryId2: string;
 let brandId1: string;
@@ -43,6 +48,9 @@ before(async () => {
     },
   });
   categoryId2 = cat2.id;
+  CATEGORY_TAX_CONFIGS[cat1.slug] = CATEGORY_TAX_CONFIGS.tiling;
+  CATEGORY_TAX_CONFIGS[cat2.slug] = CATEGORY_TAX_CONFIGS.cement;
+  syntheticCategorySlugs.push(cat1.slug, cat2.slug);
 
   // 2. Create test brands
   const br1 = await db.brand.create({
@@ -58,7 +66,7 @@ before(async () => {
   // 3. Create test products
   // Product 1: exact matches "OPC Cement Bag"
   const p1 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "OPC Cement Bag",
       slug: `opc-cement-test-${Date.now()}`,
       description: "Original OPC Cement Bag",
@@ -73,7 +81,7 @@ before(async () => {
 
   // Product 2: title starts with "Cement ReadyMix"
   const p2 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Cement ReadyMix Plaster",
       slug: `cement-readymix-test-${Date.now()}`,
       description: "Starts with cement",
@@ -88,7 +96,7 @@ before(async () => {
 
   // Product 3: contains Distemper paint but matches category or synonym "paint"
   const p3 = await db.product.create({
-    data: {
+    data: { status: "published",
       title: "Acrylic Distemper",
       slug: `distemper-test-${Date.now()}`,
       description: "Wall paint",
@@ -128,9 +136,11 @@ before(async () => {
       ],
     });
   }
+  await approveTestProductsCreatedSince(SUITE_START);
 });
 
 after(async () => {
+  for (const slug of syntheticCategorySlugs) delete CATEGORY_TAX_CONFIGS[slug];
   // Cleanup test data
   if (variant1Id || variant2Id || variant3Id) {
     await db.inventory.deleteMany({
@@ -211,6 +221,23 @@ test("Search Intelligence: Dynamic ranking priorities (Exact Name > Prefix > Con
   assert.ok(idx2 < idx1, `Product 2 starts with 'Cement' (${idx2}) should rank higher than Product 1 contains 'Cement' (${idx1})`);
 });
 
+test("Search Intelligence: an explicit price sort overrides relevance ranking", async () => {
+  // Without a sort, Product 2 (prefix match, ₹420) outranks Product 1 (contains
+  // match, ₹385) — asserted above. A shopper who explicitly picks "Price: Low
+  // to High" expects the cheaper item first regardless, not a control that
+  // looks selected but never reorders anything.
+  const result = await listProducts({ search: "Cement", sort: "price_asc" });
+  const idx1 = result.items.findIndex((i) => i.id === product1Id);
+  const idx2 = result.items.findIndex((i) => i.id === product2Id);
+  assert.ok(idx1 !== -1 && idx2 !== -1, "both products should be found");
+  assert.ok(idx1 < idx2, `₹385 product (${idx1}) should rank before ₹420 product (${idx2}) under price_asc`);
+
+  const resultDesc = await listProducts({ search: "Cement", sort: "price_desc" });
+  const dIdx1 = resultDesc.items.findIndex((i) => i.id === product1Id);
+  const dIdx2 = resultDesc.items.findIndex((i) => i.id === product2Id);
+  assert.ok(dIdx2 < dIdx1, `₹420 product (${dIdx2}) should rank before ₹385 product (${dIdx1}) under price_desc`);
+});
+
 test("Search Suggestions: suggestion route returns ranked matched groups without duplicates", async () => {
   const result = await getSuggestions("cement");
 
@@ -244,4 +271,28 @@ test("Search Intelligence: Unicode emoji and special characters handled graceful
   const result = await listProducts({ search: "cement 🏗️" });
   // Trigrams will match "cement" and handle emoji cleanly
   assert.ok(result.items.some((i) => i.id === product1Id));
+});
+
+test("GET /api/v1/search/closest: a phrase that matches nothing still surfaces its real words", async () => {
+  // "zzqqxx" matches nothing; "cement" alone matches product1/product2.
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest?q=zzqqxx%20cement"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: { id: string }[]; matchedOn: string[] } };
+  assert.ok(data.matchedOn.includes("cement"));
+  assert.ok(data.items.some((i) => i.id === product1Id));
+});
+
+test("GET /api/v1/search/closest: nothing close either returns an empty, not an error", async () => {
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest?q=zzqqxxnothingmatchesthis"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: unknown[]; matchedOn: string[] } };
+  assert.deepEqual(data.items, []);
+  assert.deepEqual(data.matchedOn, []);
+});
+
+test("GET /api/v1/search/closest: a missing query returns empty rather than the whole catalogue", async () => {
+  const res = await handleSearchClosest(new Request("http://localhost/api/v1/search/closest"));
+  assert.equal(res.status, 200);
+  const { data } = (await res.json()) as { data: { items: unknown[] } };
+  assert.deepEqual(data.items, []);
 });

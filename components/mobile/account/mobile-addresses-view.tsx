@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useTransition, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, MapPin, Plus, Loader2 } from "lucide-react";
 import { saveAddress, removeAddress, makeDefaultAddress } from "@/actions/address";
 import type { AddressFormValues } from "@/components/account/address-form";
 import { triggerHaptic } from "@/lib/native/haptics";
+import { useDeliveryPincode } from "@/hooks/use-delivery-pincode";
 import { BottomSheetLayout } from "../bottom-sheet-layout";
 import { cn } from "@/lib/utils";
+import { safeNextPath } from "@/lib/safe-next";
+import { AddressLocation } from "@/components/location/address-location";
+import { pinnedFromAddress, pinnedFromPlace, placeFromPin, STATE_FROM_PINCODE_NOTE, withPinnedLocation, type PinnedLocation } from "@/lib/location/address-pin";
 
 interface MobileAddressesViewProps {
   initialAddresses: (AddressFormValues & { id: string })[];
@@ -28,6 +32,15 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
   const [editingAddressId, setEditingAddressId] = useState<string | null>(null);
   const [addressFormError, setAddressFormError] = useState<string | null>(null);
   const [savingAddress, startSavingAddress] = useTransition();
+  const { pincode: chosenPincode, city: chosenCity, place: chosenPlace } = useDeliveryPincode();
+  /* The map half of the address (see lib/location/address-pin.ts); `manual` is the no-map escape hatch. */
+  const [pinned, setPinned] = useState<PinnedLocation | null>(null);
+  const [manual, setManual] = useState(false);
+  /* A new pin re-fills city and state from the new place; the customer can still correct them. */
+  const choosePin = (pin: PinnedLocation | null) => {
+    setPinned(pin);
+    if (pin) setAddressForm((prev) => ({ ...prev, ...placeFromPin(pin) }));
+  };
 
   const [addressForm, setAddressForm] = useState<AddressFormValues>({
     label: "site",
@@ -36,18 +49,25 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
     line1: "",
     line2: "",
     landmark: "",
-    city: "Srinagar",
-    state: "Jammu & Kashmir",
-    pincode: "190001",
+    city: "",
+    state: "",
+    pincode: "",
     isDefault: false,
   });
 
+  const params = useSearchParams();
+  /* Arriving from checkout ("Add a delivery address"): open the form, and go back there once it is saved. */
+  const returnTo = params.get("next") ? safeNextPath(params.get("next"), "") || null : null;
+
   useEffect(() => {
     setMounted(true);
+    if (params.get("add") === "1") openAddAddressSheet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on arrival
   }, []);
 
   const openAddAddressSheet = () => {
     triggerHaptic("light");
+    const startPin = pinnedFromPlace(chosenPlace, chosenPincode, chosenCity);
     setAddressFormError(null);
     setEditingAddressId(null);
     setAddressForm({
@@ -57,11 +77,15 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
       line1: "",
       line2: "",
       landmark: "",
-      city: "Srinagar",
-      state: "Jammu & Kashmir",
-      pincode: "190001",
+      city: placeFromPin(startPin).city ?? "",
+      state: placeFromPin(startPin).state ?? "",
+      /* Never a pincode the customer did not give us (W-13): the one they
+         confirmed for delivery, else empty. */
+      pincode: chosenPincode ?? "",
       isDefault: false,
     });
+    setPinned(startPin);
+    setManual(false);
     setIsAddressFormOpen(true);
   };
 
@@ -76,11 +100,15 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
       line1: addr.line1,
       line2: addr.line2 || "",
       landmark: addr.landmark || "",
+      accessNote: addr.accessNote || "",
       city: addr.city,
       state: addr.state,
       pincode: addr.pincode,
       isDefault: addr.isDefault,
     });
+    const pin = pinnedFromAddress(addr);
+    setPinned(pin);
+    setManual(pin === null);
     setIsAddressFormOpen(true);
   };
 
@@ -88,14 +116,19 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
     e.preventDefault();
     setAddressFormError(null);
 
-    if (addressForm.pincode.length !== 6) {
+    if (!manual && !pinned) {
+      setAddressFormError("Set the delivery location first, or enter the address without the map.");
+      return;
+    }
+    if (manual && addressForm.pincode.length !== 6) {
       setAddressFormError("Please enter a valid 6-digit pincode");
       return;
     }
+    const payload = manual || !pinned ? { ...addressForm, latitude: null, longitude: null, placeId: null } : withPinnedLocation(addressForm, pinned);
 
     triggerHaptic("medium");
     startSavingAddress(async () => {
-      const res = await saveAddress(addressForm, editingAddressId || undefined);
+      const res = await saveAddress(payload, editingAddressId || undefined);
       if (!res.ok) {
         setAddressFormError(res.error.message);
         return;
@@ -103,7 +136,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
 
       const savedAddress = {
         id: res.data.id,
-        ...addressForm,
+        ...payload,
       };
 
       setAddresses((prev) => {
@@ -113,7 +146,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
         } else {
           updated = [...prev, savedAddress];
         }
-        if (addressForm.isDefault) {
+        if (payload.isDefault) {
           updated = updated.map((a) => (a.id === savedAddress.id ? a : { ...a, isDefault: false }));
         }
         return updated;
@@ -121,7 +154,8 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
 
       setIsAddressFormOpen(false);
       triggerHaptic("light");
-      router.refresh();
+      if (returnTo) router.push(returnTo);
+      else router.refresh();
     });
   };
 
@@ -156,6 +190,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
             triggerHaptic("light");
             router.back();
           }}
+          aria-label="Back"
           className="flex size-9 items-center justify-center rounded-full bg-mist/20 text-ink active:bg-mist/35"
         >
           <ArrowLeft className="size-4.5" />
@@ -248,6 +283,23 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
             </div>
           )}
 
+          {/* Delivery location — the map half of the address */}
+          {manual ? (
+            <p className="text-xs font-semibold text-ink/70">
+              Entering the address by hand — the driver won&apos;t have a map pin.{" "}
+              <button type="button" onClick={() => setManual(false)} className="font-bold text-ink underline underline-offset-2">
+                Use the map instead
+              </button>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <AddressLocation value={pinned} onChange={choosePin} />
+              <button type="button" onClick={() => setManual(true)} className="text-[11px] font-bold text-ink/50 underline underline-offset-2">
+                Can&apos;t find it? Enter the address without the map
+              </button>
+            </div>
+          )}
+
           {/* Address Label */}
           <div>
             <h4 className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 mb-2">
@@ -307,19 +359,20 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
           {/* Address Line 1 */}
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
-              Address Line 1
+              House / flat / floor
             </label>
             <input
               type="text"
               required
               value={addressForm.line1}
               onChange={(e) => setAddressForm((f) => ({ ...f, line1: e.target.value }))}
-              placeholder="House, Flat, Site No."
+              placeholder="e.g. House 12, first floor"
               className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
             />
           </div>
 
-          {/* Address Line 2 */}
+          {/* Street / area — from the map pin unless typed by hand */}
+          {manual ? (
           <div>
             <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
               Address Line 2
@@ -332,8 +385,36 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
               className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
             />
           </div>
+          ) : null}
 
-          {/* Landmark & Pincode */}
+          {/* City and state: pre-filled from the pin when it has them, always the customer's to correct — never assumed. */}
+          <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label htmlFor="address-city" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">City</label>
+                  <input
+                    id="address-city"
+                    type="text"
+                    required
+                    value={addressForm.city}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, city: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="address-state" className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">State</label>
+                  <input
+                    id="address-state"
+                    type="text"
+                    required
+                    value={addressForm.state}
+                    onChange={(e) => setAddressForm((f) => ({ ...f, state: e.target.value }))}
+                    className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+                  />
+                </div>
+          </div>
+          <p className="text-[10px] font-semibold text-ink/50">{STATE_FROM_PINCODE_NOTE}</p>
+
+          {/* Landmark, delivery instructions, and the pincode when typed by hand */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
@@ -347,6 +428,7 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            {manual ? (
             <div>
               <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
                 Pincode
@@ -361,6 +443,21 @@ export function MobileAddressesView({ initialAddresses }: MobileAddressesViewPro
                 className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
               />
             </div>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="text-[10px] font-extrabold uppercase tracking-wider text-ink/40 block mb-1">
+              Delivery instructions (optional)
+            </label>
+            <input
+              type="text"
+              maxLength={240}
+              value={addressForm.accessNote ?? ""}
+              onChange={(e) => setAddressForm((f) => ({ ...f, accessNote: e.target.value }))}
+              placeholder="e.g. Truck can reach the rear gate"
+              className="w-full rounded-xl border border-mist/20 bg-surface p-3 text-xs font-semibold text-ink outline-none focus:border-brand-deep"
+            />
           </div>
 
           {/* Default Address Checkbox */}

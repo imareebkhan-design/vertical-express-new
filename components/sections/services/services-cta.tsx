@@ -21,7 +21,7 @@ export function ServicesCTA() {
       <Reveal>
         <div
           ref={ref}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand to-brand-dark px-6 py-14 text-center sm:px-12 sm:py-16"
+          className="relative overflow-hidden rounded-card-lg bg-gradient-to-br from-brand to-brand-dark px-6 py-14 text-center sm:px-12 sm:py-16"
         >
           <motion.div
             style={{ y }}

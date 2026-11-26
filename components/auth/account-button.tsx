@@ -1,33 +1,27 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { onAuthStateChanged, type User as FirebaseUser } from "firebase/auth";
 import { ChevronDown, LogOut, Package, User, UserRound } from "lucide-react";
-import { createSupabaseBrowser } from "@/lib/supabase/client";
-import { signOut } from "@/actions/auth";
+import { firebaseAuth } from "@/lib/firebase/client";
+import { signOutEverywhereOnThisDevice } from "@/lib/auth/sign-out-client";
 import { cn } from "@/lib/utils";
 
-/** Navbar auth control: Login link when signed out, account menu when signed in. */
+/** Navbar auth control: Sign in when signed out, an account menu when signed in. */
 export function AccountButton() {
   const router = useRouter();
-  const [email, setEmail] = useState<string | null>(null);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
-  const [pending, startTransition] = useTransition();
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const supabase = createSupabaseBrowser();
-    supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null);
+    return onAuthStateChanged(firebaseAuth(), (u) => {
+      setUser(u);
       setReady(true);
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user?.email ?? null);
-    });
-    return () => sub.subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -38,28 +32,33 @@ export function AccountButton() {
     return () => document.removeEventListener("click", onClick);
   }, []);
 
-  const handleSignOut = () => {
-    startTransition(async () => {
-      await signOut();
-      setOpen(false);
-      router.refresh();
-    });
+  const handleSignOut = async () => {
+    await signOutEverywhereOnThisDevice();
+    setOpen(false);
+    router.refresh();
   };
 
-  if (!ready || !email) {
+  if (!ready || !user) {
+    /* `next=/account`, not a bare /login: the browser's Firebase state can be
+       empty while the server session is valid (storage cleared, another tab
+       signed in), and /login sends a signed-in visitor to `next` — "/" when
+       absent — so a bare link looked like the icon only refreshing the page
+       (15 Oct 2026). With next, that visitor lands on their account; a
+       signed-out one signs in and lands there too. */
     return (
       <Link
-        href="/login"
-        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
-        aria-label="Log in"
+        href="/login?next=/account"
+        aria-label="Sign in"
+        className="flex size-[38px] items-center justify-center rounded-full bg-chip-soft text-ink no-underline transition-colors hover:bg-chip"
       >
-        <User className="size-5" aria-hidden />
-        <span className="hidden sm:inline">Login</span>
+        <User className="size-4.5" aria-hidden />
       </Link>
     );
   }
 
-  const handle = email.split("@")[0];
+  /* Phone-first market: show the number when that is how they signed in. */
+  const label = user.phoneNumber ?? user.email?.split("@")[0] ?? "Account";
+  const initial = (user.displayName ?? user.email ?? "A").trim()[0]?.toUpperCase() ?? "A";
 
   return (
     <div className="relative" ref={menuRef}>
@@ -67,55 +66,48 @@ export function AccountButton() {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors hover:bg-surface"
+        className="flex cursor-pointer items-center gap-2 rounded-full bg-chip-soft px-2.5 py-1.5 text-sm font-bold text-ink transition-colors hover:bg-chip"
       >
-        <span className="grid size-6 place-items-center rounded-full bg-brand text-[11px] font-extrabold uppercase text-ink">
-          {handle[0]}
+        <span className="grid size-6 place-items-center rounded-full bg-amber text-[11px] font-extrabold text-ink">
+          {initial}
         </span>
-        <span className="hidden max-w-24 truncate sm:inline">{handle}</span>
+        <span className="hidden max-w-28 truncate sm:inline">{label}</span>
         <ChevronDown
-          className={cn("hidden size-3.5 transition-transform duration-200 sm:block", open && "rotate-180")}
+          className={cn("hidden size-3.5 transition-transform sm:block", open && "rotate-180")}
           aria-hidden
         />
       </button>
 
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            role="menu"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 8 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="absolute right-0 top-full z-50 mt-1 min-w-48 rounded-xl border border-neutral-100 bg-white p-2 shadow-card-hover"
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 top-full z-50 mt-1.5 min-w-48 rounded-[20px] bg-paper p-2 shadow-card-hover"
+        >
+          <Link
+            href="/account"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-ink-700 no-underline transition-colors hover:bg-chip hover:text-ink"
           >
-            <Link
-              href="/account"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
-            >
-              <UserRound className="size-4" /> My Account
-            </Link>
-            <Link
-              href="/account/orders"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-neutral-600 transition-colors hover:bg-surface hover:text-ink"
-            >
-              <Package className="size-4" /> My Orders
-            </Link>
-            <button
-              role="menuitem"
-              onClick={handleSignOut}
-              disabled={pending}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold text-danger transition-colors hover:bg-danger/5"
-            >
-              <LogOut className="size-4" /> {pending ? "Signing out…" : "Sign out"}
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <UserRound className="size-4" /> My account
+          </Link>
+          <Link
+            href="/account/orders"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-ink-700 no-underline transition-colors hover:bg-chip hover:text-ink"
+          >
+            <Package className="size-4" /> My orders
+          </Link>
+          <button
+            role="menuitem"
+            onClick={handleSignOut}
+            className="flex w-full cursor-pointer items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold text-ink-700 transition-colors hover:bg-chip hover:text-ink"
+          >
+            <LogOut className="size-4" /> Sign out
+          </button>
+        </div>
+      )}
     </div>
   );
 }

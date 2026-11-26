@@ -1,25 +1,23 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import type { CatalogItem } from "@/lib/services/catalog";
+import React from "react";
+import type { CatalogItem, listRooms } from "@/lib/services/catalog";
 import type { Category } from "@/prisma/generated/client/client";
 import { useNativeShell } from "@/components/mobile/native-shell-provider";
+import { useMobileSurface } from "@/hooks/use-mobile-surface";
 
-// Desktop Web components
-import { AnnouncementBar } from "@/components/sections/announcement-bar";
 import { Navbar } from "@/components/sections/navbar";
 import { Hero } from "@/components/sections/hero";
-import { Deals } from "@/components/sections/deals";
 import { Categories } from "@/components/sections/categories";
-import { AppBanner } from "@/components/sections/app-banner";
-import { Testimonials } from "@/components/sections/testimonials";
-import { TrustBadges } from "@/components/sections/trust-badges";
-import { ServicesPromo } from "@/components/sections/services-promo";
+import type { DirectoryGroup } from "@/lib/category-directory";
+import { Deals } from "@/components/sections/deals";
+import { OrderedMost } from "@/components/sections/ordered-most";
+import { ServicesBanner } from "@/components/sections/services-banner";
 import { Footer } from "@/components/sections/footer";
-import { FloatingCart } from "@/components/floating-cart";
-import { WelcomePopup } from "@/components/welcome-popup";
 import { PageLoader } from "@/components/page-loader";
-import { SearchBox } from "@/components/shop/search-box";
+import { TrendingSrinagar } from "@/components/merchandising/trending-srinagar";
+import { DealOfTheDay } from "@/components/merchandising/deal-of-the-day";
+import type { DealProduct } from "@/lib/merchandising/deal";
 
 // Mobile Native components
 import { MobileHomeView } from "@/components/mobile/home/mobile-home-view";
@@ -29,53 +27,53 @@ interface HomeSwitcherProps {
   featured: CatalogItem[];
   newArrivals: CatalogItem[];
   categories: Category[];
+  /** The department directory (lib/category-directory.ts); tiles never print counts. */
+  directory: DirectoryGroup[];
+  /** Curated rooms, or []. See `ShopByRoom` for why an empty array hides the section rather than rendering placeholder tiles. */
+  rooms: Awaited<ReturnType<typeof listRooms>>;
+  /** The configured Deal of the Day's product, or null (see `lib/merchandising/home.ts`). */
+  dealProduct: DealProduct | null;
 }
 
-export function HomeSwitcher({ deals, featured, newArrivals, categories }: HomeSwitcherProps) {
+export function HomeSwitcher({ deals, featured, newArrivals, categories, directory, rooms, dealProduct }: HomeSwitcherProps) {
+  /* Only categories the catalogue has open may be linked from merchandising. */
+  const categoryNames = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
   const { isNative } = useNativeShell();
-  const [mounted, setMounted] = useState(false);
+  const { ready, isMobile } = useMobileSurface(isNative);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    // Initial hydration skeleton or simple loader
+  if (!ready) {
     return <PageLoader />;
   }
 
-  if (isNative) {
+  if (isMobile) {
     return (
       <MobileHomeView
         deals={deals}
         featured={featured}
         newArrivals={newArrivals}
         categories={categories}
+        rooms={rooms}
+        categoryNames={categoryNames}
+        dealProduct={dealProduct}
+        directory={directory}
       />
     );
   }
 
-  // Regular Web layout
   return (
     <>
-      <PageLoader />
-      <AnnouncementBar />
       <Navbar />
       <main id="main-content">
-        <div className="px-4 py-3 md:hidden">
-          <SearchBox />
-        </div>
         <Hero />
+        <Categories directory={directory} />
+        <TrendingSrinagar categoryNames={categoryNames} />
+        <DealOfTheDay product={dealProduct} />
         <Deals items={deals} />
-        <Categories />
-        <AppBanner />
-        <Testimonials />
-        <TrustBadges />
-        <ServicesPromo />
+        <OrderedMost items={featured} />
+        <ServicesBanner />
       </main>
       <Footer />
-      <FloatingCart />
-      <WelcomePopup />
     </>
   );
 }
+

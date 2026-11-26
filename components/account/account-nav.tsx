@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Heart, MapPin, Package, UserRound, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarClock, Heart, MapPin, Package, UserRound, UserX, Wallet } from "lucide-react";
 
 const ITEMS = [
   { href: "/account", label: "Overview", icon: UserRound },
@@ -7,6 +7,8 @@ const ITEMS = [
   { href: "/account/wallet", label: "Wallet", icon: Wallet },
   { href: "/account/bookings", label: "Bookings", icon: CalendarClock },
   { href: "/account/addresses", label: "Addresses", icon: MapPin },
+  /* The artboard's "Business & GST" row, with the profile's Edit folded in. */
+  { href: "/account/profile", label: "Profile & GST", icon: BadgeCheck },
   { href: "/account/wishlist", label: "Wishlist", icon: Heart },
 ];
 
@@ -22,7 +24,7 @@ export function AccountNav({ active }: { active: string }) {
             key={href}
             href={href}
             aria-current={isActive ? "page" : undefined}
-            className={`flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
+            className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-bold transition-colors ${
               isActive ? "bg-brand-deep text-white" : "text-neutral-600 hover:bg-surface hover:text-ink"
             }`}
           >
@@ -31,6 +33,14 @@ export function AccountNav({ active }: { active: string }) {
           </Link>
         );
       })}
+      {/* Deliberately quiet and last; the page explains everything before anything is deleted. */}
+      <Link
+        href="/delete-account"
+        className="flex shrink-0 items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-neutral-500 hover:bg-surface hover:text-ink lg:mt-3"
+      >
+        <UserX className="size-4" aria-hidden />
+        Delete account
+      </Link>
     </nav>
   );
 }

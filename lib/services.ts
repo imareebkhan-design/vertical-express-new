@@ -207,7 +207,7 @@ export const SERVICE_FEATURES: ServiceFeature[] = [
   },
   {
     title: "Material + Labor in One Place",
-    caption: "Materials in 60 minutes and the professionals to put them to work.",
+    caption: "Materials across Srinagar and the professionals to put them to work.",
     icon: Package,
   },
   {

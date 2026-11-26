@@ -1,14 +1,17 @@
 "use client";
 
+import { PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE } from "@/lib/product-media";
 import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Check, Heart, Minus, Package, Plus } from "lucide-react";
+import { Check, Heart, Minus, Plus } from "lucide-react";
 import type { Product } from "@/lib/data";
 import { useCart } from "@/hooks/use-cart";
 import { toggleWishlist } from "@/actions/wishlist";
 import { formatINR, cn } from "@/lib/utils";
-import { PlaceholderImage } from "@/components/placeholder-image";
+import { ProductPanel, isGenericPlaceholder } from "@/components/ui/product-panel";
+import { ENQUIRE_LABEL, PRICE_ON_REQUEST_LABEL } from "@/lib/catalog-visibility";
+import { useOrderingOpen } from "@/components/shop/commerce-mode-provider";
 
 interface ProductCardProps {
   product: Product;
@@ -21,6 +24,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product, href, productId, wishlisted = false }: ProductCardProps) {
   const { addItem, wishlistIds, setWishlisted } = useCart();
+  const orderingOpen = useOrderingOpen();
   const [qty, setQty] = useState(1);
   const [imageFailed, setImageFailed] = useState(false);
   const [added, setAdded] = useState(false);
@@ -29,13 +33,26 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
   // Source of truth: explicit prop (wishlist page) OR hydrated context set.
   const saved = wishlisted || (productId ? wishlistIds.has(productId) : false);
 
-  const showImage = product.image && !imageFailed;
-  const hasDiscount = product.compareAt > product.price;
-  const discount = hasDiscount
-    ? Math.round(((product.compareAt - product.price) / product.compareAt) * 100)
-    : 0;
+  /* Undefined means the caller did not say, which renders as before. Only an
+     explicit false marks the tile out of stock. */
+  const soldOut = product.inStock === false && product.price != null;
+
+  const showImage = !isGenericPlaceholder(product.image) && !imageFailed;
+  /* Catalog-only: no price, discount, stock state or cart controls (soldOut
+     above is false for them — "out of stock" would be a stock claim with
+     nothing behind it). The cart service refuses these products as well. */
+  const price = product.price;
+  const compareAt = product.compareAt;
+  const onRequest = price == null;
+  const hasDiscount = price != null && compareAt != null && compareAt > price;
+  const discount = hasDiscount ? Math.round(((compareAt - price) / compareAt) * 100) : 0;
+
+  /* COMMERCE_MODE=catalogue: the price stays, the stepper and Add become a
+     link to the product page's enquiry form. */
+  const enquireOnly = !onRequest && !orderingOpen;
 
   const handleAdd = async () => {
+    if (onRequest || enquireOnly) return;
     const ok = await addItem(product.id, qty, product.title);
     if (ok) {
       setAdded(true);
@@ -55,9 +72,9 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
 
   return (
     <motion.article
-      whileHover={{ y: -6 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-card border border-hairline-border bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover sm:w-72"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+      className="group flex w-64 shrink-0 snap-start flex-col overflow-hidden rounded-[22px] border border-line bg-paper shadow-card transition-shadow duration-200 hover:shadow-card-hover sm:w-72"
     >
       <div className="relative overflow-hidden">
         <MaybeLink href={href}>
@@ -68,20 +85,19 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
               alt={product.title}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="aspect-square w-full bg-white object-contain p-4 transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]"
+              className={cn("aspect-square w-full", PRODUCT_PHOTO, PRODUCT_PHOTO_SURFACE, "transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]")}
             />
           ) : (
-            <PlaceholderImage
+            <ProductPanel
+              categorySlug={product.categorySlug ?? ""}
               label={product.title}
-              icon={product.icon ?? Package}
               className="aspect-square w-full transition-transform duration-500 ease-[var(--ease-brand)] group-hover:scale-[1.04]"
-              iconClassName="size-16"
-              showLabel
+              glyphClassName="size-1/3"
             />
           )}
         </MaybeLink>
         {hasDiscount && (
-          <span className="absolute left-3 top-3 z-10 bg-champagne-gold text-ink-black font-sans font-extrabold text-[10px] px-2 py-0.5 rounded-[4px] shadow-sm uppercase tracking-wider">
+          <span className="absolute left-3 top-3 z-10 rounded-full bg-brand px-2.5 py-0.5 font-sans text-[10px] font-extrabold tracking-wide text-ink shadow-card">
             {discount}% OFF
           </span>
         )}
@@ -93,7 +109,7 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             className="absolute right-3 top-3 grid size-8 cursor-pointer place-items-center rounded-full bg-white/90 shadow-card backdrop-blur transition-transform hover:scale-110 active:scale-95"
           >
             <Heart
-              className={cn("size-4 transition-colors", saved ? "fill-danger text-danger" : "text-neutral-500")}
+              className={cn("size-4 transition-colors", saved ? "fill-ink text-ink" : "text-neutral-500")}
             />
           </button>
         )}
@@ -109,25 +125,47 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
           </MaybeLink>
         </h3>
 
-        <div className="mt-2 flex items-baseline gap-2">
-          <span className="text-lg font-extrabold">{formatINR(product.price)}</span>
-          {hasDiscount && (
-            <s className="text-sm font-semibold text-neutral-400">{formatINR(product.compareAt)}</s>
-          )}
-          <span className="text-[11px] font-semibold text-neutral-400">{product.unit}</span>
-        </div>
+        {onRequest ? (
+          <p className="mt-2 text-sm font-extrabold text-ink-700">{PRICE_ON_REQUEST_LABEL}</p>
+        ) : (
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-lg font-extrabold">{formatINR(price)}</span>
+            {hasDiscount && (
+              <s className="text-sm font-semibold text-neutral-400">{formatINR(compareAt)}</s>
+            )}
+            <span className="text-[11px] font-semibold text-neutral-400">{product.unit}</span>
+          </div>
+        )}
 
-        {product.bulkNote && (
-          <p className="mt-1 rounded-md bg-surface px-2 py-1 text-[11px] font-bold text-brand-deep">
-            {product.bulkNote}
+
+        {soldOut && (
+          <p className="mt-2 text-[11px] font-extrabold uppercase tracking-wider text-neutral-500">
+            Out of stock
           </p>
         )}
 
+        {onRequest || enquireOnly ? (
+          <div className="mt-auto pt-4">
+            {href && (
+              <Link
+                href={href}
+                className="flex h-9 items-center justify-center rounded-full border border-neutral-200 text-xs font-extrabold uppercase tracking-wider text-ink transition-colors hover:bg-surface-soft"
+              >
+                {enquireOnly ? ENQUIRE_LABEL : "View details"}
+              </Link>
+            )}
+          </div>
+        ) : (
         <div className="mt-auto flex items-center gap-2 pt-4">
-          <div className="flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40">
+          <div
+            className={`flex items-center rounded-[8px] border border-neutral-200 bg-surface-soft/40 ${
+              soldOut ? "opacity-40" : ""
+            }`}
+          >
             <button
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+              disabled={soldOut}
+              className="grid size-9 cursor-pointer place-items-center rounded-l-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed"
               aria-label={`Decrease quantity of ${product.title}`}
             >
               <Minus className="size-3.5" />
@@ -137,20 +175,30 @@ export function ProductCard({ product, href, productId, wishlisted = false }: Pr
             </span>
             <button
               onClick={() => setQty((q) => Math.min(999, q + 1))}
-              className="grid size-9 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300"
+              disabled={soldOut}
+              className="grid size-9 cursor-pointer place-items-center rounded-r-[8px] transition-colors hover:bg-neutral-200 active:bg-neutral-300 disabled:cursor-not-allowed"
               aria-label={`Increase quantity of ${product.title}`}
             >
               <Plus className="size-3.5" />
             </button>
           </div>
+          {/* The cart service already refuses this (OUT_OF_STOCK), so the button
+              never had a way to succeed — it just did not say so until pressed. */}
           <motion.button
-            whileTap={{ scale: 0.95 }}
+            whileTap={soldOut ? undefined : { scale: 0.95 }}
             onClick={handleAdd}
-            className="flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-[8px] bg-brand text-xs font-extrabold uppercase tracking-wider text-ink-black shadow-[0_2px_4px_rgba(252,189,0,0.15)] hover:shadow-[0_4px_12px_rgba(252,189,0,0.3)] transition-all duration-200 hover:bg-brand-dark hover:-translate-y-0.5 active:translate-y-0"
+            disabled={soldOut}
+            aria-label={soldOut ? `${product.title} is out of stock` : undefined}
+            className={
+              soldOut
+                ? "flex h-9 flex-1 cursor-not-allowed items-center justify-center gap-1 rounded-full bg-chip text-xs font-extrabold uppercase tracking-wider text-neutral-500"
+                : "flex h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full bg-ink text-xs font-extrabold uppercase tracking-wider text-white shadow-card hover:shadow-card-hover transition-all duration-200 hover:bg-ink/90 hover:-translate-y-0.5 active:translate-y-0"
+            }
           >
-            {added ? <><Check className="size-3.5" /> Added</> : "Add"}
+            {soldOut ? "Sold out" : added ? <><Check className="size-3.5" /> Added</> : "Add"}
           </motion.button>
         </div>
+        )}
       </div>
     </motion.article>
   );
