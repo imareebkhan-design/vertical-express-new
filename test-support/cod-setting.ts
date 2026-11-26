@@ -18,8 +18,12 @@ import { SETTING_KEYS } from "@/lib/services/settings";
  */
 export function enableCodForThisFile(): void {
   let saved: Awaited<ReturnType<typeof db.setting.findUnique>> = null;
+  /* Only restore what was actually read: if the read failed, after() must not
+     delete a setting it never saw. */
+  let captured = false;
   before(async () => {
     saved = await db.setting.findUnique({ where: { key: SETTING_KEYS.codEnabled } });
+    captured = true;
     await db.setting.upsert({
       where: { key: SETTING_KEYS.codEnabled },
       create: { key: SETTING_KEYS.codEnabled, value: "true" },
@@ -27,6 +31,7 @@ export function enableCodForThisFile(): void {
     });
   });
   after(async () => {
+    if (!captured) return;
     if (saved) {
       const { key, value, note, updatedBy } = saved;
       await db.setting.upsert({ where: { key }, create: { key, value, note, updatedBy }, update: { value, note, updatedBy } });
