@@ -216,6 +216,7 @@ export type LiveState =
   | "updating_location"
   | "eta"
   | "eta_updating"
+  | "no_destination"
   | "delivered"
   | "cancelled";
 
@@ -230,7 +231,19 @@ export interface LiveView {
   riderCurrent: boolean;
   /** Whether the route line may be drawn as the current route. */
   showRoute: boolean;
+  /** A line under the headline, or null. Only the no-destination-pin explanation today. */
+  note: string | null;
 }
+
+/**
+ * Said when the order's delivery address has no map pin (typed by hand, or saved
+ * before pins existed). Without a destination no route or arrival time can ever
+ * be computed, so "ETA updating" would be untrue forever. Same meaning as the
+ * mobile app's tracking note.
+ */
+export const NO_PIN_NOTE = "Live route ETA is unavailable because this delivery address doesn't have a map pin.";
+export const NO_PIN_WAITING_NOTE =
+  "Live route ETA is unavailable because this delivery address doesn't have a map pin. The rider's position appears here once they share it.";
 
 /**
  * Everything the live tracking panel says, decided in one place.
@@ -247,9 +260,11 @@ export function liveTrackingView(
   s: LiveShipmentInput | undefined,
   nowMs: number,
   limits: FreshnessLimits,
-  opts: { loaded: boolean; failed: boolean } = { loaded: true, failed: false }
+  opts: { loaded: boolean; failed: boolean; hasDestination?: boolean } = { loaded: true, failed: false }
 ): LiveView {
-  const none = { minutes: null, distance: null, riderCurrent: false, showRoute: false };
+  const none = { minutes: null, distance: null, riderCurrent: false, showRoute: false, note: null };
+  /* Absent means "has one": the server only omits it for an order with no valid pin. */
+  const noPin = opts.hasDestination === false;
   if (!opts.loaded || !s) {
     return opts.failed
       ? { state: "unavailable", headline: "Couldn't load tracking. Retrying…", ...none }
@@ -258,7 +273,9 @@ export function liveTrackingView(
   if (s.phase === "delivered") return { state: "delivered", headline: "Delivered", ...none };
   if (s.phase === "cancelled") return { state: "cancelled", headline: "Cancelled", ...none };
   if (s.phase !== "live") return { state: "preparing", headline: "Getting your order ready", ...none };
-  if (!s.driver) return { state: "waiting_for_rider", headline: "Waiting for the rider's location…", ...none };
+  if (!s.driver) {
+    return { state: "waiting_for_rider", headline: "Waiting for the rider's location…", ...none, note: noPin ? NO_PIN_WAITING_NOTE : null };
+  }
 
   const recorded = Date.parse(s.driver.recordedAt);
   if (!Number.isFinite(recorded) || nowMs - recorded > limits.staleAfterMs) {
@@ -269,7 +286,14 @@ export function liveTrackingView(
       state: "updating_location",
       headline: quietMs > LONG_SILENCE_MS ? "Rider's location hasn't updated recently" : "Updating rider location…",
       ...none,
+      note: noPin ? NO_PIN_NOTE : null,
     };
+  }
+
+  /* A fresh position but nowhere to route to: say so, never "ETA updating", and
+     never draw a route or an ETA even if one arrived. */
+  if (noPin) {
+    return { state: "no_destination", headline: "Arrival time unavailable", ...none, riderCurrent: true, note: NO_PIN_NOTE };
   }
 
   const route = s.route;
@@ -277,7 +301,7 @@ export function liveTrackingView(
   const routeFresh = route !== null && Number.isFinite(computed) && nowMs - computed <= limits.routeMaxAgeMs;
   const minutes = route && routeFresh ? etaMinutes(route.durationS) : null;
   if (!route || minutes === null) {
-    return { state: "eta_updating", headline: "ETA updating", minutes: null, distance: null, riderCurrent: true, showRoute: false };
+    return { state: "eta_updating", headline: "ETA updating", minutes: null, distance: null, riderCurrent: true, showRoute: false, note: null };
   }
   return {
     state: "eta",
@@ -286,6 +310,7 @@ export function liveTrackingView(
     distance: `${(route.distanceM / 1000).toFixed(1)} km`,
     riderCurrent: true,
     showRoute: true,
+    note: null,
   };
 }
 
