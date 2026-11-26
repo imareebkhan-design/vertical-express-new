@@ -262,3 +262,55 @@ test("last-updated age reads in the largest sensible unit, never thousands of mi
   /* The 17 Oct staging shipment, seen on 31 Oct: was "19752 min ago". */
   assert.equal(ageText(19752 * 60), "13 days ago");
 });
+
+/* An order whose delivery address has no map pin (manual entry, or saved before
+   pins existed) has no destination, so no route and no arrival time can ever be
+   computed. The panel used to say "ETA updating" forever. The mobile app says
+   plainly that there is no route ETA; the web says the same (ws #1, F1). */
+
+const NO_PIN = { loaded: true, failed: false, hasDestination: false };
+
+test("no destination pin: says the arrival time is unavailable, never 'ETA updating', rider still current", () => {
+  const v = liveTrackingView(live(5_000, null), T, LIMITS, NO_PIN);
+  assert.equal(v.state, "no_destination");
+  assert.notEqual(v.headline, "ETA updating");
+  assert.equal(v.headline, "Arrival time unavailable");
+  assert.match(v.note ?? "", /doesn.t have a map pin/);
+  assert.equal(v.minutes, null);
+  assert.equal(v.distance, null);
+  assert.ok(v.riderCurrent, "the rider's real position is still shown as current");
+  assert.ok(!v.showRoute);
+});
+
+test("no destination pin: a route in the response is still not an ETA or a route line", () => {
+  const v = liveTrackingView(live(5_000, 10_000), T, LIMITS, NO_PIN);
+  assert.equal(v.state, "no_destination");
+  assert.equal(v.minutes, null);
+  assert.ok(!v.showRoute);
+});
+
+test("no destination pin: waiting and stale states keep their headline and add the no-pin note", () => {
+  const waiting = liveTrackingView(live(null, null), T, LIMITS, NO_PIN);
+  assert.equal(waiting.state, "waiting_for_rider");
+  assert.match(waiting.note ?? "", /doesn.t have a map pin/);
+  const stale = liveTrackingView(live(60_000, null), T, LIMITS, NO_PIN);
+  assert.equal(stale.state, "updating_location");
+  assert.match(stale.note ?? "", /doesn.t have a map pin/);
+  assert.ok(!stale.riderCurrent);
+});
+
+test("no destination pin does not change delivered, cancelled or not-yet-dispatched", () => {
+  for (const phase of ["delivered", "cancelled", "preparing"] as const) {
+    const v = liveTrackingView({ phase, driver: null, route: null }, T, LIMITS, NO_PIN);
+    assert.notEqual(v.state, "no_destination");
+    assert.equal(v.note, null);
+  }
+});
+
+test("with a destination pin nothing changes: ETA, 'ETA updating' and no note", () => {
+  const withPin = { loaded: true, failed: false, hasDestination: true };
+  assert.equal(liveTrackingView(live(5_000, 10_000), T, LIMITS, withPin).state, "eta");
+  const updating = liveTrackingView(live(5_000, null), T, LIMITS, withPin);
+  assert.equal(updating.state, "eta_updating");
+  assert.equal(updating.note, null);
+});

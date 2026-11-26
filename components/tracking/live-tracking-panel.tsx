@@ -14,7 +14,8 @@ import type { GMap, GMaps, GMarker, GPolyline } from "@/lib/tracking/maps-loader
  * the panel says is decided by `liveTrackingView` on this device's clock. When
  * the position goes stale the marker turns into a grey "last seen" dot, the
  * route comes down and the panel says "Updating rider location…"; without a
- * fresh route it says "ETA updating". Nothing is moved or timed by guesswork. A short ease
+ * fresh route it says "ETA updating" — unless the address has no map pin, when it says
+ * the arrival time is unavailable and why. Nothing is moved or timed by guesswork. A short ease
  * between two real positions is the only motion, and it is skipped under
  * reduced motion.
  *
@@ -71,7 +72,7 @@ export function LiveTrackingPanel({
     shipment,
     now,
     { staleAfterMs: data?.staleAfterMs ?? 45_000, routeMaxAgeMs: data?.routeMaxAgeMs ?? 60_000 },
-    { loaded: data !== null, failed }
+    { loaded: data !== null, failed, hasDestination: data ? data.destination !== null : undefined }
   );
 
   /* ---- poll ---- */
@@ -276,6 +277,7 @@ export function LiveTrackingPanel({
         <p className="mt-1 text-[24px] font-extrabold leading-8 tracking-[-0.025em] text-ink" aria-live="polite">
           {view.headline}
         </p>
+        {view.note ? <p className="mt-2 text-[13px] font-medium leading-5 text-ink-500">{view.note}</p> : null}
         <dl className="mt-4 grid grid-cols-3 gap-3 text-[12px]">
           <div>
             <dt className="font-semibold text-ink-500">Distance</dt>
