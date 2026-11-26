@@ -8,6 +8,10 @@ import { db } from "@/lib/db";
 import { catalogListingWhere } from "@/lib/catalog-policy";
 import { placeOrder } from "@/lib/services/checkout";
 import type { OrderAddressSnapshot } from "@/lib/services/orders";
+import { enableCodForThisFile } from "@/test-support/cod-setting";
+
+/* These tests place COD orders; COD is off on a fresh test database. */
+enableCodForThisFile();
 
 /**
  * Where an order's confirmation goes.
