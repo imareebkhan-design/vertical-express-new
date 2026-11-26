@@ -241,8 +241,7 @@ export interface LiveView {
  * be computed, so "ETA updating" would be untrue forever. Same meaning as the
  * mobile app's tracking note.
  */
-export const NO_PIN_NOTE =
-  "Live route ETA is unavailable because this delivery address doesn't have a map pin. The map shows where the rider is.";
+export const NO_PIN_NOTE = "Live route ETA is unavailable because this delivery address doesn't have a map pin.";
 export const NO_PIN_WAITING_NOTE =
   "Live route ETA is unavailable because this delivery address doesn't have a map pin. The rider's position appears here once they share it.";
 

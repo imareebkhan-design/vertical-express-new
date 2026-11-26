@@ -126,7 +126,7 @@ test("coming back to the page while a request is in flight never starts a second
   assert.ok(calls <= 7, `expected one poll loop, saw ${calls} requests in 1 s`);
 });
 
-test("no destination pin: says why there is no arrival time instead of 'ETA updating' (ws #1, F1)", async () => {
+void test("no destination pin: says why there is no arrival time instead of 'ETA updating' (ws #1, F1)", async () => {
   await mount(async () => ({ ok: true, data: { ...tracking({ driver: fresh, route: null }), destination: null } }));
   /* Booleans, not elements: a failing assert on a DOM node makes node diff React's cyclic fiber tree. */
   assert.equal(screen.queryByText("ETA updating") !== null, false, "no indefinite ETA loading state");
@@ -134,4 +134,6 @@ test("no destination pin: says why there is no arrival time instead of 'ETA upda
   assert.equal(screen.queryByText(/Live route ETA is unavailable because this delivery address doesn't have a map pin/) !== null, true);
   assert.equal(screen.queryByText(/Arriving in/) !== null, false, "no invented arrival time");
   assert.equal(screen.queryByText("Out for delivery") !== null, true, "the delivery status is still shown");
+  const live = screen.getByText("Arrival time unavailable").closest("[aria-live]");
+  assert.equal(live?.textContent?.includes("doesn't have a map pin") ?? false, true, "the note is announced with the headline");
 });

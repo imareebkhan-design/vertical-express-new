@@ -274,10 +274,11 @@ export function LiveTrackingPanel({
         <p id="live-tracking" className="text-[12px] font-bold uppercase tracking-[0.09em] text-ink-500">
           Track your order
         </p>
-        <p className="mt-1 text-[24px] font-extrabold leading-8 tracking-[-0.025em] text-ink" aria-live="polite">
-          {view.headline}
-        </p>
-        {view.note ? <p className="mt-2 text-[13px] font-medium leading-5 text-ink-500">{view.note}</p> : null}
+        {/* One live region: a screen reader hears the headline and why, together. */}
+        <div aria-live="polite">
+          <p className="mt-1 text-[24px] font-extrabold leading-8 tracking-[-0.025em] text-ink">{view.headline}</p>
+          {view.note ? <p className="mt-2 text-[13px] font-medium leading-5 text-ink-500">{view.note}</p> : null}
+        </div>
         <dl className="mt-4 grid grid-cols-3 gap-3 text-[12px]">
           <div>
             <dt className="font-semibold text-ink-500">Distance</dt>

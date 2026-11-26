@@ -297,6 +297,10 @@ test("no destination pin: waiting and stale states keep their headline and add t
   assert.equal(stale.state, "updating_location");
   assert.match(stale.note ?? "", /doesn.t have a map pin/);
   assert.ok(!stale.riderCurrent);
+  /* Not current, and the map may not have loaded: never claim it shows where the rider is. */
+  for (const v of [stale, liveTrackingView(live(5_000, null), T, LIMITS, NO_PIN)]) {
+    assert.doesNotMatch(v.note ?? "", /map shows|where the rider is/);
+  }
 });
 
 test("no destination pin does not change delivered, cancelled or not-yet-dispatched", () => {
